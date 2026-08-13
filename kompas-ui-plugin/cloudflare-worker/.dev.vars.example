@@ -1,0 +1,6 @@
+# Lokalny development OAuth — wklej wartości ZANIM uruchomisz `wrangler dev`.
+# Użyj OSOBNEGO klienta Google (nie produkcyjnego): Google Auth Platform → Clients →
+# Web application → Authorized redirect URI: http://localhost:8788/callback
+GOOGLE_CLIENT_ID=
+GOOGLE_CLIENT_SECRET=
+COOKIE_ENCRYPTION_KEY=

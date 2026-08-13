@@ -1,0 +1,8 @@
+node_modules/
+dist/
+.wrangler/
+.npm-cache/
+.tmp.drivedownload/
+.tmp.driveupload/
+*.cpuprofile
+*.winmd

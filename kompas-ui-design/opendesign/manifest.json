@@ -1,0 +1,26 @@
+{
+  "generated": "2026-08-08T14:15:00Z",
+  "sections": [
+    {
+      "id": "mockups",
+      "label": "Mockups",
+      "groups": []
+    },
+    {
+      "id": "design-systems",
+      "label": "Design Systems",
+      "groups": [
+        {
+          "slug": "kompas-rrp",
+          "files": [
+            { "label": "README.md", "path": "design-systems/kompas-rrp/README.md" },
+            { "label": "SKILL.md", "path": "design-systems/kompas-rrp/SKILL.md" },
+            { "label": "style-notes.md", "path": "design-systems/kompas-rrp/brand/style-notes.md" },
+            { "label": "voice-and-tone.md", "path": "design-systems/kompas-rrp/brand/voice-and-tone.md" },
+            { "label": "colors_and_type.css", "path": "design-systems/kompas-rrp/tokens/colors_and_type.css" }
+          ]
+        }
+      ]
+    }
+  ]
+}

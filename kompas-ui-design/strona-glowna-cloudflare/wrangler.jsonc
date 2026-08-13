@@ -1,0 +1,10 @@
+{
+  "$schema": "https://unpkg.com/wrangler/config-schema.json",
+  "name": "strona-glowna",
+  "main": "worker.js",
+  "compatibility_date": "2026-08-10",
+  "assets": { "directory": "./assets" },
+  "routes": [
+    { "pattern": "kompaszbiorek.pl", "custom_domain": true }
+  ]
+}

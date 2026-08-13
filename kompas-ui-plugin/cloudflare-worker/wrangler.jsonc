@@ -1,0 +1,17 @@
+{
+  "$schema": "https://unpkg.com/wrangler/config-schema.json",
+  "name": "wtyczka-rr",
+  "main": "worker.js",
+  "compatibility_date": "2026-08-07",
+  "workers_dev": true,
+  "vars": {
+    "TEMPLATE_FILE_ID": "183nDdy9kE_DxfoLwPhhAlkboey66QI1QzM64UBXrTLI",
+    "GOOGLE_CLOUD_PROJECT_NUMBER": "450955230972"
+  },
+  "kv_namespaces": [
+    {
+      "binding": "OAUTH_KV",
+      "id": "2a0acb7d28e249a989ca9ca8ffeca24e"
+    }
+  ]
+}
