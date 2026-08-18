@@ -1,6 +1,6 @@
 # Dokumentacja — kompas-ui-plugin
 
-## Sprawności — model działania (KOMAA-24)
+## Sprawności — model działania (KOMAA-24, KOMAA-26)
 
 ### Reguły
 
@@ -19,6 +19,29 @@
 #### `add-predefined-skill` (handler click)
 - **Przed:** Brak sprawdzenia czy grupa jest już ukończona w `skillRecords`.
 - **Po:** Dodano sprawdzenie `alreadyCompleted` — jeśli grupa jest ukończona w `skillRecords`, dodanie do historii jest zablokowane komunikatem `S.toast`.
+
+### Zmiany (KOMAA-26) — UI sprawności i historii po audycie
+
+#### Układ „Dodaj sprawność" (zakładka Aktualne)
+- Ukończone grupy nie pojawiają się w zakładce „Aktualne" — są od razu w Historii.
+- Dodano licznik postępu (`X/Y`) przy każdej sprawności w tabeli wymagań.
+- Pod tabelami sprawności pojawia się informacja o liczbie ukończonych grup przeniesionych do Historii.
+- Puste stany mają jednoznaczne, czytelne komunikaty.
+
+#### Historia (zakładka Historia)
+- Historia pokazuje **grupy sprawności** pogrupowane po `(poziom, aspekt, grupa)`, a nie indywidualne rekordy.
+- Każda grupa w historii ma czytelną ikonę, nazwę, poziom i aspekt.
+- Przycisk usuwania z historii dostępny na każdej grupie.
+- Pusty stan: „Ukończona grupa sprawności pojawi się tutaj automatycznie."
+
+#### Stany wizualne wymagań
+- **Do realizacji:** czerwony border + jasne tło (`.requirement-status` default)
+- **W trakcie:** złoty border + żółte tło (`.requirement-status.progress`)
+- **Ukończono:** zielony border + zielone tło + checkmark (`.requirement-status.done`)
+
+#### Responsywność
+- Tabela wymagań na mobile (≤699px) przechodzi na widok blokowy — brak poziomego scrolla.
+- Historia grup na mobile przechodzi na pełną szerokość z przyciskiem usuwania po prawej.
 
 ### Istniejąca logika (zweryfikowana)
 
