@@ -6,11 +6,11 @@
 - `onboarding-emails/MAPA-AUTOMATYZACJI.md` — mapa sekwencji, tagi, drzewo decyzyjne, warunki wyjscia, kroki wdrozenia w Sender.net
 
 **Szablony HTML (mobile-first, inline CSS, 600px max, zero JS):**
-- `onboarding-emails/html/email-0-powitanie.html` — natychmiast po rejestracji (transakcyjny)
-- `onboarding-emails/html/email-1-trzy-kroki.html` — +1d, 3 kroki do zbiorki (transakcyjny)
-- `onboarding-emails/html/email-2-model-sens.html` — +3d, model SENS->DZIALANIE->REFLEKSJA (marketingowy)
-- `onboarding-emails/html/email-3-przypomnienie.html` — +7d, przyklad uzycia (marketingowy)
-- `onboarding-emails/html/email-4-reaktywacja.html` — +14d, reaktywacja dla nieaktywnych (marketingowy)
+- `onboarding-emails/html/email-0-powitanie.html` — natychmiast po rejestracji (transakcyjny, brak unsubscribe)
+- `onboarding-emails/html/email-1-trzy-kroki.html` — +1d, 3 kroki do zbiorki (transakcyjny, brak unsubscribe)
+- `onboarding-emails/html/email-2-model-sens.html` — +3d, model SENS->DZIALANIE->REFLEKSJA (marketingowy, unsubscribe)
+- `onboarding-emails/html/email-3-przypomnienie.html` — +7d, przyklad uzycia (marketingowy, unsubscribe)
+- `onboarding-emails/html/email-4-reaktywacja.html` — +14d, reaktywacja dla nieaktywnych (marketingowy, unsubscribe)
 
 **Plain-text fallback:**
 - `onboarding-emails/plain-text/email-0-powitanie.txt`
@@ -31,6 +31,9 @@
 
 ### Tagi
 `registered`, `onb_seq_active`, `onb_email_0_sent`...`onb_email_4_sent`, `onb_engaged`, `onb_completed`, `onb_inactive`, `txn_welcome`
+
+### Poprawka (18.08.2026)
+Email 1: usunięto link unsubscribe z HTML i plain-text (był omyłkowo dodany; email jest transakcyjny/onboardingowy).
 
 ### Blockery / NEEDS CONFIG
 1. **Webhook rejestracji** — aplikacja Kompas Zbiorakow musi wysylac webhook do Sender.net po rejestracji (nakładanie tagow).
