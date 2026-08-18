@@ -39,6 +39,23 @@
 - **W trakcie:** złoty border + żółte tło (`.requirement-status.progress`)
 - **Ukończono:** zielony border + zielone tło + checkmark (`.requirement-status.done`)
 
+#### Zmiany z audytu UX/UI (AUDYT-SPRAWNOSCI-KOMAA-25)
+
+##### P0
+- **S-02**: Przycisk „Dodaj sprawność" w zakładce Aktualne pozostaje primary (nie secondary) gdy są już sprawności; zmieniono etykietę na „Dodaj z katalogu".
+- **S-03**: Usuwanie sprawności wymaga potwierdzenia (popover z „Tak, usuń") — analogicznie do usuwania zadań.
+- Usunięto martwe dane: `S.sprawnosci`, `S.skills.note`, `S.history.rows`, `S.skillHistoryMeta`.
+- Usunięto duplikat funkcji `dodCompact` (pierwsza definicja — martwa).
+
+##### P1
+- **S-04**: Przycisk statusu kryterium na mobile (≤699px) ma pełną szerokość (nie `justify-self:end`).
+- **S-07**: Pusty stan Historii ma spójny wzorzec z Aktualnymi: centrowany tekst + nagłówek.
+
+##### P2
+- **S-09**: `.skill-aspect-card` border-top: 3px (zgodne z brand system, nie 4px).
+- **S-13**: Focus-visible na przyciskach katalogu sprawności (`.skill-catalog-options button`).
+- **S-14**: `.skill-level-slider button.active` bez gold shadow (spójne z innymi sliderami).
+
 #### Responsywność
 - Tabela wymagań na mobile (≤699px) przechodzi na widok blokowy — brak poziomego scrolla.
 - Historia grup na mobile przechodzi na pełną szerokość z przyciskiem usuwania po prawej.
