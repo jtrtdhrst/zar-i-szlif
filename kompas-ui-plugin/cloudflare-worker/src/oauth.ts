@@ -13,7 +13,7 @@
 import OAuthProvider from "@cloudflare/workers-oauth-provider";
 import { createGoogleAuthHandler, type GoogleAuthHandlerEnv } from "./google-handler";
 
-const CANONICAL_ORIGIN = "https://wtyczka.kompaszbiorek.pl";
+const CANONICAL_ORIGIN = "https://panel.kompaszbiorek.pl";
 const CANONICAL_MCP_RESOURCE = `${CANONICAL_ORIGIN}/mcp`;
 
 export function createKompasOAuthProvider(options: {

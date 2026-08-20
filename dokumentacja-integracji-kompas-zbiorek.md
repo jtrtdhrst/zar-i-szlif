@@ -4,7 +4,7 @@
 
 **Stan opisany w dokumencie:** 18 sierpnia 2026
 **Wersja produkcyjna Workera `wtyczka-rr`:** `3d4d0ac5-0844-4d4b-842c-171fe26e7afc` (cache HTTP assetów)
-**Domena produkcyjna:** `https://wtyczka.kompaszbiorek.pl` (fallback `/ui`); panel: `https://panel.kompaszbiorek.pl` (dedykowany Worker `panel-kompaszbiorek`); docelowa `https://interfejs.kompaszbiorek.pl` (niepotwierdzona w testach)
+**Domena produkcyjna:** `https://panel.kompaszbiorek.pl` (`/ui` podgląd bez logowania, `/panel` aplikacja Sheets); `https://wtyczka.kompaszbiorek.pl` → `308` → `panel.kompaszbiorek.pl` (MCP/API przeniesione na panel, `CANONICAL_ORIGIN=https://panel.kompaszbiorek.pl`, `wtyczka` zostaje jako alias redirect); `interfejs.kompaszbiorek.pl` nieaktywna
 **Model integracji:** jeden Worker, jeden OAuth, trwały stan drużyny w Google Sheets
 
 ---
@@ -28,7 +28,8 @@ Dokumentacja nie opisuje wycofanego wariantu opartego na Google Docs: starego Cu
 
 | Komponent | Lokalizacja | Rola |
 |---|---|---|
-| Worker `wtyczka-rr` | `kompas-ui-plugin/cloudflare-worker` | Serwer MCP + OAuth, logowanie Google, panel `/panel`, proxy katalogów, serwowanie UI i assetów |
+| Worker `wtyczka-rr` | `kompas-ui-plugin/cloudflare-worker` | Serwer MCP + OAuth (kanon `panel.kompaszbiorek.pl`), `wtyczka.kompaszbiorek.pl/*` → `308` → `panel` (redirect) |
+| Worker `panel-kompaszbiorek` | `kompas-ui-plugin/cloudflare-worker` (wrangler.panel.jsonc) | Serwuje UI (`/ui` publiczny podgląd bez logowania) + panel `/panel`, proxy katalogów, MCP |
 | Widget | `kompas-ui-plugin/web` (build → `web/dist`) | Interfejs renderowany statycznie w ChatGPT; dane robocze w `localStorage` |
 | Serwer MCP (lokalny podgląd) | `kompas-ui-plugin/server` | Express + StreamableHTTP: `POST /mcp`, `GET /health`, statyczne `web/dist` (testy UI) |
 | Baza aktywności RR | `https://zabawy.kompaszbiorek.pl/api/activities` | Upstream proxy `GET /api/activities` |
@@ -134,7 +135,7 @@ Panel jest aplikacją **wyłącznie dla Google Sheets** (faza 2). Niezależny od
 ## 7. Cache HTTP assetów
 
 - Build (`web/scripts/build-static.mjs`) dzieli widget na wersjonowane assety: `web/dist/assets/kompas-<sha256:12>.css|js`; `web/dist/index.html` jest lekką skorupą (1096 B) z względnymi URL-ami `/assets/...`.
-- `cloudflare-worker/build-worker.mjs` osadza w Workerze mapę `STATIC_ASSETS` (body, `content-type`, `etag`), przepisuje URL-e assetów na absolutne `https://wtyczka.kompaszbiorek.pl/assets/...` (wymóg MCP `ui://`) i dodaje handler `serveStaticAsset()`.
+- `cloudflare-worker/build-worker.mjs` osadza w Workerze mapę `STATIC_ASSETS` (body, `content-type`, `etag`), przepisuje URL-e assetów na absolutne `https://panel.kompaszbiorek.pl/assets/...` (wymóg MCP `ui://`) i dodaje handler `serveStaticAsset()`.
 - Nagłówki produkcji: `Cache-Control: public, max-age=31536000, immutable`, `ETag: "<hash>"` (304 przy `If-None-Match`), `x-content-type-options: nosniff`, `access-control-allow-origin: *`.
 - HTML (`/ui`, `/panel/*`) pozostaje `no-store` (zawiera konfigurację OAuth i tokeny wstrzykiwane przez `injectWidgetAuth`).
 - Aktualne assety produkcyjne: `kompas-30a4ffa56cc5.css` (134 933 B), `kompas-77a1fa798138.js` (935 959 B).
@@ -163,7 +164,7 @@ Kolejność (stała, w `kompas-ui-plugin`):
 3. `npx wrangler deploy --dry-run` (walidacja),
 4. `npx wrangler deploy --keep-vars` (wrangler lokalny, devDependency).
 
-Wdrożenie panelu pod `panel.kompaszbiorek.pl` używa osobnego configu (`wrangler.panel.jsonc`, Worker `panel-kompaszbiorek`, custom domain, to samo KV `OAUTH_KV` i vars). Ten sam `worker.js` obsługuje obie domeny; routing hostowy w `google-handler.ts` kieruje root subdomeny `/` → `/panel`, a na `wtyczka.kompaszbiorek.pl` pozostaje `/ui`. Sekrety OAuth na `panel-kompaszbiorek` ustawia się przez `npx wrangler secret put <NAZWA> --config wrangler.panel.jsonc`.
+Wdrożenie panelu pod `panel.kompaszbiorek.pl` używa osobnego configu (`wrangler.panel.jsonc`, Worker `panel-kompaszbiorek`, custom domain, to samo KV `OAUTH_KV` i vars). Ten sam `worker.js` obsługuje obie domeny; od 2026-08-20 `wtyczka.kompaszbiorek.pl/*` → `308` → `panel.kompaszbiorek.pl/*` (wszystko na panelu, `CANONICAL_ORIGIN=https://panel.kompaszbiorek.pl`), więc `/ui` podgląd bez logowania jest na `panel.kompaszbiorek.pl/ui`. Sekrety OAuth na `panel-kompaszbiorek` ustawia się przez `npx wrangler secret put <NAZWA> --config wrangler.panel.jsonc`.
 
 **Zmienne środowiskowe (vars):** `OAUTH_KV` = `2a0acb7d28e249a989ca9ca8ffeca24e`, `TEMPLATE_FILE_ID` = `183nDdy9kE_DxfoLwPhhAlkboey66QI1QzM64UBXrTLI`, `SHEETS_TEMPLATE_FILE_ID` = `13jV1YPEh8G2-e7xKH3lsTxu9gY0ckvveaYQxxc6rzFs`, `GOOGLE_CLOUD_PROJECT_NUMBER` = `450955230972`.
 

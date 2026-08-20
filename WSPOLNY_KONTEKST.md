@@ -6,10 +6,10 @@ Jedyne obowiązujące źródło wiedzy o projekcie dla wszystkich agentów. Nadr
 
 Stały kontrakt projektu, wspólny dla wszystkich agentów. Nie odkrywaj go ponownie w każdym runie.
 
-- **Produkt**: Kompas Zbiórek — wtyczka ChatGPT + własny interfejs (https://interfejs.kompaszbiorek.pl). Rdzeń metodyczny: SENS → DZIAŁANIE → REFLEKSJA. Karta zbiórki jest samowystarczalnym artefaktem roboczym (dane+obecność, sprawności, eksperyment, przygotowanie, plan godzinowy, refleksja).
+- **Produkt**: Kompas Zbiórek — wtyczka ChatGPT + własny interfejs (https://panel.kompaszbiorek.pl). Rdzeń metodyczny: SENS → DZIAŁANIE → REFLEKSJA. Karta zbiórki jest samowystarczalnym artefaktem roboczym (dane+obecność, sprawności, eksperyment, przygotowanie, plan godzinowy, refleksja).
 - **Repozytorium**: https://github.com/miloszspyrka-code/kompas-zbiorek
 - **Workspace Paperclip**: `isolated_workspace` + `git_worktree`, `baseRef = main`, worktree parent `C:\Kompas Zbiórek\.paperclip-worktrees`. Główny managed checkout NIE jest targetem zapisu.
-- **Produkcja**: strona publiczna https://kompaszbiorek.pl/; UI aplikacji https://wtyczka.kompaszbiorek.pl/ui; Worker Cloudflare `wtyczka-rr`; domena docelowa interfejsu `interfejs.kompaszbiorek.pl`.
+- **Produkcja**: strona publiczna https://kompaszbiorek.pl/; UI aplikacji https://panel.kompaszbiorek.pl (Worker `panel-kompaszbiorek`, `/ui` i `/panel`); API/MCP na https://wtyczka.kompaszbiorek.pl (`wtyczka-rr`, `/mcp`, `/api/*`); `wtyczka.kompaszbiorek.pl/ui` → 308 → `panel.kompaszbiorek.pl/ui` (domeny Cloudflare bez zmian, jedynie przeniesiono `/ui`). Domena `interfejs.kompaszbiorek.pl` nieaktywna — do ewentualnego aliasu panelu.
 - **Invarianty techniczne** (nie zmieniaj bez jawnego upoważnienia): MCP endpoint `/mcp`; Google OAuth scope `drive.file`; Cloudflare D1 w warstwie danych; struktura domen produkcyjnych; brak wdrożenia produkcyjnego bez scoped zlecenia deploya; brak bezpośredniego write do `main`.
 - **Delivery**: domyślny strumień Engineer → QA → Done; maks. 2 aktywne wyniki produktu; nowe issue = nowy, niezależnie wartościowy deliverable; znany bloker zewnętrzny → czekanie pasywne, bez pętli recovery; Paperclip Ops i Kompas Product to osobne domeny; `shared_workspace` nie jest używany.
 - **Definition of Done — write task**: poprawne isolated workspace → implementacja kompletna → odpowiednie testy → commit → push → commit SHA → jasna dyspozycja issue. **Blocked task**: zapis `BLOCKER / OWNER / EXACT ACTION`. Nie kończ runa bez jawnej dyspozycji.
@@ -43,7 +43,7 @@ Cyfrowy przewodnik dla drużyny harcerskiej (ZHR/ZHP, instruktorzy, drużynowi):
 - `AGENTS.md` — zasady wykonawcze (Advanced UI, branding, wdrożenia, edycje).
 - Cykl doskonalenia: `00_ANALIZA_PROBLEMU.md` … `06_CYKL_DOSKONALENIA.md`.
 - Szablon treści dokumentu drużyny: `SZABLON GOOGLE DOCS.md` (podstawa struktury szablonu arkusza Google Sheets; nagłówki `[...]` to kontrakt struktury).
-- **Architektura**: Widget (`kompas-ui-plugin/web`, `static-app-v2.js`) renderuje interfejs statycznie, dane robocze w `localStorage` (szkic `kompas-zbiorek-draft-v1`); Worker `wtyczka-rr` (`kompas-ui-plugin/cloudflare-worker`) serwuje UI i proxy katalogów (`/api/activities`, `/api/skills`) z dwuwarstwowym cache (Worker `caches.default` + IndexedDB) oraz narzędziem MCP `zapisz_dane_kompasu` (whitelist pól, dwuetapowy zapis z potwierdzeniem); serwer MCP (`kompas-ui-plugin/server`) to most do rozmowy ChatGPT. Cache nie synchronizuje się między urządzeniami; bez sieci i wpisu w cache — czytelny stan braku danych, nigdy wymyślona treść.
+- **Architektura**: Widget (`kompas-ui-plugin/web`, `static-app-v2.js`) renderuje interfejs statycznie, dane robocze w `localStorage` (szkic `kompas-zbiorek-draft-v1`); Worker `panel-kompaszbiorek` (`panel.kompaszbiorek.pl`, `/ui` + `/panel`) serwuje UI, Worker `wtyczka-rr` (`wtyczka.kompaszbiorek.pl`, `/mcp` + `/api/activities` + `/api/skills`) proxy katalogów z dwuwarstwowym cache (Worker `caches.default` + IndexedDB) oraz narzędziem MCP `zapisz_dane_kompasu` (whitelist pól, dwuetapowy zapis z potwierdzeniem); `wtyczka.kompaszbiorek.pl/ui` → 308 → `panel.kompaszbiorek.pl/ui`; serwer MCP (`kompas-ui-plugin/server`) to most do rozmowy ChatGPT. Cache nie synchronizuje się między urządzeniami; bez sieci i wpisu w cache — czytelny stan braku danych, nigdy wymyślona treść.
 
 Lokalizacje (najwęższe źródło zamiast discovery):
 
@@ -104,7 +104,7 @@ Pełne kontrakty: `Dokumentacja API SPRAWNOŚCI.md` (v14), `Dokumentacja API DAT
 
 ## Produkcja i wdrożenia
 
-- Docelowy Worker: `wtyczka-rr`; domeny: `interfejs.kompaszbiorek.pl` (docelowa), `wtyczka.kompaszbiorek.pl` (działający fallback `/ui`), `panel.kompaszbiorek.pl` (dedykowany Worker `panel-kompaszbiorek` — ten sam kod, docelowo panelowe logowanie i wybór arkusza). Nie wdrażaj na `kompas-zbiorek`, nie twórz zastępczych Workerów.
+- Docelowy Worker: `wtyczka-rr` (MCP/API na `wtyczka.kompaszbiorek.pl`) + `panel-kompaszbiorek` (UI na `panel.kompaszbiorek.pl` — `/ui` i `/panel`); `wtyczka.kompaszbiorek.pl/ui` i `/` → 308 → `panel.kompaszbiorek.pl`; `interfejs.kompaszbiorek.pl` nieaktywna. Nie wdrażaj na `kompas-zbiorek`, nie twórz zastępczych Workerów.
 - Kolejność (stała): `npm run build` (kompas-ui-plugin) → `node build-worker.mjs` (cloudflare-worker) → `npx wrangler deploy --dry-run` → `npx wrangler deploy --keep-vars`. Wrangler = lokalna devDependency; nigdy globalny.
 - Po wdrożeniu podaj adres produkcyjny + ID wersji. Wdrożenia produkcyjne prowadzi wyłącznie CTO.
 - Jeśli wdrożenie zablokowane — nie udawaj wdrożenia; podaj przyczynę i gotowy krok do wznowienia.
@@ -167,3 +167,7 @@ Tworząc issue/rutynę pracy cheap, ustaw `assigneeAdapterOverrides.modelProfile
 4. Po zmianach aktualizuj `documentation.md` (funkcja, użycie, źródła danych, ograniczenia, testy).
 5. Nie redukuj wymaganych pól karty zbiórki do demonstracyjnych skrótów; przy braku API pokaż jawny, nieblokujący stan braku danych.
 6. Rozbieżności z tym plikiem rozstrzygaj na jego korzyść i zgłoś do CEO (document `ceo-feedback`).
+
+## Punkt 0 development (2026-08-20)
+
+Baseline: `wtyczka-rr` (`c3756587`) + `panel-kompaszbiorek` (`17bfbfa2`) z przeniesionym `/ui` → `panel.kompaszbiorek.pl` (308 z wtyczki), domeny CF bez zmian. **Custom GPT = punkt wyjścia do wtyczki, nie źródło prawdy** — `Prompt systemowy.md` zarchiwizowany do `archiwum/custom-gpt/`, stare audyty (10/17.08) i snapshoty KOMAA → `archiwum/`, waga plików: im starszy plik tym mniej ważny (sort po LastWriteTime desc, nowsze nadpisują starsze). Cele punkt 0 na agentach (7 goals, `project`/`in_progress` w DB) + cron `Garbage Context Cleanup` (COO, `0 4 * * 1` UTC, weekly) sprzątający śmieciowy kontekst i refaktoryzujący `archiwum/` + stare `test-results`/`playwright`/`yml` >30d.
