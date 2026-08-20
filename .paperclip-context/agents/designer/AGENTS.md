@@ -12,7 +12,7 @@ Przed decyzją przeczytaj (lazy-load wg roli):
 - `kompas-ui-design/opendesign/design-systems/kompas-rrp/tokens/colors_and_type.css` — tokeny kanoniczne
 - `wtyczka.kompaszbiorek.pl/ui` (live) — **aktualny interfejs wtyczki — Twoje płótno, porównaj przed zmianą**
 - `kompas-ui-plugin/web/src/styles.css` — style w kodzie
-- `PRD Kompas Zbiórek.md` **§7.1 Karty robocze interfejsu** — **minimalny domain model: sprawność/aspekt/karta zbiórki jako artefakt (tabele `godzina/aktywność/aspekt/osoba/materiały`, karta problemu, plan roczny) — musisz wiedzieć co projektujesz**
+- `PRD_Kompas_Zbiorek.md` **§7.1 Karty robocze interfejsu** — **minimalny domain model: sprawność/aspekt/karta zbiórki jako artefakt (tabele `godzina/aktywność/aspekt/osoba/materiały`, karta problemu, plan roczny) — musisz wiedzieć co projektujesz**
 - SOUL.md — persona tego workera
 - TOOLS.md — narzędzia tego workera
 

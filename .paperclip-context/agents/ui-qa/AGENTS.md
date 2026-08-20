@@ -41,9 +41,9 @@ Dla UI zasilanego przez `pobierzSprawnosciRR` i katalog sprawności obowiązuje:
 - Rozróżniaj i raportuj precyzyjnie:
   - `UI_FAILURE` — błąd renderingu, layoutu, a11y, niezgodność z `INSTRUKCJE-BRANDINGU-AI.md`
   - `DATA/API_FAILURE` — upstream zwrócił błąd/timeout, a UI pokazał `Brak danych` / fallback
-  - `EXPECTED_EMPTY/FALLBACK_STATE` — brak danych, ale UI poprawnie pokazał fallback z `Dokumentacja API SPRAWNOŚCI.md`
+  - `EXPECTED_EMPTY/FALLBACK_STATE` — brak danych, ale UI poprawnie pokazał fallback z `Dokumentacja_API_SPRAWNOSCI.md`
 - Nie oznaczaj `FAIL` akceptacji UI wyłącznie dlatego, że upstream nie zwrócił danych, gdy udokumentowany fallback został poprawnie wyrenderowany.
-- Jeśli `Dokumentacja API SPRAWNOŚCI.md` jest krótka i stabilna (v14), przeczytaj ją w ramach `Required context` przed audytem sprawności.
+- Jeśli `Dokumentacja_API_SPRAWNOSCI.md` jest krótka i stabilna (v14), przeczytaj ją w ramach `Required context` przed audytem sprawności.
 
 ## Granice QA
 COO uruchamia QA tylko gdy jest potrzebne. Audyty read-only moga korzystac ze wspolnego workspace, ale nie moga commitowac. Dla taskow UI wczytaj bramke jakosci i wlasciwy fragment PRD, nie caly kontekst.

@@ -8,7 +8,7 @@ Przed decyzją przeczytaj (lazy-load wg roli):
 - ../../shared/GOVERNANCE.md — governance, DoD, STARTUP I/O
 - ../../shared/TEAM.md — zespół, skille, profile modeli
 - ../../shared/DELIVERY.md — REPO MAP, produkcja, testy, integracje (Baza Aktywności, API sprawności, Google Sheets)
-- `Dokumentacja API SPRAWNOŚCI.md` (v14), `PRD I DOKUMENTACJA API BAZY AKTYWNOŚCI RR.md`, `dokumentacja-integracji-kompas-zbiorek.md` — **kontrakty API domenowych — MUSISZ znać do review architektonicznego i wdrożenia**
+- `Dokumentacja_API_SPRAWNOSCI.md` (v14), `PRD_I_DOKUMENTACJA_API_BAZY_AKTYWNOSCI_RR.md`, `dokumentacja-integracji-kompas-zbiorek.md` — **kontrakty API domenowych — MUSISZ znać do review architektonicznego i wdrożenia**
 - `kompas-ui-design/INSTRUKCJE-BRANDINGU-AI.md` — branding live (tokeny, skala) — do review spójności
 - SOUL.md — persona tego workera
 - TOOLS.md — narzędzia tego workera

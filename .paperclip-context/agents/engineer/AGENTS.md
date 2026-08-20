@@ -10,8 +10,8 @@ Przed decyzją przeczytaj (lazy-load wg roli):
 - ../../shared/DELIVERY.md — REPO MAP, produkcja, testy, integracje
 - `kompas-ui-design/INSTRUKCJE-BRANDINGU-AI.md` — **branding 1:1 z kompaszbiorek.pl (live v48, tokeny forest/paper/gold/red) — MUSISZ znać przed implementacją UI**
 - `kompas-ui-design/opendesign/design-systems/kompas-rrp/tokens/colors_and_type.css` — tokeny kanoniczne
-- `Dokumentacja API SPRAWNOŚCI.md` (v14), `PRD I DOKUMENTACJA API BAZY AKTYWNOŚCI RR.md`, `dokumentacja-integracji-kompas-zbiorek.md` — kontrakty API (sprawności, baza aktywności, panel) — **MUSISZ znać przed implementacją wiersza sprawności/karty**
-- `WSPÓLNY KONTEKST.md` — source of truth (jeśli shared nie wystarcza)
+- `Dokumentacja_API_SPRAWNOSCI.md` (v14), `PRD_I_DOKUMENTACJA_API_BAZY_AKTYWNOSCI_RR.md`, `dokumentacja-integracji-kompas-zbiorek.md` — kontrakty API (sprawności, baza aktywności, panel) — **MUSISZ znać przed implementacją wiersza sprawności/karty**
+- `WSPOLNY_KONTEKST.md` — source of truth (jeśli shared nie wystarcza)
 - SOUL.md — persona tego workera
 - TOOLS.md — narzędzia tego workera
 
@@ -43,7 +43,7 @@ Uzywasz wylacznie Apps zintegrowanych z Paperclip: **Git** (repo, commit, PR) or
 
 ## Zasady pracy
 1. Pracuj end-to-end; nie koncz na planie.
-2. **API docs są obowiązkowe dla zadań dotykających sprawności/API-backed UI:** Przy każdym tasku dotykającym sprawności, katalogu sprawności, karty zbiórki (tabela sprawności/wymagań) lub dowolnego UI zasilanego przez `pobierzSprawnosciRR` / `GET /api/activities` / `GET /api/skills` MUSISZ przed implementacją przeczytać aktualne `Dokumentacja API SPRAWNOŚCI.md` (v14) + `WSPÓLNY KONTEKST.md → Integracje i API` + `shared/DELIVERY.md → Integracje`. CTO preflight nie zastępuje znajomości kontraktu przez autora kodu. Dla pozostałych UI tasków użyj Project Context + REPO MAP; sięgaj do PRD tylko gdy task zmienia kontrakt.
+2. **API docs są obowiązkowe dla zadań dotykających sprawności/API-backed UI:** Przy każdym tasku dotykającym sprawności, katalogu sprawności, karty zbiórki (tabela sprawności/wymagań) lub dowolnego UI zasilanego przez `pobierzSprawnosciRR` / `GET /api/activities` / `GET /api/skills` MUSISZ przed implementacją przeczytać aktualne `Dokumentacja_API_SPRAWNOSCI.md` (v14) + `WSPOLNY_KONTEKST.md → Integracje i API` + `shared/DELIVERY.md → Integracje`. CTO preflight nie zastępuje znajomości kontraktu przez autora kodu. Dla pozostałych UI tasków użyj Project Context + REPO MAP; sięgaj do PRD tylko gdy task zmienia kontrakt.
 3. Karta zbiorki jest samowystarczalnym artefaktem: dane+obecnosc, sprawnosci, eksperyment, przygotowanie, plan godzinowy, refleksja. Nie redukuj wymaganych pol.
 4. Branding: tylko kanoniczny system marki (`kompas-ui-design\opendesign\design-systems\kompas-rrp`); zadnych poziomic, gradientow, koncentrycznych kol, offsetowych cieni ani dwukolorowych paskow.
 5. Testy responsive nie moga byc pomijane ze wzgledu na viewport; desktop i mobile maja dzialac.
