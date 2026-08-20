@@ -33,7 +33,7 @@ Baza aktywności RR (odczyt+filtry), `pobierzSprawnosciRR` (1 poziom, 1 call/odp
 
 ## Cykl doskonalenia, Design, Produkcja
 
-4 etapy: Planowanie→Realizacja→Analiza→Decyzja (mapowanie 00–06). Brand DNA mapa/topografia, bez poziomic/gradientów. Produkcja: Worker `wtyczka-rr`, kolejność `build → build-worker.mjs → wrangler deploy --dry-run → deploy --keep-vars`.
+Aktualne 4 etapy: Planowanie→Realizacja→Analiza→Decyzja. Planowanie ma wyłącznie checkpointy Cel i sprawności / Przebieg / Przygotowanie; etapy 2–4 nie mają zatwierdzonych podzadań ani bramek. Model 00–06/9 kroków jest historyczny/metodologiczny. AS-IS/TO-BE/DELTA: [KOMAA-48](/KOMAA/issues/KOMAA-48). Brand DNA mapa/topografia, bez poziomic/gradientów. Produkcja: Worker `wtyczka-rr`, kolejność `build → build-worker.mjs → wrangler deploy --dry-run → deploy --keep-vars`.
 
 ## Wykonanie kontraktowe
 

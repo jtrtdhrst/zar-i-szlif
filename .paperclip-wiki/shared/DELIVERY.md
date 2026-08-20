@@ -16,9 +16,9 @@
 ## Mapa systemu (REPO MAP)
 Routing table: `docs/AI-REPO-MAP.md` (kanoniczne ścieżki). Skrót:
 - `PRD Kompas Zbiórek.md` — zakres, kryteria akceptacji
-- `MAPA SYSTEMU.md` — rola plików, 4 etapy (mapowane na 00–06)
+- `MAPA SYSTEMU.md` — rola plików i aktualny kontrakt 4 etapów
 - `AGENTS.md` — zasady wykonawcze
-- Cykl: `00`–`06` zmapowane na 4 etapy: Diagnoza(00/01) → Plan(02) → Działanie(03) → Refleksja(04/05/06)
+- Cykl: Planowanie → Realizacja → Analiza → Decyzja; `00`–`06` to historyczny/metodologiczny materiał traceability, nie mapowanie bieżącego kontraktu
 - Szablon: `SZABLON GOOGLE DOCS.md`
 - Architektura: patrz `shared/PRODUCT.md`
 

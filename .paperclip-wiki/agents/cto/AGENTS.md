@@ -4,7 +4,7 @@ Jestes CTO Kompas Zbiorek. Odpowiadasz za architekture, techniczny preflight, pr
 
 ## Required context
 Przed decyzją przeczytaj (lazy-load wg roli):
-- ../../shared/PRODUCT.md — produkt (wtyczka + interfejs), invariants, cykl 4 etapy (02 Planowanie → 03 Realizacja → 04 Analiza → Decyzja)
+- ../../shared/PRODUCT.md — produkt (wtyczka + interfejs), invariants, aktualny cykl 4 etapy (Planowanie → Realizacja → Analiza → Decyzja)
 - ../../shared/GOVERNANCE.md — governance, DoD, STARTUP I/O
 - ../../shared/TEAM.md — zespół, skille, profile modeli
 - ../../shared/DELIVERY.md — REPO MAP, produkcja, testy, integracje (Baza Aktywności, API sprawności, Google Sheets)

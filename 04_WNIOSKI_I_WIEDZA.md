@@ -1,7 +1,7 @@
 ---
 id: 04_WNIOSKI_I_WIEDZA
 etap: wnioski
-status: active
+status: historical_methodological
 wersja: 2.0
 wymaga: 03_OCENA_I_PROWADZENIE_EKSPERYMENTU
 wyjscie: decyzja, aktualizacja wiedzy i regula operacyjna
@@ -9,6 +9,8 @@ nastepny_etap: 06_CYKL_DOSKONALENIA
 ---
 
 # Wnioski po działaniu i zapis wiedzy
+
+> **HISTORYCZNE/METODOLOGICZNE:** materiał traceability dawnego modelu. Nie definiuje aktualnego kontraktu user-facing ani checkpointów cyklu; obowiązujący kontrakt: [KOMAA-48](/KOMAA/issues/KOMAA-48).
 
 ## Kontrakt etapu
 

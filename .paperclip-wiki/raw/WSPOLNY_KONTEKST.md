@@ -39,7 +39,7 @@ Cyfrowy przewodnik dla drużyny harcerskiej (ZHR/ZHP, instruktorzy, drużynowi):
 **Routing table dla agentów: `docs/AI-REPO-MAP.md`** (zweryfikowane ścieżki + canonical commands). Poniższa sekcja to skrócona wersja; przy rozbieżności plik w `docs/` jest aktualniejszy.
 
 - `PRD Kompas Zbiórek.md` — zakres, wymagania, kryteria akceptacji.
-- `MAPA SYSTEMU.md` — rola plików produktu, kolejność 4 etapów (mapowanych na 00–06), granice źródeł.
+- `MAPA SYSTEMU.md` — rola plików produktu, aktualny kontrakt 4 etapów i granica materiału historycznego.
 - `AGENTS.md` — zasady wykonawcze (Advanced UI, branding, wdrożenia, edycje).
 - Cykl doskonalenia: `00_ANALIZA_PROBLEMU.md` … `06_CYKL_DOSKONALENIA.md`.
 - Szablon treści dokumentu drużyny: `SZABLON GOOGLE DOCS.md` (podstawa struktury szablonu arkusza Google Sheets; nagłówki `[...]` to kontrakt struktury).
@@ -90,9 +90,13 @@ Komendy kanoniczne (`kompas-ui-plugin`): `npm run build`, `npm run test:all` (bu
 
 Pełne kontrakty: `Dokumentacja API SPRAWNOŚCI.md` (v14), `Dokumentacja API DATY I GODZINY.md` (zablokowane — brak OpenAPI), `PRD I DOKUMENTACJA API BAZY AKTYWNOŚCI RR.md`, `dokumentacja-integracji-kompas-zbiorek.md` (MCP + OAuth + panel Google Sheets + cache HTTP). Nie podłączaj ani nie udawaj integracji, której nie ma. Gdy API niedostępne — jawny, nieblokujący stan braku danych + edytowalny opis roboczy.
 
-## Cykl doskonalenia (4 etapy — aktualny)
+## Cykl doskonalenia (aktualny kontrakt produktu)
 
-**02 Planowanie → 03 Realizacja (aktualny etap) → 04 Analiza → Decyzja** — uproszczony z 9 kroków (00–06). Szczegóły: `02` Planowanie (00/01: kontekst → problem → praprzyczyna → hipoteza), `03` Realizacja (03: próby — rejestr wykonania), `04` Analiza (04: wnioski, ocena dowodu), `Decyzja` (05/06: reguła operacyjna → przegląd trwałości). Każdy etap ma jeden kontrakt i bramkę; `06` koordynuje przejścia (nigdy kilka etapów naraz). Przykładowy przebieg: jeden problem → jedna praprzyczyna → jeden eksperyment → seria prób → jedna decyzja → jedna reguła → przegląd po ~2 tyg. Oddzielaj fakty od interpretacji, wykonanie od efektu, kontrolę od zmiany. Kryteria ustalaj przed wynikiem. Wynik nierozstrzygnięty to poprawny stan wiedzy. Bezpieczeństwo i godność dzieci mają pierwszeństwo nad tempem.
+Aktualny cykl user-facing to **Planowanie → Realizacja → Analiza → Decyzja**. Źródłem AS-IS, zatwierdzonego TO-BE i DELTY jest [KOMAA-48](/KOMAA/issues/KOMAA-48).
+
+- **Planowanie** ma wyłącznie checkpointy: **Cel i sprawności**, **Przebieg**, **Przygotowanie**. Są systemowe, nie są zadaniami użytkownika.
+- Dla **Realizacji**, **Analizy** i **Decyzji** nie ma zatwierdzonych podzadań ani bramek; nie wolno ich dopowiadać.
+- `00`–`06` oraz dawne 9 kroków są **HISTORYCZNYM/METODOLOGICZNYM** materiałem traceability, a nie bieżącym modelem produktu ani mapowaniem etapów.
 
 ## Design i branding
 

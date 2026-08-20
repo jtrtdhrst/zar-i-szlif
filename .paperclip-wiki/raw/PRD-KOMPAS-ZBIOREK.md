@@ -50,18 +50,27 @@ System nie może wymyślać ani przedstawiać jako oficjalnych wymagań, któryc
 6. Użytkownik planuje następną zbiórkę lub wyjazd z użyciem kontekstu drużyny i ostatnich wniosków.
 7. Użytkownik przegląda po około dwóch tygodniach, czy wdrożona praktyka nadal działa bez nadzwyczajnego wysiłku.
 
-## 5. Cykl doskonalenia (4 etapy — aktualny)
+## 5. Cykl doskonalenia (aktualny kontrakt produktu)
 
-**02 Planowanie → 03 Realizacja (aktualny etap) → 04 Analiza → Decyzja** — uproszczony z 9 kroków.
+Aktualny, widoczny dla użytkownika cykl ma cztery etapy: **Planowanie → Realizacja → Analiza → Decyzja**. Stan AS-IS, zatwierdzony TO-BE i DELTA są prowadzone w [KOMAA-48](/KOMAA/issues/KOMAA-48).
 
-1. **02 Planowanie:** Odczytaj kontekst → Podsumuj działanie → Wybierz jeden problem → Znajdź praprzyczynę → Zaprojektuj zmianę (hipoteza, warunek docelowy, eksperyment) → Oceń i zamroź wersję. *Wejście: obserwacje. Wynik: zamrożony eksperyment. Pliki: `00_ANALIZA_PROBLEMU`, `01_PRAPRZYCZYNA_OPERACYJNA`, `02_HIPOTEZA_I_EKSPERYMENT`.*
-2. **03 Realizacja (aktualny etap):** Przeprowadź próby — lekki zapis wykonania, efektu, zakłóceń i kosztu. *Wejście: zamrożony eksperyment. Wynik: seria prób. Pliki: `03_OCENA_I_PROWADZENIE_EKSPERYMENTU`.*
-3. **04 Analiza:** Wyciągnij wnioski — oceń jakość dowodu, zaktualizuj założenia. *Wejście: seria prób. Wynik: ocena dowodu. Pliki: `04_WNIOSKI_I_WIEDZA`.*
-4. **Decyzja:** Utrwal wiedzę — jedna decyzja (wsparcie/osłabienie/nierozstrzygnięte) → reguła operacyjna + termin przeglądu trwałości. *Wejście: ocena dowodu. Wynik: reguła. Pliki: `05_PLANOWANIE_ZBIORKI_I_WYJAZDU` (jeśli dotyczy), `06_CYKL_DOSKONALENIA` (koordynacja).*
+### Etap 1 — Planowanie
 
-Szczegółowa logika w `00`–`06` (mapowanie: 02←00/01/02, 03←03, 04←04, Decyzja←05/06).
+Jedynymi zatwierdzonymi systemowymi checkpointami są:
 
-Każdy etap ma jeden kontrakt: wymagane wejście, jeden wynik, bramkę akceptacji i wskazany następny plik. System nie wykonuje kilku etapów naraz. Wyjątek zachodzi tylko wtedy, gdy użytkownik jednoznacznie prosi o kontynuację, a wszystkie wcześniejsze bramki są już spełnione.
+1. **Cel i sprawności** — `Dodaj cel i wybierz sprawność`.
+2. **Przebieg** — `Uzupełnij plan godzinowy`.
+3. **Przygotowanie** — `Dodaj zadanie`.
+
+Checkpointy nie są zadaniami tworzonymi przez użytkownika.
+
+### Etapy 2–4
+
+Nie zdefiniowano zatwierdzonych podzadań ani bramek dla Realizacji, Analizy i Decyzji. Nie należy ich wyprowadzać ze starszej metodyki ani dodawać do kontraktu produktu.
+
+### Materiał historyczny
+
+Model `00`–`06` oraz opis dawnych kroków są **HISTORYCZNYM/METODOLOGICZNYM** materiałem traceability. Nie stanowią aktualnego kontraktu user-facing ani zatwierdzonego mapowania na cztery etapy.
 
 ### Zadania użytkownika i stałe kroki milowe
 
@@ -127,9 +136,9 @@ Interfejs nie może redukować dokumentu drużyny do pojedynczych pól opisowych
 
 Jeśli informacja z planu rocznego lub integracji nie istnieje, karta pokazuje edytowalne miejsce na roboczy opis albo jawny stan braku danych. Nie używa komunikatów blokujących typu „uzupełnij w planie rocznym”.
 
-## 8. Źródła wiedzy
+## 8. Źródła wiedzy historycznej / metodologicznej
 
-System wybiera jedno główne źródło według aktualnego etapu:
+Poniższe materiały zachowują traceability starszej metodyki; nie definiują aktualnych etapów produktu:
 
 - [[00_ANALIZA_PROBLEMU]]
 - [[01_PRAPRZYCZYNA_OPERACYJNA]]
@@ -140,7 +149,7 @@ System wybiera jedno główne źródło według aktualnego etapu:
 - [[06_CYKL_DOSKONALENIA]]
 - [[PRD I DOKUMENTACJA API BAZY AKTYWNOŚCI RR]]
 
-Źródła mają rozłączne granice etapów. System wraca do wcześniejszego źródła tylko wtedy, gdy konkretna luka blokuje bieżącą pracę.
+Nie używaj tych materiałów do definiowania nowych checkpointów, podzadań lub bramek bieżącego czteroetapowego cyklu.
 
 ## 9. Narzędzia
 

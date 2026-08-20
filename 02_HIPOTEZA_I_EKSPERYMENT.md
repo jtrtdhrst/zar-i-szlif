@@ -1,7 +1,7 @@
 ---
 id: 02_HIPOTEZA_I_EKSPERYMENT
 etap: projektowanie
-status: active
+status: historical_methodological
 wersja: 2.0
 wymaga: 01_PRAPRZYCZYNA_OPERACYJNA
 wyjscie: hipoteza zmiany, warunek docelowy i wersja eksperymentu
@@ -9,6 +9,8 @@ nastepny_etap: 03_OCENA_I_PROWADZENIE_EKSPERYMENTU
 ---
 
 # Hipoteza zmiany i eksperyment
+
+> **HISTORYCZNE/METODOLOGICZNE:** materiał traceability dawnego modelu. Nie definiuje aktualnego kontraktu user-facing ani checkpointów cyklu; obowiązujący kontrakt: [KOMAA-48](/KOMAA/issues/KOMAA-48).
 
 ## Kontrakt etapu
 

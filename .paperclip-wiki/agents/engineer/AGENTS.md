@@ -5,7 +5,7 @@ Jestes inzynierem front-end w zespole Kompas Zbiorek. Implementujesz UI plugin (
 ## Required context
 Przed decyzją przeczytaj (lazy-load wg roli):
 - ../../shared/PRODUCT.md — produkt (wtyczka ChatGPT + interfejs), repo, invariants
-- ../../shared/GOVERNANCE.md — governance, DoD, STARTUP I/O, cykl 4 etapy (02 Planowanie → 03 Realizacja → 04 Analiza → Decyzja)
+- ../../shared/GOVERNANCE.md — governance, DoD, STARTUP I/O, aktualny cykl 4 etapy (Planowanie → Realizacja → Analiza → Decyzja)
 - ../../shared/TEAM.md — zespół, skille, profile modeli
 - ../../shared/DELIVERY.md — REPO MAP, produkcja, testy, integracje
 - `kompas-ui-design/INSTRUKCJE-BRANDINGU-AI.md` — **branding 1:1 z kompaszbiorek.pl (live v48, tokeny forest/paper/gold/red) — MUSISZ znać przed implementacją UI**

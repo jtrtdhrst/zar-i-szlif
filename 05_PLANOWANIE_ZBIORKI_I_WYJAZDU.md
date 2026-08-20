@@ -1,7 +1,7 @@
 ---
 id: 05_PLANOWANIE_ZBIORKI_I_WYJAZDU
 etap: planowanie
-status: active
+status: historical_methodological
 wersja: 1.0
 wejscie: cel, kontekst druzyny, program i ograniczenia
 wyjscie: wykonalny plan z bezpieczenstwem i sposobem podsumowania
@@ -9,6 +9,8 @@ nastepny_etap: 06_CYKL_DOSKONALENIA
 ---
 
 # Planowanie zbiórki i wyjazdu
+
+> **HISTORYCZNE/METODOLOGICZNE:** materiał traceability dawnego modelu. Nie definiuje aktualnego kontraktu user-facing ani checkpointów cyklu; obowiązujący kontrakt: [KOMAA-48](/KOMAA/issues/KOMAA-48).
 
 ## Kontrakt etapu
 

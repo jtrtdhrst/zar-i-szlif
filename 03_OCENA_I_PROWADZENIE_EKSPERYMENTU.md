@@ -1,7 +1,7 @@
 ---
 id: 03_OCENA_I_PROWADZENIE_EKSPERYMENTU
 etap: test
-status: active
+status: historical_methodological
 wersja: 2.0
 wymaga: 02_HIPOTEZA_I_EKSPERYMENT
 wyjscie: werdykt przed testem i komplet rekordow prob
@@ -9,6 +9,8 @@ nastepny_etap: 04_WNIOSKI_I_WIEDZA
 ---
 
 # Ocena i prowadzenie eksperymentu
+
+> **HISTORYCZNE/METODOLOGICZNE:** materiał traceability dawnego modelu. Nie definiuje aktualnego kontraktu user-facing ani checkpointów cyklu; obowiązujący kontrakt: [KOMAA-48](/KOMAA/issues/KOMAA-48).
 
 ## Kontrakt etapu
 

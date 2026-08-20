@@ -1,7 +1,7 @@
 ---
 id: 01_PRAPRZYCZYNA_OPERACYJNA
 etap: przyczyna
-status: active
+status: historical_methodological
 wersja: 2.0
 wymaga: 00_ANALIZA_PROBLEMU
 wyjscie: drzewo przyczyn i praprzyczyna operacyjna
@@ -9,6 +9,8 @@ nastepny_etap: 02_HIPOTEZA_I_EKSPERYMENT
 ---
 
 # Praprzyczyna operacyjna
+
+> **HISTORYCZNE/METODOLOGICZNE:** materiał traceability dawnego modelu. Nie definiuje aktualnego kontraktu user-facing ani checkpointów cyklu; obowiązujący kontrakt: [KOMAA-48](/KOMAA/issues/KOMAA-48).
 
 ## Kontrakt etapu
 

@@ -1,7 +1,7 @@
 ---
 id: 00_ANALIZA_PROBLEMU
 etap: diagnoza
-status: active
+status: historical_methodological
 wersja: 2.0
 wejscie: opis zdarzenia lub powtarzalnego problemu
 wyjscie: sprawdzalny opis problemu i stan wiedzy
@@ -9,6 +9,8 @@ nastepny_etap: 01_PRAPRZYCZYNA_OPERACYJNA
 ---
 
 # Analiza problemu
+
+> **HISTORYCZNE/METODOLOGICZNE:** materiał traceability dawnego modelu. Nie definiuje aktualnego kontraktu user-facing ani checkpointów cyklu; obowiązujący kontrakt: [KOMAA-48](/KOMAA/issues/KOMAA-48).
 
 ## Kontrakt etapu
 

@@ -33,7 +33,7 @@ Nie zaczynaj taska od: listowania wszystkich issue/projektów/goals/agentów, sz
 - Autorytatywność mutacji: udana odpowiedź mutacji jest wiążąca, nie wykonuj potwierdzającego GET
 
 ## Cykl doskonalenia (4 etapy — aktualny)
-**02 Planowanie → 03 Realizacja (aktualny etap) → 04 Analiza → Decyzja** — uproszczony z 9 kroków (00–06). Mapowanie: `02←00/01/02`, `03←03`, `04←04`, `Decyzja←05/06`. Każdy etap ma jeden kontrakt i bramkę; `06` koordynuje. Przykładowy przebieg: problem → praprzyczyna → eksperyment → próby → decyzja → reguła → przegląd ~2 tyg.
+**Planowanie → Realizacja → Analiza → Decyzja** to aktualny kontrakt user-facing. Planowanie ma wyłącznie checkpointy: Cel i sprawności, Przebieg, Przygotowanie. Etapy 2–4 nie mają zatwierdzonych podzadań ani bramek. `00`–`06` i model 9 kroków są historyczne/metodologiczne; nie są mapowaniem bieżącego kontraktu. AS-IS, TO-BE i DELTA: [KOMAA-48](/KOMAA/issues/KOMAA-48).
 
 ## Brand DNA
 Charakter mapy/topografii/terenu; oszczędny żółto-złoty akcent; display serif; body geometryczny sans; hierarchia nad dekoracją.

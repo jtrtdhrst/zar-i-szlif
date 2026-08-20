@@ -1,13 +1,15 @@
 ---
 id: 06_CYKL_DOSKONALENIA
 etap: koordynacja
-status: active
+status: historical_methodological
 wersja: 1.0
 wejscie: aktualny stan, artefakt lub opis intencji użytkownika
 wyjscie: aktualny stan cyklu i jednoznaczny nastepny krok
 ---
 
 # Cykl doskonalenia
+
+> **HISTORYCZNE/METODOLOGICZNE:** materiał traceability dawnego modelu. Nie definiuje aktualnego kontraktu user-facing ani checkpointów cyklu; obowiązujący kontrakt: [KOMAA-48](/KOMAA/issues/KOMAA-48).
 
 ## Kontrakt koordynatora
 
