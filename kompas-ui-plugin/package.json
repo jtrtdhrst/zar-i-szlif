@@ -5,6 +5,7 @@
   "type": "module",
   "scripts": {
     "build": "node web/scripts/build-static.mjs && node node_modules/typescript/bin/tsc -p server/tsconfig.json",
+    "test:skill-completion-task": "node web/scripts/skill-completion-task-test.mjs",
     "start": "node server/dist/index.js",
     "dev": "npm run build && npm run start"
   },
