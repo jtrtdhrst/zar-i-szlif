@@ -52,4 +52,14 @@ click();
 await Promise.resolve();
 assert.equal(state.sprawnosci[0].status, "Zrealizowane");
 assert.equal(state.tasks.filter(task => task.source).length, 1);
+
+state.activity.date = "2000-01-01T17:00";
+state.annual.calendar = [];
+state.sprawnosci[1] = { name: "Ratownik", status: "W trakcie" };
+target.dataset.skillStatus = "1";
+click();
+await Promise.resolve();
+assert.equal(state.sprawnosci[1].status, "Zrealizowane");
+assert.equal(state.tasks.filter(task => task.source).length, 2);
+assert.equal(state.tasks.at(-1).activity, null);
 console.log("Skill completion task test passed");
