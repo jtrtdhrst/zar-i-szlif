@@ -27,6 +27,8 @@ import {
   validateOAuthState,
 } from "./workers-oauth-utils";
 import { getGoogleAppId, injectWidgetAuth } from "./widget-auth";
+import { createPanelHandler, resolvePanelSession } from "./panel-handler";
+import { syncContactToSender, type SenderEnv } from "./sender";
 
 export interface AuthProps {
   googleSub: string;
@@ -46,6 +48,10 @@ export interface GoogleAuthHandlerEnv {
   TEMPLATE_FILE_ID?: string;
   GOOGLE_CLOUD_PROJECT_NUMBER?: string;
   GOOGLE_PICKER_API_KEY?: string;
+  SHEETS_TEMPLATE_FILE_ID?: string;
+  SENDER_API_TOKEN?: string;
+  SENDER_ONBOARDING_ENABLED?: string;
+  SENDER_ONBOARDING_GROUP?: string;
 }
 
 const GOOGLE_SCOPES = ["openid", "email", "profile", "https://www.googleapis.com/auth/drive.file"];
@@ -58,10 +64,116 @@ const SERVER_INFO = {
   description: "Serwer MCP Kompasu Zbiórek. Logowanie przez konto Google — używane wyłącznie do identyfikacji użytkownika.",
 };
 
+// Proxy katalogów z dwuwarstwowym cache (Cloudflare Cache API w Workerze +
+// IndexedDB po stronie widgetu). Wpisy są kluczowane kanonicznym URL upstreamu
+// z posortowanymi parametrami, żeby równoważne filtry współdzieliły jeden wpis.
+const CATALOG_PROXIES: Record<
+  string,
+  { upstream: string; freshSeconds: number; graceSeconds: number; queryKeys: string[] }
+> = {
+  activities: {
+    upstream: "https://zabawy.kompaszbiorek.pl/api/activities",
+    freshSeconds: 60 * 60,
+    graceSeconds: 6 * 60 * 60,
+    queryKeys: ["category", "level", "energy", "participants"],
+  },
+  skills: {
+    upstream: "https://sprawnosci.kompaszbiorek.pl/",
+    freshSeconds: 6 * 60 * 60,
+    graceSeconds: 24 * 60 * 60,
+    queryKeys: ["poziom", "aspekt"],
+  },
+};
+
+function normalizeCatalogQuery(type: string, url: URL): URLSearchParams {
+  const config = CATALOG_PROXIES[type];
+  const normalized = new URLSearchParams();
+  for (const key of config.queryKeys) {
+    const raw = url.searchParams.get(key);
+    if (raw === null || raw === "") continue;
+    if (key === "category") {
+      const values = raw
+        .split(",")
+        .map((value) => value.trim())
+        .filter(Boolean)
+        .sort();
+      if (values.length) normalized.set("category", values.join(","));
+    } else {
+      normalized.set(key, raw);
+    }
+  }
+  return normalized;
+}
+
+interface CatalogCacheStore {
+  default: {
+    put(request: RequestInfo | URL, response: Response): Promise<void>;
+    match(request: RequestInfo | URL): Promise<Response | undefined>;
+  };
+}
+
+function catalogCache(): CatalogCacheStore["default"] {
+  return (caches as unknown as CatalogCacheStore).default;
+}
+
+async function fetchCatalogUpstream(
+  upstreamUrl: URL,
+  cacheKey: Request,
+  config: { freshSeconds: number; graceSeconds: number },
+  ctx: ExecutionContext,
+): Promise<Response> {
+  const upstream = await fetch(upstreamUrl.href, { headers: { accept: "application/json" } });
+  const body = await upstream.text();
+  if (!upstream.ok) {
+    throw new Error("Upstream " + upstream.status);
+  }
+  // Wewnętrzny max-age to fresh + grace, a świeżość oceniamy po X-Cached-At,
+  // żeby w oknie grace móc oddać ostatni wpis, gdy upstream przejściowo zawiedzie.
+  const response = new Response(body, {
+    status: 200,
+    headers: {
+      "content-type": "application/json; charset=utf-8",
+      "access-control-allow-origin": "*",
+      "cache-control": `public, max-age=${config.freshSeconds + config.graceSeconds}`,
+      "x-cached-at": String(Math.floor(Date.now() / 1000)),
+    },
+  });
+  ctx.waitUntil(catalogCache().put(cacheKey, response.clone()).catch(() => undefined));
+  return response;
+}
+
+async function proxyCatalog(type: string, request: Request, ctx: ExecutionContext): Promise<Response> {
+  const config = CATALOG_PROXIES[type];
+  const upstreamUrl = new URL(config.upstream);
+  const normalized = normalizeCatalogQuery(type, new URL(request.url));
+  for (const key of config.queryKeys) {
+    const value = normalized.get(key);
+    if (value !== null) upstreamUrl.searchParams.set(key, value);
+  }
+  const cacheKey = new Request(upstreamUrl.href, { method: "GET" });
+  const cached = await catalogCache().match(cacheKey).catch(() => undefined);
+  if (cached) {
+    const age = Math.floor(Date.now() / 1000) - Number(cached.headers.get("x-cached-at") || 0);
+    if (age <= config.freshSeconds) return cached;
+    try {
+      return await fetchCatalogUpstream(upstreamUrl, cacheKey, config, ctx);
+    } catch (error) {
+      if (age <= config.freshSeconds + config.graceSeconds) return cached;
+      throw error;
+    }
+  }
+  try {
+    return await fetchCatalogUpstream(upstreamUrl, cacheKey, config, ctx);
+  } catch (error) {
+    console.error("catalog proxy failed:", type, error instanceof Error ? error.message : String(error));
+    return json({ ok: false, message: "Katalog jest chwilowo niedostępny. Spróbuj ponownie później." }, 502);
+  }
+}
+
 function json(data: unknown, status = 200): Response {
   return new Response(JSON.stringify(data), {
     status,
-    headers: { "content-type": "application/json; charset=utf-8" },
+    headers: { "content-type": "application/json; charset=utf-8", "cache-control": "no-store" },
   });
 }
 
@@ -172,9 +284,10 @@ function redirectToGoogle(
 
 export function createGoogleAuthHandler(options: { widgetHtml: string }): ExportedHandler<GoogleAuthHandlerEnv> {
   const { widgetHtml } = options;
+  const panelHandler = createPanelHandler({ widgetHtml });
 
   return {
-    async fetch(request, env) {
+    async fetch(request, env, ctx) {
       const url = new URL(request.url);
       const { pathname } = url;
       console.log("route:", request.method, pathname);
@@ -185,7 +298,7 @@ export function createGoogleAuthHandler(options: { widgetHtml: string }): Export
           headers: {
             "access-control-allow-origin": "*",
             "access-control-allow-methods": "GET, POST, OPTIONS",
-            "access-control-allow-headers": "content-type",
+            "access-control-allow-headers": "content-type, authorization",
             "content-length": "0",
           },
         });
@@ -195,22 +308,48 @@ export function createGoogleAuthHandler(options: { widgetHtml: string }): Export
         return json({ ok: true, name: "Kompas Zbiórek" });
       }
 
-      if (pathname === "/preview") {
-        const previewHtml = injectWidgetAuth(widgetHtml, {
-          authenticated: false,
-          appId: getGoogleAppId(env),
-          templateFileId: env.TEMPLATE_FILE_ID ?? null,
-          developerKey: env.GOOGLE_PICKER_API_KEY ?? null,
-        });
+      if (pathname === "/api/activities" && request.method === "GET") {
+        return proxyCatalog("activities", request, ctx);
+      }
+
+      if (pathname === "/api/skills" && request.method === "GET") {
+        return proxyCatalog("skills", request, ctx);
+      }
+
+      if (pathname === "/ui") {
+        const panelAuth = await resolvePanelSession(request, env);
+        const previewHtml = injectWidgetAuth(widgetHtml, panelAuth
+          ? {
+              authenticated: true,
+              accessToken: panelAuth.session.accessToken,
+              expiresAt: panelAuth.session.accessTokenExpiresAt,
+              appId: getGoogleAppId(env),
+              templateFileId: env.TEMPLATE_FILE_ID ?? null,
+              developerKey: env.GOOGLE_PICKER_API_KEY ?? null,
+              sheetsTemplateFileId: env.SHEETS_TEMPLATE_FILE_ID ?? null,
+              panel: true,
+              googleSub: panelAuth.session.googleSub,
+              email: panelAuth.session.email || undefined,
+            }
+          : {
+              authenticated: false,
+              appId: getGoogleAppId(env),
+              templateFileId: env.TEMPLATE_FILE_ID ?? null,
+              developerKey: env.GOOGLE_PICKER_API_KEY ?? null,
+              sheetsTemplateFileId: env.SHEETS_TEMPLATE_FILE_ID ?? null,
+            });
         return new Response(previewHtml, {
           headers: { "content-type": "text/html; charset=utf-8", "cache-control": "no-store" },
         });
       }
 
+      const isPanelHost = url.hostname === "panel.kompaszbiorek.pl";
+      if (pathname === "/preview") {
+        return Response.redirect(new URL(isPanelHost ? "/panel" : "/ui", request.url), 308);
+      }
+
       if (pathname === "/") {
-        return new Response("Kompas Zbiórek MCP. Użyj endpointu /mcp.", {
-          headers: { "content-type": "text/plain; charset=utf-8" },
-        });
+        return Response.redirect(new URL(isPanelHost ? "/panel" : "/ui", request.url), 308);
       }
 
       if (pathname === "/authorize" && request.method === "GET") {
@@ -222,7 +361,11 @@ export function createGoogleAuthHandler(options: { widgetHtml: string }): Export
       }
 
       if (pathname === "/callback" && request.method === "GET") {
-        return handleCallback(request, env);
+        return handleCallback(request, env, ctx);
+      }
+
+      if (pathname === "/panel" || pathname.startsWith("/panel/")) {
+        return panelHandler.handle(request, env);
       }
 
       return new Response("Nie znaleziono.", { status: 404 });
@@ -318,7 +461,7 @@ async function handleAuthorizePost(request: Request, env: GoogleAuthHandlerEnv):
   }
 }
 
-async function handleCallback(request: Request, env: GoogleAuthHandlerEnv): Promise<Response> {
+async function handleCallback(request: Request, env: GoogleAuthHandlerEnv, ctx: ExecutionContext): Promise<Response> {
   const params = new URL(request.url).searchParams;
   const googleError = params.get("error");
   if (googleError) {
@@ -385,6 +528,8 @@ async function handleCallback(request: Request, env: GoogleAuthHandlerEnv): Prom
       scope: oauthReqInfo.scope,
       userId: props.googleSub,
     });
+
+    syncContactToSender(props, env, ctx);
 
     const headers = new Headers({ location: redirectTo });
     if (clearSessionCookie) {

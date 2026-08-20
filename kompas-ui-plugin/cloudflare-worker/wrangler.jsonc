@@ -3,10 +3,16 @@
   "name": "wtyczka-rr",
   "main": "worker.js",
   "compatibility_date": "2026-08-07",
-  "workers_dev": true,
+  "workers_dev": false,
+  "routes": [
+    { "pattern": "wtyczka.kompaszbiorek.pl", "custom_domain": true }
+  ],
   "vars": {
     "TEMPLATE_FILE_ID": "183nDdy9kE_DxfoLwPhhAlkboey66QI1QzM64UBXrTLI",
-    "GOOGLE_CLOUD_PROJECT_NUMBER": "450955230972"
+    "SHEETS_TEMPLATE_FILE_ID": "13jV1YPEh8G2-e7xKH3lsTxu9gY0ckvveaYQxxc6rzFs",
+    "GOOGLE_CLOUD_PROJECT_NUMBER": "450955230972",
+    "SENDER_ONBOARDING_ENABLED": "false",
+    "SENDER_ONBOARDING_GROUP": "onboarding-sekwencja"
   },
   "kv_namespaces": [
     {
