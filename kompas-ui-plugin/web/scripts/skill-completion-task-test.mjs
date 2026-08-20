@@ -8,58 +8,65 @@ const context = {
   Intl,
   Date,
   console,
+  __SKILL_ICON_ASSETS__: {},
   location: { search: "", pathname: "/" },
   history: { replaceState() {} },
+  window: { addEventListener() {} },
   localStorage: { getItem: () => null, setItem() {} },
   setTimeout() {},
+  requestAnimationFrame() {},
+  MutationObserver: class { observe() {} },
   document: {
-    getElementById: () => ({ set innerHTML(_) {} }),
+    body: { append() {} },
+    getElementById: () => ({ innerHTML: "" }),
     addEventListener(type, listener) { (listeners[type] ||= []).push(listener); },
+    querySelector: () => null,
     querySelectorAll: () => [],
   },
 };
 const source = await readFile(new URL("../src/static-app-v2.js", import.meta.url), "utf8");
-vm.runInNewContext(`${source}\nglobalThis.__state=S;`, context);
+vm.runInNewContext(`${source}\nglobalThis.__state=S; globalThis.__completeActivitySkillPoint=completeActivitySkillPoint;`, context);
 
 const state = context.__state;
-state.team.name = "27. Drużyna RR";
-state.team.group = "Zwiadowcy";
-state.activity = { number: "12", title: "Późniejsza zbiórka", date: "2099-12-15T17:00" };
-state.annual.calendar = [{ title: "Najbliższa zbiórka", date: "2099-12-01T17:00" }];
-state.sprawnosci[0] = { name: "Pionier", status: "W trakcie" };
+state.team.skillRecords = [{
+  id: "skill-pionier",
+  title: "Pionier",
+  group: "Pionierstwo",
+  groupLabel: "Pionierstwo",
+  level: "Zwiadowcy",
+  aspect: "fizyczny",
+  requirements: [{ text: "Zbuduj szałas", status: "W trakcie" }],
+}];
+state.annualPlans = [{ months: [{ activities: [{ date: "2099-12-01", title: "Najbliższa zbiórka" }] }] }];
 
-const target = {
-  dataset: { action: "skill-status", skillStatus: "0" },
-  closest(selector) { return selector.includes("data-action") || selector.includes("data-skill-status") ? this : null; },
-};
-const click = () => listeners.click.forEach(listener => listener({ target }));
-
-click();
-await Promise.resolve();
-assert.equal(state.sprawnosci[0].status, "Zrealizowane");
-assert.equal(state.tasks.filter(task => task.source).length, 1);
-assert.deepEqual(JSON.parse(JSON.stringify(state.tasks.at(-1))), {
+context.__completeActivitySkillPoint("skill-pionier", 0, true);
+assert.equal(state.team.skillHistoryRecords.length, 1);
+assert.equal(state.tasks.filter(task => task.source === "skill-completion:skill-pionier").length, 1);
+assert.deepEqual(JSON.parse(JSON.stringify(state.tasks.find(task => task.source === "skill-completion:skill-pionier"))), {
   people: [],
-  text: "Wręcz naszywkę (27. Drużyna RR) – Pionier – Zwiadowcy",
+  text: "Wręcz naszywkę (Pionierstwo) – Pionier – Zwiadowcy",
   status: "Do zrobienia",
-  source: "skill:0:27. Drużyna RR:Pionier:Zwiadowcy",
-  activity: { title: "Najbliższa zbiórka", date: "2099-12-01T17:00" },
+  source: "skill-completion:skill-pionier",
+  activityNumber: "annual:0:0:0",
+  activityTitle: "Najbliższa zbiórka",
+  activityDate: "2099-12-01",
 });
 
-click();
-click();
-click();
-await Promise.resolve();
-assert.equal(state.sprawnosci[0].status, "Zrealizowane");
-assert.equal(state.tasks.filter(task => task.source).length, 1);
+context.__completeActivitySkillPoint("skill-pionier", 0, false);
+context.__completeActivitySkillPoint("skill-pionier", 0, true);
+assert.equal(state.tasks.filter(task => task.source === "skill-completion:skill-pionier").length, 1);
 
-state.activity.date = "2000-01-01T17:00";
-state.annual.calendar = [];
-state.sprawnosci[1] = { name: "Ratownik", status: "W trakcie" };
-target.dataset.skillStatus = "1";
-click();
-await Promise.resolve();
-assert.equal(state.sprawnosci[1].status, "Zrealizowane");
-assert.equal(state.tasks.filter(task => task.source).length, 2);
-assert.equal(state.tasks.at(-1).activity, null);
+state.team.skillRecords.push({
+  id: "skill-ratownik",
+  title: "Ratownik",
+  group: "Pierwsza pomoc",
+  level: "Zwiadowcy",
+  aspect: "fizyczny",
+  requirements: [{ text: "Opatrz ranę", status: "W trakcie" }],
+});
+state.annualPlans = [];
+context.__completeActivitySkillPoint("skill-ratownik", 0, true);
+const unlinkedTask = state.tasks.find(task => task.source === "skill-completion:skill-ratownik");
+assert.equal(unlinkedTask.activityNumber, undefined);
+assert.equal(unlinkedTask.activityTitle, undefined);
 console.log("Skill completion task test passed");
