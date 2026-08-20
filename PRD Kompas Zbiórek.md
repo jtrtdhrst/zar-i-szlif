@@ -1,8 +1,8 @@
 # PRD: Kompas Zbiórek
 
-**Wersja:** 1.1  
+**Wersja:** 1.7  
 **Status:** uporządkowany zakres produktu  
-**Produkt:** Custom GPT dla liderów Royal Rangers Polska
+**Produkt:** Wtyczka ChatGPT + własny interfejs (https://interfejs.kompaszbiorek.pl) dla liderów Royal Rangers Polska
 
 ## 1. Cel produktu
 
@@ -27,7 +27,7 @@ Głównym użytkownikiem jest lider planujący i podsumowujący pracę drużyny 
 - planowanie zbiórki lub wyjazdu na podstawie celu i kontekstu;
 - wyszukiwanie gotowych aktywności z Bazy Aktywności RR według warunków zbiórki;
 - praca w domyślnym trybie analizy oraz kontrolowany tryb zapisu;
-- przechowywanie kontekstu i stanu cyklu w jednym dokumencie Google Docs na drużynę;
+- przechowywanie kontekstu i stanu cyklu w jednym arkuszu Google Sheets na drużynę;
 - używanie dat i terminów w strefie `Europe/Warsaw`;
 - przygotowanie jawnego, edytowalnego artefaktu roboczego w ChatGPT Canvas, gdy interfejs go udostępnia.
 
@@ -36,7 +36,7 @@ Głównym użytkownikiem jest lider planujący i podsumowujący pracę drużyny 
 - API sprawności ma zweryfikowany kontrakt `pobierzSprawnosciRR` opisany w [[Dokumentacja API SPRAWNOŚCI]]; wymaga podłączenia OpenAPI jako Action.
 - API stopni nie jest dostępne i pozostaje integracją planowaną.
 - API czasu ma bazowy URL `https://data.i.godzina.kompaszbiorek.pl` i opis odpowiedzi, ale pozostaje zablokowane do chwili podania URL OpenAPI.
-- Dokładne operacje Google Docs pozostają do skonfigurowania.
+- Operacje Google Sheets (wybór arkusza lub utworzenie kopii szablonu, zapis karty) są wdrożone w panelu `/panel` i opisane w `dokumentacja-integracji-kompas-zbiorek.md`.
 
 System nie może wymyślać ani przedstawiać jako oficjalnych wymagań, których nie zwróciło podłączone API albo aktualny oficjalny dokument.
 
@@ -50,21 +50,34 @@ System nie może wymyślać ani przedstawiać jako oficjalnych wymagań, któryc
 6. Użytkownik planuje następną zbiórkę lub wyjazd z użyciem kontekstu drużyny i ostatnich wniosków.
 7. Użytkownik przegląda po około dwóch tygodniach, czy wdrożona praktyka nadal działa bez nadzwyczajnego wysiłku.
 
-## 5. Cykl doskonalenia
+## 5. Cykl doskonalenia (4 etapy — aktualny)
 
-1. **Odczytaj kontekst:** ustal aktywny cykl, poprzednią decyzję i najbliższe działanie.
-2. **Podsumuj działanie:** zapisz obserwowalny przebieg, odchylenia i wyniki.
-3. **Wybierz problem:** określ jeden priorytetowy skutek i stan oczekiwany.
-4. **Znajdź praprzyczynę:** zbuduj gałęzie przyczynowe i zatrzymaj analizę na zmienialnym warunku.
-5. **Zaprojektuj zmianę:** utwórz hipotezę, warunek docelowy i najmniejszy wartościowy eksperyment.
-6. **Oceń i zamroź wersję:** sprawdź bezpieczeństwo, wykonalność, kryteria i regułę decyzji.
-7. **Przeprowadź próby:** zbieraj lekki zapis wykonania, efektu, zakłóceń i kosztu.
-8. **Wyciągnij wnioski:** oceń jakość dowodu, zaktualizuj założenia i podejmij jedną decyzję.
-9. **Utrwal wiedzę:** zapisz regułę operacyjną i termin przeglądu trwałości.
+**02 Planowanie → 03 Realizacja (aktualny etap) → 04 Analiza → Decyzja** — uproszczony z 9 kroków.
 
-Szczegółowa logika cyklu znajduje się w [[06_CYKL_DOSKONALENIA]].
+1. **02 Planowanie:** Odczytaj kontekst → Podsumuj działanie → Wybierz jeden problem → Znajdź praprzyczynę → Zaprojektuj zmianę (hipoteza, warunek docelowy, eksperyment) → Oceń i zamroź wersję. *Wejście: obserwacje. Wynik: zamrożony eksperyment. Pliki: `00_ANALIZA_PROBLEMU`, `01_PRAPRZYCZYNA_OPERACYJNA`, `02_HIPOTEZA_I_EKSPERYMENT`.*
+2. **03 Realizacja (aktualny etap):** Przeprowadź próby — lekki zapis wykonania, efektu, zakłóceń i kosztu. *Wejście: zamrożony eksperyment. Wynik: seria prób. Pliki: `03_OCENA_I_PROWADZENIE_EKSPERYMENTU`.*
+3. **04 Analiza:** Wyciągnij wnioski — oceń jakość dowodu, zaktualizuj założenia. *Wejście: seria prób. Wynik: ocena dowodu. Pliki: `04_WNIOSKI_I_WIEDZA`.*
+4. **Decyzja:** Utrwal wiedzę — jedna decyzja (wsparcie/osłabienie/nierozstrzygnięte) → reguła operacyjna + termin przeglądu trwałości. *Wejście: ocena dowodu. Wynik: reguła. Pliki: `05_PLANOWANIE_ZBIORKI_I_WYJAZDU` (jeśli dotyczy), `06_CYKL_DOSKONALENIA` (koordynacja).*
+
+Szczegółowa logika w `00`–`06` (mapowanie: 02←00/01/02, 03←03, 04←04, Decyzja←05/06).
 
 Każdy etap ma jeden kontrakt: wymagane wejście, jeden wynik, bramkę akceptacji i wskazany następny plik. System nie wykonuje kilku etapów naraz. Wyjątek zachodzi tylko wtedy, gdy użytkownik jednoznacznie prosi o kontynuację, a wszystkie wcześniejsze bramki są już spełnione.
+
+### Zadania użytkownika i stałe kroki milowe
+
+- Zadania operacyjne i przygotowawcze ustala użytkownik. Użytkownik może dodawać, edytować, przypisywać, łączyć ze zbiórką, zmieniać status oraz usuwać te zadania.
+- Strona główna musi zawierać widoczną listę zadań użytkownika. Lista pokazuje zadania nieukończone, pozwala dodać nowe zadanie oraz zmienić jego nazwę i status bez opuszczania strony głównej. Dane zapisują się w tym samym roboczym szkicu co karta aktywności.
+- Kroki milowe w kontekście realizacji etapów doskonalenia są stałym kontraktem systemu. System ustawia je automatycznie i wylicza ich postęp na podstawie danych wprowadzonych przez użytkownika.
+- Kroki milowe nie są zadaniami użytkownika, nie mogą być dopisywane do jego listy ani zastępować jego zadań. Ręczne zaznaczenie etapu może być dostępne jako korekta stanu, ale nie zmienia stałej listy kroków.
+- Na stronie głównej lista zadań użytkownika i trasa kroków milowych muszą być prezentowane jako dwa odrębne elementy interfejsu.
+
+### Automatyczne zadanie po ukończeniu sprawności
+
+- Po oznaczeniu sprawności jako ukończonej system automatycznie dodaje zadanie wręczenia naszywki.
+- Nazwa zadania ma format: `Wręcz naszywkę (Nazwa grupy) – Nazwa sprawności – Poziom`.
+- Jeżeli istnieje zaplanowana kolejna aktywność (najbliższa zbiórka lub wyjazd), system łączy zadanie z tą aktywnością; jeżeli nie ma takiej aktywności, zadanie trafia wyłącznie na listę zadań użytkownika.
+- Zadanie jest tworzone jako nieukończone i podlega tym samym regułom co zadania dodane ręcznie: użytkownik może je edytować, zmieniać status oraz usuwać.
+- Automatyczne zadanie nie jest krokiem milowym i nie zmienia stałej listy kroków doskonalenia.
 
 ## 6. Tryby pracy
 
@@ -73,7 +86,7 @@ Każdy etap ma jeden kontrakt: wymagane wejście, jeden wynik, bramkę akceptacj
 - Jest trybem domyślnym.
 - System na początku rozmowy komunikuje `TRYB: ANALIZA`.
 - System może czytać potrzebny kontekst, porządkować dane i tworzyć podgląd artefaktu.
-- System nie zmienia dokumentu Google Docs.
+- System nie zmienia zapisanych danych w arkuszu Google Sheets.
 
 ### Tryb zapisu
 
@@ -88,7 +101,7 @@ Każdy etap ma jeden kontrakt: wymagane wejście, jeden wynik, bramkę akceptacj
 
 ## 7. Dokument drużyny
 
-Każda drużyna korzysta z jednego dokumentu Google Docs utworzonego na podstawie [[SZABLON GOOGLE DOCS]]. Dokument zawiera:
+Każda drużyna korzysta z jednego arkusza Google Sheets utworzonego na podstawie szablonu arkusza (struktura treści według `SZABLON GOOGLE DOCS.md`). Arkusz zawiera:
 
 - trwały kontekst drużyny;
 - jeden aktywny cykl doskonalenia;
@@ -96,7 +109,7 @@ Każda drużyna korzysta z jednego dokumentu Google Docs utworzonego na podstawi
 - zaakceptowane reguły operacyjne;
 - archiwum zamkniętych cykli.
 
-Nagłówki i identyfikatory kart w szablonie są kontraktem dla przyszłej integracji. Narzędzie powinno aktualizować wskazaną kartę zamiast dopisywać niestrukturyzowany tekst na końcu dokumentu.
+Nagłówki arkusza są kontraktem integracji: kolumny mapowane po znormalizowanych nazwach (aliasy pól z `SHEET_FIELDS`), a karta zbiórki jest dopisywana jako nowy wiersz zamiast niestrukturyzowanego tekstu na końcu.
 
 ### 7.1. Karty robocze interfejsu
 
@@ -106,7 +119,11 @@ Interfejs nie może redukować dokumentu drużyny do pojedynczych pól opisowych
 - **Karta problemu:** problem, pięć kolejnych pytań „dlaczego?”, hipoteza przyczyny, eksperyment (`co testujemy`, `czego się spodziewamy`) oraz wynik i decyzja (`rezultat`, ocena hipotezy, wnioski).
 - **Plan roczny:** temat roczny, jedna tabela okresów `IX–X` do `V–VI` z kolumnami `kierunek`, `efekt etapu`, `program`, a także kalendarz zbiórek i wydarzeń.
 - **Kontekst zastępu:** grupa programowa, liczba zapisanych i typowa frekwencja, cel długoterminowy, charakter zastępu, styl prowadzenia, poziom samodzielności i współpracy, podział funkcji oraz dodatkowe informacje bez danych wrażliwych.
-- **Sprawności i historia:** wymagania i ich statusy pochodzą wyłącznie z API sprawności; historia zawiera aspekty programu oraz tabelę problemów, hipotez, rezultatów i wniosków z eksperymentów.
+- W tabeli podziału zadań i funkcji (kolumny `Osoba`, `Funkcja`, `Zakres zadań / odpowiedzialności`) pole `Osoba` pierwszego wiersza jest automatycznie uzupełniane nazwą zalogowanego użytkownika z konta Google, o ile nie zawiera już wpisanej wartości. Pole pozostaje edytowalne, a użytkownik może je zmienić lub wyczyścić jak każde pole karty.
+- Wybór godziny (domyślna godzina aktywności w kontekście zastępu oraz godziny rozpoczęcia i czasu trwania w planie zbiórki) odbywa się w krokach co 5 minut, a nie co 1 minutę.
+- W pickerze katalogu sprawności (pole „Filtruj katalog") filtrowanie listy wyników odbywa się z opóźnieniem debounce (~300 ms) od ostatniego naciśnięcia klawisza, a nie natychmiast po każdym znaku. Zapobiega to widocznej pauzie przy wpisywaniu i pozwala na płynne przeszukiwanie katalogu.
+- **Sprawności i historia:** wymagania i ich statusy pochodzą wyłącznie z API sprawności; historia zawiera aspekty programu oraz tabelę problemów, hipotez, rezultatów i wniosków z eksperymentów. Po oznaczeniu sprawności jako ukończonej system dodaje automatyczne zadanie wręczenia naszywki zgodnie z sekcją 5.
+- W historii sprawności widoczny jest napis `Wymagania na stopień` z licznikiem postępu w formie `liczba spełnionych / wymagana`, osobno dla każdego z czterech aspektów programu. Wymagana liczba sprawności na stopień zależy od poziomu: **Odkrywcy — 4**, **Zwiadowcy — 3**, **Wędrownicy — 2**. Gdy w danym aspekcie zostanie osiągnięta wymagana liczba sprawności, ten aspekt (1 z 4) podświetla się na zielono i otrzymuje tick obok licznika; pozostałe aspekty pozostają bez podświetlenia, dopóki nie spełnią własnego wymagania.
 
 Jeśli informacja z planu rocznego lub integracji nie istnieje, karta pokazuje edytowalne miejsce na roboczy opis albo jawny stan braku danych. Nie używa komunikatów blokujących typu „uzupełnij w planie rocznym”.
 
@@ -131,15 +148,14 @@ System wybiera jedno główne źródło według aktualnego etapu:
 
 Narzędzie zwraca aktualną datę i czas dla strefy `Europe/Warsaw`. System używa go, gdy znaczenie zależy od sformułowań względnych, takich jak „dwa dni temu”, „za tydzień” lub „następny piątek”.
 
-### Google Docs
+### Google Sheets
 
-Narzędzie powinno umożliwiać:
+Panel `/panel` umożliwia:
 
-- odczyt wskazanego dokumentu lub karty;
-- utworzenie dokumentu z szablonu;
-- aktualizację konkretnej karty po potwierdzeniu;
-- dopisanie rekordu działania lub próby;
-- odczyt kontrolny po zapisie.
+- wybór istniejącego arkusza drużyny (link lub Google Picker);
+- utworzenie arkusza z szablonu (`SHEETS_TEMPLATE_FILE_ID`);
+- zapis karty zbiórki do wskazanego arkusza po potwierdzeniu (`POST /panel/save`);
+- potwierdzenie rzeczywistego rezultatu zapisu (zwrócony zakres wiersza).
 
 ### Sprawności Royal Rangers
 
@@ -179,8 +195,9 @@ Canvas służy do edycji jawnego artefaktu roboczego: planu, karty cyklu, drzewa
 6. Plan zbiórki wynika z celu, kontekstu, bezpieczeństwa i dostępnych zasobów.
 7. Plan wyjazdu obejmuje logistykę, role, ryzyka, komunikację i wariant awaryjny.
 8. Względna data jest osadzana w `Europe/Warsaw` przy użyciu narzędzia albo jawnie oznaczana jako wymagająca potwierdzenia.
-9. Żaden zapis do Google Docs nie następuje bez podglądu i jednoznacznego potwierdzenia.
+9. Żaden zapis do arkusza Google Sheets nie następuje bez podglądu i jednoznacznego potwierdzenia.
 10. Po zapisie następuje odczyt kontrolny; awaria nie jest przedstawiana jako sukces.
 11. API sprawności jest używane zgodnie z kontraktem, a brak źródła stopni nie prowadzi do konfabulacji wymagań.
 12. Niebezpieczny lub poniżający eksperyment jest blokowany.
 13. Każdy zamknięty cykl kończy się decyzją, regułą operacyjną i terminem przeglądu albo jawnym zakończeniem kierunku.
+14. Po ukończeniu sprawności system dodaje nieukończone zadanie `Wręcz naszywkę (Nazwa grupy) – Nazwa sprawności – Poziom`, połączone z kolejną zaplanowaną aktywnością, jeśli taka istnieje, a w przeciwnym razie trafiające wyłącznie na listę zadań.

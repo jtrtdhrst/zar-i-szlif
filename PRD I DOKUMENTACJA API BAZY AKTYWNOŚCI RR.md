@@ -28,7 +28,6 @@ Wynik wyszukiwania musi pozwolić instruktorowi szybko sprawdzić:
 - poziom;
 - liczbę uczestników;
 - czas;
-- miejsce;
 - poziom energii;
 - krótki opis;
 - materiały;
@@ -51,7 +50,6 @@ Pozostałe pola są opcjonalne. Mogą być puste lub nieobecne.
 | `min_participants` | integer | Minimalna liczba uczestników |
 | `max_participants` | integer | Maksymalna liczba uczestników |
 | `duration_minutes` | integer | Czas aktywności w minutach |
-| `place` | enum | `sala`, `teren`, `oba` |
 | `energy` | enum | `niska`, `srednia`, `wysoka` |
 | `description` | string | Krótki opis aktywności |
 | `materials` | array[string] | Materiały potrzebne do przeprowadzenia |
@@ -76,7 +74,6 @@ W adresie URL wartości są zapisane jako lista rozdzielona przecinkami:
 | Filtr | Parametr URL | Wartości |
 |---|---|---|
 | Poziom | `level` | `odkrywcy`, `zwiadowcy`, `wedrownicy`, `wszystkie_poziomy` |
-| Miejsce | `place` | `sala`, `teren`, `oba` |
 | Energia | `energy` | `niska`, `srednia`, `wysoka` |
 | Liczba osób | `participants` | Dodatnia liczba całkowita, np. `12` |
 
@@ -96,10 +93,6 @@ Rekord bez zakresu liczby osób nie pasuje do filtra `participants`.
 
 Rekord pasuje do filtra poziomu, gdy `level` jest równy wybranemu poziomowi albo ma wartość `wszystkie_poziomy`.
 
-### Zasada miejsca
-
-Rekord z `place=oba` pasuje do filtrów `sala` i `teren`. Rekord z `sala` nie pasuje do `teren`, a rekord z `teren` nie pasuje do `sala`.
-
 ### Zasada wielu filtrów
 
 Filtry różnych rodzajów łączą się operatorem `AND`. Wiele wartości kategorii łączy się operatorem `OR`.
@@ -107,7 +100,7 @@ Filtry różnych rodzajów łączą się operatorem `AND`. Wiele wartości kateg
 Przykład:
 
 ```text
-category=logiczna,ruchowa AND level=zwiadowcy AND place=teren AND energy=srednia AND participants=12
+category=logiczna,ruchowa AND level=zwiadowcy AND energy=srednia AND participants=12
 ```
 
 ## 5. Zwracanie wyników
@@ -143,7 +136,6 @@ Zwraca krótką dokumentację API w formacie JSON. Endpoint nie pobiera aktywno�
   "filters": {
     "category": "multiselect rozdzielony przecinkami",
     "level": "pojedynczy poziom",
-    "place": "sala, teren albo oba",
     "energy": "niska, srednia albo wysoka",
     "participants": "liczba uczestników"
   }
@@ -164,14 +156,13 @@ Filtry muszą być parametrami query. Nie używaj body, sesji ani ukrytego stanu
 |---|---|---|---|
 | `category` | string | nie | `logiczna,ruchowa` |
 | `level` | string | nie | `zwiadowcy` |
-| `place` | string | nie | `teren` |
 | `energy` | string | nie | `srednia` |
 | `participants` | integer | nie | `12` |
 
 #### Przykład
 
 ```http
-GET /api/activities?category=logiczna,ruchowa&level=zwiadowcy&place=teren&energy=srednia&participants=12
+GET /api/activities?category=logiczna,ruchowa&level=zwiadowcy&energy=srednia&participants=12
 ```
 
 Ten sam link musi być możliwy do skopiowania, odświeżenia i ponownego użycia z tym samym wynikiem.
@@ -190,7 +181,6 @@ Ten sam link musi być możliwy do skopiowania, odświeżenia i ponownego użyci
       "min_participants": 8,
       "max_participants": 32,
       "duration_minutes": 30,
-      "place": "teren",
       "energy": "wysoka",
       "description": "Patrole przenoszą meldunki między punktami.",
       "materials": ["koperty", "meldunki", "oznaczenia punktów"],
@@ -202,7 +192,6 @@ Ten sam link musi być możliwy do skopiowania, odświeżenia i ponownego użyci
     "filters": {
       "category": ["logiczna", "ruchowa"],
       "level": "zwiadowcy",
-      "place": "teren",
       "energy": "srednia",
       "participants": 12
     }
@@ -220,19 +209,19 @@ Walidacja ma być minimalna:
 2. Wartość `category` musi należeć do dozwolonej listy.
 3. Jeżeli podano `min_participants` i `max_participants`, minimum nie może być większe od maksimum.
 4. Jeżeli podano liczby, muszą być dodatnimi liczbami całkowitymi.
-5. Jeżeli podano `level`, `place` lub `energy`, wartości muszą należeć do listy enumów.
+5. Jeżeli podano `level` lub `energy`, wartości muszą należeć do listy enumów.
 
 Walidacja MVP nie obejmuje dodatkowej oceny treści.
 
-## 8. Zachowanie Custom GPT
+## 8. Zachowanie Wtyczki ChatGPT + Interfejsu
 
-Gdy użytkownik chce znaleźć aktywność:
+Gdy użytkownik chce znaleźć aktywność (wtyczka ChatGPT lub interfejs):
 
 1. Ustal tylko filtry, które są znane lub zmienią wyniki.
 2. Nie zadawaj dodatkowych pytań, jeśli użytkownik może od razu zobaczyć wyniki.
 3. Wywołaj `GET /api/activities`.
 4. Wyświetl wszystkie zwrócone aktywności, nie tylko wybrane przez model.
-5. Przy każdej pokaż dostępne pola: nazwę, kategorię, poziom, liczbę osób, czas, miejsce, energię, opis, materiały i zasady.
+5. Przy każdej pokaż dostępne pola: nazwę, kategorię, poziom, liczbę osób, czas, energię, opis, materiały i zasady.
 6. Brakujące pola oznacz jako `Brak danych`.
 7. Nie twórz aktywności, nie poprawiaj rekordów i nie usuwaj rekordów.
 

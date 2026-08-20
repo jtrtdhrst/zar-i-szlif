@@ -6,7 +6,7 @@ Jedyne obowiązujące źródło wiedzy o projekcie dla wszystkich agentów. Nadr
 
 Stały kontrakt projektu, wspólny dla wszystkich agentów. Nie odkrywaj go ponownie w każdym runie.
 
-- **Produkt**: Kompas Zbiórek — aplikacja wspierająca przygotowanie i prowadzenie zbiórek. Rdzeń metodyczny: SENS → DZIAŁANIE → REFLEKSJA. Karta zbiórki jest samowystarczalnym artefaktem roboczym (dane+obecność, sprawności, eksperyment, przygotowanie, plan godzinowy, refleksja).
+- **Produkt**: Kompas Zbiórek — wtyczka ChatGPT + własny interfejs (https://interfejs.kompaszbiorek.pl). Rdzeń metodyczny: SENS → DZIAŁANIE → REFLEKSJA. Karta zbiórki jest samowystarczalnym artefaktem roboczym (dane+obecność, sprawności, eksperyment, przygotowanie, plan godzinowy, refleksja).
 - **Repozytorium**: https://github.com/miloszspyrka-code/kompas-zbiorek
 - **Workspace Paperclip**: `isolated_workspace` + `git_worktree`, `baseRef = main`, worktree parent `C:\Kompas Zbiórek\.paperclip-worktrees`. Główny managed checkout NIE jest targetem zapisu.
 - **Produkcja**: strona publiczna https://kompaszbiorek.pl/; UI aplikacji https://wtyczka.kompaszbiorek.pl/ui; Worker Cloudflare `wtyczka-rr`; domena docelowa interfejsu `interfejs.kompaszbiorek.pl`.
@@ -36,8 +36,10 @@ Cyfrowy przewodnik dla drużyny harcerskiej (ZHR/ZHP, instruktorzy, drużynowi):
 
 ## Mapa systemu (REPO MAP)
 
+**Routing table dla agentów: `docs/AI-REPO-MAP.md`** (zweryfikowane ścieżki + canonical commands). Poniższa sekcja to skrócona wersja; przy rozbieżności plik w `docs/` jest aktualniejszy.
+
 - `PRD Kompas Zbiórek.md` — zakres, wymagania, kryteria akceptacji.
-- `MAPA SYSTEMU.md` — rola plików produktu, kolejność etapów 00–06, granice źródeł.
+- `MAPA SYSTEMU.md` — rola plików produktu, kolejność 4 etapów (mapowanych na 00–06), granice źródeł.
 - `AGENTS.md` — zasady wykonawcze (Advanced UI, branding, wdrożenia, edycje).
 - Cykl doskonalenia: `00_ANALIZA_PROBLEMU.md` … `06_CYKL_DOSKONALENIA.md`.
 - Szablon treści dokumentu drużyny: `SZABLON GOOGLE DOCS.md` (podstawa struktury szablonu arkusza Google Sheets; nagłówki `[...]` to kontrakt struktury).
@@ -88,9 +90,9 @@ Komendy kanoniczne (`kompas-ui-plugin`): `npm run build`, `npm run test:all` (bu
 
 Pełne kontrakty: `Dokumentacja API SPRAWNOŚCI.md` (v14), `Dokumentacja API DATY I GODZINY.md` (zablokowane — brak OpenAPI), `PRD I DOKUMENTACJA API BAZY AKTYWNOŚCI RR.md`, `dokumentacja-integracji-kompas-zbiorek.md` (MCP + OAuth + panel Google Sheets + cache HTTP). Nie podłączaj ani nie udawaj integracji, której nie ma. Gdy API niedostępne — jawny, nieblokujący stan braku danych + edytowalny opis roboczy.
 
-## Cykl doskonalenia
+## Cykl doskonalenia (4 etapy — aktualny)
 
-Jeden priorytetowy problem → praprzyczyna operacyjna → hipoteza i najmniejszy eksperyment → próby → ocena i decyzja → reguła operacyjna → przegląd trwałości (~2 tyg.). Etapy `00–05` mają rozłączne granice i bramki; `06` koordynuje przejścia (nigdy kilka etapów naraz). Oddzielaj fakty od interpretacji, wykonanie od efektu, kontrolę od zmiany. Kryteria ustalaj przed wynikiem. Wynik nierozstrzygnięty to poprawny stan wiedzy. Bezpieczeństwo i godność dzieci mają pierwszeństwo nad tempem.
+**02 Planowanie → 03 Realizacja (aktualny etap) → 04 Analiza → Decyzja** — uproszczony z 9 kroków (00–06). Szczegóły: `02` Planowanie (00/01: kontekst → problem → praprzyczyna → hipoteza), `03` Realizacja (03: próby — rejestr wykonania), `04` Analiza (04: wnioski, ocena dowodu), `Decyzja` (05/06: reguła operacyjna → przegląd trwałości). Każdy etap ma jeden kontrakt i bramkę; `06` koordynuje przejścia (nigdy kilka etapów naraz). Przykładowy przebieg: jeden problem → jedna praprzyczyna → jeden eksperyment → seria prób → jedna decyzja → jedna reguła → przegląd po ~2 tyg. Oddzielaj fakty od interpretacji, wykonanie od efektu, kontrolę od zmiany. Kryteria ustalaj przed wynikiem. Wynik nierozstrzygnięty to poprawny stan wiedzy. Bezpieczeństwo i godność dzieci mają pierwszeństwo nad tempem.
 
 ## Design i branding
 
@@ -109,14 +111,19 @@ Jeden priorytetowy problem → praprzyczyna operacyjna → hipoteza i najmniejsz
 
 ## Wykonanie kontraktowe (CONTEXT-FIRST EXECUTION)
 
-Nie odkrywaj ponownie informacji dostarczonych przez Paperclip. Na starcie runa:
+Nie odkrywaj ponownie informacji dostarczonych przez Paperclip. **EXECUTION ORDER** na starcie runa:
 
-1. `PAPERCLIP_WAKE_PAYLOAD_JSON` — jeśli zawiera wystarczający kontekst, użyj go najpierw.
-2. `PAPERCLIP_TASK_ID` — pracuj na tym issue w pierwszej kolejności.
-3. `heartbeat-context` dla tego issue (stan issue, Goal, Project, ancestry, comment cursor).
-4. Komentarze pobieraj inkrementalnie tylko wtedy, gdy potrzeba.
+1. `PAPERCLIP_WAKE_PAYLOAD_JSON` / heartbeat-context / task context
+2. HANDOFF (jeśli przekazano — format w `skills/kompas-governance/SKILL.md`)
+3. REPO MAP (`docs/AI-REPO-MAP.md`)
+4. targeted file reads
+5. code
 
-Nie zaczynaj normalnego taska od: listowania wszystkich issue/projektów/goals/agentów, szerokiego skanu repo, `git worktree list`, `git remote -v`, pełnego `git log`, `find` po całym systemie plików — chyba że task tego faktycznie wymaga. Use the narrowest source that already contains the answer. Zasada: **Known context > targeted verification > broad discovery.**
+Broad discovery dopiero, gdy powyższe źródła są niewystarczające. Zasada: **Known context > targeted verification > broad discovery.**
+
+Przed startem agenta sprawdź **Definition of Ready** (upstream DONE + deliverable + finalized workspace + credentials + assignee bez error; FAIL → `BLOCKER/OWNER/ACTION`, bez recovery issue). Kontrakt w `skills/kompas-governance/SKILL.md` wraz z: HANDOFF, szablonami zadań (FEATURE/BUGFIX/DESIGN/QA), CREDENTIAL PREFLIGHT (`BLOCKED_EXTERNAL`) i przepływem CI (ENGINEER → PUSH → CI → UI QA → DONE).
+
+Nie zaczynaj normalnego taska od: listowania wszystkich issue/projektów/goals/agentów, szerokiego skanu repo, `git worktree list`, `git remote -v`, pełnego `git log`, `find` po całym systemie plików — chyba że task tego faktycznie wymaga. Use the narrowest source that already contains the answer.
 
 ## STARTUP I/O BUDGET
 
