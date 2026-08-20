@@ -27,13 +27,13 @@ Oba tryby używają wyłącznie scopes `openid email profile https://www.googlea
 ```text
 ChatGPT / MCP client
         ↓  OAuth 2.1 + PKCE
-Cloudflare Worker (wtyczka-rr)
+Cloudflare Worker (panel-kompaszbiorek, kanon https://panel.kompaszbiorek.pl)
         ↓  Google OAuth / OpenID Connect (openid email profile)
 konto Google użytkownika (identyfikacja przez `sub`)
         ↓
 Worker wydaje własny token MCP (scope: kompas.read)
         ↓
-ChatGPT wywołuje https://wtyczka.kompaszbiorek.pl/mcp
+ChatGPT wywołuje https://panel.kompaszbiorek.pl/mcp (wtyczka.kompaszbiorek.pl/* → 308 → panel)
 ```
 
 Worker pełni jednocześnie rolę OAuth Servera dla klientów MCP (endpointy `/authorize`, `/token`, `/register`) oraz OAuth Clienta względem Google (`/authorize` → Google → `/callback`). Token Google NIE jest tokenem MCP — do `/mcp` trafia wyłącznie token wydany przez Workera.
@@ -64,7 +64,7 @@ npx tsc --noEmit
 npx wrangler deploy --keep-vars
 ```
 
-Endpoint produkcyjny: `https://wtyczka.kompaszbiorek.pl/mcp` (Worker `wtyczka-rr`, custom domain już skonfigurowany — nie zmieniać).
+Endpoint produkcyjny: `https://panel.kompaszbiorek.pl/mcp` (Worker `panel-kompaszbiorek`, kanon; `wtyczka.kompaszbiorek.pl/mcp` → `308` → `panel`, `CANONICAL_ORIGIN=https://panel.kompaszbiorek.pl`).
 
 ## Sekrety (Cloudflare Workers Secrets)
 

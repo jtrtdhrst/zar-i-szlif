@@ -289,6 +289,12 @@ export function createGoogleAuthHandler(options: { widgetHtml: string }): Export
   return {
     async fetch(request, env, ctx) {
       const url = new URL(request.url);
+      if (url.hostname === "wtyczka.kompaszbiorek.pl") {
+        const target = new URL(request.url);
+        target.hostname = "panel.kompaszbiorek.pl";
+        target.protocol = "https:";
+        return Response.redirect(target.href, 308);
+      }
       const { pathname } = url;
       console.log("route:", request.method, pathname);
 
@@ -345,11 +351,23 @@ export function createGoogleAuthHandler(options: { widgetHtml: string }): Export
 
       const isPanelHost = url.hostname === "panel.kompaszbiorek.pl";
       if (pathname === "/preview") {
-        return Response.redirect(new URL(isPanelHost ? "/panel" : "/ui", request.url), 308);
+        if (!isPanelHost) {
+          const target = new URL(request.url);
+          target.hostname = "panel.kompaszbiorek.pl";
+          target.pathname = "/panel";
+          return Response.redirect(target.href, 308);
+        }
+        return Response.redirect(new URL("/panel", request.url), 308);
       }
 
       if (pathname === "/") {
-        return Response.redirect(new URL(isPanelHost ? "/panel" : "/ui", request.url), 308);
+        if (!isPanelHost) {
+          const target = new URL(request.url);
+          target.hostname = "panel.kompaszbiorek.pl";
+          target.pathname = "/panel";
+          return Response.redirect(target.href, 308);
+        }
+        return Response.redirect(new URL("/panel", request.url), 308);
       }
 
       if (pathname === "/authorize" && request.method === "GET") {
