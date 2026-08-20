@@ -35,6 +35,8 @@ const target = {
 const click = () => listeners.click.forEach(listener => listener({ target }));
 
 click();
+await Promise.resolve();
+assert.equal(state.sprawnosci[0].status, "Zrealizowane");
 assert.equal(state.tasks.filter(task => task.source).length, 1);
 assert.deepEqual(JSON.parse(JSON.stringify(state.tasks.at(-1))), {
   people: [],
@@ -47,5 +49,7 @@ assert.deepEqual(JSON.parse(JSON.stringify(state.tasks.at(-1))), {
 click();
 click();
 click();
+await Promise.resolve();
+assert.equal(state.sprawnosci[0].status, "Zrealizowane");
 assert.equal(state.tasks.filter(task => task.source).length, 1);
 console.log("Skill completion task test passed");
