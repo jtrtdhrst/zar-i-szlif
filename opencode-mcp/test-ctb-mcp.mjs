@@ -35,7 +35,7 @@ assert.equal(healthBody.engine, "AlaeddineMessadi/opencode-mcp@1.11.0");
 const metadata = await fetch(`${base}/.well-known/oauth-protected-resource`);
 assert.equal(metadata.status, 200);
 const protectedResource = await metadata.json();
-assert.deepEqual(protectedResource.scopes_supported, ["opencode:read", "opencode:session", "opencode:ctb:execute", "opencode:admin", "opencode:write"]);
+assert.deepEqual(protectedResource.scopes_supported, ["opencode:read", "opencode:session", "opencode:ctb:execute", "opencode:admin", "opencode:write", "mcp:read", "mcp:write", "offline_access"]);
 
 const redirectUri = "http://127.0.0.1/callback";
 const registration = await fetch(`${base}/oauth/register`, {
@@ -53,7 +53,7 @@ authorize.search = new URLSearchParams({
   redirect_uri: redirectUri,
   response_type: "code",
   resource: protectedResource.resource,
-  scope: "opencode:read opencode:session opencode:ctb:execute",
+  scope: "offline_access mcp:read mcp:write",
   code_challenge: challenge,
   code_challenge_method: "S256",
   state: "ctb-smoke-test",

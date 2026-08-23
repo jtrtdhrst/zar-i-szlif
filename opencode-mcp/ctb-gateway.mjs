@@ -25,7 +25,7 @@ const registryFile = path.join(runtimeDir, "ctb-runs.json");
 const accessTtlMs = 8 * 60 * 60 * 1000;
 const refreshTtlMs = 30 * 24 * 60 * 60 * 1000;
 const codeTtlMs = 10 * 60 * 1000;
-const validScopes = new Set(["opencode:read", "opencode:session", "opencode:ctb:execute", "opencode:admin", "opencode:write"]);
+const validScopes = new Set(["opencode:read", "opencode:session", "opencode:ctb:execute", "opencode:admin", "opencode:write", "mcp:read", "mcp:write", "offline_access"]);
 const codes = new Map();
 const sessions = new Map();
 const attempts = new Map();
@@ -64,8 +64,8 @@ function sign(payload) { const encoded = b64(JSON.stringify(payload)); return `$
 function verify(token) { try { const [encoded, signature] = String(token).split("."); const expected = crypto.createHmac("sha256", signingKey).update(encoded).digest("base64url"); if (!encoded || !signature || !crypto.timingSafeEqual(Buffer.from(signature), Buffer.from(expected))) return null; return JSON.parse(Buffer.from(encoded, "base64url").toString("utf8")); } catch { return null; } }
 function resourceUrl() { return `${issuer}/mcp`; }
 function scopes(scope) { return String(scope || "").split(/\s+/).filter((entry) => validScopes.has(entry)); }
-function normalizedScope(scope) { const requested = scopes(scope); return requested.length ? requested.join(" ") : "opencode:read opencode:session"; }
-function hasScope(token, required) { const actual = scopes(token?.scope); return actual.includes(required) || (required === "opencode:ctb:execute" && actual.includes("opencode:write")); }
+function normalizedScope(scope) { const requested = scopes(scope); const granted = new Set(requested); if (requested.includes("mcp:read")) { granted.add("opencode:read"); granted.add("opencode:session"); } if (requested.includes("mcp:write")) granted.add("opencode:ctb:execute"); if (!["opencode:read", "opencode:session", "opencode:ctb:execute", "opencode:admin", "opencode:write"].some((entry) => granted.has(entry))) { granted.add("opencode:read"); granted.add("opencode:session"); } return [...granted].join(" "); }
+function hasScope(token, required) { const actual = scopes(token?.scope); return actual.includes(required) || (required === "opencode:read" && actual.includes("mcp:read")) || (required === "opencode:session" && actual.includes("mcp:read")) || (required === "opencode:ctb:execute" && (actual.includes("opencode:write") || actual.includes("mcp:write"))); }
 function secureEqual(left, right) { const a = Buffer.from(String(left)); const b = Buffer.from(String(right)); return a.length === b.length && crypto.timingSafeEqual(a, b); }
 function allowedRedirect(value) { try { const url = new URL(value); return (url.protocol === "http:" && ["localhost", "127.0.0.1"].includes(url.hostname)) || (url.protocol === "https:" && url.hostname === "chatgpt.com" && (url.pathname === "/connector_platform_oauth_redirect" || /^\/connector\/oauth\/[^/]+$/.test(url.pathname))); } catch { return false; } }
 function sendJson(res, status, body, headers = {}) { res.writeHead(status, { "content-type": "application/json; charset=utf-8", "cache-control": "no-store", "x-content-type-options": "nosniff", ...headers }); res.end(JSON.stringify(body)); }
