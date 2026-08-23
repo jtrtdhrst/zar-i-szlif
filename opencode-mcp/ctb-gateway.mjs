@@ -29,7 +29,6 @@ const validScopes = new Set(["opencode:read", "opencode:session", "opencode:ctb:
 const codes = new Map();
 const sessions = new Map();
 const attempts = new Map();
-const oauthBrowserSessions = new Map();
 
 if (!operatorPassword || !openCodePassword) throw new Error("OPENCODE_MCP_PASSWORD and OPENCODE_SERVER_PASSWORD must be configured.");
 if (!fs.existsSync(upstreamEntry)) throw new Error(`Missing upstream engine: ${upstreamEntry}`);
@@ -323,20 +322,6 @@ async function handleAuthorize(req, res, url) {
   if (!client || !allowedRedirect(redirectUri) || !client.redirect_uris.includes(redirectUri)) return fail("unauthorized_client", "Unknown OAuth client or redirect URI.");
   if (param("response_type") !== "code" || codeChallengeMethod !== "S256" || !/^[A-Za-z0-9._~-]{43,128}$/.test(codeChallenge)) return fail("invalid_request", "PKCE S256 is required.");
   if ((resource || resourceUrl()) !== resourceUrl()) return fail("invalid_target", "Unknown resource.");
-  const browserSessionId = /(?:^|;\s*)opencode_oauth=([^;]+)/.exec(String(req.headers.cookie || ""))?.[1] || "";
-  const browserSession = oauthBrowserSessions.get(browserSessionId);
-  if (req.method === "GET" && browserSession?.clientId === clientId && browserSession.expiresAt > Date.now()) {
-    oauthBrowserSessions.delete(browserSessionId);
-    const code = random(36);
-    codes.set(code, { clientId, redirectUri, scope: normalizedScope(scope), codeChallenge, expiresAt: Date.now() + codeTtlMs });
-    const destination = new URL(redirectUri);
-    destination.searchParams.set("code", code);
-    destination.searchParams.set("iss", issuer);
-    if (state) destination.searchParams.set("state", state);
-    audit({ result: "oauth_callback_redirect", clientId, redirectHost: destination.host });
-    res.writeHead(302, { location: destination.toString(), "cache-control": "no-store" });
-    return res.end();
-  }
   if (req.method === "GET") return sendHtml(res, 200, loginPage(q));
   const ip = String(req.headers["cf-connecting-ip"] || req.socket.remoteAddress || "unknown");
   if (!secureEqual(form.get("username"), operatorUsername) || !secureEqual(form.get("password"), operatorPassword)) {
@@ -346,14 +331,62 @@ async function handleAuthorize(req, res, url) {
     return count >= 10 ? sendJson(res, 429, { error: "too_many_attempts" }) : sendHtml(res, 401, loginPage(q, "Niepoprawny login lub hasło."));
   }
   attempts.delete(ip);
-  const sessionId = random(24);
-  oauthBrowserSessions.set(sessionId, { clientId, redirectUri, state, scope: normalizedScope(scope), codeChallenge, expiresAt: Date.now() + codeTtlMs });
+  const code = random(36);
+  codes.set(code, { clientId, redirectUri, scope: normalizedScope(scope), codeChallenge, expiresAt: Date.now() + codeTtlMs });
+  const destination = new URL(redirectUri);
+  destination.searchParams.set("code", code);
+  destination.searchParams.set("iss", issuer);
+  if (state) destination.searchParams.set("state", state);
   audit({ result: "oauth_authorize_success", clientId, redirectHost: new URL(redirectUri).host, scope: normalizedScope(scope) });
-  const params = new URLSearchParams({ client_id: clientId, redirect_uri: redirectUri, response_type: "code", scope, state, resource, code_challenge: codeChallenge, code_challenge_method: codeChallengeMethod });
-  res.writeHead(302, { location: `${url.pathname}?${params.toString()}`, "set-cookie": `opencode_oauth=${sessionId}; Path=/; HttpOnly; Secure; SameSite=Lax; Max-Age=600`, "cache-control": "no-store" });
+  audit({ result: "oauth_callback_redirect", clientId, redirectHost: destination.host });
+  res.writeHead(302, { location: destination.toString(), "cache-control": "no-store" });
   res.end();
 }
-async function handleToken(req, res) { const form = new URLSearchParams(await body(req)); if (form.get("grant_type") === "authorization_code") { const code = String(form.get("code") || ""); const record = codes.get(code); codes.delete(code); if (!record || record.expiresAt < Date.now() || record.clientId !== form.get("client_id") || record.redirectUri !== form.get("redirect_uri")) return sendJson(res, 400, { error: "invalid_grant" }); const challenge = crypto.createHash("sha256").update(String(form.get("code_verifier") || "")).digest("base64url"); if (!secureEqual(challenge, record.codeChallenge)) return sendJson(res, 400, { error: "invalid_grant" }); const refresh = random(40); refreshTokens[refresh] = { clientId: record.clientId, scope: record.scope, expiresAt: Date.now() + refreshTtlMs }; writeJson(refreshFile, refreshTokens); return sendJson(res, 200, { access_token: issueAccessToken(record.clientId, record.scope), refresh_token: refresh, token_type: "Bearer", expires_in: Math.floor(accessTtlMs / 1000), scope: record.scope }); } if (form.get("grant_type") === "refresh_token") { const refresh = String(form.get("refresh_token") || ""); const record = refreshTokens[refresh]; delete refreshTokens[refresh]; writeJson(refreshFile, refreshTokens); if (!record || record.expiresAt < Date.now() || record.clientId !== form.get("client_id")) return sendJson(res, 400, { error: "invalid_grant" }); const next = random(40); refreshTokens[next] = { ...record, expiresAt: Date.now() + refreshTtlMs }; writeJson(refreshFile, refreshTokens); return sendJson(res, 200, { access_token: issueAccessToken(record.clientId, record.scope), refresh_token: next, token_type: "Bearer", expires_in: Math.floor(accessTtlMs / 1000), scope: record.scope }); } return sendJson(res, 400, { error: "unsupported_grant_type" }); }
+async function handleToken(req, res) {
+  const form = new URLSearchParams(await body(req));
+  const grantType = form.get("grant_type") || "";
+  const requestedClientId = form.get("client_id") || "";
+  audit({ result: "oauth_token_requested", grantType, clientId: requestedClientId || null });
+  if (grantType === "authorization_code") {
+    const code = String(form.get("code") || "");
+    const record = codes.get(code);
+    if (!record || record.expiresAt < Date.now()) {
+      audit({ result: "oauth_token_failed", errorCode: "INVALID_AUTHORIZATION_CODE", clientId: requestedClientId || null });
+      return sendJson(res, 400, { error: "invalid_grant", error_description: "Invalid or expired authorization code" });
+    }
+    const clientId = requestedClientId || record.clientId;
+    const redirectUri = form.get("redirect_uri") || "";
+    const resource = form.get("resource") || resourceUrl();
+    if (clientId !== record.clientId || (redirectUri && redirectUri !== record.redirectUri) || resource !== resourceUrl()) {
+      audit({ result: "oauth_token_failed", errorCode: "AUTHORIZATION_BINDING_MISMATCH", clientId });
+      return sendJson(res, 400, { error: "invalid_grant", error_description: "Authorization code binding mismatch" });
+    }
+    const verifier = String(form.get("code_verifier") || "");
+    const challenge = crypto.createHash("sha256").update(verifier).digest("base64url");
+    if (!verifier || !secureEqual(challenge, record.codeChallenge)) {
+      audit({ result: "oauth_token_failed", errorCode: "PKCE_VERIFICATION_FAILED", clientId });
+      return sendJson(res, 400, { error: "invalid_grant", error_description: "PKCE verification failed" });
+    }
+    codes.delete(code);
+    const refresh = random(40);
+    refreshTokens[refresh] = { clientId, scope: record.scope, expiresAt: Date.now() + refreshTtlMs };
+    writeJson(refreshFile, refreshTokens);
+    audit({ result: "oauth_token_issued", clientId, scope: record.scope });
+    return sendJson(res, 200, { access_token: issueAccessToken(clientId, record.scope), refresh_token: refresh, token_type: "Bearer", expires_in: Math.floor(accessTtlMs / 1000), scope: record.scope }, { "cache-control": "no-store", pragma: "no-cache" });
+  }
+  if (grantType === "refresh_token") {
+    const refresh = String(form.get("refresh_token") || "");
+    const record = refreshTokens[refresh];
+    delete refreshTokens[refresh];
+    writeJson(refreshFile, refreshTokens);
+    if (!record || record.expiresAt < Date.now() || (requestedClientId && record.clientId !== requestedClientId)) return sendJson(res, 400, { error: "invalid_grant" });
+    const next = random(40);
+    refreshTokens[next] = { ...record, expiresAt: Date.now() + refreshTtlMs };
+    writeJson(refreshFile, refreshTokens);
+    return sendJson(res, 200, { access_token: issueAccessToken(record.clientId, record.scope), refresh_token: next, token_type: "Bearer", expires_in: Math.floor(accessTtlMs / 1000), scope: record.scope }, { "cache-control": "no-store", pragma: "no-cache" });
+  }
+  return sendJson(res, 400, { error: "unsupported_grant_type" });
+}
 
 const server = http.createServer(async (req, res) => { const url = new URL(req.url, `http://${req.headers.host || "localhost"}`); try { if (url.pathname === "/health" && req.method === "GET") return sendJson(res, 200, { ok: true, engine: "AlaeddineMessadi/opencode-mcp@1.11.0", policy: "ctb", issuer, allowedRoots }); if (url.pathname === "/.well-known/oauth-protected-resource" && req.method === "GET") return sendJson(res, 200, { resource: resourceUrl(), authorization_servers: [issuer], scopes_supported: [...validScopes], resource_documentation: `${issuer}/health` }, { "access-control-allow-origin": "*", "cache-control": "public, max-age=3600" }); if ((url.pathname === "/.well-known/oauth-authorization-server" || url.pathname === "/.well-known/openid-configuration") && req.method === "GET") return sendJson(res, 200, { issuer, authorization_endpoint: `${issuer}/oauth/authorize`, token_endpoint: `${issuer}/oauth/token`, registration_endpoint: `${issuer}/oauth/register`, response_types_supported: ["code"], grant_types_supported: ["authorization_code", "refresh_token"], token_endpoint_auth_methods_supported: ["none"], code_challenge_methods_supported: ["S256"], scopes_supported: [...validScopes], authorization_response_iss_parameter_supported: true }, { "access-control-allow-origin": "*", "cache-control": "public, max-age=3600" }); if (url.pathname === "/oauth/register" && req.method === "POST") { const registration = JSON.parse(await body(req)); const redirectUris = Array.isArray(registration.redirect_uris) ? registration.redirect_uris : []; if (!redirectUris.length || !redirectUris.every(allowedRedirect)) return sendJson(res, 400, { error: "invalid_redirect_uri" }); const clientId = `dcr_${random(18)}`; clients[clientId] = { client_id: clientId, client_name: String(registration.client_name || "MCP client"), redirect_uris: redirectUris, token_endpoint_auth_method: "none", created_at: new Date().toISOString() }; writeJson(clientsFile, clients); return sendJson(res, 201, { ...clients[clientId], grant_types: ["authorization_code", "refresh_token"], response_types: ["code"] }); } if (url.pathname === "/oauth/authorize" && ["GET", "POST"].includes(req.method || "")) return handleAuthorize(req, res, url); if (url.pathname === "/oauth/token" && req.method === "POST") return handleToken(req, res); if (url.pathname === "/mcp" && req.method === "POST") return handleMcp(req, res); return sendJson(res, 404, { error: "Not found" }); } catch (error) { console.error("[opencode-ctb] request failed", error instanceof Error ? error.message : error); return sendJson(res, 500, { error: "Internal server error" }); } });
 server.listen(port, "127.0.0.1", () => console.log(`[opencode-ctb] listening on http://127.0.0.1:${port}/mcp`));

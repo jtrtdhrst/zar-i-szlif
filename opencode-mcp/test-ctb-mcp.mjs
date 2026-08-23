@@ -65,11 +65,7 @@ const authResponse = await fetch(authorize, {
   redirect: "manual",
 });
 assert.equal(authResponse.status, 302);
-const cookie = authResponse.headers.get("set-cookie")?.split(";", 1)[0];
-assert.ok(cookie);
-const consent = await fetch(authorize, { redirect: "manual", headers: { cookie } });
-assert.equal(consent.status, 302);
-const code = new URL(consent.headers.get("location")).searchParams.get("code");
+const code = new URL(authResponse.headers.get("location")).searchParams.get("code");
 assert.ok(code);
 const tokenResponse = await fetch(`${base}/oauth/token`, {
   method: "POST",
