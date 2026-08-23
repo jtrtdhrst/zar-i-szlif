@@ -43,6 +43,16 @@ function writeJson(file, value) { fs.writeFileSync(file, JSON.stringify(value, n
 const clients = readJson(clientsFile, {});
 const refreshTokens = readJson(refreshFile, {});
 const runs = readJson(registryFile, {});
+const COMPATIBILITY_ALIASES = Object.freeze({
+  opencode_list_runs: "opencode_sessions_overview",
+  opencode_get_run: "opencode_session_get",
+  opencode_read_logs: "opencode_conversation",
+  opencode_get_diff: "opencode_session_diff",
+  opencode_list_agents: "opencode_agent_list",
+  opencode_run_prompt: "opencode_run",
+  opencode_continue_run: "opencode_reply",
+  opencode_abort_run: "opencode_session_abort",
+});
 function persistRuns() { writeJson(registryFile, runs); }
 function b64(value) { return Buffer.from(value).toString("base64url"); }
 function random(bytes = 32) { return crypto.randomBytes(bytes).toString("base64url"); }
@@ -122,6 +132,11 @@ function eventFor(sessionId, event) { if (!sessionId || !runs[sessionId]) return
 function extractSessionId(result) { const text = JSON.stringify(result); return /(?:ses|session)_[A-Za-z0-9_-]+/.exec(text)?.[0] || null; }
 
 async function callTool(name, args, token) {
+  const requestedName = name;
+  if (COMPATIBILITY_ALIASES[name]) {
+    name = COMPATIBILITY_ALIASES[name];
+    if (["opencode_get_run", "opencode_get_diff", "opencode_abort_run"].includes(requestedName)) args = { ...args, id: args.sessionId, sessionId: undefined };
+  }
   if (name === "opencode_list_skills") { if (!hasScope(token, "opencode:read")) throw Object.assign(new Error("INSUFFICIENT_SCOPE"), { code: "INSUFFICIENT_SCOPE", requiredScope: "opencode:read" }); return toolResult({ skills: skillCatalog().map(({ path: ignored, ...skill }) => skill) }, "Dostępne skille CTB."); }
   if (name === "opencode_get_skill") { if (!hasScope(token, "opencode:read")) throw Object.assign(new Error("INSUFFICIENT_SCOPE"), { code: "INSUFFICIENT_SCOPE", requiredScope: "opencode:read" }); const skill = skillCatalog().find((item) => item.name === args.name); if (!skill) throw Object.assign(new Error("SKILL_NOT_FOUND"), { code: "SKILL_NOT_FOUND" }); return toolResult({ ...skill, contract: fs.readFileSync(skill.path, "utf8") }, "Kontrakt skilla CTB."); }
   if (name === "opencode_ctb_get_run" || name === "opencode_ctb_get_events" || name === "opencode_ctb_get_metrics") {
@@ -141,16 +156,16 @@ async function callTool(name, args, token) {
   if (ctb) await validatePaperclipIssue(ctb.paperclipIssueId);
   const forwarded = validateToolPathArguments(Object.fromEntries(Object.entries(args || {}).filter(([key]) => key !== "ctb")), allowedRoots, workspaceRoot);
   const startedAt = Date.now();
-  audit({ principal: token.sub, paperclipIssueId: ctb?.paperclipIssueId || null, mode: ctb?.mode || "DIAGNOSE", changeClass: ctb?.changeClass || null, tool: name, directory: forwarded.directory, result: "started" });
+  audit({ principal: token.sub, paperclipIssueId: ctb?.paperclipIssueId || null, mode: ctb?.mode || "DIAGNOSE", changeClass: ctb?.changeClass || null, tool: requestedName, upstreamTool: name, directory: forwarded.directory, result: "started" });
   try {
     const result = await engine.call("tools/call", { name, arguments: forwarded });
     const sessionId = extractSessionId(result);
     recordRun(sessionId, ctb, forwarded.directory, token.sub);
     eventFor(sessionId, { kind: "tool_call", tool: name, durationMs: Date.now() - startedAt, status: "success" });
-    audit({ principal: token.sub, paperclipIssueId: ctb?.paperclipIssueId || null, runId: sessionId, mode: ctb?.mode || "DIAGNOSE", changeClass: ctb?.changeClass || null, tool: name, directory: forwarded.directory, result: "success", durationMs: Date.now() - startedAt });
+    audit({ principal: token.sub, paperclipIssueId: ctb?.paperclipIssueId || null, runId: sessionId, mode: ctb?.mode || "DIAGNOSE", changeClass: ctb?.changeClass || null, tool: requestedName, upstreamTool: name, directory: forwarded.directory, result: "success", durationMs: Date.now() - startedAt });
     return result;
   } catch (error) {
-    audit({ principal: token.sub, paperclipIssueId: ctb?.paperclipIssueId || null, mode: ctb?.mode || "DIAGNOSE", changeClass: ctb?.changeClass || null, tool: name, directory: forwarded.directory, result: "error", errorCode: error.code || "UPSTREAM_ERROR", durationMs: Date.now() - startedAt });
+    audit({ principal: token.sub, paperclipIssueId: ctb?.paperclipIssueId || null, mode: ctb?.mode || "DIAGNOSE", changeClass: ctb?.changeClass || null, tool: requestedName, upstreamTool: name, directory: forwarded.directory, result: "error", errorCode: error.code || "UPSTREAM_ERROR", durationMs: Date.now() - startedAt });
     throw error;
   }
 }
@@ -164,7 +179,7 @@ async function handleMcp(req, res) {
   if (method === "notifications/initialized" || String(method || "").startsWith("notifications/")) return sendJson(res, 202, {}, headers);
   if (method === "ping") return sendJson(res, 200, rpcResult(id, {}), headers);
   try {
-    if (method === "tools/list") { await engine.start(); const upstream = await engine.call("tools/list", {}); const tools = upstream.tools.map(exposeTool); tools.push({ name: "opencode_list_skills", title: "Skille CTB", description: "Lista kontraktów skilli CTB.", inputSchema: { type: "object", properties: {}, additionalProperties: false }, outputSchema: { type: "object" }, annotations: { readOnlyHint: true }, securitySchemes: [{ type: "oauth2", scopes: ["opencode:read"] }] }, { name: "opencode_get_skill", title: "Kontrakt skilla CTB", description: "Zwraca pełny kontrakt wskazanego skilla CTB.", inputSchema: { type: "object", properties: { name: { type: "string" } }, required: ["name"], additionalProperties: false }, outputSchema: { type: "object" }, annotations: { readOnlyHint: true }, securitySchemes: [{ type: "oauth2", scopes: ["opencode:read"] }] }, ...["opencode_ctb_get_run", "opencode_ctb_get_events", "opencode_ctb_get_metrics"].map((name) => ({ name, title: name, description: "Read-only telemetry CTB z registry korelacji.", inputSchema: { type: "object", properties: { runId: { type: "string" } }, required: ["runId"], additionalProperties: false }, outputSchema: { type: "object" }, annotations: { readOnlyHint: true }, securitySchemes: [{ type: "oauth2", scopes: ["opencode:read"] }] }))); return sendJson(res, 200, rpcResult(id, { tools }), headers); }
+    if (method === "tools/list") { await engine.start(); const upstream = await engine.call("tools/list", {}); const tools = upstream.tools.map(exposeTool); for (const [legacyName, targetName] of Object.entries(COMPATIBILITY_ALIASES)) { const target = upstream.tools.find((tool) => tool.name === targetName); if (target) tools.push({ ...exposeTool(target), name: legacyName, title: `${legacyName} (compatibility)`, description: `Compatibility alias forwarding to ${targetName}. ${target.description || ""}`, _meta: { ...(target._meta || {}), kompas: { compatibilityAliasFor: targetName } } }); } tools.push({ name: "opencode_list_skills", title: "Skille CTB", description: "Lista kontraktów skilli CTB.", inputSchema: { type: "object", properties: {}, additionalProperties: false }, outputSchema: { type: "object" }, annotations: { readOnlyHint: true }, securitySchemes: [{ type: "oauth2", scopes: ["opencode:read"] }] }, { name: "opencode_get_skill", title: "Kontrakt skilla CTB", description: "Zwraca pełny kontrakt wskazanego skilla CTB.", inputSchema: { type: "object", properties: { name: { type: "string" } }, required: ["name"], additionalProperties: false }, outputSchema: { type: "object" }, annotations: { readOnlyHint: true }, securitySchemes: [{ type: "oauth2", scopes: ["opencode:read"] }] }, ...["opencode_ctb_get_run", "opencode_ctb_get_events", "opencode_ctb_get_metrics"].map((name) => ({ name, title: name, description: "Read-only telemetry CTB z registry korelacji.", inputSchema: { type: "object", properties: { runId: { type: "string" } }, required: ["runId"], additionalProperties: false }, outputSchema: { type: "object" }, annotations: { readOnlyHint: true }, securitySchemes: [{ type: "oauth2", scopes: ["opencode:read"] }] }))); return sendJson(res, 200, rpcResult(id, { tools }), headers); }
     if (method === "tools/call") return sendJson(res, 200, rpcResult(id, await callTool(message.params?.name, message.params?.arguments || {}, token)), headers);
     if (["resources/list", "resources/templates/list", "resources/read", "prompts/list", "prompts/get"].includes(method)) { if (!hasScope(token, "opencode:read")) return sendJson(res, 200, rpcResult(id, { isError: true, structuredContent: { errorCode: "INSUFFICIENT_SCOPE", requiredScope: "opencode:read" }, content: [{ type: "text", text: "INSUFFICIENT_SCOPE" }] }), headers); await engine.start(); return sendJson(res, 200, rpcResult(id, await engine.call(method, message.params || {})), headers); }
     return sendJson(res, 400, rpcError(id ?? null, -32601, "Nieznana metoda MCP."), headers);
