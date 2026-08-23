@@ -43,7 +43,10 @@ function readJson(file, fallback) { try { return JSON.parse(fs.readFileSync(file
 function writeJson(file, value) { fs.writeFileSync(file, JSON.stringify(value, null, 2), { mode: 0o600 }); }
 const clients = readJson(clientsFile, {});
 const refreshTokens = readJson(refreshFile, {});
-const runs = readJson(registryFile, {});
+const savedRegistry = readJson(registryFile, {});
+const runs = savedRegistry?.runs && typeof savedRegistry.runs === "object" ? savedRegistry.runs : savedRegistry;
+const pendingEvents = new Map();
+const activeCtbExecutions = new Map();
 const COMPATIBILITY_ALIASES = Object.freeze({
   opencode_list_runs: "opencode_sessions_overview",
   opencode_get_run: "opencode_session_get",
@@ -54,7 +57,7 @@ const COMPATIBILITY_ALIASES = Object.freeze({
   opencode_continue_run: "opencode_reply",
   opencode_abort_run: "opencode_session_abort",
 });
-function persistRuns() { writeJson(registryFile, runs); }
+function persistRuns() { writeJson(registryFile, { version: 2, runs }); }
 function b64(value) { return Buffer.from(value).toString("base64url"); }
 function random(bytes = 32) { return crypto.randomBytes(bytes).toString("base64url"); }
 function sign(payload) { const encoded = b64(JSON.stringify(payload)); return `${encoded}.${crypto.createHmac("sha256", signingKey).update(encoded).digest("base64url")}`; }
@@ -74,6 +77,13 @@ function toolResult(data, text) { return { structuredContent: data, content: [{ 
 function tokenFromRequest(req) { const auth = String(req.headers.authorization || ""); return /^Bearer\s+/i.test(auth) ? auth.replace(/^Bearer\s+/i, "").trim() : new URL(req.url, `http://${req.headers.host || "localhost"}`).searchParams.get("access_token") || ""; }
 function mcpUnauthorized(res, id = null) { return sendJson(res, 401, rpcError(id, -32001, "Unauthorized"), { "www-authenticate": `Bearer resource_metadata="${issuer}/.well-known/oauth-protected-resource", scope="opencode:read opencode:session opencode:ctb:execute opencode:admin", error="invalid_token", error_description="Connect OpenCode with OAuth to continue"` }); }
 function audit(event) { const safe = { timestamp: new Date().toISOString(), ...event }; fs.appendFileSync(auditFile, `${JSON.stringify(safe)}\n`, { mode: 0o600 }); }
+function sanitize(value, depth = 0) {
+  if (depth > 6) return "[truncated]";
+  if (typeof value === "string") return value.replace(/(bearer\s+|token[=:]\s*|api[_-]?key[=:]\s*|password[=:]\s*)[^\s,"}]+/ig, "$1[redacted]");
+  if (Array.isArray(value)) return value.slice(0, 50).map((item) => sanitize(item, depth + 1));
+  if (!value || typeof value !== "object") return value;
+  return Object.fromEntries(Object.entries(value).slice(0, 50).map(([key, item]) => (/token|secret|password|authorization|cookie/i.test(key) ? [key, "[redacted]"] : [key, sanitize(item, depth + 1)])));
+}
 
 class UpstreamEngine {
   constructor() { this.child = null; this.buffer = ""; this.nextId = 1; this.pending = new Map(); this.ready = null; }
@@ -96,6 +106,85 @@ class UpstreamEngine {
   notify(method, params) { if (this.child) this.child.stdin.write(`${JSON.stringify({ jsonrpc: "2.0", method, params })}\n`); }
 }
 const engine = new UpstreamEngine();
+
+function extractSessionId(result) { const text = JSON.stringify(result); return /(?:ses|session)_[A-Za-z0-9_-]+/.exec(text)?.[0] || null; }
+function classifyEventKind(event, data) {
+  const source = `${event} ${JSON.stringify(data)}`.toLowerCase();
+  if (/error|fail/.test(source)) return "error";
+  if (/\bmcp\b/.test(source)) return "mcp";
+  if (/search|grep|glob|find/.test(source)) return "search";
+  if (/test|vitest|jest|pytest|--check/.test(source)) return "test";
+  if (/git\b/.test(source)) return "git";
+  if (/file|read|write|edit|patch/.test(source)) return "file";
+  if (/command|shell|terminal|exec/.test(source)) return "command";
+  if (/session|message|lifecycle|status|run/.test(source)) return "lifecycle";
+  return "tool";
+}
+function eventOperation(kind, data) {
+  const source = JSON.stringify(data).toLowerCase();
+  if (kind === "file") return /write|edit|patch|create|delete/.test(source) ? "write" : "read";
+  return null;
+}
+function normalizedOpenCodeEvent(event, raw) {
+  let data;
+  try { data = JSON.parse(raw); } catch { data = { message: raw }; }
+  data = sanitize(data);
+  const kind = classifyEventKind(event, data);
+  const field = (value, names, depth = 0) => {
+    if (depth > 5 || !value || typeof value !== "object") return null;
+    for (const name of names) if (typeof value[name] === "string") return value[name];
+    for (const nested of Object.values(value)) { const found = field(nested, names, depth + 1); if (found) return found; }
+    return null;
+  };
+  return {
+    sessionId: extractSessionId(data),
+    event: { kind, tool: field(data, ["tool", "command", "name"]) || event || null, action: field(data, ["action", "type"]) || event || null, operation: eventOperation(kind, data), durationMs: Number.isFinite(Number(field(data, ["durationMs"]))) ? Number(field(data, ["durationMs"])) : null, status: kind === "error" || field(data, ["status"]) === "error" ? "error" : field(data, ["status"]) === "success" ? "success" : "started", retry: Number(field(data, ["retry"])) || 0, errorCode: field(data, ["errorCode", "code"]) || (kind === "error" ? "OPENCODE_EVENT_ERROR" : null), details: data },
+  };
+}
+async function collectOpenCodeEvents() {
+  for (;;) {
+    try {
+      const response = await fetch(`${serverUrl}/event`, { headers: { accept: "text/event-stream", authorization: `Basic ${Buffer.from(`${openCodeUsername}:${openCodePassword}`).toString("base64")}` } });
+      if (!response.ok || !response.body) throw new Error(`SSE ${response.status}`);
+      const reader = response.body.getReader();
+      const decoder = new TextDecoder(); let buffer = ""; let event = "message"; let data = [];
+      for (;;) {
+        const { value, done } = await reader.read();
+        if (done) break;
+        buffer += decoder.decode(value, { stream: true });
+        for (;;) {
+          const index = buffer.indexOf("\n"); if (index < 0) break;
+          const line = buffer.slice(0, index).replace(/\r$/, ""); buffer = buffer.slice(index + 1);
+          if (!line) { if (data.length) { const normalized = normalizedOpenCodeEvent(event, data.join("\n")); appendTelemetryEvent(normalized.sessionId, normalized.event); } event = "message"; data = []; continue; }
+          if (line.startsWith("event:")) event = line.slice(6).trim() || "message";
+          if (line.startsWith("data:")) data.push(line.slice(5).trimStart());
+        }
+      }
+    } catch (error) { audit({ result: "telemetry_reconnect", errorCode: "OPENCODE_SSE_UNAVAILABLE" }); }
+    await new Promise((resolve) => setTimeout(resolve, 1000));
+  }
+}
+let telemetryCollectorStarted = false;
+function startTelemetryCollector() { if (!telemetryCollectorStarted) { telemetryCollectorStarted = true; void collectOpenCodeEvents(); } }
+async function collectSessionToolEvents(sessionId) {
+  if (!sessionId) return;
+  try {
+    const response = await fetch(`${serverUrl}/session/${encodeURIComponent(sessionId)}/message`, { headers: { authorization: `Basic ${Buffer.from(`${openCodeUsername}:${openCodePassword}`).toString("base64")}` } });
+    if (!response.ok) throw new Error(`Session event lookup ${response.status}`);
+    const messages = await response.json();
+    for (const message of Array.isArray(messages) ? messages : []) {
+      for (const part of Array.isArray(message?.parts) ? message.parts : []) {
+        if (part?.type !== "tool" || typeof part.tool !== "string") continue;
+        const state = part.state && typeof part.state === "object" ? part.state : {};
+        const started = Number(state?.time?.start) || Number(message?.info?.time?.created) || null;
+        const ended = Number(state?.time?.end) || Number(message?.info?.time?.completed) || started;
+        const source = { type: part.type, tool: part.tool, title: state.title || "" };
+        const kind = part.tool === "bash" && /test|--check/i.test(String(state.title || "")) ? "test" : classifyEventKind("tool", source);
+        eventFor(sessionId, { kind, tool: part.tool, action: state.title || part.tool, operation: eventOperation(kind, source), timestamp: started ? new Date(started).toISOString() : undefined, durationMs: started && ended ? Math.max(0, ended - started) : null, status: state.status === "completed" ? "success" : state.status === "error" ? "error" : "started", retry: 0, errorCode: state.status === "error" ? "OPENCODE_TOOL_ERROR" : null });
+      }
+    }
+  } catch (error) { audit({ runId: sessionId, result: "session_telemetry_unavailable", errorCode: "OPENCODE_SESSION_EVENTS_UNAVAILABLE" }); }
+}
 
 function skillCatalog() {
   if (!fs.existsSync(skillsRoot)) return [];
@@ -129,13 +218,17 @@ async function validatePaperclipIssue(issueId) {
   if (expectedCompanyId && issue?.companyId !== expectedCompanyId) throw Object.assign(new Error("PAPERCLIP_ISSUE_NOT_FOUND"), { code: "PAPERCLIP_ISSUE_NOT_FOUND" });
 }
 
-function recordRun(sessionId, ctb, directory, actor) {
+function recordRun(sessionId, ctb, directory, actor, createdAt = new Date().toISOString()) {
   if (!sessionId || !ctb) return;
-  if (!runs[sessionId]) runs[sessionId] = { runId: sessionId, paperclipIssueId: ctb.paperclipIssueId, changeClass: ctb.changeClass, mode: ctb.mode, changeIntent: ctb.changeIntent, acceptanceCriteria: ctb.acceptanceCriteria, idempotencyKey: ctb.idempotencyKey, directory, actor, createdAt: new Date().toISOString(), events: [], retries: 0 };
+  if (!runs[sessionId]) runs[sessionId] = { runId: sessionId, paperclipIssueId: ctb.paperclipIssueId, changeClass: ctb.changeClass, mode: ctb.mode, changeIntent: ctb.changeIntent, acceptanceCriteria: ctb.acceptanceCriteria, idempotencyKey: ctb.idempotencyKey, directory, actor, status: "running", createdAt, finishedAt: null, events: [], retries: 0 };
+  const pending = pendingEvents.get(sessionId) || []; pendingEvents.delete(sessionId); for (const event of pending) eventFor(sessionId, event);
   persistRuns();
 }
-function eventFor(sessionId, event) { if (!sessionId || !runs[sessionId]) return; const run = runs[sessionId]; run.events.push({ runId: sessionId, paperclipIssueId: run.paperclipIssueId, sequence: run.events.length + 1, timestamp: new Date().toISOString(), errorCode: null, retry: 0, ...event }); persistRuns(); }
-function extractSessionId(result) { const text = JSON.stringify(result); return /(?:ses|session)_[A-Za-z0-9_-]+/.exec(text)?.[0] || null; }
+function eventFor(sessionId, event) { if (!sessionId || !runs[sessionId]) return; const run = runs[sessionId]; run.events.push({ runId: sessionId, paperclipIssueId: run.paperclipIssueId, sequence: run.events.length + 1, timestamp: event.timestamp || new Date().toISOString(), errorCode: null, retry: 0, ...sanitize(event) }); run.events.sort((left, right) => String(left.timestamp).localeCompare(String(right.timestamp))); run.events.forEach((item, index) => { item.sequence = index + 1; }); persistRuns(); }
+function appendTelemetryEvent(sessionId, event) { const key = sessionId || (activeCtbExecutions.size === 1 ? activeCtbExecutions.keys().next().value : null); if (!key) return; if (runs[key]) return eventFor(key, event); const pending = pendingEvents.get(key) || []; pending.push(event); pendingEvents.set(key, pending.slice(-200)); }
+function flushPendingEvents(fromKey, toSessionId) { const pending = pendingEvents.get(fromKey) || []; pendingEvents.delete(fromKey); for (const event of pending) eventFor(toSessionId, event); }
+function finishRun(sessionId, status) { if (!sessionId || !runs[sessionId]) return; runs[sessionId].status = status; runs[sessionId].finishedAt = new Date().toISOString(); persistRuns(); }
+function metricsFor(run) { const events = run.events || []; const toolEvents = events.filter((event) => ["tool", "mcp", "search", "file", "command", "test", "git"].includes(event.kind)); const fingerprints = new Set(); let duplicateCalls = 0; for (const event of toolEvents) { const fingerprint = `${event.kind}|${event.tool || event.action || ""}|${event.status || ""}`; if (fingerprints.has(fingerprint)) duplicateCalls += 1; else fingerprints.add(fingerprint); } const startedAt = Date.parse(run.createdAt || "") || 0; const elapsed = (event) => { const at = Date.parse(event.timestamp || "") || 0; return startedAt && at ? Math.max(0, at - startedAt) : null; }; const firstWrite = events.find((event) => event.kind === "file" && event.operation === "write"); const firstTest = events.find((event) => event.kind === "test"); const finishedAt = Date.parse(run.finishedAt || "") || startedAt; return { toolCalls: toolEvents.length, failedToolCalls: toolEvents.filter((event) => event.status === "error").length, retryCount: events.reduce((total, event) => total + (Number(event.retry) || 0), 0), duplicateCalls, searchCalls: events.filter((event) => event.kind === "search").length, fileReads: events.filter((event) => event.kind === "file" && event.operation === "read").length, fileWrites: events.filter((event) => event.kind === "file" && event.operation === "write").length, testCalls: events.filter((event) => event.kind === "test").length, mcpCalls: events.filter((event) => event.kind === "mcp").length, timeToFirstWriteMs: firstWrite ? elapsed(firstWrite) : null, timeToFirstTestMs: firstTest ? elapsed(firstTest) : null, durationMs: startedAt ? Math.max(0, finishedAt - startedAt) : 0 }; }
 
 async function callTool(name, args, token) {
   const requestedName = name;
@@ -148,7 +241,7 @@ async function callTool(name, args, token) {
   if (name === "opencode_ctb_get_run" || name === "opencode_ctb_get_events" || name === "opencode_ctb_get_metrics") {
     if (!hasScope(token, "opencode:read")) throw Object.assign(new Error("INSUFFICIENT_SCOPE"), { code: "INSUFFICIENT_SCOPE", requiredScope: "opencode:read" }); const run = runs[args.runId]; if (!run) throw Object.assign(new Error("CTB_RUN_NOT_FOUND"), { code: "CTB_RUN_NOT_FOUND" });
     const events = run.events || [];
-    const metrics = { toolCalls: events.filter((event) => event.kind === "tool_call").length, failedToolCalls: events.filter((event) => event.status === "error").length, retryCount: events.reduce((total, event) => total + (event.retry || 0), 0), runDurationMs: Math.max(0, Date.now() - Date.parse(run.createdAt)), firstWriteAt: events.find((event) => event.kind === "file_write")?.timestamp || null, firstTestAt: events.find((event) => event.kind === "test")?.timestamp || null };
+    const metrics = metricsFor(run);
     return toolResult(name === "opencode_ctb_get_events" ? { runId: args.runId, events } : name === "opencode_ctb_get_metrics" ? { runId: args.runId, metrics } : { ...run, metrics }, "Telemetry CTB.");
   }
   const upstreamTools = await engine.call("tools/list", {});
@@ -162,17 +255,31 @@ async function callTool(name, args, token) {
   if (ctb) await validatePaperclipIssue(ctb.paperclipIssueId);
   const forwarded = validateToolPathArguments(Object.fromEntries(Object.entries(args || {}).filter(([key]) => key !== "ctb")), allowedRoots, workspaceRoot);
   const startedAt = Date.now();
+  const activeKey = ctb ? `pending:${ctb.idempotencyKey}:${random(8)}` : null;
+  if (activeKey) activeCtbExecutions.set(activeKey, { createdAt: new Date(startedAt).toISOString() });
   audit({ principal: token.sub, paperclipIssueId: ctb?.paperclipIssueId || null, mode: ctb?.mode || "DIAGNOSE", changeClass: ctb?.changeClass || null, tool: requestedName, upstreamTool: name, directory: forwarded.directory, result: "started" });
   try {
     const result = await engine.call("tools/call", { name, arguments: forwarded });
-    const sessionId = extractSessionId(result);
-    recordRun(sessionId, ctb, forwarded.directory, token.sub);
-    eventFor(sessionId, { kind: "tool_call", tool: name, durationMs: Date.now() - startedAt, status: "success" });
+    const sessionId = extractSessionId(result) || forwarded.sessionId || forwarded.id || null;
+    const execution = activeKey ? activeCtbExecutions.get(activeKey) : null;
+    recordRun(sessionId, ctb, forwarded.directory, token.sub, execution?.createdAt);
+    if (activeKey && sessionId) flushPendingEvents(activeKey, sessionId);
+    await collectSessionToolEvents(sessionId);
+    eventFor(sessionId, { kind: "tool", tool: name, action: requestedName, durationMs: Date.now() - startedAt, status: "success" });
+    if (name !== "opencode_fire" && name !== "opencode_message_send_async") finishRun(sessionId, "completed");
     audit({ principal: token.sub, paperclipIssueId: ctb?.paperclipIssueId || null, runId: sessionId, mode: ctb?.mode || "DIAGNOSE", changeClass: ctb?.changeClass || null, tool: requestedName, upstreamTool: name, directory: forwarded.directory, result: "success", durationMs: Date.now() - startedAt });
     return result;
   } catch (error) {
+    const sessionId = forwarded?.sessionId || forwarded?.id || null;
+    if (sessionId && ctb) {
+      recordRun(sessionId, ctb, forwarded.directory, token.sub);
+      eventFor(sessionId, { kind: "error", tool: name, action: requestedName, durationMs: Date.now() - startedAt, status: "error", errorCode: error.code || "UPSTREAM_ERROR" });
+      finishRun(sessionId, "failed");
+    }
     audit({ principal: token.sub, paperclipIssueId: ctb?.paperclipIssueId || null, mode: ctb?.mode || "DIAGNOSE", changeClass: ctb?.changeClass || null, tool: requestedName, upstreamTool: name, directory: forwarded.directory, result: "error", errorCode: error.code || "UPSTREAM_ERROR", durationMs: Date.now() - startedAt });
     throw error;
+  } finally {
+    if (activeKey) activeCtbExecutions.delete(activeKey);
   }
 }
 
@@ -181,7 +288,7 @@ async function handleMcp(req, res) {
   const token = verify(tokenFromRequest(req)); if (!token || token.iss !== issuer || token.aud !== resourceUrl() || token.exp * 1000 <= Date.now()) return mcpUnauthorized(res, message?.id ?? null);
   const sessionId = String(req.headers["mcp-session-id"] || ""); const currentSessionId = sessionId && sessions.has(sessionId) ? sessionId : random(16); const headers = sessionId && sessions.has(sessionId) ? {} : { "mcp-session-id": currentSessionId }; sessions.set(currentSessionId, { updatedAt: Date.now() });
   const method = message.method; const id = message.id;
-  if (method === "initialize") { await engine.start(); return sendJson(res, 200, rpcResult(id, { protocolVersion: message.params?.protocolVersion || "2025-03-26", capabilities: { tools: { listChanged: false }, resources: { subscribe: false }, prompts: { listChanged: false }, extensions: { "io.modelcontextprotocol/skills": {} } }, serverInfo: { name: "kompas-opencode-ctb", version: "1.0.0" }, instructions: "OpenCode is the CTB execution engine. DIAGNOSE and PLAN are read-only. Every write requires ctb.mode EXECUTE, ctb.changeClass ctb, a valid Paperclip issue, declared scope, acceptance criteria and idempotency key." }), headers); }
+  if (method === "initialize") { await engine.start(); startTelemetryCollector(); return sendJson(res, 200, rpcResult(id, { protocolVersion: message.params?.protocolVersion || "2025-03-26", capabilities: { tools: { listChanged: false }, resources: { subscribe: false }, prompts: { listChanged: false }, extensions: { "io.modelcontextprotocol/skills": {} } }, serverInfo: { name: "kompas-opencode-ctb", version: "1.1.0" }, instructions: "OpenCode is the CTB execution engine. DIAGNOSE and PLAN are read-only. Every write requires ctb.mode EXECUTE, ctb.changeClass ctb, a valid Paperclip issue, declared scope, acceptance criteria and idempotency key." }), headers); }
   if (method === "notifications/initialized" || String(method || "").startsWith("notifications/")) return sendJson(res, 202, {}, headers);
   if (method === "ping") return sendJson(res, 200, rpcResult(id, {}), headers);
   try {

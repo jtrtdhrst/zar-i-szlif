@@ -101,4 +101,27 @@ assert.equal(response.body.result.structuredContent.errorCode, "INSUFFICIENT_SCO
 response = await rpc(token.access_token, sessionId, 8, "tools/call", { name: "opencode_context", arguments: { directory: "C:\\Windows" } });
 assert.equal(response.body.result.structuredContent.errorCode, "CTB_PROJECT_DENIED");
 
+if (process.env.PAPERCLIP_ITB_ISSUE_ID) {
+  response = await rpc(token.access_token, sessionId, 9, "tools/call", {
+    name: "opencode_run",
+    arguments: {
+      directory: "C:\\paperclip",
+      prompt: "Run a narrow CTB ITB check. In this exact order: search and read package.json, write C:\\paperclip\\ctb-itb-proof.txt containing PASS, run node --check C:\\paperclip\\mcp-public-gateway.mjs, then delete only C:\\paperclip\\ctb-itb-proof.txt. Do not modify any other file. Report the completed steps.",
+      ctb: {
+        mode: "EXECUTE",
+        changeClass: "ctb",
+        paperclipIssueId: process.env.PAPERCLIP_ITB_ISSUE_ID,
+        changeIntent: "Validate CTB OpenCode tool telemetry end-to-end.",
+        scope: "C:\\paperclip only",
+        acceptanceCriteria: "search/read, write and test are recorded in normalized run events.",
+        idempotencyKey: `ctb-itb-${process.env.PAPERCLIP_ITB_ISSUE_ID}`,
+      },
+    },
+  });
+  assert.equal(response.body.result.isError, undefined, JSON.stringify(response.body.result.structuredContent));
+  const runId = /(?:ses|session)_[A-Za-z0-9_-]+/.exec(JSON.stringify(response.body.result))?.[0];
+  assert.ok(runId, "CTB ITB execute must return an OpenCode run id");
+  console.log(`OpenCode CTB real EXECUTE: PASS (${runId})`);
+}
+
 console.log("OpenCode CTB upstream surface, OAuth, resources/prompts, skills, policy scopes and path isolation: PASS");
