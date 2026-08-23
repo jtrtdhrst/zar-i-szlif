@@ -16,7 +16,8 @@ const operatorUsername = process.env.OPENCODE_MCP_USERNAME || "operator";
 const operatorPassword = process.env.OPENCODE_MCP_PASSWORD || "";
 const openCodeUsername = process.env.OPENCODE_SERVER_USERNAME || "opencode";
 const openCodePassword = process.env.OPENCODE_SERVER_PASSWORD || "";
-const allowedRoots = (process.env.OPENCODE_CTB_ALLOWED_ROOTS || workspaceRoot).split(path.delimiter).filter(Boolean);
+const infrastructureRoot = "C:\\paperclip";
+const allowedRoots = (process.env.OPENCODE_CTB_ALLOWED_ROOTS || [workspaceRoot, infrastructureRoot].join(path.delimiter)).split(path.delimiter).filter(Boolean);
 const upstreamEntry = process.env.OPENCODE_MCP_UPSTREAM_ENTRY || path.join(here, "upstream", "dist", "index.js");
 const skillsRoot = path.join(here, "skills");
 const auditFile = path.join(runtimeDir, "ctb-audit.ndjson");
@@ -118,9 +119,14 @@ function exposeTool(tool) {
 async function validatePaperclipIssue(issueId) {
   const base = process.env.PAPERCLIP_API_URL;
   const token = process.env.PAPERCLIP_SERVICE_TOKEN;
-  if (!base || !token) throw Object.assign(new Error("CTB_PAPERCLIP_VALIDATION_UNAVAILABLE"), { code: "CTB_PAPERCLIP_VALIDATION_UNAVAILABLE" });
+  const expectedCompanyId = process.env.PAPERCLIP_COMPANY_ID || "";
+  if (!base || !token) throw Object.assign(new Error("PAPERCLIP_AUTH_FAILED"), { code: "PAPERCLIP_AUTH_FAILED" });
   const response = await fetch(`${base.replace(/\/+$/, "")}/api/issues/${encodeURIComponent(issueId)}`, { headers: { authorization: `Bearer ${token}` } });
-  if (!response.ok) throw Object.assign(new Error("CTB_PAPERCLIP_ISSUE_UNKNOWN"), { code: "CTB_PAPERCLIP_ISSUE_UNKNOWN" });
+  if (response.status === 401 || response.status === 403) throw Object.assign(new Error("PAPERCLIP_AUTH_FAILED"), { code: "PAPERCLIP_AUTH_FAILED" });
+  if (response.status === 404) throw Object.assign(new Error("PAPERCLIP_ISSUE_NOT_FOUND"), { code: "PAPERCLIP_ISSUE_NOT_FOUND" });
+  if (!response.ok) throw Object.assign(new Error("PAPERCLIP_ISSUE_NOT_FOUND"), { code: "PAPERCLIP_ISSUE_NOT_FOUND" });
+  const issue = await response.json();
+  if (expectedCompanyId && issue?.companyId !== expectedCompanyId) throw Object.assign(new Error("PAPERCLIP_ISSUE_NOT_FOUND"), { code: "PAPERCLIP_ISSUE_NOT_FOUND" });
 }
 
 function recordRun(sessionId, ctb, directory, actor) {

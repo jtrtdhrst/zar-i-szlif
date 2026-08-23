@@ -3,6 +3,7 @@ $ErrorActionPreference = "Stop"
 $root = Split-Path -Parent $PSScriptRoot
 $runtime = Join-Path $PSScriptRoot ".runtime"
 $credentials = Join-Path $runtime "credentials.txt"
+$paperclipService = Join-Path $runtime "paperclip-service.env"
 $node = (Get-Command node -ErrorAction Stop).Source
 $opencode = (Get-Command opencode.cmd -ErrorAction Stop).Source
 
@@ -24,6 +25,13 @@ foreach ($line in Get-Content -LiteralPath $credentials) {
   if ($line -match "^([^=]+)=(.*)$") { $stored[$matches[1]] = $matches[2] }
 }
 if (-not $stored.password) { throw "Brak hasła OAuth w $credentials." }
+
+# The service credential is runtime-only and intentionally never falls back to ChatGPT OAuth.
+if (Test-Path -LiteralPath $paperclipService) {
+  foreach ($line in Get-Content -LiteralPath $paperclipService) {
+    if ($line -match "^([A-Z0-9_]+)=(.+)$") { Set-Item -Path "Env:$($matches[1])" -Value $matches[2] }
+  }
+}
 
 $env:OPENCODE_SERVER_USERNAME = "opencode"
 $env:OPENCODE_SERVER_PASSWORD = $stored.password
