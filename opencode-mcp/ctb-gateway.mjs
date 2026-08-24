@@ -1,10 +1,11 @@
-import crypto from "node:crypto";
+﻿import crypto from "node:crypto";
 import fs from "node:fs";
 import http from "node:http";
 import path from "node:path";
 import { spawn } from "node:child_process";
 import { fileURLToPath } from "node:url";
-import { TOOL_CLASSES, classifyTool, ctbContextError, requiredScope, validateToolPathArguments } from "./ctb-policy.mjs";
+import { MODEL_ENTRYPOINTS, TOOL_CLASSES, classifyIntake, classifyTool, ctbContextError, matchesIdempotencyRun, requiredScope, validateToolPathArguments } from "./ctb-policy.mjs";
+import { aggregateRunAnalytics, buildRunAnalytics, compareRunMetrics, supportedObservability } from "./run-analytics.mjs";
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 const workspaceRoot = path.resolve(here, "..");
@@ -41,12 +42,32 @@ if (!fs.existsSync(keyFile)) fs.writeFileSync(keyFile, signingKey, { mode: 0o600
 
 function readJson(file, fallback) { try { return JSON.parse(fs.readFileSync(file, "utf8")); } catch { return fallback; } }
 function writeJson(file, value) { fs.writeFileSync(file, JSON.stringify(value, null, 2), { mode: 0o600 }); }
+const oauthSessionsFile = path.join(runtimeDir, "oauth-sessions.json");
+const sessionCookieName = "__Host-opencode_session";
+const oauthSessionTtlMs = 30 * 24 * 60 * 60 * 1000;
+const refreshGraceMs = 60 * 1000;
+const oauthSessions = readJson(oauthSessionsFile, { version: 1, sessions: {} });
+function persistOauthSessions() { const now = Date.now(); for (const [hash, record] of Object.entries(oauthSessions.sessions)) { if (!record || Date.parse(record.expiresAt) <= now) delete oauthSessions.sessions[hash]; } writeJson(oauthSessionsFile, oauthSessions); }
+function parseCookies(req) { const jar = {}; for (const part of String(req.headers.cookie || "").split(";")) { const index = part.indexOf("="); if (index > 0) jar[part.slice(0, index).trim()] = part.slice(index + 1).trim(); } return jar; }
+function sessionCookieToken(req) { return parseCookies(req)[sessionCookieName] || ""; }
+function validOauthSession(req) { const token = sessionCookieToken(req); if (!token) return null; const record = oauthSessions.sessions[crypto.createHash("sha256").update(token).digest("hex")]; return record && Date.parse(record.expiresAt) > Date.now() ? record : null; }
+function issueBrowserSession(res, principal) { const token = random(32); const now = Date.now(); oauthSessions.sessions[crypto.createHash("sha256").update(token).digest("hex")] = { principal, createdAt: new Date(now).toISOString(), expiresAt: new Date(now + oauthSessionTtlMs).toISOString() }; persistOauthSessions(); res.setHeader("set-cookie", `${sessionCookieName}=${token}; Secure; HttpOnly; SameSite=Lax; Path=/; Max-Age=${Math.floor(oauthSessionTtlMs / 1000)}`); }
+function revokeOauthSession(req) { const token = sessionCookieToken(req); if (!token) return false; return delete oauthSessions.sessions[crypto.createHash("sha256").update(token).digest("hex")] && (persistOauthSessions(), true); }
 const clients = readJson(clientsFile, {});
 const refreshTokens = readJson(refreshFile, {});
 const savedRegistry = readJson(registryFile, {});
 const runs = savedRegistry?.runs && typeof savedRegistry.runs === "object" ? savedRegistry.runs : savedRegistry;
+// Telemetry integrity repair for legacy rows: events recorded after a run finished are dropped.
+for (const run of Object.values(runs)) {
+  if (!run || run.status === "running" || !run.finishedAt || !Array.isArray(run.events)) continue;
+  const cutoff = Date.parse(run.finishedAt) || 0;
+  const filtered = cutoff ? run.events.filter((event) => (Date.parse(event.timestamp) || 0) <= cutoff) : run.events;
+  if (filtered.length !== run.events.length) { run.events = filtered.map((event, index) => ({ ...event, sequence: index + 1 })); }
+}
+persistRuns();
 const pendingEvents = new Map();
 const activeCtbExecutions = new Map();
+const executionLocks = new Map();
 const COMPATIBILITY_ALIASES = Object.freeze({
   opencode_list_runs: "opencode_sessions_overview",
   opencode_get_run: "opencode_session_get",
@@ -107,7 +128,6 @@ class UpstreamEngine {
 }
 const engine = new UpstreamEngine();
 
-function extractSessionId(result) { const text = JSON.stringify(result); return /(?:ses|session)_[A-Za-z0-9_-]+/.exec(text)?.[0] || null; }
 function classifyEventKind(event, data) {
   const source = `${event} ${JSON.stringify(data)}`.toLowerCase();
   if (/error|fail/.test(source)) return "error";
@@ -137,7 +157,8 @@ function normalizedOpenCodeEvent(event, raw) {
     return null;
   };
   return {
-    sessionId: extractSessionId(data),
+    // SSE payloads are observation-only. They never establish CTB ownership.
+    sessionId: null,
     event: { kind, tool: field(data, ["tool", "command", "name"]) || event || null, action: field(data, ["action", "type"]) || event || null, operation: eventOperation(kind, data), durationMs: Number.isFinite(Number(field(data, ["durationMs"]))) ? Number(field(data, ["durationMs"])) : null, status: kind === "error" || field(data, ["status"]) === "error" ? "error" : field(data, ["status"]) === "success" ? "success" : "started", retry: Number(field(data, ["retry"])) || 0, errorCode: field(data, ["errorCode", "code"]) || (kind === "error" ? "OPENCODE_EVENT_ERROR" : null), details: data },
   };
 }
@@ -173,7 +194,40 @@ async function collectSessionToolEvents(sessionId) {
     if (!response.ok) throw new Error(`Session event lookup ${response.status}`);
     const messages = await response.json();
     for (const message of Array.isArray(messages) ? messages : []) {
-      for (const part of Array.isArray(message?.parts) ? message.parts : []) {
+      const info = message?.info && typeof message.info === "object" ? message.info : message;
+      const parts = Array.isArray(message?.parts) ? message.parts : [];
+      if (info.role === "assistant") {
+        // Persist structured model-turn telemetry: one event per step-start..step-finish pair.
+        const finishes = parts.filter((part) => part.type === "step-finish");
+        const starts = parts.filter((part) => part.type === "step-start");
+        const groups = finishes.length ? finishes.map((finish, index) => ({ finish, start: starts[index] || starts[starts.length - 1] || null })) : [];
+        for (const [groupIndex, group] of groups.entries()) {
+          const tokens = group.finish.tokens && typeof group.finish.tokens === "object" ? group.finish.tokens : info.tokens || {};
+          const cache = tokens.cache && typeof tokens.cache === "object" ? tokens.cache : {};
+          eventFor(sessionId, {
+            kind: "model_turn",
+            eventType: "model_turn",
+            messageId: info.id,
+            turnIndex: null,
+            stepIndexInMessage: groupIndex,
+            timestamp: new Date(Number(group.start?.time?.start) || Number(info.time?.created)).toISOString(),
+            durationMs: group.start?.time?.start && group.finish.time?.end ? Math.max(0, group.finish.time.end - group.start.time.start) : null,
+            status: "success",
+            toolName: null,
+            toolSource: null,
+            providerId: info.providerID ?? null,
+            modelId: info.modelID ?? null,
+            inputTokens: Number.isFinite(Number(tokens.input)) ? Number(tokens.input) : null,
+            outputTokens: Number.isFinite(Number(tokens.output)) ? Number(tokens.output) + (Number(tokens.reasoning) || 0) : null,
+            cacheReadTokens: Number.isFinite(Number(cache.read)) ? Number(cache.read) : null,
+            cacheWriteTokens: Number.isFinite(Number(cache.write)) ? Number(cache.write) : null,
+            contextWindowTokens: null,
+            contextUtilizationPct: null,
+            measurementSource: { inputTokens: "provider_reported", outputTokens: "provider_reported", cacheReadTokens: "provider_reported", cacheWriteTokens: "provider_reported", contextWindowTokens: "unavailable", contextUtilizationPct: "unavailable" },
+          });
+        }
+      }
+      for (const part of parts) {
         if (part?.type !== "tool" || typeof part.tool !== "string") continue;
         const state = part.state && typeof part.state === "object" ? part.state : {};
         const started = Number(state?.time?.start) || Number(message?.info?.time?.created) || null;
@@ -197,38 +251,112 @@ function skillCatalog() {
 
 function exposeTool(tool) {
   const toolClass = classifyTool(tool.name);
+  if (!toolClass) throw new Error(`CTB_TOOL_CLASSIFICATION_MISSING:${tool.name}`);
   const securitySchemes = [{ type: "oauth2", scopes: [requiredScope(toolClass)] }];
   const inputSchema = { ...(tool.inputSchema || { type: "object" }), properties: { ...(tool.inputSchema?.properties || {}) } };
   if (toolClass === TOOL_CLASSES.WRITE || toolClass === TOOL_CLASSES.PRIVILEGED_WRITE || toolClass === TOOL_CLASSES.ADMIN) {
-    inputSchema.properties.ctb = { type: "object", description: "Required CTB execution envelope: mode EXECUTE, changeClass ctb, paperclipIssueId, changeIntent, scope, acceptanceCriteria and idempotencyKey.", properties: { mode: { const: "EXECUTE" }, changeClass: { const: "ctb" }, paperclipIssueId: { type: "string" }, changeIntent: { type: "string" }, scope: { type: "string" }, acceptanceCriteria: { type: "string" }, idempotencyKey: { type: "string" } }, required: ["mode", "changeClass", "paperclipIssueId", "changeIntent", "scope", "acceptanceCriteria", "idempotencyKey"] };
+    // Model entrypoints additionally serve read-only DIAGNOSE/PLAN inference (plan agent).
+    const modelEntrypoint = MODEL_ENTRYPOINTS.has(tool.name);
+    inputSchema.properties.ctb = {
+      type: "object",
+      description: modelEntrypoint
+        ? "CTB envelope. mode DIAGNOSE or PLAN runs real read-only inference via the plan agent (no Paperclip, no registry writes). mode EXECUTE requires the full execution envelope: paperclipIssueId, changeIntent, scope, acceptanceCriteria and idempotencyKey."
+        : "Required CTB execution envelope: mode EXECUTE, changeClass ctb, paperclipIssueId, changeIntent, scope, acceptanceCriteria and idempotencyKey.",
+      properties: { mode: modelEntrypoint ? { enum: ["DIAGNOSE", "PLAN", "EXECUTE"] } : { const: "EXECUTE" }, changeClass: { const: "ctb" }, paperclipIssueId: { type: "string" }, changeIntent: { type: "string" }, scope: { type: "string" }, acceptanceCriteria: { type: "string" }, idempotencyKey: { type: "string" } },
+      required: modelEntrypoint ? ["mode", "changeClass"] : ["mode", "changeClass", "paperclipIssueId", "changeIntent", "scope", "acceptanceCriteria", "idempotencyKey"],
+    };
   }
   return { ...tool, title: tool.title || tool.name, description: `[${toolClass}] ${tool.description || ""}`, inputSchema, securitySchemes, _meta: { ...(tool._meta || {}), securitySchemes, kompas: { toolClass, changeClass: toolClass === TOOL_CLASSES.READ || toolClass === TOOL_CLASSES.SESSION_CONTROL ? null : "ctb" } } };
 }
 
-async function validatePaperclipIssue(issueId) {
+function ctbScopeError() { return Object.assign(new Error("CTB_ISSUE_SCOPE_MISMATCH"), { code: "CTB_ISSUE_SCOPE_MISMATCH" }); }
+function samePath(left, right) { return path.resolve(String(left)).toLowerCase() === path.resolve(String(right)).toLowerCase(); }
+function issueCtbPolicy(issue) {
+  const candidate = issue?.executionPolicy?.ctb || issue?.metadata?.ctb;
+  if (!candidate || candidate.changeClass !== "ctb" || !Array.isArray(candidate.projectRoots) || !Array.isArray(candidate.changeIntents) || !Array.isArray(candidate.acceptanceCriteria)) return null;
+  return candidate;
+}
+async function validatePaperclipIssue(ctb, directory) {
   const base = process.env.PAPERCLIP_API_URL;
   const token = process.env.PAPERCLIP_SERVICE_TOKEN;
   const expectedCompanyId = process.env.PAPERCLIP_COMPANY_ID || "";
   if (!base || !token) throw Object.assign(new Error("PAPERCLIP_AUTH_FAILED"), { code: "PAPERCLIP_AUTH_FAILED" });
-  const response = await fetch(`${base.replace(/\/+$/, "")}/api/issues/${encodeURIComponent(issueId)}`, { headers: { authorization: `Bearer ${token}` } });
+  const response = await fetch(`${base.replace(/\/+$/, "")}/api/issues/${encodeURIComponent(ctb.paperclipIssueId)}`, { headers: { authorization: `Bearer ${token}` } });
   if (response.status === 401 || response.status === 403) throw Object.assign(new Error("PAPERCLIP_AUTH_FAILED"), { code: "PAPERCLIP_AUTH_FAILED" });
   if (response.status === 404) throw Object.assign(new Error("PAPERCLIP_ISSUE_NOT_FOUND"), { code: "PAPERCLIP_ISSUE_NOT_FOUND" });
   if (!response.ok) throw Object.assign(new Error("PAPERCLIP_ISSUE_NOT_FOUND"), { code: "PAPERCLIP_ISSUE_NOT_FOUND" });
   const issue = await response.json();
-  if (expectedCompanyId && issue?.companyId !== expectedCompanyId) throw Object.assign(new Error("PAPERCLIP_ISSUE_NOT_FOUND"), { code: "PAPERCLIP_ISSUE_NOT_FOUND" });
+  if (expectedCompanyId && issue?.companyId !== expectedCompanyId) throw ctbScopeError();
+  if (ctb.companyId && ctb.companyId !== issue?.companyId) throw ctbScopeError();
+  if (!["todo", "in_progress"].includes(issue?.status) || issue?.workMode === "ask" || issue?.workMode === "planning") throw ctbScopeError();
+  // Paperclip owns workspace scope. Do not infer authorization from prose fields.
+  const issueRoot = issue?.currentExecutionWorkspace?.cwd;
+  if (!issueRoot || !samePath(issueRoot, directory)) throw ctbScopeError();
+  const policy = issueCtbPolicy(issue);
+  if (!policy || !policy.projectRoots.some((root) => samePath(root, directory)) || !policy.changeIntents.includes(ctb.changeIntent) || !policy.acceptanceCriteria.includes(ctb.acceptanceCriteria)) throw ctbScopeError();
+  const decision = { companyId: issue.companyId, issueId: issue.id, lifecycle: issue.status, workspace: issueRoot, ctbPolicy: { changeClass: policy.changeClass, projectRoots: policy.projectRoots, changeIntent: ctb.changeIntent, acceptanceCriteria: ctb.acceptanceCriteria }, issuedAt: new Date().toISOString(), policy: "ctb-v2" };
+  return { issue, decision };
 }
 
-function recordRun(sessionId, ctb, directory, actor, createdAt = new Date().toISOString()) {
+function idempotencyId(companyId, issueId, key) { return `${companyId}:${issueId}:${key}`; }
+function findIdempotentRun(companyId, issueId, key) { return Object.values(runs).find((run) => matchesIdempotencyRun(run, companyId, issueId, key)); }
+function recordRun(sessionId, ctb, directory, actor, policyDecision, createdAt = new Date().toISOString()) {
   if (!sessionId || !ctb) return;
-  if (!runs[sessionId]) runs[sessionId] = { runId: sessionId, paperclipIssueId: ctb.paperclipIssueId, changeClass: ctb.changeClass, mode: ctb.mode, changeIntent: ctb.changeIntent, acceptanceCriteria: ctb.acceptanceCriteria, idempotencyKey: ctb.idempotencyKey, directory, actor, status: "running", createdAt, finishedAt: null, events: [], retries: 0 };
+  if (!runs[sessionId]) runs[sessionId] = { runId: sessionId, companyId: policyDecision.companyId, paperclipIssueId: ctb.paperclipIssueId, changeClass: ctb.changeClass, mode: ctb.mode, changeIntent: ctb.changeIntent, acceptanceCriteria: ctb.acceptanceCriteria, idempotencyKey: ctb.idempotencyKey, directory, actor, policyDecision, status: "running", createdAt, finishedAt: null, events: [], retries: 0 };
   const pending = pendingEvents.get(sessionId) || []; pendingEvents.delete(sessionId); for (const event of pending) eventFor(sessionId, event);
   persistRuns();
 }
-function eventFor(sessionId, event) { if (!sessionId || !runs[sessionId]) return; const run = runs[sessionId]; run.events.push({ runId: sessionId, paperclipIssueId: run.paperclipIssueId, sequence: run.events.length + 1, timestamp: event.timestamp || new Date().toISOString(), errorCode: null, retry: 0, ...sanitize(event) }); run.events.sort((left, right) => String(left.timestamp).localeCompare(String(right.timestamp))); run.events.forEach((item, index) => { item.sequence = index + 1; }); persistRuns(); }
-function appendTelemetryEvent(sessionId, event) { const key = sessionId || (activeCtbExecutions.size === 1 ? activeCtbExecutions.keys().next().value : null); if (!key) return; if (runs[key]) return eventFor(key, event); const pending = pendingEvents.get(key) || []; pending.push(event); pendingEvents.set(key, pending.slice(-200)); }
+function eventFor(sessionId, event) { if (!sessionId || !runs[sessionId]) return; const run = runs[sessionId]; if (run.status !== "running") return; run.events.push({ runId: sessionId, paperclipIssueId: run.paperclipIssueId, sequence: run.events.length + 1, timestamp: event.timestamp || new Date().toISOString(), errorCode: null, retry: 0, ...sanitize(event) }); run.events.sort((left, right) => String(left.timestamp).localeCompare(String(right.timestamp))); run.events.forEach((item, index) => { item.sequence = index + 1; }); persistRuns(); }
+function appendTelemetryEvent(sessionId, event) { if (!sessionId || !runs[sessionId] || !activeCtbExecutions.has(sessionId)) return; eventFor(sessionId, event); }
 function flushPendingEvents(fromKey, toSessionId) { const pending = pendingEvents.get(fromKey) || []; pendingEvents.delete(fromKey); for (const event of pending) eventFor(toSessionId, event); }
 function finishRun(sessionId, status) { if (!sessionId || !runs[sessionId]) return; runs[sessionId].status = status; runs[sessionId].finishedAt = new Date().toISOString(); persistRuns(); }
 function metricsFor(run) { const events = run.events || []; const toolEvents = events.filter((event) => ["tool", "mcp", "search", "file", "command", "test", "git"].includes(event.kind)); const fingerprints = new Set(); let duplicateCalls = 0; for (const event of toolEvents) { const fingerprint = `${event.kind}|${event.tool || event.action || ""}|${event.status || ""}`; if (fingerprints.has(fingerprint)) duplicateCalls += 1; else fingerprints.add(fingerprint); } const startedAt = Date.parse(run.createdAt || "") || 0; const elapsed = (event) => { const at = Date.parse(event.timestamp || "") || 0; return startedAt && at ? Math.max(0, at - startedAt) : null; }; const firstWrite = events.find((event) => event.kind === "file" && event.operation === "write"); const firstTest = events.find((event) => event.kind === "test"); const finishedAt = Date.parse(run.finishedAt || "") || startedAt; return { toolCalls: toolEvents.length, failedToolCalls: toolEvents.filter((event) => event.status === "error").length, retryCount: events.reduce((total, event) => total + (Number(event.retry) || 0), 0), duplicateCalls, searchCalls: events.filter((event) => event.kind === "search").length, fileReads: events.filter((event) => event.kind === "file" && event.operation === "read").length, fileWrites: events.filter((event) => event.kind === "file" && event.operation === "write").length, testCalls: events.filter((event) => event.kind === "test").length, mcpCalls: events.filter((event) => event.kind === "mcp").length, timeToFirstWriteMs: firstWrite ? elapsed(firstWrite) : null, timeToFirstTestMs: firstTest ? elapsed(firstTest) : null, durationMs: startedAt ? Math.max(0, finishedAt - startedAt) : 0 }; }
+
+const openCodeHeaders = { authorization: `Basic ${Buffer.from(`${openCodeUsername}:${openCodePassword}`).toString("base64")}` };
+async function fetchSessionMessages(sessionId) {
+  const response = await fetch(`${serverUrl}/session/${encodeURIComponent(sessionId)}/message`, { headers: openCodeHeaders });
+  if (!response.ok) throw Object.assign(new Error("MESSAGE_LOOKUP_FAILED"), { code: "MESSAGE_LOOKUP_FAILED" });
+  return response.json();
+}
+let modelLimitsCache = { fetchedAt: 0, limits: {} };
+async function modelLimits() {
+  if (Date.now() - modelLimitsCache.fetchedAt < 10 * 60 * 1000) return modelLimitsCache.limits;
+  try {
+    const response = await fetch(`${serverUrl}/config/providers`, { headers: openCodeHeaders });
+    if (!response.ok) throw new Error(`providers ${response.status}`);
+    const payload = await response.json();
+    const limits = {};
+    for (const provider of Array.isArray(payload?.providers) ? payload.providers : []) {
+      for (const model of Object.values(provider.models || {})) {
+        if (model?.id) limits[`${provider.id}/${model.id}`] = { context: Number(model.limit?.context) || null, output: Number(model.limit?.output) || null };
+      }
+    }
+    modelLimitsCache = { fetchedAt: Date.now(), limits };
+  } catch { modelLimitsCache = { fetchedAt: Date.now(), limits: {} }; }
+  return modelLimitsCache.limits;
+}
+async function paperclipSignalsFor(run) {
+  // Read-only, best-effort Paperclip checkpoint signal. Never blocks analytics.
+  const base = process.env.PAPERCLIP_API_URL;
+  const token = process.env.PAPERCLIP_SERVICE_TOKEN;
+  if (!base || !token || !run.paperclipIssueId) return {};
+  try {
+    const response = await fetch(`${base.replace(/\/+$/, "")}/api/issues/${encodeURIComponent(run.paperclipIssueId)}`, { headers: { authorization: `Bearer ${token}` }, signal: AbortSignal.timeout(4000) });
+    if (!response.ok) return {};
+    const issue = await response.json();
+    return issue?.currentCheckpoint || issue?.checkpoint ? { checkpoint: true } : {};
+  } catch { return {}; }
+}
+const runAnalyticsCache = new Map();
+async function runAnalytics(run, { refresh = false } = {}) {
+  const cached = runAnalyticsCache.get(run.runId);
+  if (cached && !refresh && run.status !== "running") return cached;
+  const [rawMessages, limits] = await Promise.all([fetchSessionMessages(run.runId), modelLimits()]);
+  const paperclipSignals = run.status === "completed" ? {} : await paperclipSignalsFor(run);
+  const analytics = buildRunAnalytics(run, rawMessages, { modelLimits: limits, taskBoundaryMs: Date.parse(run.createdAt || "") || null, paperclipSignals });
+  runAnalyticsCache.set(run.runId, analytics);
+  return analytics;
+}
 
 async function callTool(name, args, token) {
   const requestedName = name;
@@ -236,55 +364,147 @@ async function callTool(name, args, token) {
     name = COMPATIBILITY_ALIASES[name];
     if (["opencode_get_run", "opencode_get_diff", "opencode_abort_run"].includes(requestedName)) args = { ...args, id: args.sessionId, sessionId: undefined };
   }
-  if (name === "opencode_list_skills") { if (!hasScope(token, "opencode:read")) throw Object.assign(new Error("INSUFFICIENT_SCOPE"), { code: "INSUFFICIENT_SCOPE", requiredScope: "opencode:read" }); return toolResult({ skills: skillCatalog().map(({ path: ignored, ...skill }) => skill) }, "Dostępne skille CTB."); }
+  if (name === "opencode_list_skills") { if (!hasScope(token, "opencode:read")) throw Object.assign(new Error("INSUFFICIENT_SCOPE"), { code: "INSUFFICIENT_SCOPE", requiredScope: "opencode:read" }); return toolResult({ skills: skillCatalog().map(({ path: ignored, ...skill }) => skill) }, "DostÄ™pne skille CTB."); }
   if (name === "opencode_get_skill") { if (!hasScope(token, "opencode:read")) throw Object.assign(new Error("INSUFFICIENT_SCOPE"), { code: "INSUFFICIENT_SCOPE", requiredScope: "opencode:read" }); const skill = skillCatalog().find((item) => item.name === args.name); if (!skill) throw Object.assign(new Error("SKILL_NOT_FOUND"), { code: "SKILL_NOT_FOUND" }); return toolResult({ ...skill, contract: fs.readFileSync(skill.path, "utf8") }, "Kontrakt skilla CTB."); }
+  if (name === "opencode_message_model_info") {
+    // Read-only runtime verification of which provider/model actually served a session.
+    if (!hasScope(token, "opencode:read")) throw Object.assign(new Error("INSUFFICIENT_SCOPE"), { code: "INSUFFICIENT_SCOPE", requiredScope: "opencode:read" });
+    if (!args.sessionId) throw Object.assign(new Error("CTB_SESSION_REQUIRED"), { code: "CTB_SESSION_REQUIRED", missing: ["sessionId"] });
+    const metaResponse = await fetch(`${serverUrl}/session/${encodeURIComponent(args.sessionId)}/message`, { headers: { authorization: `Basic ${Buffer.from(`${openCodeUsername}:${openCodePassword}`).toString("base64")}` } });
+    if (!metaResponse.ok) throw Object.assign(new Error("MESSAGE_LOOKUP_FAILED"), { code: "MESSAGE_LOOKUP_FAILED" });
+    const metaMessages = await metaResponse.json();
+    const entries = (Array.isArray(metaMessages) ? metaMessages : []).map((message) => {
+      const info = message?.info && typeof message.info === "object" ? message.info : message;
+      return { messageId: info.id, role: info.role, providerID: info.providerID ?? null, modelID: info.modelID ?? null, agent: info.agent ?? null };
+    });
+    return toolResult({ sessionId: args.sessionId, messages: entries }, "Runtime model metadata for session messages.");
+  }
   if (name === "opencode_ctb_get_run" || name === "opencode_ctb_get_events" || name === "opencode_ctb_get_metrics") {
     if (!hasScope(token, "opencode:read")) throw Object.assign(new Error("INSUFFICIENT_SCOPE"), { code: "INSUFFICIENT_SCOPE", requiredScope: "opencode:read" }); const run = runs[args.runId]; if (!run) throw Object.assign(new Error("CTB_RUN_NOT_FOUND"), { code: "CTB_RUN_NOT_FOUND" });
     const events = run.events || [];
     const metrics = metricsFor(run);
-    return toolResult(name === "opencode_ctb_get_events" ? { runId: args.runId, events } : name === "opencode_ctb_get_metrics" ? { runId: args.runId, metrics } : { ...run, metrics }, "Telemetry CTB.");
+    let analytics = null;
+    try { analytics = await runAnalytics(run); } catch { analytics = null; }
+    const enriched = analytics ? { modelTurnCount: analytics.metrics.modelTurnCount, invocationKind: analytics.invocationKind, totalInputTokens: analytics.overhead.totalInputTokens.value, totalOutputTokens: analytics.overhead.totalOutputTokens.value, avgContextUtilizationPct: analytics.metrics.avgContextUtilizationPct.value, timeToFirstUsefulActionMs: analytics.timings.timeToFirstUsefulActionMs.value } : {};
+    return toolResult(name === "opencode_ctb_get_events" ? { runId: args.runId, events } : name === "opencode_ctb_get_metrics" ? { runId: args.runId, metrics: { ...metrics, ...enriched } } : { ...run, metrics: { ...metrics, ...enriched } }, "Telemetry CTB.");
+  }
+  const RUN_ANALYTICS_TOOLS = new Set(["paperclipGetRunMetrics", "paperclipGetRunEvents", "paperclipGetRunTokenUsage", "paperclipGetRunSteps", "paperclipGetRunContextBreakdown", "paperclipGetRunModelTurns"]);
+  if (RUN_ANALYTICS_TOOLS.has(name) || name === "paperclipCompareRunMetrics" || name === "paperclipAggregateRunMetrics") {
+    // Read-only run analytics over OpenCode session/message metadata and the CTB correlation registry.
+    if (!hasScope(token, "opencode:read")) throw Object.assign(new Error("INSUFFICIENT_SCOPE"), { code: "INSUFFICIENT_SCOPE", requiredScope: "opencode:read" });
+    const requireRuns = (ids) => ids.map((id) => { const run = runs[id]; if (!run) throw Object.assign(new Error("CTB_RUN_NOT_FOUND"), { code: "CTB_RUN_NOT_FOUND", runId: id }); return run; });
+    if (RUN_ANALYTICS_TOOLS.has(name)) {
+      if (!args.runId) throw Object.assign(new Error("CTB_RUN_REQUIRED"), { code: "CTB_RUN_REQUIRED", missing: ["runId"] });
+      let analytics;
+      try { analytics = await runAnalytics(requireRuns([args.runId])[0], { refresh: args.refresh === true }); }
+      catch (error) {
+        if (error.code === "MESSAGE_LOOKUP_FAILED") return toolResult({ runId: args.runId, supportedObservability: { tokenUsagePerTurn: { available: false, measurementSource: "unavailable", reason: "OpenCode session history unavailable for this run" } }, errorCode: "ANALYTICS_SOURCE_UNAVAILABLE" }, "Analiza niedostępna: brak historii sesji OpenCode dla tego runu.");
+        throw error;
+      }
+      const payload = name === "paperclipGetRunMetrics"
+        ? { runId: analytics.runId, status: analytics.status, createdAt: analytics.createdAt, finishedAt: analytics.finishedAt, invocationKind: analytics.invocationKind, invocationSignals: analytics.invocationSignals, providers: analytics.metrics.providers, metrics: analytics.metrics, timings: analytics.timings, overhead: analytics.overhead, ...supportedObservability(analytics.turns, analytics.timings, analytics.overhead) }
+        : name === "paperclipGetRunEvents"
+          ? { runId: analytics.runId, events: runs[args.runId].events || [], steps: analytics.steps }
+          : name === "paperclipGetRunTokenUsage"
+            ? { runId: analytics.runId, totals: { inputTokens: analytics.overhead.totalInputTokens, outputTokens: analytics.overhead.totalOutputTokens, cacheReadTokens: analytics.overhead.totalCacheReadTokens, cacheWriteTokens: analytics.overhead.totalCacheWriteTokens }, turns: analytics.turns.map((turn) => ({ messageId: turn.messageId, turnIndex: turn.turnIndex, providerId: turn.providerId, modelId: turn.modelId, agent: turn.agent, inputTokens: turn.inputTokens, outputTokens: turn.outputTokens, reasoningTokens: turn.reasoningTokens, cacheReadTokens: turn.cacheReadTokens, cacheWriteTokens: turn.cacheWriteTokens, totalTokens: turn.totalTokens })) }
+            : name === "paperclipGetRunSteps"
+              ? { runId: analytics.runId, stepCount: analytics.steps.length, steps: analytics.steps, timings: analytics.timings }
+              : name === "paperclipGetRunContextBreakdown"
+                ? { runId: analytics.runId, overhead: analytics.overhead, perTurn: analytics.turns.map((turn) => ({ turnIndex: turn.turnIndex, messageId: turn.messageId, contextWindowTokens: turn.contextWindowTokens, contextUtilizationPct: turn.contextUtilizationPct, contextBreakdown: turn.contextBreakdown })) }
+                : { runId: analytics.runId, modelTurns: analytics.turns };
+      return toolResult(payload, "Read-only analiza runu.");
+    }
+    if (name === "paperclipCompareRunMetrics") {
+      const ids = Array.isArray(args.runIds) ? args.runIds : [];
+      if (ids.length < 2) throw Object.assign(new Error("CTB_RUNS_REQUIRED"), { code: "CTB_RUNS_REQUIRED", missing: ["runIds[2+]"] });
+      const list = [];
+      for (const run of requireRuns(ids)) { try { list.push(await runAnalytics(run)); } catch { list.push(null); } }
+      return toolResult({ comparison: compareRunMetrics(list.filter(Boolean)), unavailableRunIds: ids.filter((id, index) => !list[index]) }, "Porównanie runów.");
+    }
+    const selected = Array.isArray(args.runIds) && args.runIds.length
+      ? requireRuns(args.runIds)
+      : Object.values(runs).filter((run) => (!args.paperclipIssueId || run.paperclipIssueId === args.paperclipIssueId));
+    const list = [];
+    for (const run of selected.slice(0, 200)) { try { list.push(await runAnalytics(run)); } catch { /* skip runs without retrievable session history */ } }
+    const groups = new Map();
+    for (const item of list) {
+      const keys = args.groupBy === "model" ? [...new Set(item.turns.map((turn) => `${turn.providerId}/${turn.modelId}`))] : [String(item.paperclipIssueId || "unassigned")];
+      for (const key of keys) { if (!groups.has(key)) groups.set(key, []); groups.get(key).push(item); }
+    }
+    return toolResult({
+      groupBy: args.groupBy === "model" ? "model" : "issue",
+      overall: aggregateRunAnalytics(list),
+      groups: Object.fromEntries([...groups.entries()].map(([key, items]) => [key, aggregateRunAnalytics(items)])),
+    }, "Agregacja metryk runów.");
   }
   const upstreamTools = await engine.call("tools/list", {});
   const upstream = upstreamTools.tools.find((tool) => tool.name === name);
   if (!upstream) throw Object.assign(new Error("UNKNOWN_TOOL"), { code: "UNKNOWN_TOOL" });
   const toolClass = classifyTool(name);
+  if (!toolClass) throw Object.assign(new Error("CTB_TOOL_CLASSIFICATION_MISSING"), { code: "CTB_TOOL_CLASSIFICATION_MISSING" });
   if (!hasScope(token, requiredScope(toolClass))) throw Object.assign(new Error("INSUFFICIENT_SCOPE"), { code: "INSUFFICIENT_SCOPE", requiredScope: requiredScope(toolClass) });
+  const intake = classifyIntake(args, toolClass, name);
+  if (intake.handoffTo) return toolResult({ handoffTo: intake.handoffTo, mode: intake.mode, changeClass: intake.changeClass, errorCode: "CTB_REDIRECT" }, `HANDOFF_TO=${intake.handoffTo}`);
+  if (intake.errorCode) throw Object.assign(new Error(intake.errorCode), intake, { code: intake.errorCode });
+  // DIAGNOSE/PLAN model inference: real execution forced onto the read-only plan agent,
+  // zero Paperclip authorization, zero CTB registry writes.
+  if (intake.modelReadOnly) {
+    const forwardedModelArgs = validateToolPathArguments(Object.fromEntries(Object.entries(args || {}).filter(([key]) => key !== "ctb")), allowedRoots, workspaceRoot);
+    const startedAt = Date.now();
+    audit({ principal: token.sub, mode: intake.mode, changeClass: "ctb", tool: requestedName, upstreamTool: name, directory: forwardedModelArgs.directory, result: "model_read_only_started", agent: "plan" });
+    try {
+      const result = await engine.call("tools/call", { name, arguments: { ...forwardedModelArgs, agent: "plan" } });
+      audit({ principal: token.sub, mode: intake.mode, changeClass: "ctb", tool: requestedName, upstreamTool: name, directory: forwardedModelArgs.directory, result: "success", durationMs: Date.now() - startedAt });
+      return result;
+    } catch (error) {
+      audit({ principal: token.sub, mode: intake.mode, changeClass: "ctb", tool: requestedName, upstreamTool: name, directory: forwardedModelArgs.directory, result: "error", errorCode: error.code || "UPSTREAM_ERROR", durationMs: Date.now() - startedAt });
+      throw error;
+    }
+  }
   const contextError = toolClass === TOOL_CLASSES.WRITE || toolClass === TOOL_CLASSES.PRIVILEGED_WRITE || toolClass === TOOL_CLASSES.ADMIN ? ctbContextError(args) : null;
   if (contextError) throw Object.assign(new Error(contextError.code), contextError);
   const ctb = args.ctb;
-  if (ctb) await validatePaperclipIssue(ctb.paperclipIssueId);
   const forwarded = validateToolPathArguments(Object.fromEntries(Object.entries(args || {}).filter(([key]) => key !== "ctb")), allowedRoots, workspaceRoot);
+  // Reads and plans are intentionally side-effect free in the CTB registry.
+  if (toolClass === TOOL_CLASSES.READ || toolClass === TOOL_CLASSES.SESSION_CONTROL) return engine.call("tools/call", { name, arguments: forwarded });
+  const explicitSessionId = ctb.executionContext?.sessionId || forwarded.sessionId || forwarded.id || null;
+  if (!explicitSessionId) throw Object.assign(new Error("CTB_EXECUTION_SESSION_REQUIRED"), { code: "CTB_EXECUTION_SESSION_REQUIRED" });
+  const authorization = await validatePaperclipIssue(ctb, forwarded.directory);
+  const key = idempotencyId(authorization.issue.companyId, ctb.paperclipIssueId, ctb.idempotencyKey);
+  const existing = findIdempotentRun(authorization.issue.companyId, ctb.paperclipIssueId, ctb.idempotencyKey);
+  if (existing?.status === "running") return toolResult({ runId: existing.runId, status: "RUNNING", replayed: true }, "IstniejÄ…ce wykonanie CTB jest aktywne.");
+  if (existing?.status === "completed") return existing.result || toolResult({ runId: existing.runId, status: "COMPLETED", replayed: true }, "ZwrĂłcono istniejÄ…cy wynik CTB.");
+  if (existing?.status === "failed" && ctb.retry !== true) throw Object.assign(new Error("CTB_RETRY_REQUIRED"), { code: "CTB_RETRY_REQUIRED", runId: existing.runId });
+  if (executionLocks.has(key)) return toolResult({ runId: executionLocks.get(key), status: "RUNNING", replayed: true }, "IstniejÄ…ce wykonanie CTB jest aktywne.");
+  if (runs[explicitSessionId] && runs[explicitSessionId].idempotencyKey !== ctb.idempotencyKey) throw Object.assign(new Error("CTB_SESSION_ALREADY_CORRELATED"), { code: "CTB_SESSION_ALREADY_CORRELATED" });
   const startedAt = Date.now();
-  const activeKey = ctb ? `pending:${ctb.idempotencyKey}:${random(8)}` : null;
-  if (activeKey) activeCtbExecutions.set(activeKey, { createdAt: new Date(startedAt).toISOString() });
+  const activeKey = explicitSessionId;
+  executionLocks.set(key, explicitSessionId);
+  activeCtbExecutions.set(activeKey, { createdAt: new Date(startedAt).toISOString(), runId: explicitSessionId });
+  recordRun(explicitSessionId, ctb, forwarded.directory, token.sub, authorization.decision, new Date(startedAt).toISOString());
   audit({ principal: token.sub, paperclipIssueId: ctb?.paperclipIssueId || null, mode: ctb?.mode || "DIAGNOSE", changeClass: ctb?.changeClass || null, tool: requestedName, upstreamTool: name, directory: forwarded.directory, result: "started" });
   try {
     const result = await engine.call("tools/call", { name, arguments: forwarded });
-    const sessionId = extractSessionId(result) || forwarded.sessionId || forwarded.id || null;
-    const execution = activeKey ? activeCtbExecutions.get(activeKey) : null;
-    recordRun(sessionId, ctb, forwarded.directory, token.sub, execution?.createdAt);
-    if (activeKey && sessionId) flushPendingEvents(activeKey, sessionId);
-    await collectSessionToolEvents(sessionId);
-    eventFor(sessionId, { kind: "tool", tool: name, action: requestedName, durationMs: Date.now() - startedAt, status: "success" });
-    if (name !== "opencode_fire" && name !== "opencode_message_send_async") finishRun(sessionId, "completed");
-    audit({ principal: token.sub, paperclipIssueId: ctb?.paperclipIssueId || null, runId: sessionId, mode: ctb?.mode || "DIAGNOSE", changeClass: ctb?.changeClass || null, tool: requestedName, upstreamTool: name, directory: forwarded.directory, result: "success", durationMs: Date.now() - startedAt });
+    await collectSessionToolEvents(explicitSessionId);
+    eventFor(explicitSessionId, { kind: "tool", tool: name, action: requestedName, durationMs: Date.now() - startedAt, status: "success" });
+    if (name !== "opencode_fire" && name !== "opencode_message_send_async") finishRun(explicitSessionId, "completed");
+    runs[explicitSessionId].result = result;
+    persistRuns();
+    audit({ principal: token.sub, paperclipIssueId: ctb?.paperclipIssueId || null, runId: explicitSessionId, mode: ctb?.mode || "DIAGNOSE", changeClass: ctb?.changeClass || null, tool: requestedName, upstreamTool: name, directory: forwarded.directory, result: "success", durationMs: Date.now() - startedAt });
     return result;
   } catch (error) {
-    const sessionId = forwarded?.sessionId || forwarded?.id || null;
-    if (sessionId && ctb) {
-      recordRun(sessionId, ctb, forwarded.directory, token.sub);
-      eventFor(sessionId, { kind: "error", tool: name, action: requestedName, durationMs: Date.now() - startedAt, status: "error", errorCode: error.code || "UPSTREAM_ERROR" });
-      finishRun(sessionId, "failed");
-    }
-    audit({ principal: token.sub, paperclipIssueId: ctb?.paperclipIssueId || null, mode: ctb?.mode || "DIAGNOSE", changeClass: ctb?.changeClass || null, tool: requestedName, upstreamTool: name, directory: forwarded.directory, result: "error", errorCode: error.code || "UPSTREAM_ERROR", durationMs: Date.now() - startedAt });
+    eventFor(explicitSessionId, { kind: "error", tool: name, action: requestedName, durationMs: Date.now() - startedAt, status: "error", errorCode: error.code || "UPSTREAM_ERROR" });
+    finishRun(explicitSessionId, "failed");
+    audit({ principal: token.sub, paperclipIssueId: ctb?.paperclipIssueId || null, runId: explicitSessionId, mode: ctb?.mode || "DIAGNOSE", changeClass: ctb?.changeClass || null, tool: requestedName, upstreamTool: name, directory: forwarded.directory, result: "error", errorCode: error.code || "UPSTREAM_ERROR", durationMs: Date.now() - startedAt });
     throw error;
   } finally {
-    if (activeKey) activeCtbExecutions.delete(activeKey);
+    activeCtbExecutions.delete(activeKey);
+    executionLocks.delete(key);
   }
 }
 
 async function handleMcp(req, res) {
-  let message; try { message = JSON.parse(await body(req)); } catch { return sendJson(res, 400, rpcError(null, -32700, "Nieprawidłowy JSON-RPC.")); }
+  let message; try { message = JSON.parse(await body(req)); } catch { return sendJson(res, 400, rpcError(null, -32700, "NieprawidĹ‚owy JSON-RPC.")); }
   const token = verify(tokenFromRequest(req)); if (!token || token.iss !== issuer || token.aud !== resourceUrl() || token.exp * 1000 <= Date.now()) return mcpUnauthorized(res, message?.id ?? null);
   const sessionId = String(req.headers["mcp-session-id"] || ""); const currentSessionId = sessionId && sessions.has(sessionId) ? sessionId : random(16); const headers = sessionId && sessions.has(sessionId) ? {} : { "mcp-session-id": currentSessionId }; sessions.set(currentSessionId, { updatedAt: Date.now() });
   const method = message.method; const id = message.id;
@@ -292,7 +512,9 @@ async function handleMcp(req, res) {
   if (method === "notifications/initialized" || String(method || "").startsWith("notifications/")) return sendJson(res, 202, {}, headers);
   if (method === "ping") return sendJson(res, 200, rpcResult(id, {}), headers);
   try {
-    if (method === "tools/list") { await engine.start(); const upstream = await engine.call("tools/list", {}); const tools = upstream.tools.map(exposeTool); for (const [legacyName, targetName] of Object.entries(COMPATIBILITY_ALIASES)) { const target = upstream.tools.find((tool) => tool.name === targetName); if (target) tools.push({ ...exposeTool(target), name: legacyName, title: `${legacyName} (compatibility)`, description: `Compatibility alias forwarding to ${targetName}. ${target.description || ""}`, _meta: { ...(target._meta || {}), kompas: { compatibilityAliasFor: targetName } } }); } tools.push({ name: "opencode_list_skills", title: "Skille CTB", description: "Lista kontraktów skilli CTB.", inputSchema: { type: "object", properties: {}, additionalProperties: false }, outputSchema: { type: "object" }, annotations: { readOnlyHint: true }, securitySchemes: [{ type: "oauth2", scopes: ["opencode:read"] }] }, { name: "opencode_get_skill", title: "Kontrakt skilla CTB", description: "Zwraca pełny kontrakt wskazanego skilla CTB.", inputSchema: { type: "object", properties: { name: { type: "string" } }, required: ["name"], additionalProperties: false }, outputSchema: { type: "object" }, annotations: { readOnlyHint: true }, securitySchemes: [{ type: "oauth2", scopes: ["opencode:read"] }] }, ...["opencode_ctb_get_run", "opencode_ctb_get_events", "opencode_ctb_get_metrics"].map((name) => ({ name, title: name, description: "Read-only telemetry CTB z registry korelacji.", inputSchema: { type: "object", properties: { runId: { type: "string" } }, required: ["runId"], additionalProperties: false }, outputSchema: { type: "object" }, annotations: { readOnlyHint: true }, securitySchemes: [{ type: "oauth2", scopes: ["opencode:read"] }] }))); return sendJson(res, 200, rpcResult(id, { tools }), headers); }
+    if (method === "skills/list") { if (!hasScope(token, "opencode:read")) throw Object.assign(new Error("INSUFFICIENT_SCOPE"), { code: "INSUFFICIENT_SCOPE", requiredScope: "opencode:read" }); const skills = skillCatalog().map(({ path: ignored, ...skill }) => ({ ...skill, uri: `skill://ctb/${skill.name}`, digest: `sha256:${crypto.createHash("sha256").update(fs.readFileSync(skillCatalog().find((item) => item.name === skill.name).path)).digest("hex")}` })); return sendJson(res, 200, rpcResult(id, { skills }), headers); }
+    if (method === "skills/get") { if (!hasScope(token, "opencode:read")) throw Object.assign(new Error("INSUFFICIENT_SCOPE"), { code: "INSUFFICIENT_SCOPE", requiredScope: "opencode:read" }); const skill = skillCatalog().find((item) => item.name === message.params?.name); if (!skill) return sendJson(res, 200, rpcError(id, -32002, "SKILL_NOT_FOUND"), headers); const contract = fs.readFileSync(skill.path, "utf8"); return sendJson(res, 200, rpcResult(id, { name: skill.name, version: skill.version, description: skill.description, uri: `skill://ctb/${skill.name}`, digest: `sha256:${crypto.createHash("sha256").update(contract).digest("hex")}`, content: contract }), headers); }
+    if (method === "tools/list") { await engine.start(); const upstream = await engine.call("tools/list", {}); const tools = upstream.tools.map(exposeTool); for (const [legacyName, targetName] of Object.entries(COMPATIBILITY_ALIASES)) { const target = upstream.tools.find((tool) => tool.name === targetName); if (target) tools.push({ ...exposeTool(target), name: legacyName, title: `${legacyName} (compatibility)`, description: `Compatibility alias forwarding to ${targetName}. ${target.description || ""}`, _meta: { ...(target._meta || {}), kompas: { compatibilityAliasFor: targetName } } }); } tools.push({ name: "opencode_list_skills", title: "Skille CTB", description: "Lista kontraktĂłw skilli CTB.", inputSchema: { type: "object", properties: {}, additionalProperties: false }, outputSchema: { type: "object" }, annotations: { readOnlyHint: true }, securitySchemes: [{ type: "oauth2", scopes: ["opencode:read"] }] }, { name: "opencode_get_skill", title: "Kontrakt skilla CTB", description: "Zwraca peĹ‚ny kontrakt wskazanego skilla CTB.", inputSchema: { type: "object", properties: { name: { type: "string" } }, required: ["name"], additionalProperties: false }, outputSchema: { type: "object" }, annotations: { readOnlyHint: true }, securitySchemes: [{ type: "oauth2", scopes: ["opencode:read"] }] }, { name: "opencode_message_model_info", title: "Model metadata sesji", description: "Read-only: zwraca providerID/modelID/agent dla wiadomosci wskazanej sesji OpenCode.", inputSchema: { type: "object", properties: { sessionId: { type: "string" } }, required: ["sessionId"], additionalProperties: false }, outputSchema: { type: "object" }, annotations: { readOnlyHint: true }, securitySchemes: [{ type: "oauth2", scopes: ["opencode:read"] }] }, ...["opencode_ctb_get_run", "opencode_ctb_get_events", "opencode_ctb_get_metrics"].map((name) => ({ name, title: name, description: "Read-only telemetry CTB z registry korelacji.", inputSchema: { type: "object", properties: { runId: { type: "string" } }, required: ["runId"], additionalProperties: false }, outputSchema: { type: "object" }, annotations: { readOnlyHint: true }, securitySchemes: [{ type: "oauth2", scopes: ["opencode:read"] }] })), ...[{ name: "paperclipGetRunMetrics", description: "Read-only: podsumowanie runu — liczba model turns, tokeny, timiningi, klasyfikacja invocations i jawna mapa supportedObservability." }, { name: "paperclipGetRunEvents", description: "Read-only: structured events oraz ordered step timeline dla runu." }, { name: "paperclipGetRunTokenUsage", description: "Read-only: zużycie tokenów per model turn (input/output/reasoning/cache) z measurementSource." }, { name: "paperclipGetRunSteps", description: "Read-only: uporządkowana os czasu kroków runu z typami i duration." }, { name: "paperclipGetRunContextBreakdown", description: "Read-only: breakdown kontekstu per model turn; sekcje nieudostępnione przez OpenCode są jawnie null z powodem." }, { name: "paperclipGetRunModelTurns", description: "Read-only: szczegóły każdego model turn (provider, model, tokeny, okno kontekstu)." }, { name: "paperclipCompareRunMetrics", description: "Read-only: porównanie co najmniej dwóch runów, w tym który zużył więcej context overhead.", inputSchema: { type: "object", properties: { runIds: { type: "array", items: { type: "string" } } }, required: ["runIds"], additionalProperties: false } }, { name: "paperclipAggregateRunMetrics", description: "Read-only: agregaty metryk dla issue/modelu (p50/p95, first-pass success rate, retries).", inputSchema: { type: "object", properties: { runIds: { type: "array", items: { type: "string" } }, paperclipIssueId: { type: "string" }, groupBy: { enum: ["issue", "model"] } }, additionalProperties: false } }].map((tool) => ({ ...tool, title: tool.name, inputSchema: tool.inputSchema || { type: "object", properties: { runId: { type: "string" } }, required: ["runId"], additionalProperties: false }, outputSchema: { type: "object" }, annotations: { readOnlyHint: true }, securitySchemes: [{ type: "oauth2", scopes: ["opencode:read"] }] }))); return sendJson(res, 200, rpcResult(id, { tools }), headers); }
     if (method === "tools/call") return sendJson(res, 200, rpcResult(id, await callTool(message.params?.name, message.params?.arguments || {}, token)), headers);
     if (["resources/list", "resources/templates/list", "resources/read", "prompts/list", "prompts/get"].includes(method)) { if (!hasScope(token, "opencode:read")) return sendJson(res, 200, rpcResult(id, { isError: true, structuredContent: { errorCode: "INSUFFICIENT_SCOPE", requiredScope: "opencode:read" }, content: [{ type: "text", text: "INSUFFICIENT_SCOPE" }] }), headers); await engine.start(); return sendJson(res, 200, rpcResult(id, await engine.call(method, message.params || {})), headers); }
     return sendJson(res, 400, rpcError(id ?? null, -32601, "Nieznana metoda MCP."), headers);
@@ -302,10 +524,22 @@ async function handleMcp(req, res) {
 function escape(value) { return String(value || "").replace(/[&<>"']/g, (char) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[char]); }
 function loginPage(query, error = "") {
   const fields = ["client_id", "redirect_uri", "response_type", "scope", "state", "resource", "code_challenge", "code_challenge_method"].map((name) => `<input type="hidden" name="${name}" value="${escape(query.get(name))}">`).join("");
-  return `<!doctype html><html lang="pl"><meta charset="utf-8"><title>Autoryzacja OpenCode CTB</title><style>body{font-family:system-ui,sans-serif;max-width:32rem;margin:8vh auto;padding:1.5rem;color:#162313}label,input,button{display:block;width:100%;box-sizing:border-box}label{margin-top:1rem;font-weight:600}input{padding:.7rem;margin-top:.35rem}button{margin-top:1.5rem;padding:.8rem;background:#162313;color:#fff;border:0;border-radius:.4rem;font-weight:700}.error{color:#a5221c}</style><h1>Połącz OpenCode CTB</h1>${error ? `<p class="error">${escape(error)}</p>` : ""}<form method="post" action="/oauth/authorize">${fields}<label>Login<input name="username" autocomplete="username" required></label><label>Hasło<input name="password" type="password" autocomplete="current-password" required></label><button type="submit">Autoryzuj</button></form></html>`;
+  return `<!doctype html><html lang="pl"><meta charset="utf-8"><title>Autoryzacja OpenCode CTB</title><style>body{font-family:system-ui,sans-serif;max-width:32rem;margin:8vh auto;padding:1.5rem;color:#162313}label,input,button{display:block;width:100%;box-sizing:border-box}label{margin-top:1rem;font-weight:600}input{padding:.7rem;margin-top:.35rem}button{margin-top:1.5rem;padding:.8rem;background:#162313;color:#fff;border:0;border-radius:.4rem;font-weight:700}.error{color:#a5221c}</style><h1>PoĹ‚Ä…cz OpenCode CTB</h1>${error ? `<p class="error">${escape(error)}</p>` : ""}<form method="post" action="/oauth/authorize">${fields}<label>Login<input name="username" autocomplete="username" required></label><label>HasĹ‚o<input name="password" type="password" autocomplete="current-password" required></label><button type="submit">Autoryzuj</button></form></html>`;
 }
 function authorizationError(res, query, error, description) { const redirectUri = query.get("redirect_uri"); if (allowedRedirect(redirectUri)) { const destination = new URL(redirectUri); destination.searchParams.set("error", error); destination.searchParams.set("error_description", description); destination.searchParams.set("iss", issuer); if (query.get("state")) destination.searchParams.set("state", query.get("state")); res.writeHead(302, { location: destination.toString(), "cache-control": "no-store" }); return res.end(); } return sendJson(res, 400, { error, error_description: description, iss: issuer }); }
 function issueAccessToken(clientId, scope) { const now = Date.now(); return sign({ iss: issuer, sub: operatorUsername, aud: resourceUrl(), client_id: clientId, scope, iat: Math.floor(now / 1000), exp: Math.floor((now + accessTtlMs) / 1000), jti: random(12) }); }
+function completeAuthorization(res, { clientId, redirectUri, scope, codeChallenge, state }) {
+  const code = random(36);
+  codes.set(code, { clientId, redirectUri, scope, codeChallenge, expiresAt: Date.now() + codeTtlMs });
+  const destination = new URL(redirectUri);
+  destination.searchParams.set("code", code);
+  destination.searchParams.set("iss", issuer);
+  if (state) destination.searchParams.set("state", state);
+  audit({ result: "oauth_authorize_success", clientId, redirectHost: destination.host, scope });
+  audit({ result: "oauth_callback_redirect", clientId, redirectHost: destination.host });
+  res.writeHead(302, { location: destination.toString(), "cache-control": "no-store" });
+  res.end();
+}
 async function handleAuthorize(req, res, url) {
   const q = url.searchParams;
   const form = req.method === "POST" ? new URLSearchParams(await body(req)) : new URLSearchParams();
@@ -322,25 +556,23 @@ async function handleAuthorize(req, res, url) {
   if (!client || !allowedRedirect(redirectUri) || !client.redirect_uris.includes(redirectUri)) return fail("unauthorized_client", "Unknown OAuth client or redirect URI.");
   if (param("response_type") !== "code" || codeChallengeMethod !== "S256" || !/^[A-Za-z0-9._~-]{43,128}$/.test(codeChallenge)) return fail("invalid_request", "PKCE S256 is required.");
   if ((resource || resourceUrl()) !== resourceUrl()) return fail("invalid_target", "Unknown resource.");
-  if (req.method === "GET") return sendHtml(res, 200, loginPage(q));
+  const grantedScope = normalizedScope(scope);
+  if (req.method === "GET") {
+    // Persistent browser session replaces the password prompt for repeat flows.
+    const session = validOauthSession(req);
+    if (session) return completeAuthorization(res, { clientId, redirectUri, scope: grantedScope, codeChallenge, state });
+    return sendHtml(res, 200, loginPage(q));
+  }
   const ip = String(req.headers["cf-connecting-ip"] || req.socket.remoteAddress || "unknown");
   if (!secureEqual(form.get("username"), operatorUsername) || !secureEqual(form.get("password"), operatorPassword)) {
     audit({ result: "oauth_authorize_failed", clientId, redirectHost: new URL(redirectUri).host, errorCode: "OAUTH_INVALID_CREDENTIALS" });
     const count = (attempts.get(ip) || 0) + 1;
     attempts.set(ip, count);
-    return count >= 10 ? sendJson(res, 429, { error: "too_many_attempts" }) : sendHtml(res, 401, loginPage(q, "Niepoprawny login lub hasło."));
+    return count >= 10 ? sendJson(res, 429, { error: "too_many_attempts" }) : sendHtml(res, 401, loginPage(q, "Niepoprawny login lub hasĹ‚o."));
   }
   attempts.delete(ip);
-  const code = random(36);
-  codes.set(code, { clientId, redirectUri, scope: normalizedScope(scope), codeChallenge, expiresAt: Date.now() + codeTtlMs });
-  const destination = new URL(redirectUri);
-  destination.searchParams.set("code", code);
-  destination.searchParams.set("iss", issuer);
-  if (state) destination.searchParams.set("state", state);
-  audit({ result: "oauth_authorize_success", clientId, redirectHost: new URL(redirectUri).host, scope: normalizedScope(scope) });
-  audit({ result: "oauth_callback_redirect", clientId, redirectHost: destination.host });
-  res.writeHead(302, { location: destination.toString(), "cache-control": "no-store" });
-  res.end();
+  issueBrowserSession(res, operatorUsername);
+  completeAuthorization(res, { clientId, redirectUri, scope: grantedScope, codeChallenge, state });
 }
 async function handleToken(req, res) {
   const form = new URLSearchParams(await body(req));
@@ -375,18 +607,37 @@ async function handleToken(req, res) {
     return sendJson(res, 200, { access_token: issueAccessToken(clientId, record.scope), refresh_token: refresh, token_type: "Bearer", expires_in: Math.floor(accessTtlMs / 1000), scope: record.scope }, { "cache-control": "no-store", pragma: "no-cache" });
   }
   if (grantType === "refresh_token") {
-    const refresh = String(form.get("refresh_token") || "");
-    const record = refreshTokens[refresh];
-    delete refreshTokens[refresh];
-    writeJson(refreshFile, refreshTokens);
-    if (!record || record.expiresAt < Date.now() || (requestedClientId && record.clientId !== requestedClientId)) return sendJson(res, 400, { error: "invalid_grant" });
+    const presented = String(form.get("refresh_token") || "");
+    const now = Date.now();
+    const record = refreshTokens[presented];
+    for (const [key, value] of Object.entries(refreshTokens)) { if (value?.rotatedAt && now - Date.parse(value.rotatedAt) > refreshGraceMs) delete refreshTokens[key]; }
+    if (!record || record.expiresAt < now || (requestedClientId && record.clientId !== requestedClientId)) {
+      writeJson(refreshFile, refreshTokens);
+      audit({ result: "oauth_refresh_rejected", clientId: requestedClientId || null });
+      return sendJson(res, 400, { error: "invalid_grant" });
+    }
+    // Race-safe rotation: replays of a just-rotated token return the same replacement within the grace window.
+    if (record.rotatedAt) {
+      const withinGrace = now - Date.parse(record.rotatedAt) <= refreshGraceMs && record.replacement && refreshTokens[record.replacement];
+      delete refreshTokens[presented];
+      writeJson(refreshFile, refreshTokens);
+      if (!withinGrace) {
+        audit({ result: "oauth_refresh_rejected", clientId: requestedClientId || record.clientId || null });
+        return sendJson(res, 400, { error: "invalid_grant" });
+      }
+      audit({ result: "oauth_refresh_replayed", clientId: record.clientId });
+      return sendJson(res, 200, { access_token: issueAccessToken(record.clientId, record.scope), refresh_token: record.replacement, token_type: "Bearer", expires_in: Math.floor(accessTtlMs / 1000), scope: record.scope }, { "cache-control": "no-store", pragma: "no-cache" });
+    }
     const next = random(40);
-    refreshTokens[next] = { ...record, expiresAt: Date.now() + refreshTtlMs };
+    record.rotatedAt = new Date(now).toISOString();
+    record.replacement = next;
+    refreshTokens[next] = { clientId: record.clientId, scope: record.scope, expiresAt: now + refreshTtlMs };
     writeJson(refreshFile, refreshTokens);
+    audit({ result: "oauth_refresh_rotated", clientId: record.clientId });
     return sendJson(res, 200, { access_token: issueAccessToken(record.clientId, record.scope), refresh_token: next, token_type: "Bearer", expires_in: Math.floor(accessTtlMs / 1000), scope: record.scope }, { "cache-control": "no-store", pragma: "no-cache" });
   }
   return sendJson(res, 400, { error: "unsupported_grant_type" });
 }
 
-const server = http.createServer(async (req, res) => { const url = new URL(req.url, `http://${req.headers.host || "localhost"}`); try { if (url.pathname === "/health" && req.method === "GET") return sendJson(res, 200, { ok: true, engine: "AlaeddineMessadi/opencode-mcp@1.11.0", policy: "ctb", issuer, allowedRoots }); if (url.pathname === "/.well-known/oauth-protected-resource" && req.method === "GET") return sendJson(res, 200, { resource: resourceUrl(), authorization_servers: [issuer], scopes_supported: [...validScopes], resource_documentation: `${issuer}/health` }, { "access-control-allow-origin": "*", "cache-control": "public, max-age=3600" }); if ((url.pathname === "/.well-known/oauth-authorization-server" || url.pathname === "/.well-known/openid-configuration") && req.method === "GET") return sendJson(res, 200, { issuer, authorization_endpoint: `${issuer}/oauth/authorize`, token_endpoint: `${issuer}/oauth/token`, registration_endpoint: `${issuer}/oauth/register`, response_types_supported: ["code"], grant_types_supported: ["authorization_code", "refresh_token"], token_endpoint_auth_methods_supported: ["none"], code_challenge_methods_supported: ["S256"], scopes_supported: [...validScopes], authorization_response_iss_parameter_supported: true }, { "access-control-allow-origin": "*", "cache-control": "public, max-age=3600" }); if (url.pathname === "/oauth/register" && req.method === "POST") { const registration = JSON.parse(await body(req)); const redirectUris = Array.isArray(registration.redirect_uris) ? registration.redirect_uris : []; if (!redirectUris.length || !redirectUris.every(allowedRedirect)) return sendJson(res, 400, { error: "invalid_redirect_uri" }); const clientId = `dcr_${random(18)}`; clients[clientId] = { client_id: clientId, client_name: String(registration.client_name || "MCP client"), redirect_uris: redirectUris, token_endpoint_auth_method: "none", created_at: new Date().toISOString() }; writeJson(clientsFile, clients); return sendJson(res, 201, { ...clients[clientId], grant_types: ["authorization_code", "refresh_token"], response_types: ["code"] }); } if (url.pathname === "/oauth/authorize" && ["GET", "POST"].includes(req.method || "")) return handleAuthorize(req, res, url); if (url.pathname === "/oauth/token" && req.method === "POST") return handleToken(req, res); if (url.pathname === "/mcp" && req.method === "POST") return handleMcp(req, res); return sendJson(res, 404, { error: "Not found" }); } catch (error) { console.error("[opencode-ctb] request failed", error instanceof Error ? error.message : error); return sendJson(res, 500, { error: "Internal server error" }); } });
+const server = http.createServer(async (req, res) => { const url = new URL(req.url, `http://${req.headers.host || "localhost"}`); try { if (url.pathname === "/health" && req.method === "GET") return sendJson(res, 200, { ok: true, engine: "AlaeddineMessadi/opencode-mcp@1.11.0", policy: "ctb", revision: "run-analytics-1", issuer, allowedRoots }); if (url.pathname === "/.well-known/oauth-protected-resource" && req.method === "GET") return sendJson(res, 200, { resource: resourceUrl(), authorization_servers: [issuer], scopes_supported: [...validScopes], resource_documentation: `${issuer}/health` }, { "access-control-allow-origin": "*", "cache-control": "public, max-age=3600" }); if ((url.pathname === "/.well-known/oauth-authorization-server" || url.pathname === "/.well-known/openid-configuration") && req.method === "GET") return sendJson(res, 200, { issuer, authorization_endpoint: `${issuer}/oauth/authorize`, token_endpoint: `${issuer}/oauth/token`, registration_endpoint: `${issuer}/oauth/register`, response_types_supported: ["code"], grant_types_supported: ["authorization_code", "refresh_token"], token_endpoint_auth_methods_supported: ["none"], code_challenge_methods_supported: ["S256"], scopes_supported: [...validScopes], authorization_response_iss_parameter_supported: true }, { "access-control-allow-origin": "*", "cache-control": "public, max-age=3600" }); if (url.pathname === "/oauth/register" && req.method === "POST") { const registration = JSON.parse(await body(req)); const redirectUris = Array.isArray(registration.redirect_uris) ? registration.redirect_uris : []; if (!redirectUris.length || !redirectUris.every(allowedRedirect)) return sendJson(res, 400, { error: "invalid_redirect_uri" }); const clientId = `dcr_${random(18)}`; clients[clientId] = { client_id: clientId, client_name: String(registration.client_name || "MCP client"), redirect_uris: redirectUris, token_endpoint_auth_method: "none", created_at: new Date().toISOString() }; writeJson(clientsFile, clients); return sendJson(res, 201, { ...clients[clientId], grant_types: ["authorization_code", "refresh_token"], response_types: ["code"] }); } if (url.pathname === "/oauth/authorize" && ["GET", "POST"].includes(req.method || "")) return handleAuthorize(req, res, url); if (url.pathname === "/oauth/logout" && req.method === "POST") { const revoked = revokeOauthSession(req); audit({ result: "oauth_logout", revoked }); return sendJson(res, 200, { ok: true }, { "set-cookie": `${sessionCookieName}=; Secure; HttpOnly; SameSite=Lax; Path=/; Max-Age=0` }); } if (url.pathname === "/oauth/token" && req.method === "POST") return handleToken(req, res); if (url.pathname === "/mcp" && req.method === "POST") return handleMcp(req, res); return sendJson(res, 404, { error: "Not found" }); } catch (error) { console.error("[opencode-ctb] request failed", error instanceof Error ? error.message : error); return sendJson(res, 500, { error: "Internal server error" }); } });
 server.listen(port, "127.0.0.1", () => console.log(`[opencode-ctb] listening on http://127.0.0.1:${port}/mcp`));
