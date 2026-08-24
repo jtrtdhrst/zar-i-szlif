@@ -22,7 +22,7 @@ Nie zmieniaj bez jawnego upoważnienia w zadaniu:
 - Ustawienia projektu / konfiguracja: `opencode.json` (MCP paperclip+cloudflare), `package.json` (root, devDeps testowe).
 - UI plugin: `kompas-ui-plugin/`
   - build: `npm run build` w `kompas-ui-plugin` (web/scripts/build-static.mjs + tsc server).
-  - aplikacja: `kompas-ui-plugin/web/src/static-app-v2.js` (główny render statyczny), `main.tsx`, `mockData.ts`, `styles.css`, `extended.css`.
+  - aplikacja: `kompas-ui-plugin/web/src/static-app-v2.js` (główny render statyczny), `styles.css`, `extended.css`.
   - e2e Playwright: `kompas-ui-plugin/e2e/ui.spec.ts`, `a11y.spec.ts`, `cache.spec.ts`, `panel.spec.ts`, `visual.spec.ts`, `helpers.ts`.
   - Lighthouse: `kompas-ui-plugin/lighthouserc.json`, `scripts/run-lhci.mjs`.
   - lokalne komendy: `npm run test:all` (build + playwright + lighthouse), `test:ui`, `test:a11y`, `test:visual`, `test:lighthouse`, `test:ui:update`.
