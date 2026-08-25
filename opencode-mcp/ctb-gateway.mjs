@@ -4,7 +4,7 @@ import http from "node:http";
 import path from "node:path";
 import { spawn } from "node:child_process";
 import { fileURLToPath } from "node:url";
-import { CTB_POLICY_REVISION, MODEL_ENTRYPOINTS, TOOL_CLASSES, classifyIntake, classifyTool, ctbContextError, canonicalPath, evaluateIssueCtbPolicyDetailed, matchesIdempotencyRun, requiredScope, validateToolPathArguments } from "./ctb-policy.mjs";
+import { CTB_POLICY_REVISION, MODEL_ENTRYPOINTS, TOOL_CLASSES, classifyIntake, classifyTool, ctbContextError, canonicalPath, evaluateIssueCtbPolicyDetailed, isProviderModelFailure, matchesIdempotencyRun, parseModelRef, requiredScope, validateToolPathArguments } from "./ctb-policy.mjs";
 import { aggregateRunAnalytics, buildRunAnalytics, compareRunMetrics, supportedObservability } from "./run-analytics.mjs";
 import { loadMcpRoleProfiles, resolveEffectiveProfile } from "./mcp-role-profiles.mjs";
 
@@ -143,6 +143,28 @@ function telemetryBase(token, { name, ctb = null, directory = null, mode = null 
     cwd: directory ?? null,
     mode: mode || ctb?.mode || null,
   };
+}
+
+// Model contract (explicit, never silent): canonical default model applied when the caller
+// passes none, plus a single operator-configured fallback used ONLY on a provider/model
+// invocation failure — every fallback surfaces fallbackUsed=true + fallbackReason.
+const DEFAULT_MODEL = parseModelRef(process.env.OPENCODE_MCP_DEFAULT_MODEL || "opencode/x-preview-f-free") || { providerID: "opencode", modelID: "x-preview-f-free" };
+const FALLBACK_MODEL = parseModelRef(process.env.OPENCODE_MCP_FALLBACK_MODEL || "opencode/hy3-free");
+function applyDefaultModel(args) {
+  const hasProvider = typeof args?.providerID === "string" && args.providerID.trim() !== "";
+  const hasModel = (typeof args?.modelID === "string" && args.modelID.trim() !== "") || (typeof args?.model === "string" && args.model.trim() !== "");
+  if (hasProvider || hasModel) return args;
+  return { ...args, providerID: DEFAULT_MODEL.providerID, modelID: DEFAULT_MODEL.modelID };
+}
+async function callModelWithFallback(name, args, auditContext = {}) {
+  try {
+    return { result: await engine.call("tools/call", { name, arguments: args }), fallbackUsed: false, fallbackReason: null };
+  } catch (error) {
+    if (!FALLBACK_MODEL || !isProviderModelFailure(error)) throw error;
+    audit({ ...auditContext, tool: name, requestedModel: { providerRequested: args.providerID ?? null, modelRequested: args.modelID ?? null }, fallbackModel: FALLBACK_MODEL, fallbackTrigger: String(error.code || error.message || "UPSTREAM_ERROR").slice(0, 200), result: "model_fallback_retry" });
+    const result = await engine.call("tools/call", { name, arguments: { ...args, providerID: FALLBACK_MODEL.providerID, modelID: FALLBACK_MODEL.modelID } });
+    return { result, fallbackUsed: true, fallbackReason: `primary model failed (${String(error.code || error.message).slice(0, 200)}); explicit retry on ${FALLBACK_MODEL.providerID}/${FALLBACK_MODEL.modelID}` };
+  }
 }
 function persistRuns() { writeJson(registryFile, { version: 2, runs }); }
 // Bootstrap entrypoints may start without an existing session: the gateway creates the
@@ -532,17 +554,19 @@ async function callTool(name, args, token) {
   // DIAGNOSE/PLAN model inference: real execution forced onto the read-only plan agent,
   // zero Paperclip authorization, zero CTB registry writes.
   if (intake.modelReadOnly) {
-    const forwardedModelArgs = validateToolPathArguments(Object.fromEntries(Object.entries(args || {}).filter(([key]) => key !== "ctb")), allowedRoots, workspaceRoot);
-    const requestedModel = requestedModelFrom(args);
+    const validatedModelArgs = validateToolPathArguments(Object.fromEntries(Object.entries(args || {}).filter(([key]) => key !== "ctb")), allowedRoots, workspaceRoot);
+    const forwardedModelArgs = applyDefaultModel(validatedModelArgs);
+    const requestedModel = requestedModelFrom(forwardedModelArgs);
     const telemetry = telemetryBase(token, { name, ctb: args.ctb, directory: forwardedModelArgs.directory, mode: intake.mode });
     const startedAt = Date.now();
     audit({ ...telemetry, changeClass: "ctb", tool: requestedName, upstreamTool: name, requestedModel, result: "model_read_only_started", agent: "plan" });
     try {
-      const result = await engine.call("tools/call", { name, arguments: { ...forwardedModelArgs, agent: "plan" } });
-      const modelSessionId = findSessionReference(result) || null;
+      const outcome = await callModelWithFallback(name, { ...forwardedModelArgs, agent: "plan" }, { ...telemetry, requestedModel });
+      const modelSessionId = findSessionReference(outcome.result) || null;
       const modelIdentity = summarizeModelIdentity(requestedModel, await lastAssistantModelInfo(modelSessionId));
+      if (outcome.fallbackUsed) { modelIdentity.fallbackUsed = true; modelIdentity.fallbackReason = outcome.fallbackReason; }
       audit({ ...telemetry, changeClass: "ctb", tool: requestedName, upstreamTool: name, requestedModel, modelIdentity, sessionId: modelSessionId, result: "success", durationMs: Date.now() - startedAt });
-      return result;
+      return outcome.result;
     } catch (error) {
       audit({ ...telemetry, changeClass: "ctb", tool: requestedName, upstreamTool: name, requestedModel, result: "error", errorCode: error.code || "UPSTREAM_ERROR", durationMs: Date.now() - startedAt });
       throw error;
@@ -571,7 +595,7 @@ async function callTool(name, args, token) {
   executionLocks.set(key, activeKey);
   activeCtbExecutions.set(activeKey, { createdAt: new Date(startedAt).toISOString(), runId: sessionId });
   if (sessionId) recordRun(sessionId, ctb, forwarded.directory, token.sub, authorization.decision, new Date(startedAt).toISOString());
-  audit({ ...telemetry, paperclipIssueId: ctb?.paperclipIssueId || null, runId: sessionId || null, changeClass: ctb?.changeClass || null, tool: requestedName, upstreamTool: name, requestedModel: requestedModelFrom(args), authorizationSource: authorization.decision.ctbPolicy.source, result: "started" });
+  audit({ ...telemetry, paperclipIssueId: ctb?.paperclipIssueId || null, runId: sessionId || null, changeClass: ctb?.changeClass || null, tool: requestedName, upstreamTool: name, requestedModel: requestedModelFrom(MODEL_ENTRYPOINTS.has(name) ? applyDefaultModel(forwarded) : forwarded), authorizationSource: authorization.decision.ctbPolicy.source, result: "started" });
   try {
     if (!sessionId) {
       // Bootstrap: gateway owns session creation, so run identity stays authoritative.
@@ -583,14 +607,19 @@ async function callTool(name, args, token) {
       activeCtbExecutions.set(sessionId, { createdAt: new Date(startedAt).toISOString(), runId: sessionId });
       recordRun(sessionId, ctb, forwarded.directory, token.sub, authorization.decision, new Date(startedAt).toISOString());
     }
-    const result = await engine.call("tools/call", { name, arguments: forwarded });
+    const forwardedForModel = MODEL_ENTRYPOINTS.has(name) ? applyDefaultModel(forwarded) : forwarded;
+    const modelOutcome = MODEL_ENTRYPOINTS.has(name)
+      ? await callModelWithFallback(name, forwardedForModel, { ...telemetry, requestedModel: requestedModelFrom(forwardedForModel) })
+      : { result: await engine.call("tools/call", { name, arguments: forwarded }), fallbackUsed: false, fallbackReason: null };
+    const result = modelOutcome.result;
     await collectSessionToolEvents(sessionId);
     eventFor(sessionId, { kind: "tool", tool: name, action: requestedName, durationMs: Date.now() - startedAt, status: "success" });
     if (name !== "opencode_fire" && name !== "opencode_message_send_async") finishRun(sessionId, "completed");
     runs[sessionId].result = result;
     // Model contract telemetry: requested before invocation, actual from runtime metadata.
-    const requestedModel = requestedModelFrom(args);
+    const requestedModel = requestedModelFrom(forwardedForModel);
     const modelIdentity = summarizeModelIdentity(requestedModel, await lastAssistantModelInfo(sessionId));
+    if (modelOutcome.fallbackUsed) { modelIdentity.fallbackUsed = true; modelIdentity.fallbackReason = modelOutcome.fallbackReason; }
     modelIdentity.sessionId = sessionId;
     runs[sessionId].model = modelIdentity;
     persistRuns();

@@ -45,7 +45,12 @@ $env:OPENCODE_MCP_RUNTIME_DIR = $runtime
 $env:OPENCODE_MCP_ISSUER = "https://opencode.kompaszbiorek.pl"
 $env:PORT = "4097"
 $env:MCP_ISSUER = "https://opencode.kompaszbiorek.pl"
-$env:OPENCODE_CTB_ALLOWED_ROOTS = "C:\Kompas Zbiórek;C:\paperclip;C:\paperclip-worktrees"
+$env:OPENCODE_CTB_ALLOWED_ROOTS = "C:\Kompas Zbiórek;C:\Kompas Zbiórek\.paperclip-worktrees;C:\paperclip;C:\paperclip-worktrees"
+# Principal -> rola dla efektywnego profilu MCP (rola nigdy nie jest brana od klienta/modelu).
+$env:OPENCODE_MCP_PRINCIPAL_ROLES = '{"operator":"cto"}'
+# Kontrakt modelu: domyślny Ox Alpha Free, jawny fallback Hy3 Free (fallbackUsed zawsze raportowany).
+$env:OPENCODE_MCP_DEFAULT_MODEL = "opencode/x-preview-f-free"
+$env:OPENCODE_MCP_FALLBACK_MODEL = "opencode/hy3-free"
 
 if (-not (Get-NetTCPConnection -State Listen -LocalPort 4096 -ErrorAction SilentlyContinue)) {
   Start-Process -FilePath $opencode -ArgumentList "serve --hostname 127.0.0.1 --port 4096" -WorkingDirectory $root -RedirectStandardOutput (Join-Path $runtime "opencode.out.log") -RedirectStandardError (Join-Path $runtime "opencode.err.log") -WindowStyle Hidden | Out-Null

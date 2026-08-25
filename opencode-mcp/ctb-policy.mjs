@@ -12,6 +12,21 @@ export const TOOL_CLASSES = Object.freeze({
 // Detectable policy revision surfaced through /health and every telemetry event.
 export const CTB_POLICY_REVISION = "ctb-policy-4";
 
+// Provider/model invocation failures eligible for the EXPLICIT fallback retry (never a
+// silent switch: every fallback must surface fallbackUsed=true + fallbackReason).
+const PROVIDER_MODEL_FAILURE_PATTERN = /provider[^.\n]*(not found|unknown|unsupported|invalid|unauthorized)|model[^.\n]*(not found|unknown|unsupported|invalid)|no allowed providers|rate[ ._-]?limit|quota|too many requests|\b429\b/i;
+export function isProviderModelFailure(error) {
+  let data = "";
+  try { data = JSON.stringify(error?.data ?? {}).slice(0, 500); } catch { data = ""; }
+  return PROVIDER_MODEL_FAILURE_PATTERN.test(`${error?.code || ""} ${error?.message || ""} ${data}`);
+}
+
+// Splits "provider/model" (model id may itself contain slashes).
+export function parseModelRef(ref) {
+  if (typeof ref !== "string" || !ref.includes("/")) return null;
+  return { providerID: ref.slice(0, ref.indexOf("/")), modelID: ref.slice(ref.indexOf("/") + 1) };
+}
+
 const byClass = Object.freeze({
   [TOOL_CLASSES.READ]: [
     "opencode_setup", "opencode_status", "opencode_health", "opencode_context", "opencode_conversation",

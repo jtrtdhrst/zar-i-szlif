@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import fs from "node:fs";
 import path from "node:path";
-import { CTB_POLICY_REVISION, TOOL_CLASSES, classifyIntake, classifyTool, ctbContextError, canonicalPath, evaluateIssueCtbPolicyDetailed, normalizeAllowedDirectory, requiredScope } from "./ctb-policy.mjs";
+import { CTB_POLICY_REVISION, TOOL_CLASSES, classifyIntake, classifyTool, ctbContextError, canonicalPath, evaluateIssueCtbPolicyDetailed, isProviderModelFailure, normalizeAllowedDirectory, parseModelRef, requiredScope } from "./ctb-policy.mjs";
 import { KNOWN_DEV_MCP, loadMcpRoleProfiles, resolveEffectiveProfile, resolvePrincipalRole } from "./mcp-role-profiles.mjs";
 
 const doc = loadMcpRoleProfiles();
@@ -172,5 +172,13 @@ for (const principal of ["ceo_bot", "coo_bot"]) {
 ok(/^ctb-policy-\d+$/.test(CTB_POLICY_REVISION) && CTB_POLICY_REVISION > "ctb-policy-3", `/health revision advanced beyond ctb-policy-3 (${CTB_POLICY_REVISION})`);
 ok(doc.revision === "mcp-role-profiles-2", `role profile revision detectable (${doc.revision})`);
 ok(canonicalPath("C:\\Windows\\..\\Temp").toLowerCase() !== "c:\\windows\\..\\temp", "canonicalPath resolves lexically at minimum");
+
+// Model contract helpers: model-ref parsing + explicit-fallback eligibility predicate.
+ok(parseModelRef("opencode/x-preview-f-free")?.providerID === "opencode" && parseModelRef("opencode/x-preview-f-free")?.modelID === "x-preview-f-free", "parseModelRef splits provider/model");
+ok(parseModelRef("opencode/tencent/hy3")?.modelID === "tencent/hy3", "parseModelRef keeps slashed model ids");
+ok(parseModelRef("garbage") === null, "parseModelRef rejects non-refs");
+ok(isProviderModelFailure(new Error("provider opencode model nope-model not found")), "provider/model failure detected");
+ok(isProviderModelFailure(Object.assign(new Error("too many requests"), { code: "HTTP_429" })), "rate limit detected as model failure");
+ok(!isProviderModelFailure(Object.assign(new Error("session not found"), { code: "CTB_SESSION_REQUIRED" })), "non-model errors are not fallback-eligible");
 
 console.log(`ACCEPTANCE SUITE: ${passed} checks PASS`);
