@@ -4,7 +4,7 @@ import http from "node:http";
 import path from "node:path";
 import { spawn } from "node:child_process";
 import { fileURLToPath } from "node:url";
-import { MODEL_ENTRYPOINTS, TOOL_CLASSES, classifyIntake, classifyTool, ctbContextError, matchesIdempotencyRun, requiredScope, validateToolPathArguments } from "./ctb-policy.mjs";
+import { MODEL_ENTRYPOINTS, TOOL_CLASSES, classifyIntake, classifyTool, ctbContextError, evaluateIssueCtbPolicy, matchesIdempotencyRun, requiredScope, validateToolPathArguments } from "./ctb-policy.mjs";
 import { aggregateRunAnalytics, buildRunAnalytics, compareRunMetrics, supportedObservability } from "./run-analytics.mjs";
 
 const here = path.dirname(fileURLToPath(import.meta.url));
@@ -18,7 +18,8 @@ const operatorPassword = process.env.OPENCODE_MCP_PASSWORD || "";
 const openCodeUsername = process.env.OPENCODE_SERVER_USERNAME || "opencode";
 const openCodePassword = process.env.OPENCODE_SERVER_PASSWORD || "";
 const infrastructureRoot = "C:\\paperclip";
-const allowedRoots = (process.env.OPENCODE_CTB_ALLOWED_ROOTS || [workspaceRoot, infrastructureRoot].join(path.delimiter)).split(path.delimiter).filter(Boolean);
+const paperclipWorktreeRoot = "C:\\paperclip-worktrees";
+const allowedRoots = (process.env.OPENCODE_CTB_ALLOWED_ROOTS || [workspaceRoot, infrastructureRoot, paperclipWorktreeRoot].join(path.delimiter)).split(path.delimiter).filter(Boolean);
 const upstreamEntry = process.env.OPENCODE_MCP_UPSTREAM_ENTRY || path.join(here, "upstream", "dist", "index.js");
 const skillsRoot = path.join(here, "skills");
 const auditFile = path.join(runtimeDir, "ctb-audit.ndjson");
@@ -34,6 +35,8 @@ const attempts = new Map();
 if (!operatorPassword || !openCodePassword) throw new Error("OPENCODE_MCP_PASSWORD and OPENCODE_SERVER_PASSWORD must be configured.");
 if (!fs.existsSync(upstreamEntry)) throw new Error(`Missing upstream engine: ${upstreamEntry}`);
 fs.mkdirSync(runtimeDir, { recursive: true, mode: 0o700 });
+// normalizeAllowedDirectory resolves every allowed root with realpathSync; roots must exist.
+for (const root of allowedRoots) fs.mkdirSync(root, { recursive: true });
 const keyFile = path.join(runtimeDir, "signing.key");
 const clientsFile = path.join(runtimeDir, "clients.json");
 const refreshFile = path.join(runtimeDir, "refresh-tokens.json");
@@ -79,6 +82,10 @@ const COMPATIBILITY_ALIASES = Object.freeze({
   opencode_abort_run: "opencode_session_abort",
 });
 function persistRuns() { writeJson(registryFile, { version: 2, runs }); }
+// Bootstrap entrypoints may start without an existing session: the gateway creates the
+// upstream OpenCode session itself (POST /session) and injects the resulting sessionId,
+// so run correlation stays authoritative and never derives identity from tool output text.
+const BOOTSTRAP_ENTRYPOINTS = new Set(["opencode_run", "opencode_ask"]);
 function b64(value) { return Buffer.from(value).toString("base64url"); }
 function random(bytes = 32) { return crypto.randomBytes(bytes).toString("base64url"); }
 function sign(payload) { const encoded = b64(JSON.stringify(payload)); return `${encoded}.${crypto.createHmac("sha256", signingKey).update(encoded).digest("base64url")}`; }
@@ -262,7 +269,7 @@ function exposeTool(tool) {
       description: modelEntrypoint
         ? "CTB envelope. mode DIAGNOSE or PLAN runs real read-only inference via the plan agent (no Paperclip, no registry writes). mode EXECUTE requires the full execution envelope: paperclipIssueId, changeIntent, scope, acceptanceCriteria and idempotencyKey."
         : "Required CTB execution envelope: mode EXECUTE, changeClass ctb, paperclipIssueId, changeIntent, scope, acceptanceCriteria and idempotencyKey.",
-      properties: { mode: modelEntrypoint ? { enum: ["DIAGNOSE", "PLAN", "EXECUTE"] } : { const: "EXECUTE" }, changeClass: { const: "ctb" }, paperclipIssueId: { type: "string" }, changeIntent: { type: "string" }, scope: { type: "string" }, acceptanceCriteria: { type: "string" }, idempotencyKey: { type: "string" } },
+      properties: { mode: modelEntrypoint ? { enum: ["DIAGNOSE", "PLAN", "EXECUTE"] } : { const: "EXECUTE" }, changeClass: { const: "ctb" }, paperclipIssueId: { type: "string" }, changeIntent: { type: "string" }, scope: { type: "string" }, acceptanceCriteria: { type: "string" }, idempotencyKey: { type: "string" }, executionContext: { type: "object", description: "Optional. Correlate the run with an existing OpenCode session. Omit for opencode_run/opencode_ask — the gateway bootstraps a new session.", properties: { sessionId: { type: "string" } }, additionalProperties: false } },
       required: modelEntrypoint ? ["mode", "changeClass"] : ["mode", "changeClass", "paperclipIssueId", "changeIntent", "scope", "acceptanceCriteria", "idempotencyKey"],
     };
   }
@@ -270,7 +277,6 @@ function exposeTool(tool) {
 }
 
 function ctbScopeError() { return Object.assign(new Error("CTB_ISSUE_SCOPE_MISMATCH"), { code: "CTB_ISSUE_SCOPE_MISMATCH" }); }
-function samePath(left, right) { return path.resolve(String(left)).toLowerCase() === path.resolve(String(right)).toLowerCase(); }
 function issueCtbPolicy(issue) {
   const candidate = issue?.executionPolicy?.ctb || issue?.metadata?.ctb;
   if (!candidate || candidate.changeClass !== "ctb" || !Array.isArray(candidate.projectRoots) || !Array.isArray(candidate.changeIntents) || !Array.isArray(candidate.acceptanceCriteria)) return null;
@@ -290,11 +296,11 @@ async function validatePaperclipIssue(ctb, directory) {
   if (ctb.companyId && ctb.companyId !== issue?.companyId) throw ctbScopeError();
   if (!["todo", "in_progress"].includes(issue?.status) || issue?.workMode === "ask" || issue?.workMode === "planning") throw ctbScopeError();
   // Paperclip owns workspace scope. Do not infer authorization from prose fields.
-  const issueRoot = issue?.currentExecutionWorkspace?.cwd;
-  if (!issueRoot || !samePath(issueRoot, directory)) throw ctbScopeError();
+  const scopeError = evaluateIssueCtbPolicy(issue, directory, ctb.changeIntent, ctb.acceptanceCriteria);
+  if (scopeError) throw Object.assign(new Error(scopeError), { code: scopeError });
   const policy = issueCtbPolicy(issue);
-  if (!policy || !policy.projectRoots.some((root) => samePath(root, directory)) || !policy.changeIntents.includes(ctb.changeIntent) || !policy.acceptanceCriteria.includes(ctb.acceptanceCriteria)) throw ctbScopeError();
-  const decision = { companyId: issue.companyId, issueId: issue.id, lifecycle: issue.status, workspace: issueRoot, ctbPolicy: { changeClass: policy.changeClass, projectRoots: policy.projectRoots, changeIntent: ctb.changeIntent, acceptanceCriteria: ctb.acceptanceCriteria }, issuedAt: new Date().toISOString(), policy: "ctb-v2" };
+  const issueRoot = issue.currentExecutionWorkspace.cwd;
+  const decision = { companyId: issue.companyId, issueId: issue.id, lifecycle: issue.status, workspace: issueRoot, ctbPolicy: { changeClass: policy?.changeClass || "ctb", projectRoots: policy?.projectRoots || [issueRoot], changeIntent: ctb.changeIntent, acceptanceCriteria: ctb.acceptanceCriteria, source: policy ? "issue_policy" : "workspace_fallback" }, issuedAt: new Date().toISOString(), policy: "ctb-v2" };
   return { issue, decision };
 }
 
@@ -313,6 +319,13 @@ function finishRun(sessionId, status) { if (!sessionId || !runs[sessionId]) retu
 function metricsFor(run) { const events = run.events || []; const toolEvents = events.filter((event) => ["tool", "mcp", "search", "file", "command", "test", "git"].includes(event.kind)); const fingerprints = new Set(); let duplicateCalls = 0; for (const event of toolEvents) { const fingerprint = `${event.kind}|${event.tool || event.action || ""}|${event.status || ""}`; if (fingerprints.has(fingerprint)) duplicateCalls += 1; else fingerprints.add(fingerprint); } const startedAt = Date.parse(run.createdAt || "") || 0; const elapsed = (event) => { const at = Date.parse(event.timestamp || "") || 0; return startedAt && at ? Math.max(0, at - startedAt) : null; }; const firstWrite = events.find((event) => event.kind === "file" && event.operation === "write"); const firstTest = events.find((event) => event.kind === "test"); const finishedAt = Date.parse(run.finishedAt || "") || startedAt; return { toolCalls: toolEvents.length, failedToolCalls: toolEvents.filter((event) => event.status === "error").length, retryCount: events.reduce((total, event) => total + (Number(event.retry) || 0), 0), duplicateCalls, searchCalls: events.filter((event) => event.kind === "search").length, fileReads: events.filter((event) => event.kind === "file" && event.operation === "read").length, fileWrites: events.filter((event) => event.kind === "file" && event.operation === "write").length, testCalls: events.filter((event) => event.kind === "test").length, mcpCalls: events.filter((event) => event.kind === "mcp").length, timeToFirstWriteMs: firstWrite ? elapsed(firstWrite) : null, timeToFirstTestMs: firstTest ? elapsed(firstTest) : null, durationMs: startedAt ? Math.max(0, finishedAt - startedAt) : 0 }; }
 
 const openCodeHeaders = { authorization: `Basic ${Buffer.from(`${openCodeUsername}:${openCodePassword}`).toString("base64")}` };
+async function createUpstreamSession(directory, title) {
+  const response = await fetch(`${serverUrl}/session`, { method: "POST", headers: { ...openCodeHeaders, "content-type": "application/json", "x-opencode-directory": directory }, body: JSON.stringify({ title: String(title || "CTB execution").slice(0, 80) }) });
+  if (!response.ok) throw Object.assign(new Error("CTB_SESSION_CREATE_FAILED"), { code: "CTB_SESSION_CREATE_FAILED" });
+  const session = await response.json();
+  if (typeof session?.id !== "string" || !session.id) throw Object.assign(new Error("CTB_SESSION_CREATE_FAILED"), { code: "CTB_SESSION_CREATE_FAILED" });
+  return session.id;
+}
 async function fetchSessionMessages(sessionId) {
   const response = await fetch(`${serverUrl}/session/${encodeURIComponent(sessionId)}/message`, { headers: openCodeHeaders });
   if (!response.ok) throw Object.assign(new Error("MESSAGE_LOOKUP_FAILED"), { code: "MESSAGE_LOOKUP_FAILED" });
@@ -468,7 +481,7 @@ async function callTool(name, args, token) {
   // Reads and plans are intentionally side-effect free in the CTB registry.
   if (toolClass === TOOL_CLASSES.READ || toolClass === TOOL_CLASSES.SESSION_CONTROL) return engine.call("tools/call", { name, arguments: forwarded });
   const explicitSessionId = ctb.executionContext?.sessionId || forwarded.sessionId || forwarded.id || null;
-  if (!explicitSessionId) throw Object.assign(new Error("CTB_EXECUTION_SESSION_REQUIRED"), { code: "CTB_EXECUTION_SESSION_REQUIRED" });
+  if (!explicitSessionId && !BOOTSTRAP_ENTRYPOINTS.has(name)) throw Object.assign(new Error("CTB_EXECUTION_SESSION_REQUIRED"), { code: "CTB_EXECUTION_SESSION_REQUIRED" });
   const authorization = await validatePaperclipIssue(ctb, forwarded.directory);
   const key = idempotencyId(authorization.issue.companyId, ctb.paperclipIssueId, ctb.idempotencyKey);
   const existing = findIdempotentRun(authorization.issue.companyId, ctb.paperclipIssueId, ctb.idempotencyKey);
@@ -476,29 +489,45 @@ async function callTool(name, args, token) {
   if (existing?.status === "completed") return existing.result || toolResult({ runId: existing.runId, status: "COMPLETED", replayed: true }, "ZwrĂłcono istniejÄ…cy wynik CTB.");
   if (existing?.status === "failed" && ctb.retry !== true) throw Object.assign(new Error("CTB_RETRY_REQUIRED"), { code: "CTB_RETRY_REQUIRED", runId: existing.runId });
   if (executionLocks.has(key)) return toolResult({ runId: executionLocks.get(key), status: "RUNNING", replayed: true }, "IstniejÄ…ce wykonanie CTB jest aktywne.");
-  if (runs[explicitSessionId] && runs[explicitSessionId].idempotencyKey !== ctb.idempotencyKey) throw Object.assign(new Error("CTB_SESSION_ALREADY_CORRELATED"), { code: "CTB_SESSION_ALREADY_CORRELATED" });
+  if (explicitSessionId && runs[explicitSessionId] && runs[explicitSessionId].idempotencyKey !== ctb.idempotencyKey) throw Object.assign(new Error("CTB_SESSION_ALREADY_CORRELATED"), { code: "CTB_SESSION_ALREADY_CORRELATED" });
   const startedAt = Date.now();
-  const activeKey = explicitSessionId;
-  executionLocks.set(key, explicitSessionId);
-  activeCtbExecutions.set(activeKey, { createdAt: new Date(startedAt).toISOString(), runId: explicitSessionId });
-  recordRun(explicitSessionId, ctb, forwarded.directory, token.sub, authorization.decision, new Date(startedAt).toISOString());
-  audit({ principal: token.sub, paperclipIssueId: ctb?.paperclipIssueId || null, mode: ctb?.mode || "DIAGNOSE", changeClass: ctb?.changeClass || null, tool: requestedName, upstreamTool: name, directory: forwarded.directory, result: "started" });
+  let sessionId = explicitSessionId;
+  const activeKey = sessionId || `bootstrap:${key}`;
+  executionLocks.set(key, activeKey);
+  activeCtbExecutions.set(activeKey, { createdAt: new Date(startedAt).toISOString(), runId: sessionId });
+  if (sessionId) recordRun(sessionId, ctb, forwarded.directory, token.sub, authorization.decision, new Date(startedAt).toISOString());
+  audit({ principal: token.sub, paperclipIssueId: ctb?.paperclipIssueId || null, runId: sessionId || null, mode: ctb?.mode || "DIAGNOSE", changeClass: ctb?.changeClass || null, tool: requestedName, upstreamTool: name, directory: forwarded.directory, result: "started" });
   try {
+    if (!sessionId) {
+      // Bootstrap: gateway owns session creation, so run identity stays authoritative.
+      sessionId = await createUpstreamSession(forwarded.directory, forwarded.title || ctb.changeIntent);
+      if (runs[sessionId] && runs[sessionId].idempotencyKey !== ctb.idempotencyKey) throw Object.assign(new Error("CTB_SESSION_ALREADY_CORRELATED"), { code: "CTB_SESSION_ALREADY_CORRELATED" });
+      forwarded.sessionId = sessionId;
+      // opencode_ask has no sessionId parameter; replying into the gateway-created session is equivalent.
+      if (name === "opencode_ask") name = "opencode_reply";
+      activeCtbExecutions.set(sessionId, { createdAt: new Date(startedAt).toISOString(), runId: sessionId });
+      recordRun(sessionId, ctb, forwarded.directory, token.sub, authorization.decision, new Date(startedAt).toISOString());
+    }
     const result = await engine.call("tools/call", { name, arguments: forwarded });
-    await collectSessionToolEvents(explicitSessionId);
-    eventFor(explicitSessionId, { kind: "tool", tool: name, action: requestedName, durationMs: Date.now() - startedAt, status: "success" });
-    if (name !== "opencode_fire" && name !== "opencode_message_send_async") finishRun(explicitSessionId, "completed");
-    runs[explicitSessionId].result = result;
+    await collectSessionToolEvents(sessionId);
+    eventFor(sessionId, { kind: "tool", tool: name, action: requestedName, durationMs: Date.now() - startedAt, status: "success" });
+    if (name !== "opencode_fire" && name !== "opencode_message_send_async") finishRun(sessionId, "completed");
+    runs[sessionId].result = result;
     persistRuns();
-    audit({ principal: token.sub, paperclipIssueId: ctb?.paperclipIssueId || null, runId: explicitSessionId, mode: ctb?.mode || "DIAGNOSE", changeClass: ctb?.changeClass || null, tool: requestedName, upstreamTool: name, directory: forwarded.directory, result: "success", durationMs: Date.now() - startedAt });
+    audit({ principal: token.sub, paperclipIssueId: ctb?.paperclipIssueId || null, runId: sessionId, mode: ctb?.mode || "DIAGNOSE", changeClass: ctb?.changeClass || null, tool: requestedName, upstreamTool: name, directory: forwarded.directory, result: "success", durationMs: Date.now() - startedAt });
     return result;
   } catch (error) {
-    eventFor(explicitSessionId, { kind: "error", tool: name, action: requestedName, durationMs: Date.now() - startedAt, status: "error", errorCode: error.code || "UPSTREAM_ERROR" });
-    finishRun(explicitSessionId, "failed");
-    audit({ principal: token.sub, paperclipIssueId: ctb?.paperclipIssueId || null, runId: explicitSessionId, mode: ctb?.mode || "DIAGNOSE", changeClass: ctb?.changeClass || null, tool: requestedName, upstreamTool: name, directory: forwarded.directory, result: "error", errorCode: error.code || "UPSTREAM_ERROR", durationMs: Date.now() - startedAt });
+    if (sessionId) {
+      eventFor(sessionId, { kind: "error", tool: name, action: requestedName, durationMs: Date.now() - startedAt, status: "error", errorCode: error.code || "UPSTREAM_ERROR" });
+      finishRun(sessionId, "failed");
+      audit({ principal: token.sub, paperclipIssueId: ctb?.paperclipIssueId || null, runId: sessionId, mode: ctb?.mode || "DIAGNOSE", changeClass: ctb?.changeClass || null, tool: requestedName, upstreamTool: name, directory: forwarded.directory, result: "error", errorCode: error.code || "UPSTREAM_ERROR", durationMs: Date.now() - startedAt });
+    } else {
+      audit({ principal: token.sub, paperclipIssueId: ctb?.paperclipIssueId || null, mode: ctb?.mode || "DIAGNOSE", changeClass: ctb?.changeClass || null, tool: requestedName, upstreamTool: name, directory: forwarded.directory, result: "error", errorCode: error.code || "UPSTREAM_ERROR", durationMs: Date.now() - startedAt });
+    }
     throw error;
   } finally {
     activeCtbExecutions.delete(activeKey);
+    if (sessionId && sessionId !== activeKey) activeCtbExecutions.delete(sessionId);
     executionLocks.delete(key);
   }
 }

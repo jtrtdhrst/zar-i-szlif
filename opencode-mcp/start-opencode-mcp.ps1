@@ -41,6 +41,7 @@ $env:OPENCODE_MCP_RUNTIME_DIR = $runtime
 $env:OPENCODE_MCP_ISSUER = "https://opencode.kompaszbiorek.pl"
 $env:PORT = "4097"
 $env:MCP_ISSUER = "https://opencode.kompaszbiorek.pl"
+$env:OPENCODE_CTB_ALLOWED_ROOTS = "C:\Kompas Zbiórek;C:\paperclip;C:\paperclip-worktrees"
 
 if (-not (Get-NetTCPConnection -State Listen -LocalPort 4096 -ErrorAction SilentlyContinue)) {
   Start-Process -FilePath $opencode -ArgumentList "serve --hostname 127.0.0.1 --port 4096" -WorkingDirectory $root -RedirectStandardOutput (Join-Path $runtime "opencode.out.log") -RedirectStandardError (Join-Path $runtime "opencode.err.log") -WindowStyle Hidden | Out-Null
