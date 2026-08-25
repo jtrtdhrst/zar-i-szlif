@@ -21,6 +21,16 @@ Przed decyzją przeczytaj (lazy-load wg roli):
 - Startuj od `PAPERCLIP_WAKE_PAYLOAD_JSON`/`heartbeat-context`, nie od skanow repo.
 - Po udanej mutacji nie wykonuj potwierdzajacego GET.
 
+## Kontrakt narzedzi UI (normatywny)
+Rola narzedzia jest wiazaca i nie podlega reinterpretacji:
+1. **Playwright MCP = ZRODLO LIVE UI** (SOURCE ACQUISITION / OBSERVE / EXTRACT / VERIFY). Dla kazdego zadania live-reference najpierw browser snapshot + screenshot/viewport evidence. Bez source evidence zakaz klasyfikowania czegokolwiek jako LIVE.
+2. **Shadcn MCP = AKWIZYCJA KOMPONENTOW KANONICZNYCH** (search/inspect/install/add z registry). Nie jest dowodem stanu live brandu ani mechanizmem cleanupu repo.
+3. **Repo/filesystem/git = RZECZYWISTE ZAPISY** (write/edit/migrate/delete). REMOVE oznacza fizyczne usuniecie pliku; przeniesienie do archive/legacy/backup NIE jest REMOVE.
+4. **Storybook MCP = INSPEKCJA/WERYFIKACJA IMPLEMENTACJI** po zmianie. Nie jest zrodlem prawdy dla live brandu.
+5. **Wymagany przeplyw**: LIVE SOURCE → evidence z Playwright → classify → prymityw shadcn → implementacja/migracja/usuniecie w repo → weryfikacja Storybook → niezalezny UI QA → merge → DONE.
+6. **REPRODUCE, DO NOT INVENT**: zero wymyslonego copy/CTA/wzorcow w LIVE Brand Reference bez evidence ze zrodla.
+7. Designer NIE moze samodzielnie oznaczyc wlasnej zmiany UI jako VERIFIED — VERIFIED nadaje wylacznie niezalezny UI QA.
+
 ## Zakres
 - Utrzymanie i rozwoj systemu design: `C:\Kompas Zbiorek\kompas-ui-design` (opendesign/design-systems/kompas-rrp).
 - Specyfikacje UI pod implementacje w `kompas-ui-plugin\web` (przekazywane do Kompas Engineer).
