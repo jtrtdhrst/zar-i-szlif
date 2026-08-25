@@ -12,13 +12,26 @@ export const TOOL_CLASSES = Object.freeze({
 // Detectable policy revision surfaced through /health and every telemetry event.
 export const CTB_POLICY_REVISION = "ctb-policy-4";
 
-// Provider/model invocation failures eligible for the EXPLICIT fallback retry (never a
-// silent switch: every fallback must surface fallbackUsed=true + fallbackReason).
+// Provider/model failure classification used for telemetry labels and fallback decisions.
 const PROVIDER_MODEL_FAILURE_PATTERN = /provider[^.\n]*(not found|unknown|unsupported|invalid|unauthorized)|model[^.\n]*(not found|unknown|unsupported|invalid)|no allowed providers|rate[ ._-]?limit|quota|too many requests|\b429\b/i;
 export function isProviderModelFailure(error) {
   let data = "";
   try { data = JSON.stringify(error?.data ?? {}).slice(0, 500); } catch { data = ""; }
   return PROVIDER_MODEL_FAILURE_PATTERN.test(`${error?.code || ""} ${error?.message || ""} ${data}`);
+}
+
+// Fallback eligibility at the model-invocation boundary. By this point every CTB/path/
+// scope/session/permission check has already passed, so gateway-local errors must NEVER
+// trigger a retry; upstream invocation failures qualify — including generic transport
+// errors that OpenCode masks as "500 UnknownError / Unexpected server error".
+const NON_FALLBACK_CODE_PATTERN = /^(CTB_|PAPERCLIP_|INSUFFICIENT_SCOPE|UPSTREAM_ENGINE_|UNKNOWN_TOOL|MESSAGE_LOOKUP_FAILED|SKILL_)/i;
+export function isFallbackEligibleError(error) {
+  const code = String(error?.code || "");
+  if (NON_FALLBACK_CODE_PATTERN.test(code)) return false;
+  let data = "";
+  try { data = JSON.stringify(error?.data ?? {}).slice(0, 500); } catch { data = ""; }
+  const text = `${code} ${error?.message || ""} ${data}`;
+  return PROVIDER_MODEL_FAILURE_PATTERN.test(text) || /unknown error|unexpected(ly)?|internal server error|\b500\b|bad gateway|\b502\b|\b503\b|failed/i.test(text);
 }
 
 // Splits "provider/model" (model id may itself contain slashes).
@@ -41,18 +54,22 @@ const byClass = Object.freeze({
     "opencode_message_list", "opencode_message_get", "opencode_message_model_info",
   ],
   [TOOL_CLASSES.SESSION_CONTROL]: [
-    "opencode_session_abort", "opencode_session_fork", "opencode_session_update", "opencode_session_share",
-    "opencode_session_unshare", "opencode_session_revert", "opencode_session_unrevert", "opencode_session_permission",
+    "opencode_session_abort", "opencode_session_fork", "opencode_session_update",
   ],
   [TOOL_CLASSES.WRITE]: [
     "opencode_ask", "opencode_reply", "opencode_run", "opencode_fire", "opencode_message_send",
     "opencode_message_send_async", "opencode_shell_execute",
     "opencode_session_create", "opencode_session_summarize", "opencode_provider_test", "opencode_log",
+    // State-mutating session operations with real external effect require the full EXECUTE
+    // envelope (Paperclip issue + scope), not lightweight session management.
+    "opencode_session_revert", "opencode_session_unrevert",
   ],
   [TOOL_CLASSES.PRIVILEGED_WRITE]: [
     "opencode_project_init", "opencode_session_delete", "opencode_session_init", "opencode_command_execute",
     "opencode_tui_append_prompt", "opencode_tui_submit_prompt", "opencode_tui_clear_prompt", "opencode_tui_execute_command",
     "opencode_tui_show_toast", "opencode_tui_open_help", "opencode_tui_open_sessions", "opencode_tui_open_models", "opencode_tui_open_themes",
+    // Publishing a session publicly and approving pending permissions are privileged actions.
+    "opencode_session_share", "opencode_session_unshare", "opencode_session_permission",
   ],
   [TOOL_CLASSES.ADMIN]: [
     "opencode_config_update", "opencode_auth_set", "opencode_provider_oauth_authorize", "opencode_provider_oauth_callback",

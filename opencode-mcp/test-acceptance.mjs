@@ -1,8 +1,8 @@
 import assert from "node:assert/strict";
 import fs from "node:fs";
 import path from "node:path";
-import { CTB_POLICY_REVISION, TOOL_CLASSES, classifyIntake, classifyTool, ctbContextError, canonicalPath, evaluateIssueCtbPolicyDetailed, isProviderModelFailure, normalizeAllowedDirectory, parseModelRef, requiredScope } from "./ctb-policy.mjs";
-import { KNOWN_DEV_MCP, loadMcpRoleProfiles, resolveEffectiveProfile, resolvePrincipalRole } from "./mcp-role-profiles.mjs";
+import { CTB_POLICY_REVISION, TOOL_CLASSES, classifyIntake, classifyTool, ctbContextError, canonicalPath, evaluateIssueCtbPolicyDetailed, isFallbackEligibleError, isProviderModelFailure, normalizeAllowedDirectory, parseModelRef, requiredScope } from "./ctb-policy.mjs";
+import { KNOWN_DEV_MCP, loadMcpRoleProfiles, resolveCtbAgent, resolveEffectiveProfile, resolvePrincipalRole } from "./mcp-role-profiles.mjs";
 
 const doc = loadMcpRoleProfiles();
 const PRINCIPAL_ROLES = { operator: "cto", eng_lead: "engineer", design_lead: "designer", qa_lead: "ui-qa", ceo_bot: "ceo", coo_bot: "coo", cmo_bot: "cmo" };
@@ -82,10 +82,14 @@ for (const name of ["opencode_session_list", "opencode_session_status", "opencod
   ok(classifyTool(name) === TOOL_CLASSES.READ, `${name} stays READ`);
 }
 
-// 16. Session abort remains explicit SESSION_CONTROL, never generic WRITE.
+// 16. Session abort/fork/update remain explicit SESSION_CONTROL; state-mutating session
+// operations (permission approval, public share, revert/unrevert) require full EXECUTE.
 ok(classifyTool("opencode_session_abort") === TOOL_CLASSES.SESSION_CONTROL && requiredScope(TOOL_CLASSES.SESSION_CONTROL) === "opencode:session", "session_abort is SESSION_CONTROL with opencode:session scope");
-for (const name of ["opencode_session_permission", "opencode_session_update", "opencode_session_fork", "opencode_session_revert", "opencode_session_unrevert"]) {
+for (const name of ["opencode_session_update", "opencode_session_fork"]) {
   ok(classifyTool(name) === TOOL_CLASSES.SESSION_CONTROL, `${name} is SESSION_CONTROL`);
+}
+for (const [name, expected] of [["opencode_session_permission", TOOL_CLASSES.PRIVILEGED_WRITE], ["opencode_session_share", TOOL_CLASSES.PRIVILEGED_WRITE], ["opencode_session_unshare", TOOL_CLASSES.PRIVILEGED_WRITE], ["opencode_session_revert", TOOL_CLASSES.WRITE], ["opencode_session_unrevert", TOOL_CLASSES.WRITE]]) {
+  ok(classifyTool(name) === expected && classifyIntake({}, expected, name).errorCode === "CTB_INTAKE_REQUIRED", `${name} requires EXECUTE envelope (${expected})`);
 }
 ok(requiredScope(TOOL_CLASSES.READ) === "opencode:read", "READ requires only opencode:read");
 
@@ -180,5 +184,22 @@ ok(parseModelRef("garbage") === null, "parseModelRef rejects non-refs");
 ok(isProviderModelFailure(new Error("provider opencode model nope-model not found")), "provider/model failure detected");
 ok(isProviderModelFailure(Object.assign(new Error("too many requests"), { code: "HTTP_429" })), "rate limit detected as model failure");
 ok(!isProviderModelFailure(Object.assign(new Error("session not found"), { code: "CTB_SESSION_REQUIRED" })), "non-model errors are not fallback-eligible");
+// Fallback eligibility: upstream-masked transport failures qualify; gateway-local errors never do.
+ok(isFallbackEligibleError(new Error("500 UnknownError")), "masked 500 UnknownError is fallback-eligible");
+ok(isFallbackEligibleError(new Error("Unexpected server error")), "masked unexpected error is fallback-eligible");
+ok(isFallbackEligibleError(new Error("POST /session/x/message failed")), "transport failure text is fallback-eligible");
+for (const [code, message] of [["CTB_PROJECT_DENIED", "denied"], ["CTB_SESSION_REQUIRED", "missing"], ["CTB_POLICY_INVALID", "invalid"], ["CTB_SECRET_PATH_DENIED", "denied"], ["PAPERCLIP_AUTH_FAILED", "auth"], ["INSUFFICIENT_SCOPE", "scope"], ["UPSTREAM_ENGINE_EXITED", "exited"]]) {
+  ok(!isFallbackEligibleError(Object.assign(new Error(message), { code })), `${code} never triggers model fallback`);
+}
+ok(!isFallbackEligibleError(new Error("plain validation problem")), "unclassified non-failure text stays ineligible");
+// Agent governance mapping: server-side agent selection enforces the profile natively.
+const profileDoc = doc;
+const mk = (eager, known = true) => ({ known, eagerConnections: eager, deferredConnections: [], source: "test" });
+ok(resolveCtbAgent(mk([]), "PLAN") === "ctb-plan", "DIAGNOSE/PLAN always run on read-only ctb-plan agent");
+ok(resolveCtbAgent({ known: false, eagerConnections: [] }, "EXECUTE") === "ctb-executor", "unknown principal EXECUTE runs on MCP-less ctb-executor");
+ok(resolveCtbAgent(mk(["git"]), "EXECUTE") === "ctb-engineer", "engineer baseline maps to ctb-engineer (git allowed)");
+ok(resolveCtbAgent(mk(["git", "cloudflare"]), "EXECUTE") === "ctb-cto-infra", "cloudflare grant maps to ctb-cto-infra");
+ok(resolveCtbAgent(mk(["playwright"]), "EXECUTE") === "ctb-ui-qa", "playwright grant maps to ctb-ui-qa");
+ok(resolveCtbAgent(mk(["shadcn", "storybook"]), "EXECUTE") === "ctb-designer", "designer grants map to ctb-designer");
 
 console.log(`ACCEPTANCE SUITE: ${passed} checks PASS`);

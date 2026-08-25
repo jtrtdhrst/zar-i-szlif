@@ -84,10 +84,15 @@ const sessionId = response.sessionId;
 response = await rpc(token.access_token, sessionId, 2, "tools/list");
 assert.ok(response.body.result.tools, JSON.stringify(response.body));
 const names = response.body.result.tools.map((tool) => tool.name);
-assert.ok(names.length >= 85, `expected upstream plus CTB tools, received ${names.length}`);
+// Public surface is intentionally slim (~25 canonical tools); aliases and redundant
+// getters must never leak into the eager schema.
+const ALIASES = ["opencode_list_runs", "opencode_get_run", "opencode_read_logs", "opencode_get_diff", "opencode_list_agents", "opencode_run_prompt", "opencode_continue_run", "opencode_abort_run"];
+const REDUNDANT_GETTERS = ["paperclipGetRunMetrics", "paperclipGetRunEvents", "paperclipGetRunTokenUsage", "paperclipGetRunSteps", "paperclipGetRunContextBreakdown", "paperclipGetRunModelTurns", "opencode_ctb_get_events", "opencode_ctb_get_metrics"];
+for (const leaked of [...ALIASES, ...REDUNDANT_GETTERS]) assert.ok(!names.includes(leaked), `${leaked} leaked into eager schema`);
+assert.ok(names.length >= 20 && names.length <= 40, `expected slim canonical surface, received ${names.length}`);
 assert.ok(names.includes("opencode_ask"));
 assert.ok(names.includes("opencode_list_skills"));
-assert.ok(names.includes("opencode_ctb_get_metrics"));
+assert.ok(names.includes("opencode_run_inspect"));
 const ask = response.body.result.tools.find((tool) => tool.name === "opencode_ask");
 assert.equal(ask._meta.kompas.toolClass, "WRITE");
 assert.ok(ask.inputSchema.properties.ctb);
@@ -133,7 +138,7 @@ assert.equal(response.body.result.structuredContent.errorCode, "CTB_PROJECT_DENI
   const askSchema = tools.find((tool) => tool.name === "opencode_ask").inputSchema.properties.ctb;
   assert.deepEqual(askSchema.properties.mode, { enum: ["DIAGNOSE", "PLAN", "EXECUTE"] }, "model entrypoint must expose DIAGNOSE/PLAN in public schema");
   assert.deepEqual(askSchema.required, ["mode", "changeClass"]);
-  const configUpdate = tools.find((tool) => tool.name === "opencode_config_update").inputSchema.properties.ctb;
+  const configUpdate = tools.find((tool) => tool.name === "opencode_shell_execute").inputSchema.properties.ctb;
   assert.deepEqual(configUpdate.properties.mode, { const: "EXECUTE" }, "non-model write must stay EXECUTE-only");
   console.log(`Public metadata consistency (${checked} classified tools): PASS`);
 }
@@ -176,7 +181,7 @@ console.log("Secret path isolation (.runtime denylist): PASS");
   const conversation = JSON.stringify(response.body.result);
   assert.match(conversation, /x-preview-f-free/, `assistant metadata missing modelID: ${conversation.slice(0, 300)}`);
   assert.match(conversation, /providerID":"opencode/, "assistant metadata missing providerID");
-  assert.match(conversation, /"agent":"plan"/, "DIAGNOSE inference must run on the plan agent");
+  assert.match(conversation, /"agent":"(plan|ctb-plan)"/, "DIAGNOSE inference must run on a read-only plan agent");
   console.log("Runtime model identity via read-only message history: PASS");
   console.log("DIAGNOSE real model inference (Ox Alpha, plan agent, zero registry writes): PASS");
 }
@@ -197,9 +202,9 @@ console.log("Secret path isolation (.runtime denylist): PASS");
   console.log(`Telemetry integrity over ${Math.min(completed.length, 3)} served runs: PASS`);
 }
 
-// Run analytics surface: read-only tools registered, honest payloads served.
+// Run analytics surface: consolidated inspector + compare/aggregate registered, honest payloads served.
 {
-  const analyticsToolNames = ["paperclipGetRunMetrics", "paperclipGetRunEvents", "paperclipGetRunTokenUsage", "paperclipGetRunSteps", "paperclipGetRunContextBreakdown", "paperclipGetRunModelTurns", "paperclipCompareRunMetrics", "paperclipAggregateRunMetrics"];
+  const analyticsToolNames = ["opencode_run_inspect", "paperclipCompareRunMetrics", "paperclipAggregateRunMetrics"];
   const listing = await rpc(token.access_token, sessionId, 73, "tools/list");
   for (const toolName of analyticsToolNames) {
     const tool = listing.body.result.tools.find((entry) => entry.name === toolName);
@@ -209,16 +214,18 @@ console.log("Secret path isolation (.runtime denylist): PASS");
   const registry = JSON.parse(fs.readFileSync(registryPath, "utf8")).runs;
   const fixture = Object.values(registry).find((run) => run.status !== "running" && run.finishedAt);
   assert.ok(fixture, "expected at least one finished CTB run as analytics fixture");
-  response = await rpc(token.access_token, sessionId, 74, "tools/call", { name: "paperclipGetRunMetrics", arguments: { runId: fixture.runId } });
-  assert.equal(response.body.result.isError, undefined, JSON.stringify(response.body));
-  const metrics = response.body.result.structuredContent;
+  for (const view of ["summary", "events", "tokens", "steps", "context", "models"]) {
+    response = await rpc(token.access_token, sessionId, 74, "tools/call", { name: "opencode_run_inspect", arguments: { runId: fixture.runId, view } });
+    assert.equal(response.body.result.isError, undefined, JSON.stringify(response.body).slice(0, 300));
+  }
+  const metrics = (await rpc(token.access_token, sessionId, 76, "tools/call", { name: "opencode_run_inspect", arguments: { runId: fixture.runId, view: "summary" } })).body.result.structuredContent;
   assert.ok(Number.isInteger(metrics.metrics.modelTurnCount), "modelTurnCount must be an integer");
   assert.ok(["fresh_invocation", "continuation_same_session", "reconstructed_continuation", "retry_after_failure"].includes(metrics.invocationKind));
   for (const [key, entry] of Object.entries(metrics.supportedObservability)) {
     if (!entry.available) assert.equal(entry.measurementSource, "unavailable", `fake observability flag on ${key}`);
   }
   if (metrics.metrics.providers.length) assert.match(JSON.stringify(metrics.metrics.providers), /\//, "provider/model identity must be providerID/modelID");
-  response = await rpc(token.access_token, sessionId, 75, "tools/call", { name: "paperclipGetRunTokenUsage", arguments: { runId: fixture.runId } });
+  response = await rpc(token.access_token, sessionId, 75, "tools/call", { name: "opencode_run_inspect", arguments: { runId: fixture.runId, view: "tokens" } });
   const usage = response.body.result.isError ? null : response.body.result.structuredContent;
   if (usage) {
     for (const field of ["inputTokens", "outputTokens"]) {

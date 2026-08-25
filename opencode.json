@@ -1,6 +1,88 @@
 {
   "$schema": "https://opencode.ai/config.json",
   "model": "opencode/x-preview-f-free",
+  "agent": {
+    "ctb-plan": {
+      "mode": "all",
+      "description": "CTB DIAGNOSE/PLAN: read-only inference without writes and without downstream MCP.",
+      "prompt": "Jestes agentem diagnostyczno-planowym CTB. Wykonywuj wylacznie odczyt i analize. Zabranione: edycja plikow, polecenia powloki, jakiekolwiek narzedzia MCP (git, cloudflare, playwright, shadcn, storybook, sender). PLAN konczy sie konkretnym planem implementacji.",
+      "permission": {
+        "edit": "deny",
+        "bash": "deny",
+        "git_*": "deny",
+        "cloudflare_*": "deny",
+        "playwright_*": "deny",
+        "shadcn_*": "deny",
+        "kompas-storybook_*": "deny",
+        "sender_*": "deny"
+      }
+    },
+    "ctb-executor": {
+      "mode": "all",
+      "description": "CTB EXECUTE bez dodatkowych dev MCP (fail-closed dla nieznanych principalow).",
+      "prompt": "Jestes egzekutorem CTB. Dzialasz wylacznie w kanonicznie autoryzowanym katalogu issue. Downstream MCP jest wylaczony.",
+      "permission": {
+        "git_*": "deny",
+        "cloudflare_*": "deny",
+        "playwright_*": "deny",
+        "shadcn_*": "deny",
+        "kompas-storybook_*": "deny",
+        "sender_*": "deny"
+      }
+    },
+    "ctb-engineer": {
+      "mode": "all",
+      "description": "CTB EXECUTE dla inzyniera: Git dozwolony, reszta dev MCP denied.",
+      "prompt": "Jestes egzekutorem CTB z dostepem do Git. Pozostale dev MCP sa zablokowane; potrzebne granty wymagaja issue-scoped override.",
+      "permission": {
+        "git_*": "allow",
+        "cloudflare_*": "deny",
+        "playwright_*": "deny",
+        "shadcn_*": "deny",
+        "kompas-storybook_*": "deny",
+        "sender_*": "deny"
+      }
+    },
+    "ctb-designer": {
+      "mode": "all",
+      "description": "CTB EXECUTE dla designera UI: Shadcn + Storybook, reszta denied.",
+      "prompt": "Jestes egzekutorem CTB dla prac UI/design. Dozwolone: Shadcn i Storybook. Git/Playwright/Cloudflare/Sender zablokowane.",
+      "permission": {
+        "shadcn_*": "allow",
+        "kompas-storybook_*": "allow",
+        "git_*": "deny",
+        "cloudflare_*": "deny",
+        "playwright_*": "deny",
+        "sender_*": "deny"
+      }
+    },
+    "ctb-ui-qa": {
+      "mode": "all",
+      "description": "CTB EXECUTE dla UI QA: Playwright, reszta denied.",
+      "prompt": "Jestes egzekutorem CTB dla akceptacji e2e. Dozwolone: Playwright. Git/Shadcn/Storybook/Cloudflare/Sender zablokowane.",
+      "permission": {
+        "playwright_*": "allow",
+        "git_*": "deny",
+        "cloudflare_*": "deny",
+        "shadcn_*": "deny",
+        "kompas-storybook_*": "deny",
+        "sender_*": "deny"
+      }
+    },
+    "ctb-cto-infra": {
+      "mode": "all",
+      "description": "CTB EXECUTE dla CTO infra/deploy: Cloudflare, reszta denied.",
+      "prompt": "Jestes egzekutorem CTB dla infra/deploy. Dozwolone: Cloudflare. Git/Playwright/Shadcn/Storybook/Sender zablokowane.",
+      "permission": {
+        "cloudflare_*": "allow",
+        "git_*": "deny",
+        "playwright_*": "deny",
+        "shadcn_*": "deny",
+        "kompas-storybook_*": "deny",
+        "sender_*": "deny"
+      }
+    }
+  },
   "mcp": {
     "paperclip": {
       "type": "remote",
@@ -45,8 +127,16 @@
     "kompas-storybook": {
       "type": "remote",
       "url": "http://127.0.0.1:6006/mcp",
-      "enabled": true,
-      "oauth": false
+      "enabled": true
+    },
+    "npm-run-scripts": {
+      "enabled": false
+    },
+    "npm-publish-tool": {
+      "enabled": false
+    },
+    "nocobase": {
+      "enabled": false
     }
   },
   "lsp": {},

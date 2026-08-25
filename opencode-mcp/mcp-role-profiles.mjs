@@ -39,10 +39,46 @@ function matches(rule, { taskClass, currentStage }) {
 
 function grantList(value) { return Array.isArray(value) ? value.filter((entry) => KNOWN_DEV_MCP.includes(entry)) : []; }
 
-// principal + role + project + taskClass + currentStage -> effective MCP profile.
+// Server-side selection of a native OpenCode agent whose permission set hard-enforces the
+// effective profile (downstream MCP grants are denied/allowed at the agent level, so the
+// gateway never has to mutate global config and parallel sessions cannot race it).
+// DIAGNOSE/PLAN always run on the read-only, MCP-less plan agent.
+export function resolveCtbAgent(profile, mode = "EXECUTE") {
+  if (mode !== "EXECUTE") return "ctb-plan";
+  if (!profile?.known) return "ctb-executor";
+  const eager = new Set(profile.eagerConnections || []);
+  if (eager.has("cloudflare")) return "ctb-cto-infra";
+  if (eager.has("playwright")) return "ctb-ui-qa";
+  if (eager.has("shadcn") || eager.has("storybook")) return "ctb-designer";
+  if (eager.has("git")) return "ctb-engineer";
+  return "ctb-executor";
+}
+
+// Issue-scoped overrides may key by Paperclip UUID or human identifier; match both.
+export function matchesProjectOverrideKey(candidateKey, overrideKey) {
+  const left = String(candidateKey || "").toLowerCase();
+  const right = String(overrideKey || "").toLowerCase();
+  if (!left || !right) return false;
+  return left === right;
+}
+
+export function lookupIssueScopedOverride(doc, projectKey) {
+  if (projectKey == null) return null;
+  const key = String(projectKey);
+  const direct = doc.issueScopedOverrides[key];
+  if (direct) return { key, grant: grantList(direct) };
+  for (const [candidate, grant] of Object.entries(doc.issueScopedOverrides || {})) {
+    // "282dab95-...-bad0-438d13282eab" style UUIDs never suffix-match identifiers, but a
+    // client passing "issue:KOMAA-126" or "komaa-126/sub" still resolves deterministically.
+    if (key.toLowerCase().endsWith(`:${candidate.toLowerCase()}`) || key.toLowerCase().endsWith(`/${candidate.toLowerCase()}`)) return { key: candidate, grant: grantList(grant) };
+  }
+  return null;
+}
+
 // Semantics: ALLOWED != EAGER. Eager = union of the role baseline, grants from matching
 // stage/taskClass rules, and issue-scoped overrides. Everything else in the catalog stays
 // deferred/on-demand. Unknown principal/role/profile fails closed for dev MCP eager access.
+// principal + role + project + taskClass + currentStage -> effective MCP profile.
 export function resolveEffectiveProfile({ principalId = null, role = null, taskClass = "", currentStage = "", projectKey = null } = {}, doc, principalRoles) {
   const cls = String(taskClass || "").toLowerCase();
   const stage = String(currentStage || "").toLowerCase();
@@ -60,10 +96,9 @@ export function resolveEffectiveProfile({ principalId = null, role = null, taskC
     for (const entry of grantList(rule.grant)) eager.add(entry);
   }
   if (ruleMatched) source = "role_stage_rules";
-  const overrideKey = projectKey != null ? String(projectKey) : null;
-  const override = overrideKey && doc.issueScopedOverrides[overrideKey];
-  if (override) {
-    for (const entry of grantList(override)) eager.add(entry);
+  const overrideEntry = lookupIssueScopedOverride(doc, projectKey);
+  if (overrideEntry) {
+    for (const entry of overrideEntry.grant) eager.add(entry);
     source = ruleMatched ? "role_stage_rules+issue_override" : "role_baseline+issue_override";
   }
   const eagerConnections = [...eager].sort();

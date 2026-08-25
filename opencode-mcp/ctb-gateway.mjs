@@ -4,9 +4,9 @@ import http from "node:http";
 import path from "node:path";
 import { spawn } from "node:child_process";
 import { fileURLToPath } from "node:url";
-import { CTB_POLICY_REVISION, MODEL_ENTRYPOINTS, TOOL_CLASSES, classifyIntake, classifyTool, ctbContextError, canonicalPath, evaluateIssueCtbPolicyDetailed, isProviderModelFailure, matchesIdempotencyRun, parseModelRef, requiredScope, validateToolPathArguments } from "./ctb-policy.mjs";
+import { CTB_POLICY_REVISION, MODEL_ENTRYPOINTS, TOOL_CLASSES, classifyIntake, classifyTool, ctbContextError, canonicalPath, evaluateIssueCtbPolicyDetailed, isFallbackEligibleError, matchesIdempotencyRun, parseModelRef, requiredScope, validateToolPathArguments } from "./ctb-policy.mjs";
 import { aggregateRunAnalytics, buildRunAnalytics, compareRunMetrics, supportedObservability } from "./run-analytics.mjs";
-import { loadMcpRoleProfiles, resolveEffectiveProfile } from "./mcp-role-profiles.mjs";
+import { loadMcpRoleProfiles, resolveEffectiveProfile, resolveCtbAgent } from "./mcp-role-profiles.mjs";
 
 const GATEWAY_REVISION = "ctb-policy-4";
 const here = path.dirname(fileURLToPath(import.meta.url));
@@ -117,11 +117,20 @@ function findSessionReference(value, depth = 0) {
   if (typeof value === "object") { for (const item of Object.values(value)) { const hit = findSessionReference(item, depth + 1); if (hit) return hit; } }
   return null;
 }
-function summarizeModelIdentity(requested, actual) {
-  const summary = { sessionId: null, messageId: actual?.messageId ?? null, providerRequested: requested?.providerRequested ?? null, modelRequested: requested?.modelRequested ?? null, providerActual: actual?.providerActual ?? null, modelActual: actual?.modelActual ?? null, fallbackUsed: null, fallbackReason: null };
+function summarizeModelIdentity(requested, actual, explicit = {}) {
+  const summary = { sessionId: null, messageId: actual?.messageId ?? null, providerRequested: requested?.providerRequested ?? null, modelRequested: requested?.modelRequested ?? null, providerActual: actual?.providerActual ?? null, modelActual: actual?.modelActual ?? null, fallbackUsed: null, fallbackReason: null, attempts: Array.isArray(explicit.attempts) ? explicit.attempts : null };
   if (summary.providerRequested && summary.modelRequested && summary.providerActual && summary.modelActual) {
     summary.fallbackUsed = summary.providerActual !== summary.providerRequested || summary.modelActual !== summary.modelRequested;
     if (summary.fallbackUsed) summary.fallbackReason = "runtime served a different provider/model than requested";
+  }
+  // Gateway-known invocation outcome wins over metadata inference: for a completed
+  // invocation the gateway ALWAYS knows whether the fallback retry fired.
+  if (typeof explicit.fallbackUsed === "boolean") {
+    summary.fallbackUsed = explicit.fallbackUsed;
+    summary.fallbackReason = explicit.fallbackReason ?? null;
+  } else if (requested && (requested.providerRequested || requested.modelRequested)) {
+    // Default injection means the gateway knows the request even without caller args.
+    summary.fallbackUsed = summary.fallbackUsed ?? false;
   }
   return summary;
 }
@@ -156,15 +165,53 @@ function applyDefaultModel(args) {
   if (hasProvider || hasModel) return args;
   return { ...args, providerID: DEFAULT_MODEL.providerID, modelID: DEFAULT_MODEL.modelID };
 }
+// Upstream reports invocation failures either as rejected RPC calls OR as resolved tool
+// results carrying isError:true — both shapes must be eligible for the explicit retry.
+function upstreamErrorFromResult(result) {
+  const text = Array.isArray(result?.content) ? result.content.filter((part) => part?.type === "text").map((part) => part.text).join(" ") : "";
+  return Object.assign(new Error(String(text || "UPSTREAM_TOOL_ERROR").slice(0, 500)), { code: "UPSTREAM_TOOL_ERROR" });
+}
+// Native agent governance: ctb-* agents hard-enforce role profiles at the OpenCode level,
+// but a running backend only learns new agents on restart. Until OPENCODE_MCP_NATIVE_AGENTS=on
+// is set (after one deliberate backend restart), selection falls back to built-in
+// plan/build agents so executions never depend on unregistered agents.
+const NATIVE_AGENTS_ENABLED = String(process.env.OPENCODE_MCP_NATIVE_AGENTS || "").toLowerCase() === "on";
+function selectCtbAgent(mode, profile) {
+  const native = resolveCtbAgent(profile, mode);
+  return NATIVE_AGENTS_ENABLED ? native : (mode === "EXECUTE" ? "build" : "plan");
+}
+// Durable per-session model invocation records (DIAGNOSE/PLAN included). Backs the
+// opencode_message_model_info contract fields even when no CTB run exists.
+const modelRecordsFile = path.join(runtimeDir, "ctb-model-records.json");
+const modelRecords = readJson(modelRecordsFile, { version: 1, records: {} });
+function recordModelIdentity(sessionId, identity) {
+  if (!sessionId || !identity || typeof identity !== "object") return;
+  modelRecords.records[sessionId] = { ...identity, sessionId };
+  const entries = Object.entries(modelRecords.records);
+  if (entries.length > 500) { for (const [key] of entries.slice(0, entries.length - 500)) delete modelRecords.records[key]; }
+  try { writeJson(modelRecordsFile, modelRecords); } catch { /* telemetry best-effort */ }
+}
+function lookupModelRecord(sessionId) { return modelRecords.records[sessionId] || runs[sessionId]?.model || null; }
 async function callModelWithFallback(name, args, auditContext = {}) {
+  const attempts = [{ providerID: args.providerID ?? null, modelID: args.modelID ?? null, role: "primary" }];
+  let failure = null;
+  let primary;
   try {
-    return { result: await engine.call("tools/call", { name, arguments: args }), fallbackUsed: false, fallbackReason: null };
+    primary = await engine.call("tools/call", { name, arguments: args });
+    if (primary?.isError !== true) return { result: primary, fallbackUsed: false, fallbackReason: null, attempts };
+    failure = upstreamErrorFromResult(primary);
   } catch (error) {
-    if (!FALLBACK_MODEL || !isProviderModelFailure(error)) throw error;
-    audit({ ...auditContext, tool: name, requestedModel: { providerRequested: args.providerID ?? null, modelRequested: args.modelID ?? null }, fallbackModel: FALLBACK_MODEL, fallbackTrigger: String(error.code || error.message || "UPSTREAM_ERROR").slice(0, 200), result: "model_fallback_retry" });
-    const result = await engine.call("tools/call", { name, arguments: { ...args, providerID: FALLBACK_MODEL.providerID, modelID: FALLBACK_MODEL.modelID } });
-    return { result, fallbackUsed: true, fallbackReason: `primary model failed (${String(error.code || error.message).slice(0, 200)}); explicit retry on ${FALLBACK_MODEL.providerID}/${FALLBACK_MODEL.modelID}` };
+    failure = error;
   }
+  if (!FALLBACK_MODEL || !isFallbackEligibleError(failure)) throw failure;
+  attempts[0].outcome = String(failure.code || failure.message || "UPSTREAM_ERROR").slice(0, 200);
+  audit({ ...auditContext, tool: name, requestedModel: { providerRequested: args.providerID ?? null, modelRequested: args.modelID ?? null }, fallbackModel: FALLBACK_MODEL, fallbackTrigger: attempts[0].outcome, result: "model_fallback_retry" });
+  const retryArgs = { ...args, providerID: FALLBACK_MODEL.providerID, modelID: FALLBACK_MODEL.modelID };
+  attempts.push({ providerID: FALLBACK_MODEL.providerID, modelID: FALLBACK_MODEL.modelID, role: "fallback" });
+  let result = await engine.call("tools/call", { name, arguments: retryArgs });
+  if (result?.isError === true) throw upstreamErrorFromResult(result);
+  attempts[attempts.length - 1].outcome = "success";
+  return { result, fallbackUsed: true, fallbackReason: `primary model failed (${attempts[0].outcome}); explicit retry on ${FALLBACK_MODEL.providerID}/${FALLBACK_MODEL.modelID}`, attempts };
 }
 function persistRuns() { writeJson(registryFile, { version: 2, runs }); }
 // Bootstrap entrypoints may start without an existing session: the gateway creates the
@@ -456,6 +503,22 @@ async function runAnalytics(run, { refresh = false } = {}) {
   return analytics;
 }
 
+// Public model-facing surface: canonical, semantically non-redundant tool set for ChatGPT.
+// The full upstream surface remains callable (de-promoted, admin/internal) and can be
+// restored eagerly with OPENCODE_MCP_SURFACE=full.
+const PUBLIC_TOOLSET = new Set([
+  // READ / diagnosis
+  "opencode_status", "opencode_context", "opencode_sessions_overview", "opencode_session_list",
+  "opencode_session_get", "opencode_session_status", "opencode_session_todo", "opencode_session_diff",
+  "opencode_conversation", "opencode_file_read", "opencode_file_status", "opencode_find_text",
+  "opencode_find_symbol", "opencode_provider_models", "opencode_mcp_status", "opencode_vcs_info",
+  // WRITE entrypoints
+  "opencode_ask", "opencode_run", "opencode_reply", "opencode_shell_execute",
+  // SESSION_CONTROL (narrowed)
+  "opencode_session_abort",
+]);
+const CUSTOM_PUBLIC_TOOLS = ["opencode_list_skills", "opencode_get_skill", "opencode_message_model_info", "opencode_mcp_effective_profile", "opencode_run_inspect", "paperclipCompareRunMetrics", "paperclipAggregateRunMetrics"];
+function eagerSurfaceEnabled() { return String(process.env.OPENCODE_MCP_SURFACE || "").toLowerCase() === "full"; }
 async function callTool(name, args, token) {
   const requestedName = name;
   if (COMPATIBILITY_ALIASES[name]) {
@@ -471,12 +534,40 @@ async function callTool(name, args, token) {
     const metaResponse = await fetch(`${serverUrl}/session/${encodeURIComponent(args.sessionId)}/message`, { headers: { authorization: `Basic ${Buffer.from(`${openCodeUsername}:${openCodePassword}`).toString("base64")}` } });
     if (!metaResponse.ok) throw Object.assign(new Error("MESSAGE_LOOKUP_FAILED"), { code: "MESSAGE_LOOKUP_FAILED" });
     const metaMessages = await metaResponse.json();
+    // Gateway invocation record (requested/default model, fallback outcome) is authoritative
+    // for the contract fields; runtime message metadata is authoritative for actual identity.
+    const gatewayRecord = lookupModelRecord(args.sessionId);
     const entries = (Array.isArray(metaMessages) ? metaMessages : []).map((message) => {
       const info = message?.info && typeof message.info === "object" ? message.info : message;
-      // Runtime-reported identity is authoritative; anything unreported stays null.
-      return { messageId: info.id ?? null, role: info.role ?? null, sessionId: args.sessionId, providerRequested: null, modelRequested: null, providerActual: info.providerID ?? null, modelActual: info.modelID ?? null, fallbackUsed: null, fallbackReason: info.providerID || info.modelID ? null : "runtime did not report provider/model identity", agent: info.agent ?? null, providerID: info.providerID ?? null, modelID: info.modelID ?? null };
+      return { messageId: info.id ?? null, role: info.role ?? null, sessionId: args.sessionId, providerRequested: gatewayRecord?.providerRequested ?? null, modelRequested: gatewayRecord?.modelRequested ?? null, providerActual: info.providerID ?? null, modelActual: info.modelID ?? null, fallbackUsed: typeof gatewayRecord?.fallbackUsed === "boolean" ? gatewayRecord.fallbackUsed : null, fallbackReason: info.providerID || info.modelID ? (gatewayRecord?.fallbackReason ?? null) : "runtime did not report provider/model identity", attempts: gatewayRecord?.attempts ?? null, agent: info.agent ?? null, providerID: info.providerID ?? null, modelID: info.modelID ?? null };
     });
-    return toolResult({ sessionId: args.sessionId, messages: entries }, "Runtime model metadata for session messages.");
+    return toolResult({ sessionId: args.sessionId, ...(gatewayRecord ? { gatewayInvocationRecord: { requestedModel: { providerRequested: gatewayRecord.providerRequested, modelRequested: gatewayRecord.modelRequested }, fallbackUsed: gatewayRecord.fallbackUsed, fallbackReason: gatewayRecord.fallbackReason } } : {}), messages: entries }, "Runtime model metadata for session messages.");
+  }
+  if (name === "opencode_mcp_status") {
+    // Read-through with profile awareness: annotate the status with per-server
+    // effectiveness for the caller's resolved role profile.
+    const result = await engine.call("tools/call", { name, arguments: args });
+    const profile = effectiveProfileFor(token, null);
+    const eager = new Set(profile.eagerConnections || []);
+    const isEffective = (entryName) => ["paperclip", "paperclip-local"].some((core) => entryName.includes(core)) || [...eager].some((entry) => entryName.includes(entry));
+    try {
+      const payload = result?.structuredContent;
+      let serverNames = [];
+      if (Array.isArray(payload?.mcp)) { result.structuredContent = { ...payload, mcp: payload.mcp.map((server) => ({ ...server, effectiveForCurrentProfile: isEffective(String(server.name || "").toLowerCase()) })) }; serverNames = payload.mcp.map((server) => String(server.name || "")); }
+      else if (Array.isArray(payload)) { result.structuredContent = payload.map((server) => ({ ...server, effectiveForCurrentProfile: isEffective(String(server.name || "").toLowerCase()) })); serverNames = payload.map((server) => String(server.name || "")); }
+      else if (Array.isArray(payload?.servers)) { result.structuredContent = { ...payload, servers: payload.servers.map((server) => ({ ...server, effectiveForCurrentProfile: isEffective(String(server.name || "").toLowerCase()) })) }; serverNames = payload.servers.map((server) => String(server.name || "")); }
+      if (!serverNames.length && Array.isArray(result?.content)) {
+        for (const part of result.content) {
+          if (part?.type !== "text") continue;
+          serverNames.push(...[...part.text.matchAll(/^\s*[-*]\s*([A-Za-z0-9_.-]+):/gm)].map((match) => match[1]));
+        }
+        if (serverNames.length) {
+          const annotations = Object.fromEntries(serverNames.map((serverName) => [serverName, isEffective(serverName.toLowerCase())]));
+          result.content.push({ type: "text", text: `[kompas] resolvedRole=${profile.resolvedRole} effectiveProfileSource=${profile.source} eager=[${[...eager].join(",")}] effectiveForCurrentProfile=${JSON.stringify(annotations)}` });
+        }
+      }
+    } catch { /* passthrough on unexpected shape */ }
+    return result;
   }
   if (name === "opencode_ctb_get_run" || name === "opencode_ctb_get_events" || name === "opencode_ctb_get_metrics") {
     if (!hasScope(token, "opencode:read")) throw Object.assign(new Error("INSUFFICIENT_SCOPE"), { code: "INSUFFICIENT_SCOPE", requiredScope: "opencode:read" }); const run = runs[args.runId]; if (!run) throw Object.assign(new Error("CTB_RUN_NOT_FOUND"), { code: "CTB_RUN_NOT_FOUND" });
@@ -488,6 +579,13 @@ async function callTool(name, args, token) {
     return toolResult(name === "opencode_ctb_get_events" ? { runId: args.runId, events } : name === "opencode_ctb_get_metrics" ? { runId: args.runId, metrics: { ...metrics, ...enriched } } : { ...run, metrics: { ...metrics, ...enriched } }, "Telemetry CTB.");
   }
   const RUN_ANALYTICS_TOOLS = new Set(["paperclipGetRunMetrics", "paperclipGetRunEvents", "paperclipGetRunTokenUsage", "paperclipGetRunSteps", "paperclipGetRunContextBreakdown", "paperclipGetRunModelTurns"]);
+  if (name === "opencode_run_inspect") {
+    // Consolidated read-only run inspector: one tool, explicit views (replaces the six
+    // paperclipGetRun* getters on the public surface).
+    if (!hasScope(token, "opencode:read")) throw Object.assign(new Error("INSUFFICIENT_SCOPE"), { code: "INSUFFICIENT_SCOPE", requiredScope: "opencode:read" });
+    const view = ["summary", "events", "tokens", "steps", "context", "models"].includes(args.view) ? args.view : "summary";
+    return callTool(view === "summary" ? "paperclipGetRunMetrics" : view === "events" ? "paperclipGetRunEvents" : view === "tokens" ? "paperclipGetRunTokenUsage" : view === "steps" ? "paperclipGetRunSteps" : view === "context" ? "paperclipGetRunContextBreakdown" : "paperclipGetRunModelTurns", args, token);
+  }
   if (RUN_ANALYTICS_TOOLS.has(name) || name === "paperclipCompareRunMetrics" || name === "paperclipAggregateRunMetrics") {
     // Read-only run analytics over OpenCode session/message metadata and the CTB correlation registry.
     if (!hasScope(token, "opencode:read")) throw Object.assign(new Error("INSUFFICIENT_SCOPE"), { code: "INSUFFICIENT_SCOPE", requiredScope: "opencode:read" });
@@ -557,18 +655,20 @@ async function callTool(name, args, token) {
     const validatedModelArgs = validateToolPathArguments(Object.fromEntries(Object.entries(args || {}).filter(([key]) => key !== "ctb")), allowedRoots, workspaceRoot);
     const forwardedModelArgs = applyDefaultModel(validatedModelArgs);
     const requestedModel = requestedModelFrom(forwardedModelArgs);
+    const profile = effectiveProfileFor(token, args.ctb);
+    const resolvedAgent = selectCtbAgent(intake.mode === "EXECUTE" ? "EXECUTE" : "PLAN", profile);
     const telemetry = telemetryBase(token, { name, ctb: args.ctb, directory: forwardedModelArgs.directory, mode: intake.mode });
     const startedAt = Date.now();
-    audit({ ...telemetry, changeClass: "ctb", tool: requestedName, upstreamTool: name, requestedModel, result: "model_read_only_started", agent: "plan" });
+    audit({ ...telemetry, changeClass: "ctb", tool: requestedName, upstreamTool: name, requestedModel, resolvedAgent, result: "model_read_only_started" });
     try {
-      const outcome = await callModelWithFallback(name, { ...forwardedModelArgs, agent: "plan" }, { ...telemetry, requestedModel });
+      const outcome = await callModelWithFallback(name, { ...forwardedModelArgs, agent: resolvedAgent }, { ...telemetry, requestedModel });
       const modelSessionId = findSessionReference(outcome.result) || null;
-      const modelIdentity = summarizeModelIdentity(requestedModel, await lastAssistantModelInfo(modelSessionId));
-      if (outcome.fallbackUsed) { modelIdentity.fallbackUsed = true; modelIdentity.fallbackReason = outcome.fallbackReason; }
-      audit({ ...telemetry, changeClass: "ctb", tool: requestedName, upstreamTool: name, requestedModel, modelIdentity, sessionId: modelSessionId, result: "success", durationMs: Date.now() - startedAt });
+      const modelIdentity = summarizeModelIdentity(requestedModel, await lastAssistantModelInfo(modelSessionId), { fallbackUsed: outcome.fallbackUsed, fallbackReason: outcome.fallbackReason, attempts: outcome.attempts });
+      recordModelIdentity(modelSessionId, modelIdentity);
+      audit({ ...telemetry, changeClass: "ctb", tool: requestedName, upstreamTool: name, requestedModel, modelIdentity, sessionId: modelSessionId, resolvedAgent, result: "success", durationMs: Date.now() - startedAt });
       return outcome.result;
     } catch (error) {
-      audit({ ...telemetry, changeClass: "ctb", tool: requestedName, upstreamTool: name, requestedModel, result: "error", errorCode: error.code || "UPSTREAM_ERROR", durationMs: Date.now() - startedAt });
+      audit({ ...telemetry, changeClass: "ctb", tool: requestedName, upstreamTool: name, requestedModel, resolvedAgent, result: "error", errorCode: error.code || "UPSTREAM_ERROR", durationMs: Date.now() - startedAt });
       throw error;
     }
   }
@@ -607,10 +707,14 @@ async function callTool(name, args, token) {
       activeCtbExecutions.set(sessionId, { createdAt: new Date(startedAt).toISOString(), runId: sessionId });
       recordRun(sessionId, ctb, forwarded.directory, token.sub, authorization.decision, new Date(startedAt).toISOString());
     }
-    const forwardedForModel = MODEL_ENTRYPOINTS.has(name) ? applyDefaultModel(forwarded) : forwarded;
+    // Issue identifier (e.g. KOMAA-126) is the canonical override key; the raw
+    // paperclipIssueId argument is often a UUID that cannot match overrides.
+    const executionProfile = effectiveProfileFor(token, ctb, authorization.issue?.identifier || null);
+    const resolvedAgent = selectCtbAgent("EXECUTE", executionProfile);
+    const forwardedForModel = MODEL_ENTRYPOINTS.has(name) ? applyDefaultModel({ ...forwarded, ...(MODEL_ENTRYPOINTS.has(name) ? { agent: resolvedAgent } : {}) }) : forwarded;
     const modelOutcome = MODEL_ENTRYPOINTS.has(name)
       ? await callModelWithFallback(name, forwardedForModel, { ...telemetry, requestedModel: requestedModelFrom(forwardedForModel) })
-      : { result: await engine.call("tools/call", { name, arguments: forwarded }), fallbackUsed: false, fallbackReason: null };
+      : { result: await engine.call("tools/call", { name, arguments: forwarded }), fallbackUsed: false, fallbackReason: null, attempts: null };
     const result = modelOutcome.result;
     await collectSessionToolEvents(sessionId);
     eventFor(sessionId, { kind: "tool", tool: name, action: requestedName, durationMs: Date.now() - startedAt, status: "success" });
@@ -618,12 +722,14 @@ async function callTool(name, args, token) {
     runs[sessionId].result = result;
     // Model contract telemetry: requested before invocation, actual from runtime metadata.
     const requestedModel = requestedModelFrom(forwardedForModel);
-    const modelIdentity = summarizeModelIdentity(requestedModel, await lastAssistantModelInfo(sessionId));
+    const modelIdentity = summarizeModelIdentity(requestedModel, await lastAssistantModelInfo(sessionId), { fallbackUsed: modelOutcome.fallbackUsed, fallbackReason: modelOutcome.fallbackReason, attempts: modelOutcome.attempts });
     if (modelOutcome.fallbackUsed) { modelIdentity.fallbackUsed = true; modelIdentity.fallbackReason = modelOutcome.fallbackReason; }
     modelIdentity.sessionId = sessionId;
+    modelIdentity.agent = resolvedAgent;
+    recordModelIdentity(sessionId, modelIdentity);
     runs[sessionId].model = modelIdentity;
     persistRuns();
-    audit({ ...telemetry, paperclipIssueId: ctb?.paperclipIssueId || null, runId: sessionId, changeClass: ctb?.changeClass || null, tool: requestedName, upstreamTool: name, requestedModel, modelIdentity, authorizationSource: authorization.decision.ctbPolicy.source, result: "success", durationMs: Date.now() - startedAt });
+    audit({ ...telemetry, paperclipIssueId: ctb?.paperclipIssueId || null, runId: sessionId, changeClass: ctb?.changeClass || null, tool: requestedName, upstreamTool: name, requestedModel, modelIdentity, resolvedAgent, authorizationSource: authorization.decision.ctbPolicy.source, result: "success", durationMs: Date.now() - startedAt });
     return result;
   } catch (error) {
     if (sessionId) {
@@ -652,7 +758,7 @@ async function handleMcp(req, res) {
   try {
     if (method === "skills/list") { if (!hasScope(token, "opencode:read")) throw Object.assign(new Error("INSUFFICIENT_SCOPE"), { code: "INSUFFICIENT_SCOPE", requiredScope: "opencode:read" }); const skills = skillCatalog().map(({ path: ignored, ...skill }) => ({ ...skill, uri: `skill://ctb/${skill.name}`, digest: `sha256:${crypto.createHash("sha256").update(fs.readFileSync(skillCatalog().find((item) => item.name === skill.name).path)).digest("hex")}` })); return sendJson(res, 200, rpcResult(id, { skills }), headers); }
     if (method === "skills/get") { if (!hasScope(token, "opencode:read")) throw Object.assign(new Error("INSUFFICIENT_SCOPE"), { code: "INSUFFICIENT_SCOPE", requiredScope: "opencode:read" }); const skill = skillCatalog().find((item) => item.name === message.params?.name); if (!skill) return sendJson(res, 200, rpcError(id, -32002, "SKILL_NOT_FOUND"), headers); const contract = fs.readFileSync(skill.path, "utf8"); return sendJson(res, 200, rpcResult(id, { name: skill.name, version: skill.version, description: skill.description, uri: `skill://ctb/${skill.name}`, digest: `sha256:${crypto.createHash("sha256").update(contract).digest("hex")}`, content: contract }), headers); }
-    if (method === "tools/list") { await engine.start(); const upstream = await engine.call("tools/list", {}); const tools = upstream.tools.map(exposeTool); tools.push({ name: "opencode_list_skills", title: "Skille CTB", description: "Lista kontraktĂłw skilli CTB.", inputSchema: { type: "object", properties: {}, additionalProperties: false }, outputSchema: { type: "object" }, annotations: { readOnlyHint: true }, securitySchemes: [{ type: "oauth2", scopes: ["opencode:read"] }] }, { name: "opencode_get_skill", title: "Kontrakt skilla CTB", description: "Zwraca peĹ‚ny kontrakt wskazanego skilla CTB.", inputSchema: { type: "object", properties: { name: { type: "string" } }, required: ["name"], additionalProperties: false }, outputSchema: { type: "object" }, annotations: { readOnlyHint: true }, securitySchemes: [{ type: "oauth2", scopes: ["opencode:read"] }] }, { name: "opencode_message_model_info", title: "Model metadata sesji", description: "[READ] Read-only: zwraca providerRequested/modelRequested/providerActual/modelActual/fallback dla wiadomosci wskazanej sesji OpenCode.", inputSchema: { type: "object", properties: { sessionId: { type: "string" } }, required: ["sessionId"], additionalProperties: false }, outputSchema: { type: "object" }, annotations: { readOnlyHint: true }, securitySchemes: [{ type: "oauth2", scopes: ["opencode:read"] }], _meta: { kompas: { toolClass: "READ", changeClass: null } } }, ...["opencode_ctb_get_run", "opencode_ctb_get_events", "opencode_ctb_get_metrics"].map((name) => ({ name, title: name, description: "Read-only telemetry CTB z registry korelacji.", inputSchema: { type: "object", properties: { runId: { type: "string" } }, required: ["runId"], additionalProperties: false }, outputSchema: { type: "object" }, annotations: { readOnlyHint: true }, securitySchemes: [{ type: "oauth2", scopes: ["opencode:read"] }] })), ...[{ name: "paperclipGetRunMetrics", description: "Read-only: podsumowanie runu — liczba model turns, tokeny, timiningi, klasyfikacja invocations i jawna mapa supportedObservability." }, { name: "paperclipGetRunEvents", description: "Read-only: structured events oraz ordered step timeline dla runu." }, { name: "paperclipGetRunTokenUsage", description: "Read-only: zużycie tokenów per model turn (input/output/reasoning/cache) z measurementSource." }, { name: "paperclipGetRunSteps", description: "Read-only: uporządkowana os czasu kroków runu z typami i duration." }, { name: "paperclipGetRunContextBreakdown", description: "Read-only: breakdown kontekstu per model turn; sekcje nieudostępnione przez OpenCode są jawnie null z powodem." }, { name: "paperclipGetRunModelTurns", description: "Read-only: szczegóły każdego model turn (provider, model, tokeny, okno kontekstu)." }, { name: "paperclipCompareRunMetrics", description: "Read-only: porównanie co najmniej dwóch runów, w tym który zużył więcej context overhead.", inputSchema: { type: "object", properties: { runIds: { type: "array", items: { type: "string" } } }, required: ["runIds"], additionalProperties: false } }, { name: "paperclipAggregateRunMetrics", description: "Read-only: agregaty metryk dla issue/modelu (p50/p95, first-pass success rate, retries).", inputSchema: { type: "object", properties: { runIds: { type: "array", items: { type: "string" } }, paperclipIssueId: { type: "string" }, groupBy: { enum: ["issue", "model"] } }, additionalProperties: false } }].map((tool) => ({ ...tool, title: tool.name, inputSchema: tool.inputSchema || { type: "object", properties: { runId: { type: "string" } }, required: ["runId"], additionalProperties: false }, outputSchema: { type: "object" }, annotations: { readOnlyHint: true }, securitySchemes: [{ type: "oauth2", scopes: ["opencode:read"] }] }))); tools.push({ name: "opencode_mcp_effective_profile", title: "Efektywny profil MCP", description: "Read-only: efektywny profil połączeń MCP (rola, taskClass, stage, eager/deferred) rozwijany z uwierzytelnionego principala.", inputSchema: { type: "object", properties: { taskClass: { type: "string" }, currentStage: { type: "string" }, projectKey: { type: "string" } }, additionalProperties: false }, annotations: { readOnlyHint: true }, securitySchemes: [{ type: "oauth2", scopes: ["opencode:read"] }] }); return sendJson(res, 200, rpcResult(id, { tools }), headers); }
+    if (method === "tools/list") { await engine.start(); const upstream = await engine.call("tools/list", {}); const visibleTools = eagerSurfaceEnabled() ? upstream.tools : upstream.tools.filter((tool) => PUBLIC_TOOLSET.has(tool.name)); const tools = visibleTools.map(exposeTool); tools.push({ name: "opencode_list_skills", title: "Skille CTB", description: "Lista kontraktĂłw skilli CTB.", inputSchema: { type: "object", properties: {}, additionalProperties: false }, outputSchema: { type: "object" }, annotations: { readOnlyHint: true }, securitySchemes: [{ type: "oauth2", scopes: ["opencode:read"] }] }, { name: "opencode_get_skill", title: "Kontrakt skilla CTB", description: "Zwraca peĹ‚ny kontrakt wskazanego skilla CTB.", inputSchema: { type: "object", properties: { name: { type: "string" } }, required: ["name"], additionalProperties: false }, outputSchema: { type: "object" }, annotations: { readOnlyHint: true }, securitySchemes: [{ type: "oauth2", scopes: ["opencode:read"] }] }, { name: "opencode_message_model_info", title: "Model metadata sesji", description: "[READ] Read-only: zwraca providerRequested/modelRequested/providerActual/modelActual/fallback dla wiadomosci wskazanej sesji OpenCode.", inputSchema: { type: "object", properties: { sessionId: { type: "string" } }, required: ["sessionId"], additionalProperties: false }, outputSchema: { type: "object" }, annotations: { readOnlyHint: true }, securitySchemes: [{ type: "oauth2", scopes: ["opencode:read"] }], _meta: { kompas: { toolClass: "READ", changeClass: null } } }, { name: "opencode_run_inspect", title: "Inspekcja runu CTB", description: "Read-only: zunifikowana inspekcja runu — view=summary|events|tokens|steps|context|models.", inputSchema: { type: "object", properties: { runId: { type: "string" }, view: { enum: ["summary", "events", "tokens", "steps", "context", "models"] }, refresh: { type: "boolean" } }, required: ["runId"], additionalProperties: false }, outputSchema: { type: "object" }, annotations: { readOnlyHint: true }, securitySchemes: [{ type: "oauth2", scopes: ["opencode:read"] }], _meta: { kompas: { toolClass: "READ", changeClass: null } } }, ...[{ name: "paperclipCompareRunMetrics", description: "Read-only: porównanie co najmniej dwóch runów, w tym który zużył więcej context overhead.", inputSchema: { type: "object", properties: { runIds: { type: "array", items: { type: "string" } } }, required: ["runIds"], additionalProperties: false } }, { name: "paperclipAggregateRunMetrics", description: "Read-only: agregaty metryk dla issue/modelu (p50/p95, first-pass success rate, retries).", inputSchema: { type: "object", properties: { runIds: { type: "array", items: { type: "string" } }, paperclipIssueId: { type: "string" }, groupBy: { enum: ["issue", "model"] } }, additionalProperties: false } }].map((tool) => ({ ...tool, title: tool.name, inputSchema: tool.inputSchema || { type: "object", properties: { runId: { type: "string" } }, required: ["runId"], additionalProperties: false }, outputSchema: { type: "object" }, annotations: { readOnlyHint: true }, securitySchemes: [{ type: "oauth2", scopes: ["opencode:read"] }] }))); tools.push({ name: "opencode_mcp_effective_profile", title: "Efektywny profil MCP", description: "Read-only: efektywny profil połączeń MCP (rola, taskClass, stage, eager/deferred) rozwijany z uwierzytelnionego principala.", inputSchema: { type: "object", properties: { taskClass: { type: "string" }, currentStage: { type: "string" }, projectKey: { type: "string" } }, additionalProperties: false }, annotations: { readOnlyHint: true }, securitySchemes: [{ type: "oauth2", scopes: ["opencode:read"] }] }); return sendJson(res, 200, rpcResult(id, { tools }), headers); }
     if (method === "tools/call") return sendJson(res, 200, rpcResult(id, await callTool(message.params?.name, message.params?.arguments || {}, token)), headers);
     if (["resources/list", "resources/templates/list", "resources/read", "prompts/list", "prompts/get"].includes(method)) { if (!hasScope(token, "opencode:read")) return sendJson(res, 200, rpcResult(id, { isError: true, structuredContent: { errorCode: "INSUFFICIENT_SCOPE", requiredScope: "opencode:read" }, content: [{ type: "text", text: "INSUFFICIENT_SCOPE" }] }), headers); await engine.start(); return sendJson(res, 200, rpcResult(id, await engine.call(method, message.params || {})), headers); }
     return sendJson(res, 400, rpcError(id ?? null, -32601, "Nieznana metoda MCP."), headers);
