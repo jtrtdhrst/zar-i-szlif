@@ -9,18 +9,21 @@ export const TOOL_CLASSES = Object.freeze({
   ADMIN: "ADMIN",
 });
 
+// Detectable policy revision surfaced through /health and every telemetry event.
+export const CTB_POLICY_REVISION = "ctb-policy-4";
+
 const byClass = Object.freeze({
   [TOOL_CLASSES.READ]: [
     "opencode_setup", "opencode_status", "opencode_health", "opencode_context", "opencode_conversation",
     "opencode_sessions_overview", "opencode_check", "opencode_wait", "opencode_review_changes",
     "opencode_session_list", "opencode_session_get", "opencode_session_children", "opencode_session_status",
-    "opencode_session_todo", "opencode_session_diff", "opencode_session_search", "opencode_permission_list",
+    "opencode_session_todo", "opencode_session_diff", "opencode_session_search", "opencode_session_check", "opencode_permission_list",
     "opencode_file_list", "opencode_file_read", "opencode_file_status", "opencode_find_file", "opencode_find_text",
     "opencode_find_symbol", "opencode_project_list", "opencode_project_current", "opencode_config_get",
     "opencode_config_providers", "opencode_provider_list", "opencode_provider_models", "opencode_provider_auth_methods",
     "opencode_command_list", "opencode_agent_list", "opencode_mcp_status", "opencode_events_poll", "opencode_path_get",
     "opencode_vcs_info", "opencode_lsp_status", "opencode_formatter_status", "opencode_tool_ids", "opencode_tool_list",
-    "opencode_message_list", "opencode_message_get",
+    "opencode_message_list", "opencode_message_get", "opencode_message_model_info",
   ],
   [TOOL_CLASSES.SESSION_CONTROL]: [
     "opencode_session_abort", "opencode_session_fork", "opencode_session_update", "opencode_session_share",
@@ -110,24 +113,43 @@ function realPathOf(candidate) { let current = path.resolve(String(candidate)); 
 // when its realpath target also stays inside the scope root (or the root's own realpath,
 // so a legitimately reparsed workspace root does not break authorization).
 function isInsideScope(candidate, root) { if (!isInsidePath(candidate, root)) return false; const real = realPathOf(candidate); const rootReal = realPathOf(root); if (real === null || rootReal === null) return true; return isInsidePath(real, root) || isInsidePath(real, rootReal); }
-// Issue-scoped CTB authorization. Paperclip owns workspace scope: the run directory must
-// stay inside the issue's execution workspace — both lexically and through any junction /
-// reparse-point target (an escaping link denies; a reparsed workspace root stays allowed).
-// An explicit executionPolicy.ctb tightens this further (exact roots plus intent/criteria
-// match); its ABSENCE falls back to plain workspace containment, but an explicit policy
-// that fails validation is MALFORMED and must be denied (fail closed): a corrupted policy
-// must never silently widen authorization to the whole workspace.
-export function evaluateIssueCtbPolicy(issue, directory, changeIntent, acceptanceCriteria) {
+// Canonical (realpath-resolved) form of a path for diagnostics; never throws — returns
+// the lexical resolution when the filesystem cannot be consulted.
+export function canonicalPath(candidate) {
+  const lexical = path.resolve(String(candidate));
+  const real = realPathOf(lexical);
+  return real || lexical;
+}
+
+// Issue-scoped CTB authorization with full diagnostics. Returns:
+//   { error: code|null, decisionSource: "issue_policy"|"workspace_fallback"|null,
+//     canonicalDirectory, canonicalWorkspaceRoot }
+// Paperclip owns workspace scope: the run directory must stay inside the issue's execution
+// workspace — both lexically and through any junction / reparse-point target (an escaping
+// link denies; a reparsed workspace root stays allowed). An explicit executionPolicy.ctb
+// tightens this further (exact roots plus intent/criteria match); its ABSENCE falls back to
+// plain workspace containment, but an explicit policy that fails validation is MALFORMED and
+// must be denied (fail closed): a corrupted policy must never silently widen authorization.
+export function evaluateIssueCtbPolicyDetailed(issue, directory, changeIntent, acceptanceCriteria) {
+  const result = { error: null, decisionSource: null, canonicalDirectory: typeof directory === "string" ? canonicalPath(directory) : null, canonicalWorkspaceRoot: null };
   const issueRoot = issue?.currentExecutionWorkspace?.cwd;
-  if (typeof issueRoot !== "string" || issueRoot.trim() === "" || typeof directory !== "string") return "CTB_ISSUE_SCOPE_MISMATCH";
-  if (!isInsideScope(directory, issueRoot)) return "CTB_ISSUE_SCOPE_MISMATCH";
+  if (typeof issueRoot !== "string" || issueRoot.trim() === "" || typeof directory !== "string") { result.error = "CTB_ISSUE_SCOPE_MISMATCH"; return result; }
+  result.canonicalWorkspaceRoot = canonicalPath(issueRoot);
+  if (!isInsideScope(directory, issueRoot)) { result.error = "CTB_ISSUE_SCOPE_MISMATCH"; return result; }
   const candidate = issue?.executionPolicy?.ctb || issue?.metadata?.ctb;
-  if (!candidate) return null;
+  // An explicitly configured policy makes issue_policy the decision source even when it
+  // turns out malformed: the denial must never silently fall back to the wider workspace.
+  if (!candidate) { result.decisionSource = "workspace_fallback"; return result; }
+  result.decisionSource = "issue_policy";
   const policy = candidate && candidate.changeClass === "ctb" && Array.isArray(candidate.projectRoots) && Array.isArray(candidate.changeIntents) && Array.isArray(candidate.acceptanceCriteria) ? candidate : null;
-  if (!policy) return "CTB_POLICY_INVALID";
-  if (!policy.projectRoots.some((root) => isInsideScope(directory, root))) return "CTB_ISSUE_SCOPE_MISMATCH";
-  if (!policy.changeIntents.includes(changeIntent) || !policy.acceptanceCriteria.includes(acceptanceCriteria)) return "CTB_ISSUE_SCOPE_MISMATCH";
-  return null;
+  if (!policy) { result.error = "CTB_POLICY_INVALID"; return result; }
+  if (!policy.projectRoots.some((root) => isInsideScope(directory, root))) { result.error = "CTB_ISSUE_SCOPE_MISMATCH"; return result; }
+  if (!policy.changeIntents.includes(changeIntent) || !policy.acceptanceCriteria.includes(acceptanceCriteria)) { result.error = "CTB_ISSUE_SCOPE_MISMATCH"; return result; }
+  return result;
+}
+
+export function evaluateIssueCtbPolicy(issue, directory, changeIntent, acceptanceCriteria) {
+  return evaluateIssueCtbPolicyDetailed(issue, directory, changeIntent, acceptanceCriteria).error;
 }
 
 // Secret-bearing runtime files must never be reachable through tool path arguments.

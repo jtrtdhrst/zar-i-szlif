@@ -4,9 +4,11 @@ import http from "node:http";
 import path from "node:path";
 import { spawn } from "node:child_process";
 import { fileURLToPath } from "node:url";
-import { MODEL_ENTRYPOINTS, TOOL_CLASSES, classifyIntake, classifyTool, ctbContextError, evaluateIssueCtbPolicy, matchesIdempotencyRun, requiredScope, validateToolPathArguments } from "./ctb-policy.mjs";
+import { CTB_POLICY_REVISION, MODEL_ENTRYPOINTS, TOOL_CLASSES, classifyIntake, classifyTool, ctbContextError, canonicalPath, evaluateIssueCtbPolicyDetailed, matchesIdempotencyRun, requiredScope, validateToolPathArguments } from "./ctb-policy.mjs";
 import { aggregateRunAnalytics, buildRunAnalytics, compareRunMetrics, supportedObservability } from "./run-analytics.mjs";
+import { loadMcpRoleProfiles, resolveEffectiveProfile } from "./mcp-role-profiles.mjs";
 
+const GATEWAY_REVISION = "ctb-policy-4";
 const here = path.dirname(fileURLToPath(import.meta.url));
 const workspaceRoot = path.resolve(here, "..");
 const runtimeDir = process.env.OPENCODE_MCP_RUNTIME_DIR || path.join(here, ".runtime");
@@ -19,7 +21,9 @@ const openCodeUsername = process.env.OPENCODE_SERVER_USERNAME || "opencode";
 const openCodePassword = process.env.OPENCODE_SERVER_PASSWORD || "";
 const infrastructureRoot = "C:\\paperclip";
 const paperclipWorktreeRoot = "C:\\paperclip-worktrees";
-const allowedRoots = (process.env.OPENCODE_CTB_ALLOWED_ROOTS || [workspaceRoot, infrastructureRoot, paperclipWorktreeRoot].join(path.delimiter)).split(path.delimiter).filter(Boolean);
+// Canonical allow-roots: Paperclip infrastructure, isolated Paperclip worktrees and the
+// whole Kompas repo (which contains both this gateway's repo and .paperclip-worktrees).
+const allowedRoots = [...new Set((process.env.OPENCODE_CTB_ALLOWED_ROOTS || [workspaceRoot, path.join(workspaceRoot, ".paperclip-worktrees"), infrastructureRoot, paperclipWorktreeRoot].join(path.delimiter)).split(path.delimiter).map((root) => root.trim()).filter(Boolean))];
 const upstreamEntry = process.env.OPENCODE_MCP_UPSTREAM_ENTRY || path.join(here, "upstream", "dist", "index.js");
 const skillsRoot = path.join(here, "skills");
 const auditFile = path.join(runtimeDir, "ctb-audit.ndjson");
@@ -81,6 +85,65 @@ const COMPATIBILITY_ALIASES = Object.freeze({
   opencode_continue_run: "opencode_reply",
   opencode_abort_run: "opencode_session_abort",
 });
+// Aliases stay callable through tools/call for backward compatibility but are NOT eagerly
+// exposed in the model-facing tool schema: one canonical definition per capability.
+function configuredPrincipalRoles() { try { return JSON.parse(process.env.OPENCODE_MCP_PRINCIPAL_ROLES || "{}"); } catch { return {}; } }
+const roleProfilesDoc = loadMcpRoleProfiles();
+function effectiveProfileFor(token, ctb, projectKey = null) {
+  return resolveEffectiveProfile({ principalId: token?.sub ?? null, taskClass: ctb?.taskClass || "", currentStage: ctb?.currentStage || "", projectKey: projectKey || ctb?.paperclipIssueId || null }, roleProfilesDoc, configuredPrincipalRoles());
+}
+function requestedModelFrom(args) {
+  const providerRequested = typeof args?.providerID === "string" && args.providerID ? args.providerID : null;
+  const modelRequested = typeof args?.modelID === "string" && args.modelID ? args.modelID : (typeof args?.model === "string" && args.model ? args.model : null);
+  return providerRequested || modelRequested ? { providerRequested, modelRequested } : null;
+}
+// Model contract: actual model identity comes from runtime message metadata only; fields
+// the runtime does not report stay null instead of being fabricated.
+async function lastAssistantModelInfo(sessionId) {
+  if (!sessionId) return null;
+  try {
+    const messages = await fetchSessionMessages(sessionId);
+    const assistant = (Array.isArray(messages) ? messages : []).map((message) => message?.info && typeof message.info === "object" ? message.info : message).filter((info) => info.role === "assistant").pop();
+    return assistant ? { messageId: assistant.id ?? null, providerActual: assistant.providerID ?? null, modelActual: assistant.modelID ?? null } : null;
+  } catch { return null; }
+}
+// Telemetry-only deep lookup of an OpenCode session reference inside an upstream result.
+// Never used to establish CTB ownership — registry identity stays authoritative.
+const SESSION_ID_PATTERN = /ses_[A-Za-z0-9_-]+/;
+function findSessionReference(value, depth = 0) {
+  if (depth > 6 || value == null) return null;
+  if (typeof value === "string") return SESSION_ID_PATTERN.exec(value)?.[0] || null;
+  if (Array.isArray(value)) { for (const item of value) { const hit = findSessionReference(item, depth + 1); if (hit) return hit; } return null; }
+  if (typeof value === "object") { for (const item of Object.values(value)) { const hit = findSessionReference(item, depth + 1); if (hit) return hit; } }
+  return null;
+}
+function summarizeModelIdentity(requested, actual) {
+  const summary = { sessionId: null, messageId: actual?.messageId ?? null, providerRequested: requested?.providerRequested ?? null, modelRequested: requested?.modelRequested ?? null, providerActual: actual?.providerActual ?? null, modelActual: actual?.modelActual ?? null, fallbackUsed: null, fallbackReason: null };
+  if (summary.providerRequested && summary.modelRequested && summary.providerActual && summary.modelActual) {
+    summary.fallbackUsed = summary.providerActual !== summary.providerRequested || summary.modelActual !== summary.modelRequested;
+    if (summary.fallbackUsed) summary.fallbackReason = "runtime served a different provider/model than requested";
+  }
+  return summary;
+}
+function telemetryBase(token, { name, ctb = null, directory = null, mode = null }) {
+  const profile = effectiveProfileFor(token, ctb);
+  return {
+    gatewayRevision: GATEWAY_REVISION,
+    ctbPolicyRevision: CTB_POLICY_REVISION,
+    mcpRoleProfileRevision: roleProfilesDoc.revision,
+    principalId: token?.sub ?? null,
+    resolvedRole: profile.resolvedRole,
+    effectiveProfileKnown: profile.known,
+    taskClass: ctb?.taskClass || null,
+    currentStage: ctb?.currentStage || null,
+    effectiveProfileSource: profile.source,
+    eagerConnections: profile.eagerConnections,
+    deferredConnections: profile.deferredConnections,
+    eagerConnectionCount: profile.eagerConnectionCount,
+    cwd: directory ?? null,
+    mode: mode || ctb?.mode || null,
+  };
+}
 function persistRuns() { writeJson(registryFile, { version: 2, runs }); }
 // Bootstrap entrypoints may start without an existing session: the gateway creates the
 // upstream OpenCode session itself (POST /session) and injects the resulting sessionId,
@@ -269,7 +332,7 @@ function exposeTool(tool) {
       description: modelEntrypoint
         ? "CTB envelope. mode DIAGNOSE or PLAN runs real read-only inference via the plan agent (no Paperclip, no registry writes). mode EXECUTE requires the full execution envelope: paperclipIssueId, changeIntent, scope, acceptanceCriteria and idempotencyKey."
         : "Required CTB execution envelope: mode EXECUTE, changeClass ctb, paperclipIssueId, changeIntent, scope, acceptanceCriteria and idempotencyKey.",
-      properties: { mode: modelEntrypoint ? { enum: ["DIAGNOSE", "PLAN", "EXECUTE"] } : { const: "EXECUTE" }, changeClass: { const: "ctb" }, paperclipIssueId: { type: "string" }, changeIntent: { type: "string" }, scope: { type: "string" }, acceptanceCriteria: { type: "string" }, idempotencyKey: { type: "string" }, executionContext: { type: "object", description: "Optional. Correlate the run with an existing OpenCode session. Omit for opencode_run/opencode_ask — the gateway bootstraps a new session.", properties: { sessionId: { type: "string" } }, additionalProperties: false } },
+      properties: { mode: modelEntrypoint ? { enum: ["DIAGNOSE", "PLAN", "EXECUTE"] } : { const: "EXECUTE" }, changeClass: { const: "ctb" }, paperclipIssueId: { type: "string" }, changeIntent: { type: "string" }, scope: { type: "string" }, acceptanceCriteria: { type: "string" }, idempotencyKey: { type: "string" }, taskClass: { type: "string", description: "Optional task class used to resolve the effective MCP role profile." }, currentStage: { type: "string", description: "Optional current stage (e.g. architecture, infra, code_review) used to resolve the effective MCP role profile." }, executionContext: { type: "object", description: "Optional. Correlate the run with an existing OpenCode session. Omit for opencode_run/opencode_ask — the gateway bootstraps a new session.", properties: { sessionId: { type: "string" } }, additionalProperties: false } },
       required: modelEntrypoint ? ["mode", "changeClass"] : ["mode", "changeClass", "paperclipIssueId", "changeIntent", "scope", "acceptanceCriteria", "idempotencyKey"],
     };
   }
@@ -296,11 +359,11 @@ async function validatePaperclipIssue(ctb, directory) {
   if (ctb.companyId && ctb.companyId !== issue?.companyId) throw ctbScopeError();
   if (!["todo", "in_progress"].includes(issue?.status) || issue?.workMode === "ask" || issue?.workMode === "planning") throw ctbScopeError();
   // Paperclip owns workspace scope. Do not infer authorization from prose fields.
-  const scopeError = evaluateIssueCtbPolicy(issue, directory, ctb.changeIntent, ctb.acceptanceCriteria);
-  if (scopeError) throw Object.assign(new Error(scopeError), { code: scopeError });
+  const detail = evaluateIssueCtbPolicyDetailed(issue, directory, ctb.changeIntent, ctb.acceptanceCriteria);
+  if (detail.error) throw Object.assign(new Error(detail.error), { code: detail.error });
   const policy = issueCtbPolicy(issue);
   const issueRoot = issue.currentExecutionWorkspace.cwd;
-  const decision = { companyId: issue.companyId, issueId: issue.id, lifecycle: issue.status, workspace: issueRoot, ctbPolicy: { changeClass: policy?.changeClass || "ctb", projectRoots: policy?.projectRoots || [issueRoot], changeIntent: ctb.changeIntent, acceptanceCriteria: ctb.acceptanceCriteria, source: policy ? "issue_policy" : "workspace_fallback" }, issuedAt: new Date().toISOString(), policy: "ctb-v2" };
+  const decision = { companyId: issue.companyId, issueId: issue.id, lifecycle: issue.status, workspace: issueRoot, canonicalAuthorizedWorkspace: detail.canonicalWorkspaceRoot, canonicalRequestedDirectory: detail.canonicalDirectory, ctbPolicy: { changeClass: policy?.changeClass || "ctb", projectRoots: policy?.projectRoots || [issueRoot], changeIntent: ctb.changeIntent, acceptanceCriteria: ctb.acceptanceCriteria, source: detail.decisionSource }, issuedAt: new Date().toISOString(), policy: "ctb-v2", revision: CTB_POLICY_REVISION };
   return { issue, decision };
 }
 
@@ -388,7 +451,8 @@ async function callTool(name, args, token) {
     const metaMessages = await metaResponse.json();
     const entries = (Array.isArray(metaMessages) ? metaMessages : []).map((message) => {
       const info = message?.info && typeof message.info === "object" ? message.info : message;
-      return { messageId: info.id, role: info.role, providerID: info.providerID ?? null, modelID: info.modelID ?? null, agent: info.agent ?? null };
+      // Runtime-reported identity is authoritative; anything unreported stays null.
+      return { messageId: info.id ?? null, role: info.role ?? null, sessionId: args.sessionId, providerRequested: null, modelRequested: null, providerActual: info.providerID ?? null, modelActual: info.modelID ?? null, fallbackUsed: null, fallbackReason: info.providerID || info.modelID ? null : "runtime did not report provider/model identity", agent: info.agent ?? null, providerID: info.providerID ?? null, modelID: info.modelID ?? null };
     });
     return toolResult({ sessionId: args.sessionId, messages: entries }, "Runtime model metadata for session messages.");
   }
@@ -450,6 +514,12 @@ async function callTool(name, args, token) {
       groups: Object.fromEntries([...groups.entries()].map(([key, items]) => [key, aggregateRunAnalytics(items)])),
     }, "Agregacja metryk runów.");
   }
+  if (name === "opencode_mcp_effective_profile") {
+    // Read-only resolution of the effective MCP profile for the authenticated principal.
+    if (!hasScope(token, "opencode:read")) throw Object.assign(new Error("INSUFFICIENT_SCOPE"), { code: "INSUFFICIENT_SCOPE", requiredScope: "opencode:read" });
+    const profile = resolveEffectiveProfile({ principalId: token?.sub ?? null, taskClass: args.taskClass || "", currentStage: args.currentStage || "", projectKey: args.projectKey || null }, roleProfilesDoc, configuredPrincipalRoles());
+    return toolResult({ ...profile, revision: roleProfilesDoc.revision }, "Efektywny profil MCP dla uwierzytelnionego principala.");
+  }
   const upstreamTools = await engine.call("tools/list", {});
   const upstream = upstreamTools.tools.find((tool) => tool.name === name);
   if (!upstream) throw Object.assign(new Error("UNKNOWN_TOOL"), { code: "UNKNOWN_TOOL" });
@@ -463,14 +533,18 @@ async function callTool(name, args, token) {
   // zero Paperclip authorization, zero CTB registry writes.
   if (intake.modelReadOnly) {
     const forwardedModelArgs = validateToolPathArguments(Object.fromEntries(Object.entries(args || {}).filter(([key]) => key !== "ctb")), allowedRoots, workspaceRoot);
+    const requestedModel = requestedModelFrom(args);
+    const telemetry = telemetryBase(token, { name, ctb: args.ctb, directory: forwardedModelArgs.directory, mode: intake.mode });
     const startedAt = Date.now();
-    audit({ principal: token.sub, mode: intake.mode, changeClass: "ctb", tool: requestedName, upstreamTool: name, directory: forwardedModelArgs.directory, result: "model_read_only_started", agent: "plan" });
+    audit({ ...telemetry, changeClass: "ctb", tool: requestedName, upstreamTool: name, requestedModel, result: "model_read_only_started", agent: "plan" });
     try {
       const result = await engine.call("tools/call", { name, arguments: { ...forwardedModelArgs, agent: "plan" } });
-      audit({ principal: token.sub, mode: intake.mode, changeClass: "ctb", tool: requestedName, upstreamTool: name, directory: forwardedModelArgs.directory, result: "success", durationMs: Date.now() - startedAt });
+      const modelSessionId = findSessionReference(result) || null;
+      const modelIdentity = summarizeModelIdentity(requestedModel, await lastAssistantModelInfo(modelSessionId));
+      audit({ ...telemetry, changeClass: "ctb", tool: requestedName, upstreamTool: name, requestedModel, modelIdentity, sessionId: modelSessionId, result: "success", durationMs: Date.now() - startedAt });
       return result;
     } catch (error) {
-      audit({ principal: token.sub, mode: intake.mode, changeClass: "ctb", tool: requestedName, upstreamTool: name, directory: forwardedModelArgs.directory, result: "error", errorCode: error.code || "UPSTREAM_ERROR", durationMs: Date.now() - startedAt });
+      audit({ ...telemetry, changeClass: "ctb", tool: requestedName, upstreamTool: name, requestedModel, result: "error", errorCode: error.code || "UPSTREAM_ERROR", durationMs: Date.now() - startedAt });
       throw error;
     }
   }
@@ -491,12 +565,13 @@ async function callTool(name, args, token) {
   if (executionLocks.has(key)) return toolResult({ runId: executionLocks.get(key), status: "RUNNING", replayed: true }, "IstniejÄ…ce wykonanie CTB jest aktywne.");
   if (explicitSessionId && runs[explicitSessionId] && runs[explicitSessionId].idempotencyKey !== ctb.idempotencyKey) throw Object.assign(new Error("CTB_SESSION_ALREADY_CORRELATED"), { code: "CTB_SESSION_ALREADY_CORRELATED" });
   const startedAt = Date.now();
+  const telemetry = telemetryBase(token, { name, ctb, directory: forwarded.directory, mode: ctb?.mode });
   let sessionId = explicitSessionId;
   const activeKey = sessionId || `bootstrap:${key}`;
   executionLocks.set(key, activeKey);
   activeCtbExecutions.set(activeKey, { createdAt: new Date(startedAt).toISOString(), runId: sessionId });
   if (sessionId) recordRun(sessionId, ctb, forwarded.directory, token.sub, authorization.decision, new Date(startedAt).toISOString());
-  audit({ principal: token.sub, paperclipIssueId: ctb?.paperclipIssueId || null, runId: sessionId || null, mode: ctb?.mode || "DIAGNOSE", changeClass: ctb?.changeClass || null, tool: requestedName, upstreamTool: name, directory: forwarded.directory, result: "started" });
+  audit({ ...telemetry, paperclipIssueId: ctb?.paperclipIssueId || null, runId: sessionId || null, changeClass: ctb?.changeClass || null, tool: requestedName, upstreamTool: name, requestedModel: requestedModelFrom(args), authorizationSource: authorization.decision.ctbPolicy.source, result: "started" });
   try {
     if (!sessionId) {
       // Bootstrap: gateway owns session creation, so run identity stays authoritative.
@@ -513,16 +588,21 @@ async function callTool(name, args, token) {
     eventFor(sessionId, { kind: "tool", tool: name, action: requestedName, durationMs: Date.now() - startedAt, status: "success" });
     if (name !== "opencode_fire" && name !== "opencode_message_send_async") finishRun(sessionId, "completed");
     runs[sessionId].result = result;
+    // Model contract telemetry: requested before invocation, actual from runtime metadata.
+    const requestedModel = requestedModelFrom(args);
+    const modelIdentity = summarizeModelIdentity(requestedModel, await lastAssistantModelInfo(sessionId));
+    modelIdentity.sessionId = sessionId;
+    runs[sessionId].model = modelIdentity;
     persistRuns();
-    audit({ principal: token.sub, paperclipIssueId: ctb?.paperclipIssueId || null, runId: sessionId, mode: ctb?.mode || "DIAGNOSE", changeClass: ctb?.changeClass || null, tool: requestedName, upstreamTool: name, directory: forwarded.directory, result: "success", durationMs: Date.now() - startedAt });
+    audit({ ...telemetry, paperclipIssueId: ctb?.paperclipIssueId || null, runId: sessionId, changeClass: ctb?.changeClass || null, tool: requestedName, upstreamTool: name, requestedModel, modelIdentity, authorizationSource: authorization.decision.ctbPolicy.source, result: "success", durationMs: Date.now() - startedAt });
     return result;
   } catch (error) {
     if (sessionId) {
       eventFor(sessionId, { kind: "error", tool: name, action: requestedName, durationMs: Date.now() - startedAt, status: "error", errorCode: error.code || "UPSTREAM_ERROR" });
       finishRun(sessionId, "failed");
-      audit({ principal: token.sub, paperclipIssueId: ctb?.paperclipIssueId || null, runId: sessionId, mode: ctb?.mode || "DIAGNOSE", changeClass: ctb?.changeClass || null, tool: requestedName, upstreamTool: name, directory: forwarded.directory, result: "error", errorCode: error.code || "UPSTREAM_ERROR", durationMs: Date.now() - startedAt });
+      audit({ ...(telemetry || {}), paperclipIssueId: ctb?.paperclipIssueId || null, runId: sessionId, changeClass: ctb?.changeClass || null, tool: requestedName, upstreamTool: name, result: "error", errorCode: error.code || "UPSTREAM_ERROR", durationMs: Date.now() - startedAt });
     } else {
-      audit({ principal: token.sub, paperclipIssueId: ctb?.paperclipIssueId || null, mode: ctb?.mode || "DIAGNOSE", changeClass: ctb?.changeClass || null, tool: requestedName, upstreamTool: name, directory: forwarded.directory, result: "error", errorCode: error.code || "UPSTREAM_ERROR", durationMs: Date.now() - startedAt });
+      audit({ ...(telemetry || { principalId: token?.sub ?? null }), paperclipIssueId: ctb?.paperclipIssueId || null, changeClass: ctb?.changeClass || null, tool: requestedName, upstreamTool: name, directory: forwarded?.directory ?? null, result: "error", errorCode: error.code || "UPSTREAM_ERROR" });
     }
     throw error;
   } finally {
@@ -543,7 +623,7 @@ async function handleMcp(req, res) {
   try {
     if (method === "skills/list") { if (!hasScope(token, "opencode:read")) throw Object.assign(new Error("INSUFFICIENT_SCOPE"), { code: "INSUFFICIENT_SCOPE", requiredScope: "opencode:read" }); const skills = skillCatalog().map(({ path: ignored, ...skill }) => ({ ...skill, uri: `skill://ctb/${skill.name}`, digest: `sha256:${crypto.createHash("sha256").update(fs.readFileSync(skillCatalog().find((item) => item.name === skill.name).path)).digest("hex")}` })); return sendJson(res, 200, rpcResult(id, { skills }), headers); }
     if (method === "skills/get") { if (!hasScope(token, "opencode:read")) throw Object.assign(new Error("INSUFFICIENT_SCOPE"), { code: "INSUFFICIENT_SCOPE", requiredScope: "opencode:read" }); const skill = skillCatalog().find((item) => item.name === message.params?.name); if (!skill) return sendJson(res, 200, rpcError(id, -32002, "SKILL_NOT_FOUND"), headers); const contract = fs.readFileSync(skill.path, "utf8"); return sendJson(res, 200, rpcResult(id, { name: skill.name, version: skill.version, description: skill.description, uri: `skill://ctb/${skill.name}`, digest: `sha256:${crypto.createHash("sha256").update(contract).digest("hex")}`, content: contract }), headers); }
-    if (method === "tools/list") { await engine.start(); const upstream = await engine.call("tools/list", {}); const tools = upstream.tools.map(exposeTool); for (const [legacyName, targetName] of Object.entries(COMPATIBILITY_ALIASES)) { const target = upstream.tools.find((tool) => tool.name === targetName); if (target) tools.push({ ...exposeTool(target), name: legacyName, title: `${legacyName} (compatibility)`, description: `Compatibility alias forwarding to ${targetName}. ${target.description || ""}`, _meta: { ...(target._meta || {}), kompas: { compatibilityAliasFor: targetName } } }); } tools.push({ name: "opencode_list_skills", title: "Skille CTB", description: "Lista kontraktĂłw skilli CTB.", inputSchema: { type: "object", properties: {}, additionalProperties: false }, outputSchema: { type: "object" }, annotations: { readOnlyHint: true }, securitySchemes: [{ type: "oauth2", scopes: ["opencode:read"] }] }, { name: "opencode_get_skill", title: "Kontrakt skilla CTB", description: "Zwraca peĹ‚ny kontrakt wskazanego skilla CTB.", inputSchema: { type: "object", properties: { name: { type: "string" } }, required: ["name"], additionalProperties: false }, outputSchema: { type: "object" }, annotations: { readOnlyHint: true }, securitySchemes: [{ type: "oauth2", scopes: ["opencode:read"] }] }, { name: "opencode_message_model_info", title: "Model metadata sesji", description: "Read-only: zwraca providerID/modelID/agent dla wiadomosci wskazanej sesji OpenCode.", inputSchema: { type: "object", properties: { sessionId: { type: "string" } }, required: ["sessionId"], additionalProperties: false }, outputSchema: { type: "object" }, annotations: { readOnlyHint: true }, securitySchemes: [{ type: "oauth2", scopes: ["opencode:read"] }] }, ...["opencode_ctb_get_run", "opencode_ctb_get_events", "opencode_ctb_get_metrics"].map((name) => ({ name, title: name, description: "Read-only telemetry CTB z registry korelacji.", inputSchema: { type: "object", properties: { runId: { type: "string" } }, required: ["runId"], additionalProperties: false }, outputSchema: { type: "object" }, annotations: { readOnlyHint: true }, securitySchemes: [{ type: "oauth2", scopes: ["opencode:read"] }] })), ...[{ name: "paperclipGetRunMetrics", description: "Read-only: podsumowanie runu — liczba model turns, tokeny, timiningi, klasyfikacja invocations i jawna mapa supportedObservability." }, { name: "paperclipGetRunEvents", description: "Read-only: structured events oraz ordered step timeline dla runu." }, { name: "paperclipGetRunTokenUsage", description: "Read-only: zużycie tokenów per model turn (input/output/reasoning/cache) z measurementSource." }, { name: "paperclipGetRunSteps", description: "Read-only: uporządkowana os czasu kroków runu z typami i duration." }, { name: "paperclipGetRunContextBreakdown", description: "Read-only: breakdown kontekstu per model turn; sekcje nieudostępnione przez OpenCode są jawnie null z powodem." }, { name: "paperclipGetRunModelTurns", description: "Read-only: szczegóły każdego model turn (provider, model, tokeny, okno kontekstu)." }, { name: "paperclipCompareRunMetrics", description: "Read-only: porównanie co najmniej dwóch runów, w tym który zużył więcej context overhead.", inputSchema: { type: "object", properties: { runIds: { type: "array", items: { type: "string" } } }, required: ["runIds"], additionalProperties: false } }, { name: "paperclipAggregateRunMetrics", description: "Read-only: agregaty metryk dla issue/modelu (p50/p95, first-pass success rate, retries).", inputSchema: { type: "object", properties: { runIds: { type: "array", items: { type: "string" } }, paperclipIssueId: { type: "string" }, groupBy: { enum: ["issue", "model"] } }, additionalProperties: false } }].map((tool) => ({ ...tool, title: tool.name, inputSchema: tool.inputSchema || { type: "object", properties: { runId: { type: "string" } }, required: ["runId"], additionalProperties: false }, outputSchema: { type: "object" }, annotations: { readOnlyHint: true }, securitySchemes: [{ type: "oauth2", scopes: ["opencode:read"] }] }))); return sendJson(res, 200, rpcResult(id, { tools }), headers); }
+    if (method === "tools/list") { await engine.start(); const upstream = await engine.call("tools/list", {}); const tools = upstream.tools.map(exposeTool); tools.push({ name: "opencode_list_skills", title: "Skille CTB", description: "Lista kontraktĂłw skilli CTB.", inputSchema: { type: "object", properties: {}, additionalProperties: false }, outputSchema: { type: "object" }, annotations: { readOnlyHint: true }, securitySchemes: [{ type: "oauth2", scopes: ["opencode:read"] }] }, { name: "opencode_get_skill", title: "Kontrakt skilla CTB", description: "Zwraca peĹ‚ny kontrakt wskazanego skilla CTB.", inputSchema: { type: "object", properties: { name: { type: "string" } }, required: ["name"], additionalProperties: false }, outputSchema: { type: "object" }, annotations: { readOnlyHint: true }, securitySchemes: [{ type: "oauth2", scopes: ["opencode:read"] }] }, { name: "opencode_message_model_info", title: "Model metadata sesji", description: "[READ] Read-only: zwraca providerRequested/modelRequested/providerActual/modelActual/fallback dla wiadomosci wskazanej sesji OpenCode.", inputSchema: { type: "object", properties: { sessionId: { type: "string" } }, required: ["sessionId"], additionalProperties: false }, outputSchema: { type: "object" }, annotations: { readOnlyHint: true }, securitySchemes: [{ type: "oauth2", scopes: ["opencode:read"] }], _meta: { kompas: { toolClass: "READ", changeClass: null } } }, ...["opencode_ctb_get_run", "opencode_ctb_get_events", "opencode_ctb_get_metrics"].map((name) => ({ name, title: name, description: "Read-only telemetry CTB z registry korelacji.", inputSchema: { type: "object", properties: { runId: { type: "string" } }, required: ["runId"], additionalProperties: false }, outputSchema: { type: "object" }, annotations: { readOnlyHint: true }, securitySchemes: [{ type: "oauth2", scopes: ["opencode:read"] }] })), ...[{ name: "paperclipGetRunMetrics", description: "Read-only: podsumowanie runu — liczba model turns, tokeny, timiningi, klasyfikacja invocations i jawna mapa supportedObservability." }, { name: "paperclipGetRunEvents", description: "Read-only: structured events oraz ordered step timeline dla runu." }, { name: "paperclipGetRunTokenUsage", description: "Read-only: zużycie tokenów per model turn (input/output/reasoning/cache) z measurementSource." }, { name: "paperclipGetRunSteps", description: "Read-only: uporządkowana os czasu kroków runu z typami i duration." }, { name: "paperclipGetRunContextBreakdown", description: "Read-only: breakdown kontekstu per model turn; sekcje nieudostępnione przez OpenCode są jawnie null z powodem." }, { name: "paperclipGetRunModelTurns", description: "Read-only: szczegóły każdego model turn (provider, model, tokeny, okno kontekstu)." }, { name: "paperclipCompareRunMetrics", description: "Read-only: porównanie co najmniej dwóch runów, w tym który zużył więcej context overhead.", inputSchema: { type: "object", properties: { runIds: { type: "array", items: { type: "string" } } }, required: ["runIds"], additionalProperties: false } }, { name: "paperclipAggregateRunMetrics", description: "Read-only: agregaty metryk dla issue/modelu (p50/p95, first-pass success rate, retries).", inputSchema: { type: "object", properties: { runIds: { type: "array", items: { type: "string" } }, paperclipIssueId: { type: "string" }, groupBy: { enum: ["issue", "model"] } }, additionalProperties: false } }].map((tool) => ({ ...tool, title: tool.name, inputSchema: tool.inputSchema || { type: "object", properties: { runId: { type: "string" } }, required: ["runId"], additionalProperties: false }, outputSchema: { type: "object" }, annotations: { readOnlyHint: true }, securitySchemes: [{ type: "oauth2", scopes: ["opencode:read"] }] }))); tools.push({ name: "opencode_mcp_effective_profile", title: "Efektywny profil MCP", description: "Read-only: efektywny profil połączeń MCP (rola, taskClass, stage, eager/deferred) rozwijany z uwierzytelnionego principala.", inputSchema: { type: "object", properties: { taskClass: { type: "string" }, currentStage: { type: "string" }, projectKey: { type: "string" } }, additionalProperties: false }, annotations: { readOnlyHint: true }, securitySchemes: [{ type: "oauth2", scopes: ["opencode:read"] }] }); return sendJson(res, 200, rpcResult(id, { tools }), headers); }
     if (method === "tools/call") return sendJson(res, 200, rpcResult(id, await callTool(message.params?.name, message.params?.arguments || {}, token)), headers);
     if (["resources/list", "resources/templates/list", "resources/read", "prompts/list", "prompts/get"].includes(method)) { if (!hasScope(token, "opencode:read")) return sendJson(res, 200, rpcResult(id, { isError: true, structuredContent: { errorCode: "INSUFFICIENT_SCOPE", requiredScope: "opencode:read" }, content: [{ type: "text", text: "INSUFFICIENT_SCOPE" }] }), headers); await engine.start(); return sendJson(res, 200, rpcResult(id, await engine.call(method, message.params || {})), headers); }
     return sendJson(res, 400, rpcError(id ?? null, -32601, "Nieznana metoda MCP."), headers);
@@ -668,5 +748,5 @@ async function handleToken(req, res) {
   return sendJson(res, 400, { error: "unsupported_grant_type" });
 }
 
-const server = http.createServer(async (req, res) => { const url = new URL(req.url, `http://${req.headers.host || "localhost"}`); try { if (url.pathname === "/health" && req.method === "GET") return sendJson(res, 200, { ok: true, engine: "AlaeddineMessadi/opencode-mcp@1.11.0", policy: "ctb", revision: "ctb-policy-3", issuer, allowedRoots }); if (url.pathname === "/.well-known/oauth-protected-resource" && req.method === "GET") return sendJson(res, 200, { resource: resourceUrl(), authorization_servers: [issuer], scopes_supported: [...validScopes], resource_documentation: `${issuer}/health` }, { "access-control-allow-origin": "*", "cache-control": "public, max-age=3600" }); if ((url.pathname === "/.well-known/oauth-authorization-server" || url.pathname === "/.well-known/openid-configuration") && req.method === "GET") return sendJson(res, 200, { issuer, authorization_endpoint: `${issuer}/oauth/authorize`, token_endpoint: `${issuer}/oauth/token`, registration_endpoint: `${issuer}/oauth/register`, response_types_supported: ["code"], grant_types_supported: ["authorization_code", "refresh_token"], token_endpoint_auth_methods_supported: ["none"], code_challenge_methods_supported: ["S256"], scopes_supported: [...validScopes], authorization_response_iss_parameter_supported: true }, { "access-control-allow-origin": "*", "cache-control": "public, max-age=3600" }); if (url.pathname === "/oauth/register" && req.method === "POST") { const registration = JSON.parse(await body(req)); const redirectUris = Array.isArray(registration.redirect_uris) ? registration.redirect_uris : []; if (!redirectUris.length || !redirectUris.every(allowedRedirect)) return sendJson(res, 400, { error: "invalid_redirect_uri" }); const clientId = `dcr_${random(18)}`; clients[clientId] = { client_id: clientId, client_name: String(registration.client_name || "MCP client"), redirect_uris: redirectUris, token_endpoint_auth_method: "none", created_at: new Date().toISOString() }; writeJson(clientsFile, clients); return sendJson(res, 201, { ...clients[clientId], grant_types: ["authorization_code", "refresh_token"], response_types: ["code"] }); } if (url.pathname === "/oauth/authorize" && ["GET", "POST"].includes(req.method || "")) return handleAuthorize(req, res, url); if (url.pathname === "/oauth/logout" && req.method === "POST") { const revoked = revokeOauthSession(req); audit({ result: "oauth_logout", revoked }); return sendJson(res, 200, { ok: true }, { "set-cookie": `${sessionCookieName}=; Secure; HttpOnly; SameSite=Lax; Path=/; Max-Age=0` }); } if (url.pathname === "/oauth/token" && req.method === "POST") return handleToken(req, res); if (url.pathname === "/mcp" && req.method === "POST") return handleMcp(req, res); return sendJson(res, 404, { error: "Not found" }); } catch (error) { console.error("[opencode-ctb] request failed", error instanceof Error ? error.message : error); return sendJson(res, 500, { error: "Internal server error" }); } });
+const server = http.createServer(async (req, res) => { const url = new URL(req.url, `http://${req.headers.host || "localhost"}`); try { if (url.pathname === "/health" && req.method === "GET") return sendJson(res, 200, { ok: true, engine: "AlaeddineMessadi/opencode-mcp@1.11.0", policy: "ctb", revision: CTB_POLICY_REVISION, revisions: { gateway: GATEWAY_REVISION, ctbPolicy: CTB_POLICY_REVISION, mcpRoleProfiles: roleProfilesDoc.revision }, issuer, allowedRoots }); if (url.pathname === "/.well-known/oauth-protected-resource" && req.method === "GET") return sendJson(res, 200, { resource: resourceUrl(), authorization_servers: [issuer], scopes_supported: [...validScopes], resource_documentation: `${issuer}/health` }, { "access-control-allow-origin": "*", "cache-control": "public, max-age=3600" }); if ((url.pathname === "/.well-known/oauth-authorization-server" || url.pathname === "/.well-known/openid-configuration") && req.method === "GET") return sendJson(res, 200, { issuer, authorization_endpoint: `${issuer}/oauth/authorize`, token_endpoint: `${issuer}/oauth/token`, registration_endpoint: `${issuer}/oauth/register`, response_types_supported: ["code"], grant_types_supported: ["authorization_code", "refresh_token"], token_endpoint_auth_methods_supported: ["none"], code_challenge_methods_supported: ["S256"], scopes_supported: [...validScopes], authorization_response_iss_parameter_supported: true }, { "access-control-allow-origin": "*", "cache-control": "public, max-age=3600" }); if (url.pathname === "/oauth/register" && req.method === "POST") { const registration = JSON.parse(await body(req)); const redirectUris = Array.isArray(registration.redirect_uris) ? registration.redirect_uris : []; if (!redirectUris.length || !redirectUris.every(allowedRedirect)) return sendJson(res, 400, { error: "invalid_redirect_uri" }); const clientId = `dcr_${random(18)}`; clients[clientId] = { client_id: clientId, client_name: String(registration.client_name || "MCP client"), redirect_uris: redirectUris, token_endpoint_auth_method: "none", created_at: new Date().toISOString() }; writeJson(clientsFile, clients); return sendJson(res, 201, { ...clients[clientId], grant_types: ["authorization_code", "refresh_token"], response_types: ["code"] }); } if (url.pathname === "/oauth/authorize" && ["GET", "POST"].includes(req.method || "")) return handleAuthorize(req, res, url); if (url.pathname === "/oauth/logout" && req.method === "POST") { const revoked = revokeOauthSession(req); audit({ result: "oauth_logout", revoked }); return sendJson(res, 200, { ok: true }, { "set-cookie": `${sessionCookieName}=; Secure; HttpOnly; SameSite=Lax; Path=/; Max-Age=0` }); } if (url.pathname === "/oauth/token" && req.method === "POST") return handleToken(req, res); if (url.pathname === "/mcp" && req.method === "POST") return handleMcp(req, res); return sendJson(res, 404, { error: "Not found" }); } catch (error) { console.error("[opencode-ctb] request failed", error instanceof Error ? error.message : error); return sendJson(res, 500, { error: "Internal server error" }); } });
 server.listen(port, "127.0.0.1", () => console.log(`[opencode-ctb] listening on http://127.0.0.1:${port}/mcp`));

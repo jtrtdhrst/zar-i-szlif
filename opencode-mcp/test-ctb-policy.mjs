@@ -84,7 +84,7 @@ try {
 
 // Canonical role -> MCP surface profile must stay valid and least-privilege.
 const roleProfiles = JSON.parse(fs.readFileSync(new URL("./mcp-role-profiles.json", import.meta.url), "utf8"));
-assert.equal(roleProfiles.version, 1);
+assert.ok(roleProfiles.version >= 2, "role profiles v2 with stage rules required");
 const KNOWN_ROLES = new Set(["engineer", "designer", "ui-qa", "cto", "ceo", "coo", "cmo"]);
 for (const [role, servers] of Object.entries(roleProfiles.profiles)) {
   assert.ok(KNOWN_ROLES.has(role), `unknown role ${role}`);
