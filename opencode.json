@@ -22,6 +22,12 @@
       "description": "CTB EXECUTE bez dodatkowych dev MCP (fail-closed dla nieznanych principalow).",
       "prompt": "Jestes egzekutorem CTB. Dzialasz wylacznie w kanonicznie autoryzowanym katalogu issue. Downstream MCP jest wylaczony.",
       "permission": {
+        "bash": {
+          "git *": "deny",
+          "gh *": "deny",
+          "wrangler *": "deny",
+          "*": "allow"
+        },
         "git_*": "deny",
         "cloudflare_*": "deny",
         "playwright_*": "deny",
@@ -48,6 +54,12 @@
       "description": "CTB EXECUTE dla designera UI: Shadcn + Storybook, reszta denied.",
       "prompt": "Jestes egzekutorem CTB dla prac UI/design. Dozwolone: Shadcn i Storybook. Git/Playwright/Cloudflare/Sender zablokowane.",
       "permission": {
+        "bash": {
+          "git *": "deny",
+          "gh *": "deny",
+          "wrangler *": "deny",
+          "*": "allow"
+        },
         "shadcn_*": "allow",
         "kompas-storybook_*": "allow",
         "git_*": "deny",
@@ -61,6 +73,12 @@
       "description": "CTB EXECUTE dla UI QA: Playwright, reszta denied.",
       "prompt": "Jestes egzekutorem CTB dla akceptacji e2e. Dozwolone: Playwright. Git/Shadcn/Storybook/Cloudflare/Sender zablokowane.",
       "permission": {
+        "bash": {
+          "git *": "deny",
+          "gh *": "deny",
+          "wrangler *": "deny",
+          "*": "allow"
+        },
         "playwright_*": "allow",
         "git_*": "deny",
         "cloudflare_*": "deny",
@@ -72,8 +90,13 @@
     "ctb-cto-infra": {
       "mode": "all",
       "description": "CTB EXECUTE dla CTO infra/deploy: Cloudflare, reszta denied.",
-      "prompt": "Jestes egzekutorem CTB dla infra/deploy. Dozwolone: Cloudflare. Git/Playwright/Shadcn/Storybook/Sender zablokowane.",
+      "prompt": "Jestes egzekutorem CTB dla infra/deploy. Dozwolone: Cloudflare (takze wrangler CLI). Git/Playwright/Shadcn/Storybook/Sender zablokowane.",
       "permission": {
+        "bash": {
+          "git *": "deny",
+          "gh *": "deny",
+          "*": "allow"
+        },
         "cloudflare_*": "allow",
         "git_*": "deny",
         "playwright_*": "deny",

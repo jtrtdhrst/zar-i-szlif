@@ -184,12 +184,14 @@ ok(parseModelRef("garbage") === null, "parseModelRef rejects non-refs");
 ok(isProviderModelFailure(new Error("provider opencode model nope-model not found")), "provider/model failure detected");
 ok(isProviderModelFailure(Object.assign(new Error("too many requests"), { code: "HTTP_429" })), "rate limit detected as model failure");
 ok(!isProviderModelFailure(Object.assign(new Error("session not found"), { code: "CTB_SESSION_REQUIRED" })), "non-model errors are not fallback-eligible");
-// Fallback eligibility: upstream-masked transport failures qualify; gateway-local errors never do.
+// Fallback eligibility: upstream-masked transport failures qualify; bare "failed" or
+// gateway-local errors never do.
 ok(isFallbackEligibleError(new Error("500 UnknownError")), "masked 500 UnknownError is fallback-eligible");
 ok(isFallbackEligibleError(new Error("Unexpected server error")), "masked unexpected error is fallback-eligible");
-ok(isFallbackEligibleError(new Error("POST /session/x/message failed")), "transport failure text is fallback-eligible");
+ok(isFallbackEligibleError(new Error('POST /session/ses_x/message failed (500): {"name":"UnknownError"}')), "real masked upstream shape is fallback-eligible");
+ok(!isFallbackEligibleError(new Error("POST /session/x/message failed")), "bare 'failed' without masked markers is NOT fallback-eligible");
 for (const [code, message] of [["CTB_PROJECT_DENIED", "denied"], ["CTB_SESSION_REQUIRED", "missing"], ["CTB_POLICY_INVALID", "invalid"], ["CTB_SECRET_PATH_DENIED", "denied"], ["PAPERCLIP_AUTH_FAILED", "auth"], ["INSUFFICIENT_SCOPE", "scope"], ["UPSTREAM_ENGINE_EXITED", "exited"]]) {
-  ok(!isFallbackEligibleError(Object.assign(new Error(message), { code })), `${code} never triggers model fallback`);
+  ok(!isFallbackEligibleError(Object.assign(new Error(message + " (500)"), { code })), `${code} never triggers model fallback even with transport markers`);
 }
 ok(!isFallbackEligibleError(new Error("plain validation problem")), "unclassified non-failure text stays ineligible");
 // Agent governance mapping: server-side agent selection enforces the profile natively.

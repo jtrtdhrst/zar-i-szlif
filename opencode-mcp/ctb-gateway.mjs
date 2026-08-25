@@ -89,8 +89,20 @@ const COMPATIBILITY_ALIASES = Object.freeze({
 // exposed in the model-facing tool schema: one canonical definition per capability.
 function configuredPrincipalRoles() { try { return JSON.parse(process.env.OPENCODE_MCP_PRINCIPAL_ROLES || "{}"); } catch { return {}; } }
 const roleProfilesDoc = loadMcpRoleProfiles();
+// Role comes ONLY from the server-side mapping keyed by authenticated principal or OAuth
+// client id — never from anything the model/client supplies in tool arguments.
+function resolveConfiguredRoleForToken(token) {
+  const map = configuredPrincipalRoles();
+  for (const key of [token?.client_id, token?.sub]) {
+    if (!key) continue;
+    const hit = Object.entries(map).find(([candidate]) => candidate.toLowerCase() === String(key).toLowerCase());
+    if (hit) return hit[1];
+  }
+  return null;
+}
 function effectiveProfileFor(token, ctb, projectKey = null) {
-  return resolveEffectiveProfile({ principalId: token?.sub ?? null, taskClass: ctb?.taskClass || "", currentStage: ctb?.currentStage || "", projectKey: projectKey || ctb?.paperclipIssueId || null }, roleProfilesDoc, configuredPrincipalRoles());
+  const profile = resolveEffectiveProfile({ role: resolveConfiguredRoleForToken(token), principalId: token?.sub ?? null, taskClass: ctb?.taskClass || "", currentStage: ctb?.currentStage || "", projectKey: projectKey || ctb?.paperclipIssueId || null }, roleProfilesDoc, {});
+  return profile;
 }
 function requestedModelFrom(args) {
   const providerRequested = typeof args?.providerID === "string" && args.providerID ? args.providerID : null;
@@ -192,6 +204,12 @@ function recordModelIdentity(sessionId, identity) {
   try { writeJson(modelRecordsFile, modelRecords); } catch { /* telemetry best-effort */ }
 }
 function lookupModelRecord(sessionId) { return modelRecords.records[sessionId] || runs[sessionId]?.model || null; }
+// Telemetry contract holds even for primary+fallback double failure: the thrown error
+// always carries the full attempt trail so callers can persist what was tried.
+function attachAttemptTrail(error, attempts, fallbackUsed, fallbackReason) {
+  try { error.modelAttempts = attempts; error.fallbackUsed = fallbackUsed; error.fallbackReason = fallbackReason; } catch { /* frozen error */ }
+  return error;
+}
 async function callModelWithFallback(name, args, auditContext = {}) {
   const attempts = [{ providerID: args.providerID ?? null, modelID: args.modelID ?? null, role: "primary" }];
   let failure = null;
@@ -199,19 +217,25 @@ async function callModelWithFallback(name, args, auditContext = {}) {
   try {
     primary = await engine.call("tools/call", { name, arguments: args });
     if (primary?.isError !== true) return { result: primary, fallbackUsed: false, fallbackReason: null, attempts };
-    failure = upstreamErrorFromResult(primary);
+    failure = attachAttemptTrail(upstreamErrorFromResult(primary), attempts, false, null);
   } catch (error) {
-    failure = error;
+    failure = attachAttemptTrail(error, attempts, false, null);
   }
   if (!FALLBACK_MODEL || !isFallbackEligibleError(failure)) throw failure;
   attempts[0].outcome = String(failure.code || failure.message || "UPSTREAM_ERROR").slice(0, 200);
   audit({ ...auditContext, tool: name, requestedModel: { providerRequested: args.providerID ?? null, modelRequested: args.modelID ?? null }, fallbackModel: FALLBACK_MODEL, fallbackTrigger: attempts[0].outcome, result: "model_fallback_retry" });
   const retryArgs = { ...args, providerID: FALLBACK_MODEL.providerID, modelID: FALLBACK_MODEL.modelID };
   attempts.push({ providerID: FALLBACK_MODEL.providerID, modelID: FALLBACK_MODEL.modelID, role: "fallback" });
-  let result = await engine.call("tools/call", { name, arguments: retryArgs });
-  if (result?.isError === true) throw upstreamErrorFromResult(result);
-  attempts[attempts.length - 1].outcome = "success";
-  return { result, fallbackUsed: true, fallbackReason: `primary model failed (${attempts[0].outcome}); explicit retry on ${FALLBACK_MODEL.providerID}/${FALLBACK_MODEL.modelID}`, attempts };
+  const fallbackReason = `primary model failed (${attempts[0].outcome}); explicit retry on ${FALLBACK_MODEL.providerID}/${FALLBACK_MODEL.modelID}`;
+  try {
+    const result = await engine.call("tools/call", { name, arguments: retryArgs });
+    if (result?.isError === true) throw upstreamErrorFromResult(result);
+    attempts[attempts.length - 1].outcome = "success";
+    return { result, fallbackUsed: true, fallbackReason, attempts };
+  } catch (retryError) {
+    attempts[attempts.length - 1].outcome = String(retryError.code || retryError.message || "UPSTREAM_ERROR").slice(0, 200);
+    throw attachAttemptTrail(retryError, attempts, true, `${fallbackReason}; fallback also failed`);
+  }
 }
 function persistRuns() { writeJson(registryFile, { version: 2, runs }); }
 // Bootstrap entrypoints may start without an existing session: the gateway creates the
@@ -668,6 +692,9 @@ async function callTool(name, args, token) {
       audit({ ...telemetry, changeClass: "ctb", tool: requestedName, upstreamTool: name, requestedModel, modelIdentity, sessionId: modelSessionId, resolvedAgent, result: "success", durationMs: Date.now() - startedAt });
       return outcome.result;
     } catch (error) {
+      // Total-failure telemetry: persist what was attempted even when both models died.
+      const failedSessionId = findSessionReference(error?.message || "") || null;
+      recordModelIdentity(failedSessionId, summarizeModelIdentity(requestedModel, { messageId: null, providerActual: null, modelActual: null }, { fallbackUsed: typeof error.fallbackUsed === "boolean" ? error.fallbackUsed : false, fallbackReason: error.fallbackReason ?? String(error.code || error.message || "UPSTREAM_ERROR").slice(0, 200), attempts: error.modelAttempts }));
       audit({ ...telemetry, changeClass: "ctb", tool: requestedName, upstreamTool: name, requestedModel, resolvedAgent, result: "error", errorCode: error.code || "UPSTREAM_ERROR", durationMs: Date.now() - startedAt });
       throw error;
     }
@@ -696,6 +723,8 @@ async function callTool(name, args, token) {
   activeCtbExecutions.set(activeKey, { createdAt: new Date(startedAt).toISOString(), runId: sessionId });
   if (sessionId) recordRun(sessionId, ctb, forwarded.directory, token.sub, authorization.decision, new Date(startedAt).toISOString());
   audit({ ...telemetry, paperclipIssueId: ctb?.paperclipIssueId || null, runId: sessionId || null, changeClass: ctb?.changeClass || null, tool: requestedName, upstreamTool: name, requestedModel: requestedModelFrom(MODEL_ENTRYPOINTS.has(name) ? applyDefaultModel(forwarded) : forwarded), authorizationSource: authorization.decision.ctbPolicy.source, result: "started" });
+  let resolvedAgent = null;
+  let forwardedForModel = null;
   try {
     if (!sessionId) {
       // Bootstrap: gateway owns session creation, so run identity stays authoritative.
@@ -710,8 +739,8 @@ async function callTool(name, args, token) {
     // Issue identifier (e.g. KOMAA-126) is the canonical override key; the raw
     // paperclipIssueId argument is often a UUID that cannot match overrides.
     const executionProfile = effectiveProfileFor(token, ctb, authorization.issue?.identifier || null);
-    const resolvedAgent = selectCtbAgent("EXECUTE", executionProfile);
-    const forwardedForModel = MODEL_ENTRYPOINTS.has(name) ? applyDefaultModel({ ...forwarded, ...(MODEL_ENTRYPOINTS.has(name) ? { agent: resolvedAgent } : {}) }) : forwarded;
+    resolvedAgent = selectCtbAgent("EXECUTE", executionProfile);
+    forwardedForModel = MODEL_ENTRYPOINTS.has(name) ? applyDefaultModel({ ...forwarded, ...(MODEL_ENTRYPOINTS.has(name) ? { agent: resolvedAgent } : {}) }) : forwarded;
     const modelOutcome = MODEL_ENTRYPOINTS.has(name)
       ? await callModelWithFallback(name, forwardedForModel, { ...telemetry, requestedModel: requestedModelFrom(forwardedForModel) })
       : { result: await engine.call("tools/call", { name, arguments: forwarded }), fallbackUsed: false, fallbackReason: null, attempts: null };
@@ -735,7 +764,11 @@ async function callTool(name, args, token) {
     if (sessionId) {
       eventFor(sessionId, { kind: "error", tool: name, action: requestedName, durationMs: Date.now() - startedAt, status: "error", errorCode: error.code || "UPSTREAM_ERROR" });
       finishRun(sessionId, "failed");
-      audit({ ...(telemetry || {}), paperclipIssueId: ctb?.paperclipIssueId || null, runId: sessionId, changeClass: ctb?.changeClass || null, tool: requestedName, upstreamTool: name, result: "error", errorCode: error.code || "UPSTREAM_ERROR", durationMs: Date.now() - startedAt });
+      // Model attempt trail survives total failure (primary + fallback both dead).
+      if (MODEL_ENTRYPOINTS.has(name)) {
+        recordModelIdentity(sessionId, summarizeModelIdentity(requestedModelFrom(forwardedForModel || {}), { messageId: null, providerActual: null, modelActual: null }, { fallbackUsed: typeof error.fallbackUsed === "boolean" ? error.fallbackUsed : false, fallbackReason: error.fallbackReason ?? String(error.code || error.message || "UPSTREAM_ERROR").slice(0, 200), attempts: error.modelAttempts }));
+      }
+      audit({ ...(telemetry || { principalId: token?.sub ?? null }), paperclipIssueId: ctb?.paperclipIssueId || null, runId: sessionId, changeClass: ctb?.changeClass || null, tool: requestedName, upstreamTool: name, resolvedAgent: typeof resolvedAgent === "string" ? resolvedAgent : null, result: "error", errorCode: error.code || "UPSTREAM_ERROR", durationMs: Date.now() - startedAt });
     } else {
       audit({ ...(telemetry || { principalId: token?.sub ?? null }), paperclipIssueId: ctb?.paperclipIssueId || null, changeClass: ctb?.changeClass || null, tool: requestedName, upstreamTool: name, directory: forwarded?.directory ?? null, result: "error", errorCode: error.code || "UPSTREAM_ERROR" });
     }

@@ -1,7 +1,10 @@
 # -Force restarts the gateway even when its health fingerprint matches, e.g. after a
 # code change that keeps engine/policy identical. It never touches port 4096: the shared
 # OpenCode server used by opencode_local runs (e.g. K126) stays alive across restarts.
-param([switch]$Force)
+# -NativeAgents enables server-side ctb-* agent governance (requires that the OpenCode
+# backend on 4096 was restarted AFTER ctb-* agents were added to opencode.json; run
+# activate-native-agents.ps1 for the full audited activation sequence).
+param([switch]$Force, [switch]$NativeAgents)
 
 $ErrorActionPreference = "Stop"
 $root = Split-Path -Parent $PSScriptRoot
@@ -48,6 +51,7 @@ $env:MCP_ISSUER = "https://opencode.kompaszbiorek.pl"
 $env:OPENCODE_CTB_ALLOWED_ROOTS = "C:\Kompas Zbiórek;C:\Kompas Zbiórek\.paperclip-worktrees;C:\paperclip;C:\paperclip-worktrees"
 # Principal -> rola dla efektywnego profilu MCP (rola nigdy nie jest brana od klienta/modelu).
 $env:OPENCODE_MCP_PRINCIPAL_ROLES = '{"operator":"cto"}'
+if ($NativeAgents) { $env:OPENCODE_MCP_NATIVE_AGENTS = "on" }
 # Kontrakt modelu: domyślny Ox Alpha Free, jawny fallback Hy3 Free (fallbackUsed zawsze raportowany).
 $env:OPENCODE_MCP_DEFAULT_MODEL = "opencode/x-preview-f-free"
 $env:OPENCODE_MCP_FALLBACK_MODEL = "opencode/hy3-free"

@@ -22,16 +22,19 @@ export function isProviderModelFailure(error) {
 
 // Fallback eligibility at the model-invocation boundary. By this point every CTB/path/
 // scope/session/permission check has already passed, so gateway-local errors must NEVER
-// trigger a retry; upstream invocation failures qualify — including generic transport
-// errors that OpenCode masks as "500 UnknownError / Unexpected server error".
+// trigger a retry. Upstream masks provider/model failures as generic transport errors
+// ("500 UnknownError / Unexpected server error"), so those masked shapes qualify — but a
+// bare "failed" or ordinary tool error must NOT: the contract is provider/model failure,
+// not "any upstream hiccup".
 const NON_FALLBACK_CODE_PATTERN = /^(CTB_|PAPERCLIP_|INSUFFICIENT_SCOPE|UPSTREAM_ENGINE_|UNKNOWN_TOOL|MESSAGE_LOOKUP_FAILED|SKILL_)/i;
+const MASKED_TRANSPORT_FAILURE_PATTERN = /unknownerror|unexpected server error|internal server error|\(\s*500\s*\)|\b502 bad gateway\b|\b503 service unavailable\b|\b504 gateway timeout\b|econnrefused|etimedout|econnreset|fetch failed/i;
 export function isFallbackEligibleError(error) {
   const code = String(error?.code || "");
   if (NON_FALLBACK_CODE_PATTERN.test(code)) return false;
   let data = "";
   try { data = JSON.stringify(error?.data ?? {}).slice(0, 500); } catch { data = ""; }
   const text = `${code} ${error?.message || ""} ${data}`;
-  return PROVIDER_MODEL_FAILURE_PATTERN.test(text) || /unknown error|unexpected(ly)?|internal server error|\b500\b|bad gateway|\b502\b|\b503\b|failed/i.test(text);
+  return PROVIDER_MODEL_FAILURE_PATTERN.test(text) || MASKED_TRANSPORT_FAILURE_PATTERN.test(text);
 }
 
 // Splits "provider/model" (model id may itself contain slashes).
