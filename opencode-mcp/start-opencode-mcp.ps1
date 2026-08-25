@@ -1,5 +1,9 @@
-$ErrorActionPreference = "Stop"
+# -Force restarts the gateway even when its health fingerprint matches, e.g. after a
+# code change that keeps engine/policy identical. It never touches port 4096: the shared
+# OpenCode server used by opencode_local runs (e.g. K126) stays alive across restarts.
+param([switch]$Force)
 
+$ErrorActionPreference = "Stop"
 $root = Split-Path -Parent $PSScriptRoot
 $runtime = Join-Path $PSScriptRoot ".runtime"
 $credentials = Join-Path $runtime "credentials.txt"
@@ -59,13 +63,14 @@ for ($attempt = 0; $attempt -lt 20; $attempt += 1) {
 if (-not $openCodeReady) { throw "Serwer OpenCode na porcie 4096 nie odpowiada po 20 sekundach." }
 
 if (Get-NetTCPConnection -State Listen -LocalPort 4097 -ErrorAction SilentlyContinue) {
+  $restartGateway = $Force
   try {
     $gatewayHealth = Invoke-RestMethod -Uri "http://127.0.0.1:4097/health" -Method Get
-    if ($gatewayHealth.engine -ne "AlaeddineMessadi/opencode-mcp@1.11.0" -or $gatewayHealth.policy -ne "ctb") {
-      Get-NetTCPConnection -State Listen -LocalPort 4097 | Select-Object -ExpandProperty OwningProcess -Unique | ForEach-Object { Stop-Process -Id $_ -Force }
-      Start-Sleep -Seconds 1
-    }
+    if ($gatewayHealth.engine -ne "AlaeddineMessadi/opencode-mcp@1.11.0" -or $gatewayHealth.policy -ne "ctb") { $restartGateway = $true }
   } catch {
+    $restartGateway = $true
+  }
+  if ($restartGateway) {
     Get-NetTCPConnection -State Listen -LocalPort 4097 | Select-Object -ExpandProperty OwningProcess -Unique | ForEach-Object { Stop-Process -Id $_ -Force }
     Start-Sleep -Seconds 1
   }
