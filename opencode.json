@@ -110,18 +110,18 @@
     "paperclip": {
       "type": "remote",
       "url": "https://mcp.kompaszbiorek.pl/mcp",
-      "enabled": true
+      "enabled": false
     },
     "paperclip-local": {
       "type": "remote",
       "url": "http://127.0.0.1:3104/mcp",
-      "enabled": true,
+      "enabled": false,
       "oauth": false
     },
     "github": {
       "type": "remote",
       "url": "https://api.githubcopilot.com/mcp/",
-      "enabled": true,
+      "enabled": false,
       "oauth": false,
       "headers": {
         "Authorization": "Bearer {env:GITHUB_PERSONAL_ACCESS_TOKEN}"
@@ -130,13 +130,17 @@
     "cloudflare": {
       "type": "remote",
       "url": "https://mcp.cloudflare.com/mcp",
-      "enabled": true
+      "enabled": false
     },
     "shadcn": {
-      "type": "remote",
-      "url": "http://127.0.0.1:4173/mcp",
-      "enabled": true,
-      "oauth": false
+      "type": "local",
+      "command": [
+        "npx",
+        "-y",
+        "shadcn@latest",
+        "mcp"
+      ],
+      "enabled": false
     },
     "playwright": {
       "type": "local",
@@ -145,12 +149,12 @@
         "exec",
         "playwright-mcp"
       ],
-      "enabled": true
+      "enabled": false
     },
     "kompas-storybook": {
       "type": "remote",
       "url": "http://127.0.0.1:6006/mcp",
-      "enabled": true
+      "enabled": false
     },
     "npm-run-scripts": {
       "enabled": false

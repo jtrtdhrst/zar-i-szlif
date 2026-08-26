@@ -1,6 +1,7 @@
 import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
+import { capabilitiesForAgent } from "./ctb-capability.mjs";
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 
@@ -43,6 +44,9 @@ function grantList(value) { return Array.isArray(value) ? value.filter((entry) =
 // effective profile (downstream MCP grants are denied/allowed at the agent level, so the
 // gateway never has to mutate global config and parallel sessions cannot race it).
 // DIAGNOSE/PLAN always run on the read-only, MCP-less plan agent.
+// taskClass/currentStage passed here MUST be server-derived (Paperclip issue metadata or
+// execution policy). Client-supplied values are request hints only and must never reach
+// this function as trusted inputs.
 export function resolveCtbAgent(profile, mode = "EXECUTE") {
   if (mode !== "EXECUTE") return "ctb-plan";
   if (!profile?.known) return "ctb-executor";
@@ -52,6 +56,21 @@ export function resolveCtbAgent(profile, mode = "EXECUTE") {
   if (eager.has("shadcn") || eager.has("storybook")) return "ctb-designer";
   if (eager.has("git")) return "ctb-engineer";
   return "ctb-executor";
+}
+
+// Capability reconciliation: the invariant is that granted capabilities must equal
+// executable capabilities. A single coarse native agent cannot hard-enforce arbitrary
+// capability combinations (e.g. git+cloudflare), so the reconciled profile narrows the
+// executable set to what the selected agent enforces and reports the remainder as
+// unenforceable — the gateway then denies those capabilities at its own guard layer
+// instead of silently widening the agent's real permissions.
+export function reconcileProfileWithAgent(profile, mode = "EXECUTE") {
+  const agent = resolveCtbAgent(profile, mode);
+  const enforcedByAgent = capabilitiesForAgent(agent);
+  const eager = mode === "EXECUTE" && profile?.known ? [...(profile.eagerConnections || [])] : [];
+  const executableCapabilities = eager.filter((entry) => enforcedByAgent.includes(entry));
+  const unenforceableCapabilities = eager.filter((entry) => !enforcedByAgent.includes(entry));
+  return { agent, executableCapabilities, unenforceableCapabilities };
 }
 
 // Issue-scoped overrides may key by Paperclip UUID or human identifier; match both.

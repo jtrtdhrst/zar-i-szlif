@@ -139,6 +139,28 @@ export function matchesIdempotencyRun(run, companyId, issueId, key) {
   return run && (run.companyId === companyId || run.companyId == null || run.companyId === "") && run.paperclipIssueId === issueId && run.idempotencyKey === key;
 }
 
+// Deterministic idempotency selection across retries: one idempotency key identifies one
+// logical execution whose attempts may span multiple run rows. Preference order:
+// running (replay) > completed (terminal success ALWAYS wins over earlier failures) >
+// other terminal states, latest first. Guarantees "failed #1 -> retry #2 success ->
+// request #3" returns the successful attempt instead of a stale CTB_RETRY_REQUIRED.
+const TERMINAL_SUCCESS_STATUS = new Set(["completed"]);
+export function selectIdempotentRun(candidates) {
+  const list = Array.isArray(candidates) ? candidates.filter(Boolean) : [];
+  if (!list.length) return null;
+  const statusRank = (run) => (run.status === "running" ? 0 : TERMINAL_SUCCESS_STATUS.has(run.status) ? 1 : 2);
+  const recency = (run) => Date.parse(run.finishedAt || "") || Date.parse(run.createdAt || "") || 0;
+  return [...list].sort((left, right) => statusRank(left) - statusRank(right) || recency(right) - recency(left))[0];
+}
+
+// Session ownership decision (pure): knowing a sessionId grants nothing. New runs carry
+// an ownerKey ("sub|client_id"); legacy rows fall back to exact actor-sub equality.
+export function sessionOwnershipError(run, ownerKey, actorSub) {
+  if (!run) return null;
+  const owned = run.ownerKey ? run.ownerKey === ownerKey : String(run.actor || "") === String(actorSub ?? "");
+  return owned ? null : "CTB_SESSION_OWNERSHIP_DENIED";
+}
+
 function samePath(left, right) { return path.resolve(String(left)).toLowerCase() === path.resolve(String(right)).toLowerCase(); }
 function isInsidePath(candidate, root) { const relative = path.relative(path.resolve(String(root)).toLowerCase(), path.resolve(String(candidate)).toLowerCase()); return relative === "" || (!relative.startsWith("..") && !path.isAbsolute(relative)); }
 // Resolves the deepest existing ancestor through junctions/symlinks (realpath). Returns
@@ -147,7 +169,10 @@ function realPathOf(candidate) { let current = path.resolve(String(candidate)); 
 // Lexical containment plus junction/reparse-point containment: the candidate passes only
 // when its realpath target also stays inside the scope root (or the root's own realpath,
 // so a legitimately reparsed workspace root does not break authorization).
-function isInsideScope(candidate, root) { if (!isInsidePath(candidate, root)) return false; const real = realPathOf(candidate); const rootReal = realPathOf(root); if (real === null || rootReal === null) return true; return isInsidePath(real, root) || isInsidePath(real, rootReal); }
+// Fail-closed contract: the boundary must be PROVABLE. A nonexistent or inaccessible
+// root denies outright; a candidate whose realpath cannot be determined denies as well.
+// Nonexistent descendants remain allowed via the deepest-existing-ancestor resolution.
+function isInsideScope(candidate, root) { if (!isInsidePath(candidate, root)) return false; const rootReal = fs.existsSync(root) ? (() => { try { return fs.realpathSync.native(root); } catch { return null; } })() : null; if (rootReal === null) return false; const real = realPathOf(candidate); if (real === null) return false; return isInsidePath(real, root) || isInsidePath(real, rootReal); }
 // Canonical (realpath-resolved) form of a path for diagnostics; never throws — returns
 // the lexical resolution when the filesystem cannot be consulted.
 export function canonicalPath(candidate) {

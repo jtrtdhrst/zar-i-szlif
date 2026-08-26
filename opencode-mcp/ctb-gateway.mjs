@@ -4,11 +4,12 @@ import http from "node:http";
 import path from "node:path";
 import { spawn } from "node:child_process";
 import { fileURLToPath } from "node:url";
-import { CTB_POLICY_REVISION, MODEL_ENTRYPOINTS, TOOL_CLASSES, classifyIntake, classifyTool, ctbContextError, canonicalPath, evaluateIssueCtbPolicyDetailed, isFallbackEligibleError, matchesIdempotencyRun, parseModelRef, requiredScope, validateToolPathArguments } from "./ctb-policy.mjs";
+import { CTB_POLICY_REVISION, MODEL_ENTRYPOINTS, TOOL_CLASSES, classifyIntake, classifyTool, ctbContextError, canonicalPath, evaluateIssueCtbPolicyDetailed, isFallbackEligibleError, matchesIdempotencyRun, parseModelRef, requiredScope, selectIdempotentRun, sessionOwnershipError, validateToolPathArguments } from "./ctb-policy.mjs";
 import { aggregateRunAnalytics, buildRunAnalytics, compareRunMetrics, supportedObservability } from "./run-analytics.mjs";
-import { loadMcpRoleProfiles, resolveEffectiveProfile, resolveCtbAgent } from "./mcp-role-profiles.mjs";
+import { loadMcpRoleProfiles, resolveEffectiveProfile, resolveCtbAgent, reconcileProfileWithAgent } from "./mcp-role-profiles.mjs";
+import { assertShellCommandAllowed, capabilitiesForAgent } from "./ctb-capability.mjs";
 
-const GATEWAY_REVISION = "ctb-policy-4";
+const GATEWAY_REVISION = "ctb-policy-5";
 const here = path.dirname(fileURLToPath(import.meta.url));
 const workspaceRoot = path.resolve(here, "..");
 const runtimeDir = process.env.OPENCODE_MCP_RUNTIME_DIR || path.join(here, ".runtime");
@@ -75,6 +76,7 @@ persistRuns();
 const pendingEvents = new Map();
 const activeCtbExecutions = new Map();
 const executionLocks = new Map();
+const startupProcessLostRuns = reconcileInterruptedRunsAtStartup();
 const COMPATIBILITY_ALIASES = Object.freeze({
   opencode_list_runs: "opencode_sessions_overview",
   opencode_get_run: "opencode_session_get",
@@ -100,9 +102,21 @@ function resolveConfiguredRoleForToken(token) {
   }
   return null;
 }
-function effectiveProfileFor(token, ctb, projectKey = null) {
-  const profile = resolveEffectiveProfile({ role: resolveConfiguredRoleForToken(token), principalId: token?.sub ?? null, taskClass: ctb?.taskClass || "", currentStage: ctb?.currentStage || "", projectKey: projectKey || ctb?.paperclipIssueId || null }, roleProfilesDoc, {});
-  return profile;
+function effectiveProfileFor(token, trusted = {}, projectKey = null) {
+  // SERVER-AUTHORITATIVE contract: taskClass/currentStage reaching this function are
+  // ALWAYS server-derived (validated Paperclip issue execution policy/metadata).
+  // Values supplied by the client/model never extend permissions; they survive only as
+  // labeled request hints in telemetry.
+  return resolveEffectiveProfile({ role: resolveConfiguredRoleForToken(token), principalId: token?.sub ?? null, taskClass: trusted.taskClass || "", currentStage: trusted.currentStage || "", projectKey: projectKey || null }, roleProfilesDoc, {});
+}
+// Trusted taskClass/currentStage derivation from the issue the gateway itself fetched
+// from Paperclip. Absent authoritative data -> empty strings -> safe baseline role.
+function trustedContextFromIssue(issue) {
+  const source = issue?.executionPolicy?.ctb && typeof issue.executionPolicy.ctb === "object" ? issue.executionPolicy.ctb : (issue?.metadata?.ctb && typeof issue.metadata.ctb === "object" ? issue.metadata.ctb : {});
+  return {
+    taskClass: typeof source.taskClass === "string" ? source.taskClass : "",
+    currentStage: typeof source.currentStage === "string" ? source.currentStage : "",
+  };
 }
 function requestedModelFrom(args) {
   const providerRequested = typeof args?.providerID === "string" && args.providerID ? args.providerID : null;
@@ -146,8 +160,8 @@ function summarizeModelIdentity(requested, actual, explicit = {}) {
   }
   return summary;
 }
-function telemetryBase(token, { name, ctb = null, directory = null, mode = null }) {
-  const profile = effectiveProfileFor(token, ctb);
+function telemetryBase(token, { name, ctb = null, directory = null, mode = null, trustedContext = null }) {
+  const profile = effectiveProfileFor(token, trustedContext || {});
   return {
     gatewayRevision: GATEWAY_REVISION,
     ctbPolicyRevision: CTB_POLICY_REVISION,
@@ -155,8 +169,20 @@ function telemetryBase(token, { name, ctb = null, directory = null, mode = null 
     principalId: token?.sub ?? null,
     resolvedRole: profile.resolvedRole,
     effectiveProfileKnown: profile.known,
-    taskClass: ctb?.taskClass || null,
-    currentStage: ctb?.currentStage || null,
+    // Server-authoritative context (null when Paperclip provides none -> baseline role).
+    taskClass: trustedContext?.taskClass || null,
+    currentStage: trustedContext?.currentStage || null,
+    taskClassSource: trustedContext?.taskClass ? "server" : "none",
+    currentStageSource: trustedContext?.currentStage ? "server" : "none",
+    // Request hints NEVER influence permissions; recorded for diagnostics only.
+    requestedTaskClass: ctb?.taskClass || null,
+    requestedCurrentStage: ctb?.currentStage || null,
+    resolutionInputs: {
+      role: { value: profile.resolvedRole, source: "server" },
+      taskClass: { value: trustedContext?.taskClass || null, source: trustedContext?.taskClass ? "server" : "ignored_untrusted" },
+      currentStage: { value: trustedContext?.currentStage || null, source: trustedContext?.currentStage ? "server" : "ignored_untrusted" },
+      projectKey: { source: "server_issue_identifier" },
+    },
     effectiveProfileSource: profile.source,
     eagerConnections: profile.eagerConnections,
     deferredConnections: profile.deferredConnections,
@@ -183,14 +209,46 @@ function upstreamErrorFromResult(result) {
   const text = Array.isArray(result?.content) ? result.content.filter((part) => part?.type === "text").map((part) => part.text).join(" ") : "";
   return Object.assign(new Error(String(text || "UPSTREAM_TOOL_ERROR").slice(0, 500)), { code: "UPSTREAM_TOOL_ERROR" });
 }
-// Native agent governance: ctb-* agents hard-enforce role profiles at the OpenCode level,
-// but a running backend only learns new agents on restart. Until OPENCODE_MCP_NATIVE_AGENTS=on
-// is set (after one deliberate backend restart), selection falls back to built-in
-// plan/build agents so executions never depend on unregistered agents.
-const NATIVE_AGENTS_ENABLED = String(process.env.OPENCODE_MCP_NATIVE_AGENTS || "").toLowerCase() === "on";
+// Native agent governance: ctb-* agents hard-enforce role profiles at the OpenCode level.
+// Activation is PERSISTENT: the mode lives in .runtime/native-agents.mode (written by
+// start-opencode-mcp.ps1 -NativeAgents / activate-native-agents.ps1), so an ordinary
+// gateway restart cannot silently fall back to build/plan. When native mode is required
+// but the backend does not confirm the ctb-* agents, execution FAILS CLOSED with
+// CTB_NATIVE_AGENTS_UNAVAILABLE instead of downgrading to built-in agents.
+const REQUIRED_NATIVE_AGENTS = ["ctb-plan", "ctb-executor", "ctb-engineer", "ctb-designer", "ctb-ui-qa", "ctb-cto-infra"];
+const nativeAgentsModeFile = path.join(runtimeDir, "native-agents.mode");
+function readNativeAgentsMode() {
+  if (String(process.env.OPENCODE_MCP_NATIVE_AGENTS || "").toLowerCase() === "on") return true;
+  try { return fs.readFileSync(nativeAgentsModeFile, "utf8").trim().toLowerCase() === "on"; } catch { return false; }
+}
+const NATIVE_AGENTS_ENABLED = readNativeAgentsMode();
+const nativeAgentState = { verified: false, foundAgents: [], checkedAt: 0, missingAgents: [...REQUIRED_NATIVE_AGENTS] };
+async function verifyNativeAgents({ force = false } = {}) {
+  if (!force && nativeAgentState.checkedAt && Date.now() - nativeAgentState.checkedAt < 60 * 1000) return nativeAgentState;
+  const state = { verified: false, foundAgents: [], checkedAt: Date.now(), missingAgents: [...REQUIRED_NATIVE_AGENTS] };
+  if (!NATIVE_AGENTS_ENABLED) { Object.assign(nativeAgentState, state); return nativeAgentState; }
+  try {
+    const response = await fetch(`${serverUrl}/agent`, { headers: openCodeHeaders, signal: AbortSignal.timeout(5000) });
+    if (!response.ok) throw new Error(`agent probe ${response.status}`);
+    const agents = await response.json();
+    const names = (Array.isArray(agents) ? agents : []).map((agent) => String(agent?.name || agent?.id || ""));
+    state.foundAgents = names.filter((name) => name.startsWith("ctb-"));
+    state.missingAgents = REQUIRED_NATIVE_AGENTS.filter((required) => !names.includes(required));
+    state.verified = state.missingAgents.length === 0;
+  } catch { /* backend unreachable: stay unverified -> fail closed below */ }
+  Object.assign(nativeAgentState, state);
+  audit({ result: "native_agents_verification", verified: state.verified, foundAgents: state.foundAgents, missingAgents: state.missingAgents });
+  return nativeAgentState;
+}
 function selectCtbAgent(mode, profile) {
   const native = resolveCtbAgent(profile, mode);
-  return NATIVE_AGENTS_ENABLED ? native : (mode === "EXECUTE" ? "build" : "plan");
+  // No silent downgrade while native governance is active (persisted mode): a missing
+  // agent is a hard failure so policy and real permissions can never diverge.
+  if (!NATIVE_AGENTS_ENABLED) return mode === "EXECUTE" ? "build" : "plan";
+  if (!nativeAgentState.verified || nativeAgentState.missingAgents.includes(native)) {
+    throw Object.assign(new Error("CTB_NATIVE_AGENTS_UNAVAILABLE"), { code: "CTB_NATIVE_AGENTS_UNAVAILABLE", requiredAgent: native, missingAgents: [...nativeAgentState.missingAgents] });
+  }
+  return native;
 }
 // Durable per-session model invocation records (DIAGNOSE/PLAN included). Backs the
 // opencode_message_model_info contract fields even when no CTB run exists.
@@ -425,7 +483,7 @@ function exposeTool(tool) {
       description: modelEntrypoint
         ? "CTB envelope. mode DIAGNOSE or PLAN runs real read-only inference via the plan agent (no Paperclip, no registry writes). mode EXECUTE requires the full execution envelope: paperclipIssueId, changeIntent, scope, acceptanceCriteria and idempotencyKey."
         : "Required CTB execution envelope: mode EXECUTE, changeClass ctb, paperclipIssueId, changeIntent, scope, acceptanceCriteria and idempotencyKey.",
-      properties: { mode: modelEntrypoint ? { enum: ["DIAGNOSE", "PLAN", "EXECUTE"] } : { const: "EXECUTE" }, changeClass: { const: "ctb" }, paperclipIssueId: { type: "string" }, changeIntent: { type: "string" }, scope: { type: "string" }, acceptanceCriteria: { type: "string" }, idempotencyKey: { type: "string" }, taskClass: { type: "string", description: "Optional task class used to resolve the effective MCP role profile." }, currentStage: { type: "string", description: "Optional current stage (e.g. architecture, infra, code_review) used to resolve the effective MCP role profile." }, executionContext: { type: "object", description: "Optional. Correlate the run with an existing OpenCode session. Omit for opencode_run/opencode_ask — the gateway bootstraps a new session.", properties: { sessionId: { type: "string" } }, additionalProperties: false } },
+      properties: { mode: modelEntrypoint ? { enum: ["DIAGNOSE", "PLAN", "EXECUTE"] } : { const: "EXECUTE" }, changeClass: { const: "ctb" }, paperclipIssueId: { type: "string" }, changeIntent: { type: "string" }, scope: { type: "string" }, acceptanceCriteria: { type: "string" }, idempotencyKey: { type: "string" }, taskClass: { type: "string", description: "Request hint ONLY (telemetry). The authoritative task class is derived server-side from the validated Paperclip issue and cannot be extended by the client." }, currentStage: { type: "string", description: "Request hint ONLY (telemetry). The authoritative stage is derived server-side from the validated Paperclip issue." }, executionContext: { type: "object", description: "Optional. Correlate the run with an existing OpenCode session. Omit for opencode_run/opencode_ask — the gateway bootstraps a new session.", properties: { sessionId: { type: "string" } }, additionalProperties: false } },
       required: modelEntrypoint ? ["mode", "changeClass"] : ["mode", "changeClass", "paperclipIssueId", "changeIntent", "scope", "acceptanceCriteria", "idempotencyKey"],
     };
   }
@@ -461,12 +519,50 @@ async function validatePaperclipIssue(ctb, directory) {
 }
 
 function idempotencyId(companyId, issueId, key) { return `${companyId}:${issueId}:${key}`; }
-function findIdempotentRun(companyId, issueId, key) { return Object.values(runs).find((run) => matchesIdempotencyRun(run, companyId, issueId, key)); }
-function recordRun(sessionId, ctb, directory, actor, policyDecision, createdAt = new Date().toISOString()) {
+// Deterministic idempotency lookup across retries: one idempotency key = one logical
+// execution whose attempts may span multiple run rows (one session per attempt).
+// Preference order: running (replay) > completed (terminal success always wins over any
+// earlier failed attempt) > failed/process_lost/interrupted (latest first). This makes
+// "failed #1 -> retry #2 success -> request #3" return the successful #2 instead of
+// surfacing a stale CTB_RETRY_REQUIRED.
+function findIdempotentRun(companyId, issueId, key) {
+  return selectIdempotentRun(Object.values(runs).filter((run) => matchesIdempotencyRun(run, companyId, issueId, key)));
+}
+// Crash/restart reconciliation: executionLocks are RAM-only while the registry is
+// persistent, so any persisted `running` row observed at process start belongs to a
+// process that no longer exists. Mark it process_lost (retryable via the normal
+// retry contract) instead of pretending RUNNING forever.
+function reconcileInterruptedRunsAtStartup() {
+  const recovered = [];
+  for (const run of Object.values(runs)) {
+    if (!run || run.status !== "running") continue;
+    if (activeCtbExecutions.has(run.runId)) continue; // defensive: never touch live executions
+    finishRun(run.runId, "process_lost");
+    runs[run.runId].errorCode = "CTB_PROCESS_LOST";
+    recovered.push(run.runId);
+  }
+  if (recovered.length) { persistRuns(); audit({ result: "crash_recovery", processLostRuns: recovered }); }
+  return recovered;
+}
+function recordRun(sessionId, ctb, directory, actor, policyDecision, createdAt = new Date().toISOString(), ownerKey = null) {
   if (!sessionId || !ctb) return;
-  if (!runs[sessionId]) runs[sessionId] = { runId: sessionId, companyId: policyDecision.companyId, paperclipIssueId: ctb.paperclipIssueId, changeClass: ctb.changeClass, mode: ctb.mode, changeIntent: ctb.changeIntent, acceptanceCriteria: ctb.acceptanceCriteria, idempotencyKey: ctb.idempotencyKey, directory, actor, policyDecision, status: "running", createdAt, finishedAt: null, events: [], retries: 0 };
+  if (!runs[sessionId]) runs[sessionId] = { runId: sessionId, companyId: policyDecision.companyId, paperclipIssueId: ctb.paperclipIssueId, changeClass: ctb.changeClass, mode: ctb.mode, changeIntent: ctb.changeIntent, acceptanceCriteria: ctb.acceptanceCriteria, idempotencyKey: ctb.idempotencyKey, directory, actor, ownerKey: ownerKey || String(actor || "*"), policyDecision, status: "running", createdAt, finishedAt: null, events: [], retries: 0 };
   const pending = pendingEvents.get(sessionId) || []; pendingEvents.delete(sessionId); for (const event of pending) eventFor(sessionId, event);
   persistRuns();
+}
+// Session ownership: knowing a sessionId grants NOTHING. Every mutating session
+// operation (SESSION_CONTROL class and session-mutating writes) must correlate to a run
+// owned by the authenticated principal+client pair; registry identity is authoritative
+// and sessionId references found in output text never establish ownership.
+function ownerKeyFor(token) { return `${String(token?.sub ?? "*")}|${String(token?.client_id ?? "*")}`; }
+function assertSessionOwnership(sessionId, token) {
+  if (!sessionId) return;
+  const run = runs[sessionId];
+  const errorCode = sessionOwnershipError(run, ownerKeyFor(token), token?.sub);
+  if (errorCode) {
+    audit({ result: "session_ownership_denied", sessionId, expectedOwner: run.ownerKey || run.actor || null, principalId: token?.sub ?? null, clientId: token?.client_id ?? null, errorCode });
+    throw Object.assign(new Error(errorCode), { code: errorCode, sessionId });
+  }
 }
 function eventFor(sessionId, event) { if (!sessionId || !runs[sessionId]) return; const run = runs[sessionId]; if (run.status !== "running") return; run.events.push({ runId: sessionId, paperclipIssueId: run.paperclipIssueId, sequence: run.events.length + 1, timestamp: event.timestamp || new Date().toISOString(), errorCode: null, retry: 0, ...sanitize(event) }); run.events.sort((left, right) => String(left.timestamp).localeCompare(String(right.timestamp))); run.events.forEach((item, index) => { item.sequence = index + 1; }); persistRuns(); }
 function appendTelemetryEvent(sessionId, event) { if (!sessionId || !runs[sessionId] || !activeCtbExecutions.has(sessionId)) return; eventFor(sessionId, event); }
@@ -541,7 +637,7 @@ const PUBLIC_TOOLSET = new Set([
   // SESSION_CONTROL (narrowed)
   "opencode_session_abort",
 ]);
-const CUSTOM_PUBLIC_TOOLS = ["opencode_list_skills", "opencode_get_skill", "opencode_message_model_info", "opencode_mcp_effective_profile", "opencode_run_inspect", "paperclipCompareRunMetrics", "paperclipAggregateRunMetrics"];
+const CUSTOM_PUBLIC_TOOLS = ["opencode_list_skills", "opencode_get_skill", "opencode_message_model_info", "opencode_mcp_effective_profile", "opencode_security_status", "opencode_run_inspect", "paperclipCompareRunMetrics", "paperclipAggregateRunMetrics"];
 function eagerSurfaceEnabled() { return String(process.env.OPENCODE_MCP_SURFACE || "").toLowerCase() === "full"; }
 async function callTool(name, args, token) {
   const requestedName = name;
@@ -571,7 +667,7 @@ async function callTool(name, args, token) {
     // Read-through with profile awareness: annotate the status with per-server
     // effectiveness for the caller's resolved role profile.
     const result = await engine.call("tools/call", { name, arguments: args });
-    const profile = effectiveProfileFor(token, null);
+    const profile = effectiveProfileFor(token);
     const eager = new Set(profile.eagerConnections || []);
     const isEffective = (entryName) => ["paperclip", "paperclip-local"].some((core) => entryName.includes(core)) || [...eager].some((entry) => entryName.includes(entry));
     try {
@@ -601,6 +697,36 @@ async function callTool(name, args, token) {
     try { analytics = await runAnalytics(run); } catch { analytics = null; }
     const enriched = analytics ? { modelTurnCount: analytics.metrics.modelTurnCount, invocationKind: analytics.invocationKind, totalInputTokens: analytics.overhead.totalInputTokens.value, totalOutputTokens: analytics.overhead.totalOutputTokens.value, avgContextUtilizationPct: analytics.metrics.avgContextUtilizationPct.value, timeToFirstUsefulActionMs: analytics.timings.timeToFirstUsefulActionMs.value } : {};
     return toolResult(name === "opencode_ctb_get_events" ? { runId: args.runId, events } : name === "opencode_ctb_get_metrics" ? { runId: args.runId, metrics: { ...metrics, ...enriched } } : { ...run, metrics: { ...metrics, ...enriched } }, "Telemetry CTB.");
+  }
+  if (name === "opencode_security_status") {
+    // Read-only self-audit: machine-checkable security invariants, no secrets.
+    if (!hasScope(token, "opencode:read")) throw Object.assign(new Error("INSUFFICIENT_SCOPE"), { code: "INSUFFICIENT_SCOPE", requiredScope: "opencode:read" });
+    const persistedRuns = Object.values(runs);
+    return toolResult({
+      revisions: { gateway: GATEWAY_REVISION, ctbPolicy: CTB_POLICY_REVISION, mcpRoleProfiles: roleProfilesDoc.revision },
+      models: { default: `${DEFAULT_MODEL.providerID}/${DEFAULT_MODEL.modelID}`, fallback: FALLBACK_MODEL ? `${FALLBACK_MODEL.providerID}/${FALLBACK_MODEL.modelID}` : null, fallbackRetryLimit: 1 },
+      nativeAgents: {
+        required: REQUIRED_NATIVE_AGENTS,
+        enabled: NATIVE_AGENTS_ENABLED,
+        verified: nativeAgentState.verified,
+        foundAgents: nativeAgentState.foundAgents,
+        missingAgents: nativeAgentState.missingAgents,
+        enforcementMode: NATIVE_AGENTS_ENABLED ? (nativeAgentState.verified ? "native_enforced" : "fail_closed_unverified") : "builtin_plan_build",
+        silentDowngradePossible: false,
+      },
+      capabilityPolicy: {
+        shellGuard: "enabled",
+        guardedBinaries: ["git", "gh", "wrangler", "playwright", "shadcn", "storybook"],
+        launcherUnwrapping: ["cmd", "powershell", "pwsh", "npx", "pnpm", "npm", "yarn"],
+        invariant: "effective granted capabilities == executable capabilities",
+      },
+      sessionOwnership: { enforced: true, ownerKeyContract: "sub|client_id", legacyRowsFallback: "actor sub equality", errorCode: "CTB_SESSION_OWNERSHIP_DENIED" },
+      idempotency: { contract: "one key = one logical execution; success wins over earlier failed attempts", lookupPreference: ["running", "completed", "failed"] },
+      crashRecovery: { startupReconciledProcessLostRuns: Array.isArray(startupProcessLostRuns) ? startupProcessLostRuns.length : 0, status: "process_lost retryable via retry contract" },
+      oauth: { dcrSilentGrantBlocked: true, firstUseApprovalRequiredForNewClients: true, pkce: "S256 required", refreshRotationGraceMs: refreshGraceMs },
+      registry: { runsTotal: persistedRuns.length, schemaVersion: savedRegistry?.version || 1 },
+      publicToolCount: eagerSurfaceEnabled() ? null : PUBLIC_TOOLSET.size + CUSTOM_PUBLIC_TOOLS.length,
+    }, "Self-audit bezpieczeństwa CTB.");
   }
   const RUN_ANALYTICS_TOOLS = new Set(["paperclipGetRunMetrics", "paperclipGetRunEvents", "paperclipGetRunTokenUsage", "paperclipGetRunSteps", "paperclipGetRunContextBreakdown", "paperclipGetRunModelTurns"]);
   if (name === "opencode_run_inspect") {
@@ -660,9 +786,26 @@ async function callTool(name, args, token) {
   }
   if (name === "opencode_mcp_effective_profile") {
     // Read-only resolution of the effective MCP profile for the authenticated principal.
+    // SINGLE RESOLUTION PATH: identical to real EXECUTE — server-authoritative inputs
+    // only. Request-supplied taskClass/currentStage/projectKey are hints and can never
+    // widen the profile; they are echoed back labeled ignored_untrusted for diagnostics.
     if (!hasScope(token, "opencode:read")) throw Object.assign(new Error("INSUFFICIENT_SCOPE"), { code: "INSUFFICIENT_SCOPE", requiredScope: "opencode:read" });
-    const profile = resolveEffectiveProfile({ principalId: token?.sub ?? null, taskClass: args.taskClass || "", currentStage: args.currentStage || "", projectKey: args.projectKey || null }, roleProfilesDoc, configuredPrincipalRoles());
-    return toolResult({ ...profile, revision: roleProfilesDoc.revision }, "Efektywny profil MCP dla uwierzytelnionego principala.");
+    const profile = effectiveProfileFor(token);
+    return toolResult({
+      ...profile,
+      revision: roleProfilesDoc.revision,
+      requestedTaskClass: args.taskClass || null,
+      requestedTaskClassSource: "ignored_untrusted",
+      requestedCurrentStage: args.currentStage || null,
+      requestedCurrentStageSource: "ignored_untrusted",
+      requestedProjectKey: args.projectKey || null,
+      resolutionInputs: {
+        role: { value: profile.resolvedRole, source: "server" },
+        taskClass: { value: null, source: "ignored_untrusted", note: "authoritative value arrives only from the validated Paperclip issue during EXECUTE" },
+        currentStage: { value: null, source: "ignored_untrusted", note: "authoritative value arrives only from the validated Paperclip issue during EXECUTE" },
+        projectKey: { source: "ignored_untrusted", note: "EXECUTE uses the server-verified issue.identifier only" },
+      },
+    }, "Efektywny profil MCP dla uwierzytelnionego principala.");
   }
   const upstreamTools = await engine.call("tools/list", {});
   const upstream = upstreamTools.tools.find((tool) => tool.name === name);
@@ -679,7 +822,7 @@ async function callTool(name, args, token) {
     const validatedModelArgs = validateToolPathArguments(Object.fromEntries(Object.entries(args || {}).filter(([key]) => key !== "ctb")), allowedRoots, workspaceRoot);
     const forwardedModelArgs = applyDefaultModel(validatedModelArgs);
     const requestedModel = requestedModelFrom(forwardedModelArgs);
-    const profile = effectiveProfileFor(token, args.ctb);
+    const profile = effectiveProfileFor(token);
     const resolvedAgent = selectCtbAgent(intake.mode === "EXECUTE" ? "EXECUTE" : "PLAN", profile);
     const telemetry = telemetryBase(token, { name, ctb: args.ctb, directory: forwardedModelArgs.directory, mode: intake.mode });
     const startedAt = Date.now();
@@ -703,6 +846,9 @@ async function callTool(name, args, token) {
   if (contextError) throw Object.assign(new Error(contextError.code), contextError);
   const ctb = args.ctb;
   const forwarded = validateToolPathArguments(Object.fromEntries(Object.entries(args || {}).filter(([key]) => key !== "ctb")), allowedRoots, workspaceRoot);
+  // Cross-run session isolation: mutating operations (SESSION_CONTROL and every
+  // EXECUTE-class call referencing a correlated session) require ownership.
+  if (toolClass !== TOOL_CLASSES.READ) assertSessionOwnership(ctb?.executionContext?.sessionId || forwarded.sessionId || forwarded.id || null, token);
   // Reads and plans are intentionally side-effect free in the CTB registry.
   if (toolClass === TOOL_CLASSES.READ || toolClass === TOOL_CLASSES.SESSION_CONTROL) return engine.call("tools/call", { name, arguments: forwarded });
   const explicitSessionId = ctb.executionContext?.sessionId || forwarded.sessionId || forwarded.id || null;
@@ -716,12 +862,12 @@ async function callTool(name, args, token) {
   if (executionLocks.has(key)) return toolResult({ runId: executionLocks.get(key), status: "RUNNING", replayed: true }, "IstniejÄ…ce wykonanie CTB jest aktywne.");
   if (explicitSessionId && runs[explicitSessionId] && runs[explicitSessionId].idempotencyKey !== ctb.idempotencyKey) throw Object.assign(new Error("CTB_SESSION_ALREADY_CORRELATED"), { code: "CTB_SESSION_ALREADY_CORRELATED" });
   const startedAt = Date.now();
-  const telemetry = telemetryBase(token, { name, ctb, directory: forwarded.directory, mode: ctb?.mode });
+  const telemetry = telemetryBase(token, { name, ctb, directory: forwarded.directory, mode: ctb?.mode, trustedContext: trustedContextFromIssue(authorization.issue) });
   let sessionId = explicitSessionId;
   const activeKey = sessionId || `bootstrap:${key}`;
   executionLocks.set(key, activeKey);
   activeCtbExecutions.set(activeKey, { createdAt: new Date(startedAt).toISOString(), runId: sessionId });
-  if (sessionId) recordRun(sessionId, ctb, forwarded.directory, token.sub, authorization.decision, new Date(startedAt).toISOString());
+  if (sessionId) recordRun(sessionId, ctb, forwarded.directory, token.sub, authorization.decision, new Date(startedAt).toISOString(), ownerKeyFor(token));
   audit({ ...telemetry, paperclipIssueId: ctb?.paperclipIssueId || null, runId: sessionId || null, changeClass: ctb?.changeClass || null, tool: requestedName, upstreamTool: name, requestedModel: requestedModelFrom(MODEL_ENTRYPOINTS.has(name) ? applyDefaultModel(forwarded) : forwarded), authorizationSource: authorization.decision.ctbPolicy.source, result: "started" });
   let resolvedAgent = null;
   let forwardedForModel = null;
@@ -734,12 +880,26 @@ async function callTool(name, args, token) {
       // opencode_ask has no sessionId parameter; replying into the gateway-created session is equivalent.
       if (name === "opencode_ask") name = "opencode_reply";
       activeCtbExecutions.set(sessionId, { createdAt: new Date(startedAt).toISOString(), runId: sessionId });
-      recordRun(sessionId, ctb, forwarded.directory, token.sub, authorization.decision, new Date(startedAt).toISOString());
+      recordRun(sessionId, ctb, forwarded.directory, token.sub, authorization.decision, new Date(startedAt).toISOString(), ownerKeyFor(token));
     }
     // Issue identifier (e.g. KOMAA-126) is the canonical override key; the raw
     // paperclipIssueId argument is often a UUID that cannot match overrides.
-    const executionProfile = effectiveProfileFor(token, ctb, authorization.issue?.identifier || null);
+    // Server-authoritative context: taskClass/currentStage from the validated issue only.
+    const trustedContext = trustedContextFromIssue(authorization.issue);
+    const executionProfile = effectiveProfileFor(token, trustedContext, authorization.issue?.identifier || null);
+    const reconciled = reconcileProfileWithAgent(executionProfile, "EXECUTE");
     resolvedAgent = selectCtbAgent("EXECUTE", executionProfile);
+    // Shell capability guard: commands cannot recreate a capability the resolved profile
+    // does not grant (git/wrangler/playwright/... through cmd/powershell/npx/pnpm/npm
+    // launchers and inline interpreters). Server-side, based on the authoritative profile.
+    if (typeof forwarded.command === "string" && forwarded.command.trim()) {
+      assertShellCommandAllowed(reconciled.executableCapabilities, forwarded.command);
+    }
+    // Capability invariant enforcement: capabilities the selected native agent cannot
+    // hard-enforce are denied at the gateway guard layer (never silently widened).
+    if (reconciled.unenforceableCapabilities.length) {
+      audit({ ...telemetry, paperclipIssueId: ctb?.paperclipIssueId || null, runId: sessionId || null, tool: requestedName, resolvedAgent, unenforceableCapabilities: reconciled.unenforceableCapabilities, result: "capability_unenforceable_denied" });
+    }
     forwardedForModel = MODEL_ENTRYPOINTS.has(name) ? applyDefaultModel({ ...forwarded, ...(MODEL_ENTRYPOINTS.has(name) ? { agent: resolvedAgent } : {}) }) : forwarded;
     const modelOutcome = MODEL_ENTRYPOINTS.has(name)
       ? await callModelWithFallback(name, forwardedForModel, { ...telemetry, requestedModel: requestedModelFrom(forwardedForModel) })
@@ -785,13 +945,13 @@ async function handleMcp(req, res) {
   const token = verify(tokenFromRequest(req)); if (!token || token.iss !== issuer || token.aud !== resourceUrl() || token.exp * 1000 <= Date.now()) return mcpUnauthorized(res, message?.id ?? null);
   const sessionId = String(req.headers["mcp-session-id"] || ""); const currentSessionId = sessionId && sessions.has(sessionId) ? sessionId : random(16); const headers = sessionId && sessions.has(sessionId) ? {} : { "mcp-session-id": currentSessionId }; sessions.set(currentSessionId, { updatedAt: Date.now() });
   const method = message.method; const id = message.id;
-  if (method === "initialize") { await engine.start(); startTelemetryCollector(); return sendJson(res, 200, rpcResult(id, { protocolVersion: message.params?.protocolVersion || "2025-03-26", capabilities: { tools: { listChanged: false }, resources: { subscribe: false }, prompts: { listChanged: false }, extensions: { "io.modelcontextprotocol/skills": {} } }, serverInfo: { name: "kompas-opencode-ctb", version: "1.1.0" }, instructions: "OpenCode is the CTB execution engine. DIAGNOSE and PLAN are read-only. Every write requires ctb.mode EXECUTE, ctb.changeClass ctb, a valid Paperclip issue, declared scope, acceptance criteria and idempotency key." }), headers); }
+  if (method === "initialize") { await engine.start(); startTelemetryCollector(); void verifyNativeAgents(); return sendJson(res, 200, rpcResult(id, { protocolVersion: message.params?.protocolVersion || "2025-03-26", capabilities: { tools: { listChanged: false }, resources: { subscribe: false }, prompts: { listChanged: false }, extensions: { "io.modelcontextprotocol/skills": {} } }, serverInfo: { name: "kompas-opencode-ctb", version: "1.2.0" }, instructions: "OpenCode is the CTB execution engine. DIAGNOSE and PLAN are read-only. Every write requires ctb.mode EXECUTE, ctb.changeClass ctb, a valid Paperclip issue, declared scope, acceptance criteria and idempotency key." }), headers); }
   if (method === "notifications/initialized" || String(method || "").startsWith("notifications/")) return sendJson(res, 202, {}, headers);
   if (method === "ping") return sendJson(res, 200, rpcResult(id, {}), headers);
   try {
     if (method === "skills/list") { if (!hasScope(token, "opencode:read")) throw Object.assign(new Error("INSUFFICIENT_SCOPE"), { code: "INSUFFICIENT_SCOPE", requiredScope: "opencode:read" }); const skills = skillCatalog().map(({ path: ignored, ...skill }) => ({ ...skill, uri: `skill://ctb/${skill.name}`, digest: `sha256:${crypto.createHash("sha256").update(fs.readFileSync(skillCatalog().find((item) => item.name === skill.name).path)).digest("hex")}` })); return sendJson(res, 200, rpcResult(id, { skills }), headers); }
     if (method === "skills/get") { if (!hasScope(token, "opencode:read")) throw Object.assign(new Error("INSUFFICIENT_SCOPE"), { code: "INSUFFICIENT_SCOPE", requiredScope: "opencode:read" }); const skill = skillCatalog().find((item) => item.name === message.params?.name); if (!skill) return sendJson(res, 200, rpcError(id, -32002, "SKILL_NOT_FOUND"), headers); const contract = fs.readFileSync(skill.path, "utf8"); return sendJson(res, 200, rpcResult(id, { name: skill.name, version: skill.version, description: skill.description, uri: `skill://ctb/${skill.name}`, digest: `sha256:${crypto.createHash("sha256").update(contract).digest("hex")}`, content: contract }), headers); }
-    if (method === "tools/list") { await engine.start(); const upstream = await engine.call("tools/list", {}); const visibleTools = eagerSurfaceEnabled() ? upstream.tools : upstream.tools.filter((tool) => PUBLIC_TOOLSET.has(tool.name)); const tools = visibleTools.map(exposeTool); tools.push({ name: "opencode_list_skills", title: "Skille CTB", description: "Lista kontraktĂłw skilli CTB.", inputSchema: { type: "object", properties: {}, additionalProperties: false }, outputSchema: { type: "object" }, annotations: { readOnlyHint: true }, securitySchemes: [{ type: "oauth2", scopes: ["opencode:read"] }] }, { name: "opencode_get_skill", title: "Kontrakt skilla CTB", description: "Zwraca peĹ‚ny kontrakt wskazanego skilla CTB.", inputSchema: { type: "object", properties: { name: { type: "string" } }, required: ["name"], additionalProperties: false }, outputSchema: { type: "object" }, annotations: { readOnlyHint: true }, securitySchemes: [{ type: "oauth2", scopes: ["opencode:read"] }] }, { name: "opencode_message_model_info", title: "Model metadata sesji", description: "[READ] Read-only: zwraca providerRequested/modelRequested/providerActual/modelActual/fallback dla wiadomosci wskazanej sesji OpenCode.", inputSchema: { type: "object", properties: { sessionId: { type: "string" } }, required: ["sessionId"], additionalProperties: false }, outputSchema: { type: "object" }, annotations: { readOnlyHint: true }, securitySchemes: [{ type: "oauth2", scopes: ["opencode:read"] }], _meta: { kompas: { toolClass: "READ", changeClass: null } } }, { name: "opencode_run_inspect", title: "Inspekcja runu CTB", description: "Read-only: zunifikowana inspekcja runu — view=summary|events|tokens|steps|context|models.", inputSchema: { type: "object", properties: { runId: { type: "string" }, view: { enum: ["summary", "events", "tokens", "steps", "context", "models"] }, refresh: { type: "boolean" } }, required: ["runId"], additionalProperties: false }, outputSchema: { type: "object" }, annotations: { readOnlyHint: true }, securitySchemes: [{ type: "oauth2", scopes: ["opencode:read"] }], _meta: { kompas: { toolClass: "READ", changeClass: null } } }, ...[{ name: "paperclipCompareRunMetrics", description: "Read-only: porównanie co najmniej dwóch runów, w tym który zużył więcej context overhead.", inputSchema: { type: "object", properties: { runIds: { type: "array", items: { type: "string" } } }, required: ["runIds"], additionalProperties: false } }, { name: "paperclipAggregateRunMetrics", description: "Read-only: agregaty metryk dla issue/modelu (p50/p95, first-pass success rate, retries).", inputSchema: { type: "object", properties: { runIds: { type: "array", items: { type: "string" } }, paperclipIssueId: { type: "string" }, groupBy: { enum: ["issue", "model"] } }, additionalProperties: false } }].map((tool) => ({ ...tool, title: tool.name, inputSchema: tool.inputSchema || { type: "object", properties: { runId: { type: "string" } }, required: ["runId"], additionalProperties: false }, outputSchema: { type: "object" }, annotations: { readOnlyHint: true }, securitySchemes: [{ type: "oauth2", scopes: ["opencode:read"] }] }))); tools.push({ name: "opencode_mcp_effective_profile", title: "Efektywny profil MCP", description: "Read-only: efektywny profil połączeń MCP (rola, taskClass, stage, eager/deferred) rozwijany z uwierzytelnionego principala.", inputSchema: { type: "object", properties: { taskClass: { type: "string" }, currentStage: { type: "string" }, projectKey: { type: "string" } }, additionalProperties: false }, annotations: { readOnlyHint: true }, securitySchemes: [{ type: "oauth2", scopes: ["opencode:read"] }] }); return sendJson(res, 200, rpcResult(id, { tools }), headers); }
+    if (method === "tools/list") { await engine.start(); void verifyNativeAgents(); const upstream = await engine.call("tools/list", {}); const visibleTools = eagerSurfaceEnabled() ? upstream.tools : upstream.tools.filter((tool) => PUBLIC_TOOLSET.has(tool.name));const tools = visibleTools.map(exposeTool); tools.push({ name: "opencode_list_skills", title: "Skille CTB", description: "Lista kontraktĂłw skilli CTB.", inputSchema: { type: "object", properties: {}, additionalProperties: false }, outputSchema: { type: "object" }, annotations: { readOnlyHint: true }, securitySchemes: [{ type: "oauth2", scopes: ["opencode:read"] }] }, { name: "opencode_get_skill", title: "Kontrakt skilla CTB", description: "Zwraca peĹ‚ny kontrakt wskazanego skilla CTB.", inputSchema: { type: "object", properties: { name: { type: "string" } }, required: ["name"], additionalProperties: false }, outputSchema: { type: "object" }, annotations: { readOnlyHint: true }, securitySchemes: [{ type: "oauth2", scopes: ["opencode:read"] }] }, { name: "opencode_message_model_info", title: "Model metadata sesji", description: "[READ] Read-only: zwraca providerRequested/modelRequested/providerActual/modelActual/fallback dla wiadomosci wskazanej sesji OpenCode.", inputSchema: { type: "object", properties: { sessionId: { type: "string" } }, required: ["sessionId"], additionalProperties: false }, outputSchema: { type: "object" }, annotations: { readOnlyHint: true }, securitySchemes: [{ type: "oauth2", scopes: ["opencode:read"] }], _meta: { kompas: { toolClass: "READ", changeClass: null } } }, { name: "opencode_run_inspect", title: "Inspekcja runu CTB", description: "Read-only: zunifikowana inspekcja runu — view=summary|events|tokens|steps|context|models.", inputSchema: { type: "object", properties: { runId: { type: "string" }, view: { enum: ["summary", "events", "tokens", "steps", "context", "models"] }, refresh: { type: "boolean" } }, required: ["runId"], additionalProperties: false }, outputSchema: { type: "object" }, annotations: { readOnlyHint: true }, securitySchemes: [{ type: "oauth2", scopes: ["opencode:read"] }], _meta: { kompas: { toolClass: "READ", changeClass: null } } }, ...[{ name: "paperclipCompareRunMetrics", description: "Read-only: porównanie co najmniej dwóch runów, w tym który zużył więcej context overhead.", inputSchema: { type: "object", properties: { runIds: { type: "array", items: { type: "string" } } }, required: ["runIds"], additionalProperties: false } }, { name: "paperclipAggregateRunMetrics", description: "Read-only: agregaty metryk dla issue/modelu (p50/p95, first-pass success rate, retries).", inputSchema: { type: "object", properties: { runIds: { type: "array", items: { type: "string" } }, paperclipIssueId: { type: "string" }, groupBy: { enum: ["issue", "model"] } }, additionalProperties: false } }].map((tool) => ({ ...tool, title: tool.name, inputSchema: tool.inputSchema || { type: "object", properties: { runId: { type: "string" } }, required: ["runId"], additionalProperties: false }, outputSchema: { type: "object" }, annotations: { readOnlyHint: true }, securitySchemes: [{ type: "oauth2", scopes: ["opencode:read"] }] }))); tools.push({ name: "opencode_mcp_effective_profile", title: "Efektywny profil MCP", description: "Read-only: efektywny profil połączeń MCP (rola, taskClass, stage, eager/deferred) rozwijany z uwierzytelnionego principala.", inputSchema: { type: "object", properties: { taskClass: { type: "string" }, currentStage: { type: "string" }, projectKey: { type: "string" } }, additionalProperties: false }, annotations: { readOnlyHint: true }, securitySchemes: [{ type: "oauth2", scopes: ["opencode:read"] }] }, { name: "opencode_security_status", title: "Status bezpieczeństwa CTB", description: "Read-only self-audit: revisiony polityk, native-agent enforcement, capability invariant, crash-recovery, limity fallbacku. Bez sekretów.", inputSchema: { type: "object", properties: {}, additionalProperties: false }, annotations: { readOnlyHint: true }, securitySchemes: [{ type: "oauth2", scopes: ["opencode:read"] }] }); return sendJson(res, 200, rpcResult(id, { tools }), headers); }
     if (method === "tools/call") return sendJson(res, 200, rpcResult(id, await callTool(message.params?.name, message.params?.arguments || {}, token)), headers);
     if (["resources/list", "resources/templates/list", "resources/read", "prompts/list", "prompts/get"].includes(method)) { if (!hasScope(token, "opencode:read")) return sendJson(res, 200, rpcResult(id, { isError: true, structuredContent: { errorCode: "INSUFFICIENT_SCOPE", requiredScope: "opencode:read" }, content: [{ type: "text", text: "INSUFFICIENT_SCOPE" }] }), headers); await engine.start(); return sendJson(res, 200, rpcResult(id, await engine.call(method, message.params || {})), headers); }
     return sendJson(res, 400, rpcError(id ?? null, -32601, "Nieznana metoda MCP."), headers);
@@ -835,9 +995,12 @@ async function handleAuthorize(req, res, url) {
   if ((resource || resourceUrl()) !== resourceUrl()) return fail("invalid_target", "Unknown resource.");
   const grantedScope = normalizedScope(scope);
   if (req.method === "GET") {
-    // Persistent browser session replaces the password prompt for repeat flows.
+    // Persistent browser session replaces the password prompt ONLY for clients the
+    // operator has explicitly approved (first-use approval, stored server-side).
+    // A freshly dynamic-registered client never gets a silent grant from an existing
+    // login session — it must complete one interactive POST authorization first.
     const session = validOauthSession(req);
-    if (session) return completeAuthorization(res, { clientId, redirectUri, scope: grantedScope, codeChallenge, state });
+    if (session && client.approvedAt) return completeAuthorization(res, { clientId, redirectUri, scope: grantedScope, codeChallenge, state });
     return sendHtml(res, 200, loginPage(q));
   }
   const ip = String(req.headers["cf-connecting-ip"] || req.socket.remoteAddress || "unknown");
@@ -848,6 +1011,8 @@ async function handleAuthorize(req, res, url) {
     return count >= 10 ? sendJson(res, 429, { error: "too_many_attempts" }) : sendHtml(res, 401, loginPage(q, "Niepoprawny login lub hasĹ‚o."));
   }
   attempts.delete(ip);
+  // Successful interactive operator login doubles as explicit client consent/binding.
+  if (!client.approvedAt) { client.approvedAt = new Date().toISOString(); writeJson(clientsFile, clients); audit({ result: "oauth_client_approved", clientId }); }
   issueBrowserSession(res, operatorUsername);
   completeAuthorization(res, { clientId, redirectUri, scope: grantedScope, codeChallenge, state });
 }
@@ -916,5 +1081,5 @@ async function handleToken(req, res) {
   return sendJson(res, 400, { error: "unsupported_grant_type" });
 }
 
-const server = http.createServer(async (req, res) => { const url = new URL(req.url, `http://${req.headers.host || "localhost"}`); try { if (url.pathname === "/health" && req.method === "GET") return sendJson(res, 200, { ok: true, engine: "AlaeddineMessadi/opencode-mcp@1.11.0", policy: "ctb", revision: CTB_POLICY_REVISION, revisions: { gateway: GATEWAY_REVISION, ctbPolicy: CTB_POLICY_REVISION, mcpRoleProfiles: roleProfilesDoc.revision }, issuer, allowedRoots }); if (url.pathname === "/.well-known/oauth-protected-resource" && req.method === "GET") return sendJson(res, 200, { resource: resourceUrl(), authorization_servers: [issuer], scopes_supported: [...validScopes], resource_documentation: `${issuer}/health` }, { "access-control-allow-origin": "*", "cache-control": "public, max-age=3600" }); if ((url.pathname === "/.well-known/oauth-authorization-server" || url.pathname === "/.well-known/openid-configuration") && req.method === "GET") return sendJson(res, 200, { issuer, authorization_endpoint: `${issuer}/oauth/authorize`, token_endpoint: `${issuer}/oauth/token`, registration_endpoint: `${issuer}/oauth/register`, response_types_supported: ["code"], grant_types_supported: ["authorization_code", "refresh_token"], token_endpoint_auth_methods_supported: ["none"], code_challenge_methods_supported: ["S256"], scopes_supported: [...validScopes], authorization_response_iss_parameter_supported: true }, { "access-control-allow-origin": "*", "cache-control": "public, max-age=3600" }); if (url.pathname === "/oauth/register" && req.method === "POST") { const registration = JSON.parse(await body(req)); const redirectUris = Array.isArray(registration.redirect_uris) ? registration.redirect_uris : []; if (!redirectUris.length || !redirectUris.every(allowedRedirect)) return sendJson(res, 400, { error: "invalid_redirect_uri" }); const clientId = `dcr_${random(18)}`; clients[clientId] = { client_id: clientId, client_name: String(registration.client_name || "MCP client"), redirect_uris: redirectUris, token_endpoint_auth_method: "none", created_at: new Date().toISOString() }; writeJson(clientsFile, clients); return sendJson(res, 201, { ...clients[clientId], grant_types: ["authorization_code", "refresh_token"], response_types: ["code"] }); } if (url.pathname === "/oauth/authorize" && ["GET", "POST"].includes(req.method || "")) return handleAuthorize(req, res, url); if (url.pathname === "/oauth/logout" && req.method === "POST") { const revoked = revokeOauthSession(req); audit({ result: "oauth_logout", revoked }); return sendJson(res, 200, { ok: true }, { "set-cookie": `${sessionCookieName}=; Secure; HttpOnly; SameSite=Lax; Path=/; Max-Age=0` }); } if (url.pathname === "/oauth/token" && req.method === "POST") return handleToken(req, res); if (url.pathname === "/mcp" && req.method === "POST") return handleMcp(req, res); return sendJson(res, 404, { error: "Not found" }); } catch (error) { console.error("[opencode-ctb] request failed", error instanceof Error ? error.message : error); return sendJson(res, 500, { error: "Internal server error" }); } });
+const server = http.createServer(async (req, res) => { const url = new URL(req.url, `http://${req.headers.host || "localhost"}`); try { if (url.pathname === "/health" && req.method === "GET") return sendJson(res, 200, { ok: true, engine: "AlaeddineMessadi/opencode-mcp@1.11.0", policy: "ctb", revision: CTB_POLICY_REVISION, revisions: { gateway: GATEWAY_REVISION, ctbPolicy: CTB_POLICY_REVISION, mcpRoleProfiles: roleProfilesDoc.revision }, issuer, allowedRoots, models: { default: `${DEFAULT_MODEL.providerID}/${DEFAULT_MODEL.modelID}`, fallback: FALLBACK_MODEL ? `${FALLBACK_MODEL.providerID}/${FALLBACK_MODEL.modelID}` : null, fallbackRetryLimit: 1 }, nativeAgents: { required: REQUIRED_NATIVE_AGENTS, enabled: NATIVE_AGENTS_ENABLED, verified: nativeAgentState.verified, foundAgents: nativeAgentState.foundAgents, missingAgents: nativeAgentState.missingAgents, enforcementMode: NATIVE_AGENTS_ENABLED ? (nativeAgentState.verified ? "native_enforced" : "fail_closed_unverified") : "builtin_plan_build", silentDowngradePossible: false }, capabilityPolicyRevision: `${CTB_POLICY_REVISION}+shell-guard-1`, profileResolutionMode: "server_authoritative", registrySchemaVersion: savedRegistry?.version || 1, publicToolCount: eagerSurfaceEnabled() ? null : PUBLIC_TOOLSET.size + CUSTOM_PUBLIC_TOOLS.length, crashRecovery: { startupProcessLostRuns: Array.isArray(startupProcessLostRuns) ? startupProcessLostRuns.length : 0 } }); if (url.pathname === "/.well-known/oauth-protected-resource" && req.method === "GET") return sendJson(res, 200, { resource: resourceUrl(), authorization_servers: [issuer], scopes_supported: [...validScopes], resource_documentation: `${issuer}/health` }, { "access-control-allow-origin": "*", "cache-control": "public, max-age=3600" }); if ((url.pathname === "/.well-known/oauth-authorization-server" || url.pathname === "/.well-known/openid-configuration") && req.method === "GET") return sendJson(res, 200, { issuer, authorization_endpoint: `${issuer}/oauth/authorize`, token_endpoint: `${issuer}/oauth/token`, registration_endpoint: `${issuer}/oauth/register`, response_types_supported: ["code"], grant_types_supported: ["authorization_code", "refresh_token"], token_endpoint_auth_methods_supported: ["none"], code_challenge_methods_supported: ["S256"], scopes_supported: [...validScopes], authorization_response_iss_parameter_supported: true }, { "access-control-allow-origin": "*", "cache-control": "public, max-age=3600" }); if (url.pathname === "/oauth/register" && req.method === "POST") { const registration = JSON.parse(await body(req)); const redirectUris = Array.isArray(registration.redirect_uris) ? registration.redirect_uris : []; if (!redirectUris.length || !redirectUris.every(allowedRedirect)) return sendJson(res, 400, { error: "invalid_redirect_uri" }); const clientId = `dcr_${random(18)}`; clients[clientId] = { client_id: clientId, client_name: String(registration.client_name || "MCP client"), redirect_uris: redirectUris, token_endpoint_auth_method: "none", approvedAt: null, created_at: new Date().toISOString() }; writeJson(clientsFile, clients); return sendJson(res, 201, { ...clients[clientId], client_id: clientId, grant_types: ["authorization_code", "refresh_token"], response_types: ["code"] }); } if (url.pathname === "/oauth/authorize" && ["GET", "POST"].includes(req.method || "")) return handleAuthorize(req, res, url); if (url.pathname === "/oauth/logout" && req.method === "POST") { const revoked = revokeOauthSession(req); audit({ result: "oauth_logout", revoked }); return sendJson(res, 200, { ok: true }, { "set-cookie": `${sessionCookieName}=; Secure; HttpOnly; SameSite=Lax; Path=/; Max-Age=0` }); } if (url.pathname === "/oauth/token" && req.method === "POST") return handleToken(req, res); if (url.pathname === "/mcp" && req.method === "POST") return handleMcp(req, res); return sendJson(res, 404, { error: "Not found" }); } catch (error) { console.error("[opencode-ctb] request failed", error instanceof Error ? error.message : error); return sendJson(res, 500, { error: "Internal server error" }); } });
 server.listen(port, "127.0.0.1", () => console.log(`[opencode-ctb] listening on http://127.0.0.1:${port}/mcp`));

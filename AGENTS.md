@@ -1,5 +1,21 @@
 # Instrukcje dla agentów
 
+## MCP OPT-IN (domyślnie 0 serwerów)
+
+Wszystkie serwery MCP w `opencode.json` są domyślnie wyłączone (`enabled: false`). Model nie ma żadnych narzędzi MCP, dopóki sam jawnie nie zadeklaruje, których potrzebuje.
+
+Procedura włączenia:
+
+1. Wypowiedz w odpowiedzi, którego serwera MCP potrzebujesz i do czego (np. „włączam `shadcn` do wyszukiwania komponentów”).
+2. Ustaw `"enabled": true` tylko dla tego jednego serwera w `opencode.json`.
+3. Po zakończeniu pracy z tym serwerem ustaw ponownie `"enabled": false`.
+
+Zasady:
+
+- Włączaj wyłącznie serwery niezbędne do bieżącego zadania — nigdy kilku „na zapas”.
+- Lista dostępnych serwerów: `paperclip`, `paperclip-local`, `github`, `cloudflare`, `shadcn`, `playwright`, `kompas-storybook`.
+- Nie zmieniaj adresów URL ani definicji poleceń serwerów podczas włączania.
+
 ## Wykonanie kontraktowe (CONTEXT-FIRST)
 
 Wspólny projektowy kontekst i stałe invarianty: `WSPÓLNY KONTEKST.md` (sekcja „Project context”, „Mapa systemu (REPO MAP)”, „Wykonanie kontraktowe”, „STARTUP I/O BUDGET”).
@@ -15,6 +31,34 @@ Wspólny projektowy kontekst i stałe invarianty: `WSPÓLNY KONTEKST.md` (sekcja
 
 - Komenda `/ui`, `/advanced-ui` lub polecenie „Advanced UI” uruchamia `skills/advanced-ui/SKILL.md`.
 - W iteracji stosuj zakres zadaniowy z tego skilla; pełny audyt, SEO i Lighthouse wykonuj tylko na żądanie albo jako końcową bramkę release.
+
+### KOMPAS UI REUSE POLICY
+
+Before implementing new UI:
+
+1. Search `@kompas` registry.
+2. Prefer an existing page, block or component over a new implementation.
+3. Prefer a block over assembling primitives when an appropriate block exists.
+4. Do not create a local equivalent of an existing `@kompas` item.
+5. Use Storybook MCP to inspect documented states, usage and component behavior.
+6. Preserve the existing responsive contract.
+7. Use Playwright against the real application after composition.
+8. New reusable UI starts locally.
+9. Promote to `@kompas` only after duplicate check, typecheck, responsive validation, accessibility validation where applicable, tests, a Storybook story and a successful registry validation/build.
+10. App-specific business logic must not be promoted into the canonical design system.
+
+### KOMPAS UI DISCOVERY POLICY
+
+Before creating new UI:
+
+1. Search `@kompas` through shadcn MCP.
+2. Inspect candidate component or block.
+3. Use Storybook MCP to understand supported states, composition, documented behavior and responsive examples.
+4. Prefer an existing block over rebuilding from primitives.
+5. Prefer an existing component over a local duplicate.
+6. After composing the page, use Playwright against the real application.
+7. New reusable UI remains local until promotion checks pass.
+8. Promotion to `@kompas` must also create or update its Storybook story.
 
 ### Status przez MCP Paperclip
 

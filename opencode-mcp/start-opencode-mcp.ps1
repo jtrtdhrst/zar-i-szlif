@@ -48,10 +48,16 @@ $env:OPENCODE_MCP_RUNTIME_DIR = $runtime
 $env:OPENCODE_MCP_ISSUER = "https://opencode.kompaszbiorek.pl"
 $env:PORT = "4097"
 $env:MCP_ISSUER = "https://opencode.kompaszbiorek.pl"
-$env:OPENCODE_CTB_ALLOWED_ROOTS = "C:\Kompas Zbiórek;C:\Kompas Zbiórek\.paperclip-worktrees;C:\paperclip;C:\paperclip-worktrees"
+# Allow-roots budowane programowo (bez literalnych znakow poza ASCII), aby kolejnosc
+# kodowania ps1 -> proces nie zepsuc sciezki workspace (fail-closed CTB_PROJECT_DENIED).
+$env:OPENCODE_CTB_ALLOWED_ROOTS = "$root;$root\.paperclip-worktrees;C:\paperclip;C:\paperclip-worktrees"
 # Principal -> rola dla efektywnego profilu MCP (rola nigdy nie jest brana od klienta/modelu).
 $env:OPENCODE_MCP_PRINCIPAL_ROLES = '{"operator":"cto"}'
-if ($NativeAgents) { $env:OPENCODE_MCP_NATIVE_AGENTS = "on" }
+if ($NativeAgents) {
+  $env:OPENCODE_MCP_NATIVE_AGENTS = "on"
+  # Persistent activation: the mode survives plain gateway restarts and machine reboots.
+  Set-Content -LiteralPath (Join-Path $runtime "native-agents.mode") -Value "on" -Encoding ascii
+}
 # Kontrakt modelu: domyślny Ox Alpha Free, jawny fallback Hy3 Free (fallbackUsed zawsze raportowany).
 $env:OPENCODE_MCP_DEFAULT_MODEL = "opencode/x-preview-f-free"
 $env:OPENCODE_MCP_FALLBACK_MODEL = "opencode/hy3-free"

@@ -28,11 +28,14 @@ ok(ctbContextError({ ctb: { mode: "EXECUTE", changeClass: "ctb" } })?.code === "
 ok(ctbContextError({ ctb: { mode: "EXECUTE", changeClass: "ctb", paperclipIssueId: "i", changeIntent: "c", scope: "s", acceptanceCriteria: "a", idempotencyKey: "k" } }) === null, "complete EXECUTE envelope accepted");
 
 // 5. Malformed EXPLICIT issue policy -> CTB_POLICY_INVALID (never workspace fallback).
-const malformed = evaluateIssueCtbPolicyDetailed({ currentExecutionWorkspace: { cwd: "C:\\x\\ws" }, executionPolicy: { ctb: { changeClass: "ctb" } } }, "C:\\x\\ws", "a", "b");
+// Uses a REAL directory: fail-closed realpath now denies nonexistent roots outright.
+const realPolicyDir = fs.realpathSync(fs.mkdtempSync(path.join(process.env.TEMP || ".", "ctb-acc-policy-")));
+const malformed = evaluateIssueCtbPolicyDetailed({ currentExecutionWorkspace: { cwd: realPolicyDir }, executionPolicy: { ctb: { changeClass: "ctb" } } }, realPolicyDir, "a", "b");
 ok(malformed.error === "CTB_POLICY_INVALID" && malformed.decisionSource === "issue_policy", "malformed explicit policy denied as CTB_POLICY_INVALID");
+ok(evaluateIssueCtbPolicyDetailed({ currentExecutionWorkspace: { cwd: "C:\\nonexistent-root-xyz\\ws" } }, "C:\\nonexistent-root-xyz\\ws", "a", "b").error === "CTB_ISSUE_SCOPE_MISMATCH", "nonexistent workspace root fail-closed");
 
 // 6. Absent policy -> workspace_fallback authorization.
-const fallback = evaluateIssueCtbPolicyDetailed({ currentExecutionWorkspace: { cwd: "C:\\x\\ws" } }, "C:\\x\\ws\\deep", "a", "b");
+const fallback = evaluateIssueCtbPolicyDetailed({ currentExecutionWorkspace: { cwd: realPolicyDir } }, path.join(realPolicyDir, "deep"), "a", "b");
 ok(fallback.error === null && fallback.decisionSource === "workspace_fallback" && fallback.canonicalDirectory != null && fallback.canonicalWorkspaceRoot != null, "absent policy falls back to canonical workspace");
 
 // 7-14. Canonical allow-root matrix via normalizeAllowedDirectory (synthetic roots).
