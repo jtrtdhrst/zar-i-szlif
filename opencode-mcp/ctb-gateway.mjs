@@ -9,7 +9,7 @@ import { aggregateRunAnalytics, buildRunAnalytics, compareRunMetrics, supportedO
 import { loadMcpRoleProfiles, resolveEffectiveProfile, resolveCtbAgent, reconcileProfileWithAgent } from "./mcp-role-profiles.mjs";
 import { assertShellCommandAllowed, capabilitiesForAgent } from "./ctb-capability.mjs";
 
-const GATEWAY_REVISION = "ctb-policy-5";
+const GATEWAY_REVISION = "ctb-policy-6";
 const here = path.dirname(fileURLToPath(import.meta.url));
 const workspaceRoot = path.resolve(here, "..");
 const runtimeDir = process.env.OPENCODE_MCP_RUNTIME_DIR || path.join(here, ".runtime");
@@ -20,6 +20,11 @@ const operatorUsername = process.env.OPENCODE_MCP_USERNAME || "operator";
 const operatorPassword = process.env.OPENCODE_MCP_PASSWORD || "";
 const openCodeUsername = process.env.OPENCODE_SERVER_USERNAME || "opencode";
 const openCodePassword = process.env.OPENCODE_SERVER_PASSWORD || "";
+// Module-scope OpenCode backend auth header. Used both by verifyNativeAgents (line ~231)
+// and by per-session engine calls. Previously declared only inside a function, which made
+// the reference at the verify site a free variable and caused every native-agent verification
+// to throw a swallowed ReferenceError -> permanent verified:false (silent downgrade).
+const openCodeHeaders = { authorization: `Basic ${Buffer.from(`${openCodeUsername}:${openCodePassword}`).toString("base64")}` };
 const infrastructureRoot = "C:\\paperclip";
 const paperclipWorktreeRoot = "C:\\paperclip-worktrees";
 // Canonical allow-roots: Paperclip infrastructure, isolated Paperclip worktrees and the
@@ -201,7 +206,8 @@ function applyDefaultModel(args) {
   const hasProvider = typeof args?.providerID === "string" && args.providerID.trim() !== "";
   const hasModel = (typeof args?.modelID === "string" && args.modelID.trim() !== "") || (typeof args?.model === "string" && args.model.trim() !== "");
   if (hasProvider || hasModel) return args;
-  return { ...args, providerID: DEFAULT_MODEL.providerID, modelID: DEFAULT_MODEL.modelID };
+  const def = effectiveDefaultModel();
+  return { ...args, providerID: def.providerID, modelID: def.modelID };
 }
 // Upstream reports invocation failures either as rejected RPC calls OR as resolved tool
 // results carrying isError:true — both shapes must be eligible for the explicit retry.
@@ -222,22 +228,44 @@ function readNativeAgentsMode() {
   try { return fs.readFileSync(nativeAgentsModeFile, "utf8").trim().toLowerCase() === "on"; } catch { return false; }
 }
 const NATIVE_AGENTS_ENABLED = readNativeAgentsMode();
-const nativeAgentState = { verified: false, foundAgents: [], checkedAt: 0, missingAgents: [...REQUIRED_NATIVE_AGENTS] };
+const nativeAgentState = { verified: false, foundAgents: [], configuredAgents: [], checkedAt: 0, missingAgents: [...REQUIRED_NATIVE_AGENTS], liveProbe: { ok: false, found: [], missing: [...REQUIRED_NATIVE_AGENTS], error: null } };
+// Canonical agent resolver. The authoritative source of truth for which ctb-* agents exist is
+// the OpenCode config agent block — the SAME source `opencode_context` reports. The live
+// /agent discovery probe is kept only as a diagnostic signal, because on this backend it
+// returns an empty list even when the agents are fully configured and usable, so it must
+// never drive the canonical truth or trigger a false fail-closed. Both runtime native
+// enforcement (selectCtbAgent) and self-audit (opencode_security_status) read this single state.
+async function fetchConfiguredCtbAgents() {
+  try {
+    const response = await fetch(`${serverUrl}/config`, { headers: openCodeHeaders, signal: AbortSignal.timeout(5000) });
+    if (!response.ok) throw new Error(`config probe ${response.status}`);
+    const config = await response.json();
+    const agentKeys = config?.agent && typeof config.agent === "object" ? Object.keys(config.agent) : [];
+    return agentKeys.filter((name) => name.startsWith("ctb-"));
+  } catch { return []; }
+}
 async function verifyNativeAgents({ force = false } = {}) {
   if (!force && nativeAgentState.checkedAt && Date.now() - nativeAgentState.checkedAt < 60 * 1000) return nativeAgentState;
-  const state = { verified: false, foundAgents: [], checkedAt: Date.now(), missingAgents: [...REQUIRED_NATIVE_AGENTS] };
-  if (!NATIVE_AGENTS_ENABLED) { Object.assign(nativeAgentState, state); return nativeAgentState; }
+  const checkedAt = Date.now();
+  const configured = await fetchConfiguredCtbAgents();
+  // Live probe is informational only; it does not override the configured truth.
+  const liveProbe = { ok: false, found: [], missing: [...REQUIRED_NATIVE_AGENTS], error: null };
   try {
     const response = await fetch(`${serverUrl}/agent`, { headers: openCodeHeaders, signal: AbortSignal.timeout(5000) });
     if (!response.ok) throw new Error(`agent probe ${response.status}`);
     const agents = await response.json();
-    const names = (Array.isArray(agents) ? agents : []).map((agent) => String(agent?.name || agent?.id || ""));
-    state.foundAgents = names.filter((name) => name.startsWith("ctb-"));
-    state.missingAgents = REQUIRED_NATIVE_AGENTS.filter((required) => !names.includes(required));
-    state.verified = state.missingAgents.length === 0;
-  } catch { /* backend unreachable: stay unverified -> fail closed below */ }
+    const list = Array.isArray(agents) ? agents : (Array.isArray(agents?.agents) ? agents.agents : []);
+    const names = list.map((agent) => String(agent?.name || agent?.id || ""));
+    liveProbe.found = names.filter((name) => name.startsWith("ctb-"));
+    liveProbe.missing = REQUIRED_NATIVE_AGENTS.filter((required) => !liveProbe.found.includes(required));
+    liveProbe.ok = liveProbe.missing.length === 0;
+  } catch (error) { liveProbe.error = String(error?.message || error); }
+  const foundAgents = configured.length ? configured : liveProbe.found;
+  const missingAgents = REQUIRED_NATIVE_AGENTS.filter((required) => !foundAgents.includes(required));
+  const verified = missingAgents.length === 0;
+  const state = { verified, foundAgents, configuredAgents: configured, checkedAt, missingAgents, liveProbe };
   Object.assign(nativeAgentState, state);
-  audit({ result: "native_agents_verification", verified: state.verified, foundAgents: state.foundAgents, missingAgents: state.missingAgents });
+  audit({ result: "native_agents_verification", verified, configuredAgents: configured, liveProbeOk: liveProbe.ok, liveProbeMissing: liveProbe.missing });
   return nativeAgentState;
 }
 function selectCtbAgent(mode, profile) {
@@ -570,7 +598,6 @@ function flushPendingEvents(fromKey, toSessionId) { const pending = pendingEvent
 function finishRun(sessionId, status) { if (!sessionId || !runs[sessionId]) return; runs[sessionId].status = status; runs[sessionId].finishedAt = new Date().toISOString(); persistRuns(); }
 function metricsFor(run) { const events = run.events || []; const toolEvents = events.filter((event) => ["tool", "mcp", "search", "file", "command", "test", "git"].includes(event.kind)); const fingerprints = new Set(); let duplicateCalls = 0; for (const event of toolEvents) { const fingerprint = `${event.kind}|${event.tool || event.action || ""}|${event.status || ""}`; if (fingerprints.has(fingerprint)) duplicateCalls += 1; else fingerprints.add(fingerprint); } const startedAt = Date.parse(run.createdAt || "") || 0; const elapsed = (event) => { const at = Date.parse(event.timestamp || "") || 0; return startedAt && at ? Math.max(0, at - startedAt) : null; }; const firstWrite = events.find((event) => event.kind === "file" && event.operation === "write"); const firstTest = events.find((event) => event.kind === "test"); const finishedAt = Date.parse(run.finishedAt || "") || startedAt; return { toolCalls: toolEvents.length, failedToolCalls: toolEvents.filter((event) => event.status === "error").length, retryCount: events.reduce((total, event) => total + (Number(event.retry) || 0), 0), duplicateCalls, searchCalls: events.filter((event) => event.kind === "search").length, fileReads: events.filter((event) => event.kind === "file" && event.operation === "read").length, fileWrites: events.filter((event) => event.kind === "file" && event.operation === "write").length, testCalls: events.filter((event) => event.kind === "test").length, mcpCalls: events.filter((event) => event.kind === "mcp").length, timeToFirstWriteMs: firstWrite ? elapsed(firstWrite) : null, timeToFirstTestMs: firstTest ? elapsed(firstTest) : null, durationMs: startedAt ? Math.max(0, finishedAt - startedAt) : 0 }; }
 
-const openCodeHeaders = { authorization: `Basic ${Buffer.from(`${openCodeUsername}:${openCodePassword}`).toString("base64")}` };
 async function createUpstreamSession(directory, title) {
   const response = await fetch(`${serverUrl}/session`, { method: "POST", headers: { ...openCodeHeaders, "content-type": "application/json", "x-opencode-directory": directory }, body: JSON.stringify({ title: String(title || "CTB execution").slice(0, 80) }) });
   if (!response.ok) throw Object.assign(new Error("CTB_SESSION_CREATE_FAILED"), { code: "CTB_SESSION_CREATE_FAILED" });
@@ -600,6 +627,34 @@ async function modelLimits() {
   } catch { modelLimitsCache = { fetchedAt: Date.now(), limits: {} }; }
   return modelLimitsCache.limits;
 }
+// Model registry mirror: lets the gateway prove whether the configured default/fallback models
+// actually exist in the OpenCode provider registry, so config and registry stay consistent (P1).
+let modelRegistryCache = { fetchedAt: 0, validRefs: new Set(), defaultPerProvider: {} };
+async function refreshModelRegistry() {
+  try {
+    const response = await fetch(`${serverUrl}/config/providers`, { headers: openCodeHeaders, signal: AbortSignal.timeout(5000) });
+    if (!response.ok) throw new Error(`providers ${response.status}`);
+    const payload = await response.json();
+    const validRefs = new Set();
+    const defaultPerProvider = payload?.default && typeof payload.default === "object" ? payload.default : {};
+    for (const provider of Array.isArray(payload?.providers) ? payload.providers : []) {
+      const models = provider.models && typeof provider.models === "object" ? provider.models : {};
+      for (const mid of Object.keys(models)) validRefs.add(`${provider.id}/${mid}`);
+    }
+    modelRegistryCache = { fetchedAt: Date.now(), validRefs, defaultPerProvider };
+  } catch { /* keep last-known registry */ }
+}
+function effectiveDefaultModel() {
+  const ref = `${DEFAULT_MODEL.providerID}/${DEFAULT_MODEL.modelID}`;
+  if (modelRegistryCache.validRefs.has(ref)) return DEFAULT_MODEL;
+  // Configured default is absent from the enumerated registry: prefer the operator-configured
+  // free fallback (preserves the intended free-model contract), then the provider's own default.
+  if (FALLBACK_MODEL && modelRegistryCache.validRefs.has(`${FALLBACK_MODEL.providerID}/${FALLBACK_MODEL.modelID}`)) return FALLBACK_MODEL;
+  const fallback = modelRegistryCache.defaultPerProvider?.[DEFAULT_MODEL.providerID];
+  if (fallback) { const parsed = parseModelRef(`${DEFAULT_MODEL.providerID}/${fallback}`); if (parsed) return parsed; }
+  return DEFAULT_MODEL;
+}
+function defaultModelInRegistry() { return modelRegistryCache.validRefs.has(`${DEFAULT_MODEL.providerID}/${DEFAULT_MODEL.modelID}`); }
 async function paperclipSignalsFor(run) {
   // Read-only, best-effort Paperclip checkpoint signal. Never blocks analytics.
   const base = process.env.PAPERCLIP_API_URL;
@@ -638,6 +693,20 @@ const PUBLIC_TOOLSET = new Set([
   "opencode_session_abort",
 ]);
 const CUSTOM_PUBLIC_TOOLS = ["opencode_list_skills", "opencode_get_skill", "opencode_message_model_info", "opencode_mcp_effective_profile", "opencode_security_status", "opencode_run_inspect", "paperclipCompareRunMetrics", "paperclipAggregateRunMetrics"];
+// Control-plane / read-only diagnostic tools. Failures here must be reported as a DISTINCT
+// error class (CTB_CONTROL_PLANE_UNAVAILABLE) and must never be conflated with inference
+// failures (UPSTREAM_TOOL_ERROR / CTB_NATIVE_AGENTS_UNAVAILABLE). Reads never invoke a model,
+// so a dead inference backend must not make the control plane undiagnosable.
+const CONTROL_PLANE_TOOLS = new Set([
+  "opencode_status", "opencode_context", "opencode_sessions_overview", "opencode_session_list",
+  "opencode_session_get", "opencode_session_status", "opencode_session_todo", "opencode_session_diff",
+  "opencode_conversation", "opencode_file_read", "opencode_file_status", "opencode_find_text",
+  "opencode_find_symbol", "opencode_provider_models", "opencode_mcp_status", "opencode_vcs_info",
+  "opencode_security_status", "opencode_message_model_info", "opencode_mcp_effective_profile",
+  "opencode_run_inspect", "opencode_ctb_get_run", "opencode_ctb_get_events", "opencode_ctb_get_metrics",
+  "paperclipGetRunMetrics", "paperclipGetRunEvents", "paperclipGetRunTokenUsage", "paperclipGetRunSteps",
+  "paperclipGetRunContextBreakdown", "paperclipGetRunModelTurns", "paperclipCompareRunMetrics", "paperclipAggregateRunMetrics",
+]);
 function eagerSurfaceEnabled() { return String(process.env.OPENCODE_MCP_SURFACE || "").toLowerCase() === "full"; }
 async function callTool(name, args, token) {
   const requestedName = name;
@@ -708,10 +777,13 @@ async function callTool(name, args, token) {
       nativeAgents: {
         required: REQUIRED_NATIVE_AGENTS,
         enabled: NATIVE_AGENTS_ENABLED,
-        verified: nativeAgentState.verified,
+        canonicalSource: "opencode_config_agent_block",
+        configuredAgents: nativeAgentState.configuredAgents,
         foundAgents: nativeAgentState.foundAgents,
         missingAgents: nativeAgentState.missingAgents,
+        verified: nativeAgentState.verified,
         enforcementMode: NATIVE_AGENTS_ENABLED ? (nativeAgentState.verified ? "native_enforced" : "fail_closed_unverified") : "builtin_plan_build",
+        liveProbe: nativeAgentState.liveProbe,
         silentDowngradePossible: false,
       },
       capabilityPolicy: {
@@ -729,6 +801,34 @@ async function callTool(name, args, token) {
     }, "Self-audit bezpieczeństwa CTB.");
   }
   const RUN_ANALYTICS_TOOLS = new Set(["paperclipGetRunMetrics", "paperclipGetRunEvents", "paperclipGetRunTokenUsage", "paperclipGetRunSteps", "paperclipGetRunContextBreakdown", "paperclipGetRunModelTurns"]);
+  if (name === "opencode_provider_models") {
+    // READ-through that also surfaces the configured default/fallback contract so config and
+    // the model registry become consistent and observable (P1: sync default model <-> registry).
+    if (!hasScope(token, "opencode:read")) throw Object.assign(new Error("INSUFFICIENT_SCOPE"), { code: "INSUFFICIENT_SCOPE", requiredScope: "opencode:read" });
+    const result = await engine.call("tools/call", { name, arguments: args });
+    try {
+      const defaultRef = `${DEFAULT_MODEL.providerID}/${DEFAULT_MODEL.modelID}`;
+      const eff = effectiveDefaultModel();
+      const effectiveRef = `${eff.providerID}/${eff.modelID}`;
+      const inRegistry = modelRegistryCache.validRefs.has(defaultRef);
+      const fallbackRef = FALLBACK_MODEL ? `${FALLBACK_MODEL.providerID}/${FALLBACK_MODEL.modelID}` : null;
+      // structuredContent from upstream is an array; named props on arrays are dropped by JSON
+      // serialization, so surface the contract as an object AND append it to the human text.
+      const note = `\n\n[kompas] configuredDefault=${defaultRef} effectiveDefault=${effectiveRef} defaultInRegistry=${inRegistry} fallback=${fallbackRef}`;
+      if (Array.isArray(result?.content)) {
+        result.content = result.content.map((p) => (p && p.type === "text" ? { ...p, text: (p.text || "") + note } : p));
+      }
+      result.structuredContent = {
+        configuredDefaultModel: defaultRef,
+        effectiveDefaultModel: effectiveRef,
+        defaultModelInRegistry: inRegistry,
+        configuredFallbackModel: fallbackRef,
+        provider: args.providerId || null,
+        raw: result.structuredContent,
+      };
+    } catch { /* passthrough on unexpected shape */ }
+    return result;
+  }
   if (name === "opencode_run_inspect") {
     // Consolidated read-only run inspector: one tool, explicit views (replaces the six
     // paperclipGetRun* getters on the public surface).
@@ -945,7 +1045,7 @@ async function handleMcp(req, res) {
   const token = verify(tokenFromRequest(req)); if (!token || token.iss !== issuer || token.aud !== resourceUrl() || token.exp * 1000 <= Date.now()) return mcpUnauthorized(res, message?.id ?? null);
   const sessionId = String(req.headers["mcp-session-id"] || ""); const currentSessionId = sessionId && sessions.has(sessionId) ? sessionId : random(16); const headers = sessionId && sessions.has(sessionId) ? {} : { "mcp-session-id": currentSessionId }; sessions.set(currentSessionId, { updatedAt: Date.now() });
   const method = message.method; const id = message.id;
-  if (method === "initialize") { await engine.start(); startTelemetryCollector(); void verifyNativeAgents(); return sendJson(res, 200, rpcResult(id, { protocolVersion: message.params?.protocolVersion || "2025-03-26", capabilities: { tools: { listChanged: false }, resources: { subscribe: false }, prompts: { listChanged: false }, extensions: { "io.modelcontextprotocol/skills": {} } }, serverInfo: { name: "kompas-opencode-ctb", version: "1.2.0" }, instructions: "OpenCode is the CTB execution engine. DIAGNOSE and PLAN are read-only. Every write requires ctb.mode EXECUTE, ctb.changeClass ctb, a valid Paperclip issue, declared scope, acceptance criteria and idempotency key." }), headers); }
+    if (method === "initialize") { await engine.start(); startTelemetryCollector(); void verifyNativeAgents(); void refreshModelRegistry(); return sendJson(res, 200, rpcResult(id, { protocolVersion: message.params?.protocolVersion || "2025-03-26", capabilities: { tools: { listChanged: false }, resources: { subscribe: false }, prompts: { listChanged: false }, extensions: { "io.modelcontextprotocol/skills": {} } }, serverInfo: { name: "kompas-opencode-ctb", version: "1.2.0" }, instructions: "OpenCode is the CTB execution engine. DIAGNOSE and PLAN are read-only. Every write requires ctb.mode EXECUTE, ctb.changeClass ctb, a valid Paperclip issue, declared scope, acceptance criteria and idempotency key." }), headers); }
   if (method === "notifications/initialized" || String(method || "").startsWith("notifications/")) return sendJson(res, 202, {}, headers);
   if (method === "ping") return sendJson(res, 200, rpcResult(id, {}), headers);
   try {
@@ -955,7 +1055,14 @@ async function handleMcp(req, res) {
     if (method === "tools/call") return sendJson(res, 200, rpcResult(id, await callTool(message.params?.name, message.params?.arguments || {}, token)), headers);
     if (["resources/list", "resources/templates/list", "resources/read", "prompts/list", "prompts/get"].includes(method)) { if (!hasScope(token, "opencode:read")) return sendJson(res, 200, rpcResult(id, { isError: true, structuredContent: { errorCode: "INSUFFICIENT_SCOPE", requiredScope: "opencode:read" }, content: [{ type: "text", text: "INSUFFICIENT_SCOPE" }] }), headers); await engine.start(); return sendJson(res, 200, rpcResult(id, await engine.call(method, message.params || {})), headers); }
     return sendJson(res, 400, rpcError(id ?? null, -32601, "Nieznana metoda MCP."), headers);
-  } catch (error) { return sendJson(res, 200, rpcResult(id, { isError: true, structuredContent: { errorCode: error.code || "CTB_GATEWAY_ERROR", missing: error.missing, requiredScope: error.requiredScope }, content: [{ type: "text", text: error.message || "CTB gateway error." }] }), headers); }
+  } catch (error) {
+    // Control-plane / read-only diagnostics must fail with a DISTINCT code from inference
+    // failures, so a dead model backend never makes the control plane undiagnosable (P0 #2).
+    const toolName = message?.params?.name;
+    const isControlPlane = toolName && CONTROL_PLANE_TOOLS.has(toolName);
+    const code = error.code || (isControlPlane ? "CTB_CONTROL_PLANE_UNAVAILABLE" : "CTB_GATEWAY_ERROR");
+    return sendJson(res, 200, rpcResult(id, { isError: true, structuredContent: { errorCode: code, missing: error.missing, requiredScope: error.requiredScope, controlPlane: Boolean(isControlPlane) }, content: [{ type: "text", text: error.message || "CTB gateway error." }] }), headers);
+  }
 }
 
 function escape(value) { return String(value || "").replace(/[&<>"']/g, (char) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[char]); }
@@ -1081,5 +1188,5 @@ async function handleToken(req, res) {
   return sendJson(res, 400, { error: "unsupported_grant_type" });
 }
 
-const server = http.createServer(async (req, res) => { const url = new URL(req.url, `http://${req.headers.host || "localhost"}`); try { if (url.pathname === "/health" && req.method === "GET") return sendJson(res, 200, { ok: true, engine: "AlaeddineMessadi/opencode-mcp@1.11.0", policy: "ctb", revision: CTB_POLICY_REVISION, revisions: { gateway: GATEWAY_REVISION, ctbPolicy: CTB_POLICY_REVISION, mcpRoleProfiles: roleProfilesDoc.revision }, issuer, allowedRoots, models: { default: `${DEFAULT_MODEL.providerID}/${DEFAULT_MODEL.modelID}`, fallback: FALLBACK_MODEL ? `${FALLBACK_MODEL.providerID}/${FALLBACK_MODEL.modelID}` : null, fallbackRetryLimit: 1 }, nativeAgents: { required: REQUIRED_NATIVE_AGENTS, enabled: NATIVE_AGENTS_ENABLED, verified: nativeAgentState.verified, foundAgents: nativeAgentState.foundAgents, missingAgents: nativeAgentState.missingAgents, enforcementMode: NATIVE_AGENTS_ENABLED ? (nativeAgentState.verified ? "native_enforced" : "fail_closed_unverified") : "builtin_plan_build", silentDowngradePossible: false }, capabilityPolicyRevision: `${CTB_POLICY_REVISION}+shell-guard-1`, profileResolutionMode: "server_authoritative", registrySchemaVersion: savedRegistry?.version || 1, publicToolCount: eagerSurfaceEnabled() ? null : PUBLIC_TOOLSET.size + CUSTOM_PUBLIC_TOOLS.length, crashRecovery: { startupProcessLostRuns: Array.isArray(startupProcessLostRuns) ? startupProcessLostRuns.length : 0 } }); if (url.pathname === "/.well-known/oauth-protected-resource" && req.method === "GET") return sendJson(res, 200, { resource: resourceUrl(), authorization_servers: [issuer], scopes_supported: [...validScopes], resource_documentation: `${issuer}/health` }, { "access-control-allow-origin": "*", "cache-control": "public, max-age=3600" }); if ((url.pathname === "/.well-known/oauth-authorization-server" || url.pathname === "/.well-known/openid-configuration") && req.method === "GET") return sendJson(res, 200, { issuer, authorization_endpoint: `${issuer}/oauth/authorize`, token_endpoint: `${issuer}/oauth/token`, registration_endpoint: `${issuer}/oauth/register`, response_types_supported: ["code"], grant_types_supported: ["authorization_code", "refresh_token"], token_endpoint_auth_methods_supported: ["none"], code_challenge_methods_supported: ["S256"], scopes_supported: [...validScopes], authorization_response_iss_parameter_supported: true }, { "access-control-allow-origin": "*", "cache-control": "public, max-age=3600" }); if (url.pathname === "/oauth/register" && req.method === "POST") { const registration = JSON.parse(await body(req)); const redirectUris = Array.isArray(registration.redirect_uris) ? registration.redirect_uris : []; if (!redirectUris.length || !redirectUris.every(allowedRedirect)) return sendJson(res, 400, { error: "invalid_redirect_uri" }); const clientId = `dcr_${random(18)}`; clients[clientId] = { client_id: clientId, client_name: String(registration.client_name || "MCP client"), redirect_uris: redirectUris, token_endpoint_auth_method: "none", approvedAt: null, created_at: new Date().toISOString() }; writeJson(clientsFile, clients); return sendJson(res, 201, { ...clients[clientId], client_id: clientId, grant_types: ["authorization_code", "refresh_token"], response_types: ["code"] }); } if (url.pathname === "/oauth/authorize" && ["GET", "POST"].includes(req.method || "")) return handleAuthorize(req, res, url); if (url.pathname === "/oauth/logout" && req.method === "POST") { const revoked = revokeOauthSession(req); audit({ result: "oauth_logout", revoked }); return sendJson(res, 200, { ok: true }, { "set-cookie": `${sessionCookieName}=; Secure; HttpOnly; SameSite=Lax; Path=/; Max-Age=0` }); } if (url.pathname === "/oauth/token" && req.method === "POST") return handleToken(req, res); if (url.pathname === "/mcp" && req.method === "POST") return handleMcp(req, res); return sendJson(res, 404, { error: "Not found" }); } catch (error) { console.error("[opencode-ctb] request failed", error instanceof Error ? error.message : error); return sendJson(res, 500, { error: "Internal server error" }); } });
+const server = http.createServer(async (req, res) => { const url = new URL(req.url, `http://${req.headers.host || "localhost"}`); try { if (url.pathname === "/health" && req.method === "GET") { await verifyNativeAgents(); await refreshModelRegistry(); return sendJson(res, 200, { ok: true, engine: "AlaeddineMessadi/opencode-mcp@1.11.0", policy: "ctb", revision: CTB_POLICY_REVISION, revisions: { gateway: GATEWAY_REVISION, ctbPolicy: CTB_POLICY_REVISION, mcpRoleProfiles: roleProfilesDoc.revision }, issuer, allowedRoots, models: { default: `${DEFAULT_MODEL.providerID}/${DEFAULT_MODEL.modelID}`, fallback: FALLBACK_MODEL ? `${FALLBACK_MODEL.providerID}/${FALLBACK_MODEL.modelID}` : null, fallbackRetryLimit: 1, defaultModelInRegistry: defaultModelInRegistry() }, nativeAgents: { required: REQUIRED_NATIVE_AGENTS, enabled: NATIVE_AGENTS_ENABLED, canonicalSource: "opencode_config_agent_block", configuredAgents: nativeAgentState.configuredAgents, verified: nativeAgentState.verified, foundAgents: nativeAgentState.foundAgents, missingAgents: nativeAgentState.missingAgents, enforcementMode: NATIVE_AGENTS_ENABLED ? (nativeAgentState.verified ? "native_enforced" : "fail_closed_unverified") : "builtin_plan_build", liveProbe: nativeAgentState.liveProbe, silentDowngradePossible: false }, capabilityPolicyRevision: `${CTB_POLICY_REVISION}+shell-guard-1`, profileResolutionMode: "server_authoritative", registrySchemaVersion: savedRegistry?.version || 1, publicToolCount: eagerSurfaceEnabled() ? null : PUBLIC_TOOLSET.size + CUSTOM_PUBLIC_TOOLS.length, crashRecovery: { startupProcessLostRuns: Array.isArray(startupProcessLostRuns) ? startupProcessLostRuns.length : 0 } }); } if (url.pathname === "/.well-known/oauth-protected-resource" && req.method === "GET") return sendJson(res, 200, { resource: resourceUrl(), authorization_servers: [issuer], scopes_supported: [...validScopes], resource_documentation: `${issuer}/health` }, { "access-control-allow-origin": "*", "cache-control": "public, max-age=3600" }); if ((url.pathname === "/.well-known/oauth-authorization-server" || url.pathname === "/.well-known/openid-configuration") && req.method === "GET") return sendJson(res, 200, { issuer, authorization_endpoint: `${issuer}/oauth/authorize`, token_endpoint: `${issuer}/oauth/token`, registration_endpoint: `${issuer}/oauth/register`, response_types_supported: ["code"], grant_types_supported: ["authorization_code", "refresh_token"], token_endpoint_auth_methods_supported: ["none"], code_challenge_methods_supported: ["S256"], scopes_supported: [...validScopes], authorization_response_iss_parameter_supported: true }, { "access-control-allow-origin": "*", "cache-control": "public, max-age=3600" }); if (url.pathname === "/oauth/register" && req.method === "POST") { const registration = JSON.parse(await body(req)); const redirectUris = Array.isArray(registration.redirect_uris) ? registration.redirect_uris : []; if (!redirectUris.length || !redirectUris.every(allowedRedirect)) return sendJson(res, 400, { error: "invalid_redirect_uri" }); const clientId = `dcr_${random(18)}`; clients[clientId] = { client_id: clientId, client_name: String(registration.client_name || "MCP client"), redirect_uris: redirectUris, token_endpoint_auth_method: "none", approvedAt: null, created_at: new Date().toISOString() }; writeJson(clientsFile, clients); return sendJson(res, 201, { ...clients[clientId], client_id: clientId, grant_types: ["authorization_code", "refresh_token"], response_types: ["code"] }); } if (url.pathname === "/oauth/authorize" && ["GET", "POST"].includes(req.method || "")) return handleAuthorize(req, res, url); if (url.pathname === "/oauth/logout" && req.method === "POST") { const revoked = revokeOauthSession(req); audit({ result: "oauth_logout", revoked }); return sendJson(res, 200, { ok: true }, { "set-cookie": `${sessionCookieName}=; Secure; HttpOnly; SameSite=Lax; Path=/; Max-Age=0` }); } if (url.pathname === "/oauth/token" && req.method === "POST") return handleToken(req, res); if (url.pathname === "/mcp" && req.method === "POST") return handleMcp(req, res); return sendJson(res, 404, { error: "Not found" }); } catch (error) { console.error("[opencode-ctb] request failed", error instanceof Error ? error.message : error); return sendJson(res, 500, { error: "Internal server error" }); } });
 server.listen(port, "127.0.0.1", () => console.log(`[opencode-ctb] listening on http://127.0.0.1:${port}/mcp`));
