@@ -58,9 +58,9 @@ if ($NativeAgents) {
   # Persistent activation: the mode survives plain gateway restarts and machine reboots.
   Set-Content -LiteralPath (Join-Path $runtime "native-agents.mode") -Value "on" -Encoding ascii
 }
-# Kontrakt modelu: domyślny Ox Alpha Free, jawny fallback Hy3 Free (fallbackUsed zawsze raportowany).
-$env:OPENCODE_MCP_DEFAULT_MODEL = "opencode/x-preview-f-free"
-$env:OPENCODE_MCP_FALLBACK_MODEL = "opencode/hy3-free"
+# Kontrakt modelu: domyślny model musi istnieć w aktywnym rejestrze dostawcy.
+$env:OPENCODE_MCP_DEFAULT_MODEL = "opencode/hy3-free"
+$env:OPENCODE_MCP_FALLBACK_MODEL = "opencode/mimo-v2.5-free"
 
 if (-not (Get-NetTCPConnection -State Listen -LocalPort 4096 -ErrorAction SilentlyContinue)) {
   Start-Process -FilePath $opencode -ArgumentList "serve --hostname 127.0.0.1 --port 4096" -WorkingDirectory $root -RedirectStandardOutput (Join-Path $runtime "opencode.out.log") -RedirectStandardError (Join-Path $runtime "opencode.err.log") -WindowStyle Hidden | Out-Null

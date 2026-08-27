@@ -6,8 +6,13 @@ import { fileURLToPath } from "node:url";
 
 const base = process.env.OPENCODE_CTB_TEST_URL || "http://127.0.0.1:4098";
 const here = path.dirname(fileURLToPath(import.meta.url));
+const documentation = fs.readFileSync(path.join(here, "..", "documentation.md"), "utf8");
 const registryPath = path.join(here, ".runtime", "ctb-runs.json");
 const registrySnapshot = () => fs.existsSync(registryPath) ? fs.readFileSync(registryPath, "utf8") : null;
+const runRegistrySnapshot = () => {
+  const registry = JSON.parse(registrySnapshot() || '{"runs":{}}');
+  return JSON.stringify(registry.runs || registry);
+};
 const credentials = Object.fromEntries(
   fs.readFileSync(path.join(here, ".runtime", "credentials.txt"), "utf8")
     .trim()
@@ -84,15 +89,18 @@ const sessionId = response.sessionId;
 response = await rpc(token.access_token, sessionId, 2, "tools/list");
 assert.ok(response.body.result.tools, JSON.stringify(response.body));
 const names = response.body.result.tools.map((tool) => tool.name);
-// Public surface is intentionally slim (~25 canonical tools); aliases and redundant
-// getters must never leak into the eager schema.
+// Public surface is intentionally slim; only the explicitly documented execution
+// aliases are exposed, while compatibility aliases and redundant getters stay hidden.
 const ALIASES = ["opencode_list_runs", "opencode_get_run", "opencode_read_logs", "opencode_get_diff", "opencode_list_agents", "opencode_run_prompt", "opencode_continue_run", "opencode_abort_run"];
 const REDUNDANT_GETTERS = ["paperclipGetRunMetrics", "paperclipGetRunEvents", "paperclipGetRunTokenUsage", "paperclipGetRunSteps", "paperclipGetRunContextBreakdown", "paperclipGetRunModelTurns", "opencode_ctb_get_events", "opencode_ctb_get_metrics"];
 for (const leaked of [...ALIASES, ...REDUNDANT_GETTERS]) assert.ok(!names.includes(leaked), `${leaked} leaked into eager schema`);
-assert.ok(names.length >= 20 && names.length <= 40, `expected slim canonical surface, received ${names.length}`);
+assert.ok(names.length >= 20 && names.length <= 45, `expected slim canonical surface, received ${names.length}`);
 assert.ok(names.includes("opencode_ask"));
 assert.ok(names.includes("opencode_list_skills"));
 assert.ok(names.includes("opencode_run_inspect"));
+const LIFECYCLE_TOOLS = ["opencode_execution_start", "opencode_execution_get", "opencode_execution_status", "opencode_execution_abort"];
+for (const toolName of LIFECYCLE_TOOLS) assert.ok(names.includes(toolName), `${toolName} missing from public tools/list`);
+for (const toolName of LIFECYCLE_TOOLS) assert.match(documentation, new RegExp(`\\b${toolName}\\b`), `${toolName} is public but undocumented`);
 const ask = response.body.result.tools.find((tool) => tool.name === "opencode_ask");
 assert.equal(ask._meta.kompas.toolClass, "WRITE");
 assert.ok(ask.inputSchema.properties.ctb);
@@ -138,6 +146,14 @@ assert.equal(response.body.result.structuredContent.errorCode, "CTB_PROJECT_DENI
   const askSchema = tools.find((tool) => tool.name === "opencode_ask").inputSchema.properties.ctb;
   assert.deepEqual(askSchema.properties.mode, { enum: ["DIAGNOSE", "PLAN", "EXECUTE"] }, "model entrypoint must expose DIAGNOSE/PLAN in public schema");
   assert.deepEqual(askSchema.required, ["mode", "changeClass"]);
+  assert.ok(askSchema.properties.retry, "opencode_ask ctb.retry missing from public schema");
+  const runSchema = tools.find((tool) => tool.name === "opencode_run").inputSchema.properties.ctb;
+  assert.ok(runSchema.properties.retry, "opencode_run ctb.retry missing from public schema");
+  const executionStart = tools.find((tool) => tool.name === "opencode_execution_start");
+  assert.ok(executionStart.inputSchema.properties.ctb.properties.retry, "opencode_execution_start ctb.retry missing from public schema");
+  assert.deepEqual(tools.find((tool) => tool.name === "opencode_execution_get").securitySchemes[0].scopes, ["opencode:read"]);
+  assert.deepEqual(tools.find((tool) => tool.name === "opencode_execution_abort").securitySchemes[0].scopes, ["opencode:session"]);
+  assert.match(documentation, /ctb\.retry=true/, "documentation must declare the retry contract exposed by tools/list");
   const configUpdate = tools.find((tool) => tool.name === "opencode_shell_execute").inputSchema.properties.ctb;
   assert.deepEqual(configUpdate.properties.mode, { const: "EXECUTE" }, "non-model write must stay EXECUTE-only");
   console.log(`Public metadata consistency (${checked} classified tools): PASS`);
@@ -150,40 +166,45 @@ response = await rpc(token.access_token, sessionId, 62, "tools/call", { name: "o
 assert.equal(response.body.result.structuredContent.errorCode, "CTB_SECRET_PATH_DENIED", JSON.stringify(response.body));
 console.log("Secret path isolation (.runtime denylist): PASS");
 
-// DIAGNOSE model runtime: real inference on Ox Alpha via the read-only plan agent,
-// without EXECUTE envelope and with zero CTB registry mutation.
+// DIAGNOSE model runtime: real inference on Hy3 Free via the read-only plan agent,
+// without EXECUTE envelope and with zero CTB run mutation.
 {
-  const beforeModelRegistry = registrySnapshot();
+  const beforeModelRuns = runRegistrySnapshot();
+  const expectedModel = process.env.OPENCODE_TEST_MODEL_ID || "hy3-free";
   let text = "";
   for (let attempt = 1; attempt <= 3; attempt += 1) {
     response = await rpc(token.access_token, sessionId, 63, "tools/call", {
       name: "opencode_ask",
       arguments: {
-        prompt: "Zwróć dokładnie: OX_ALPHA_MCP_TEST_PASS",
+        prompt: "Zwróć dokładnie: HY3_MCP_TEST_PASS",
         providerID: process.env.OPENCODE_TEST_PROVIDER_ID || "opencode",
-        modelID: process.env.OPENCODE_TEST_MODEL_ID || "x-preview-f-free",
+        modelID: expectedModel,
         directory: "C:\\Kompas Zbiórek",
         ctb: { mode: "DIAGNOSE", changeClass: "ctb" },
       },
     });
     assert.equal(response.body.result.isError, undefined, JSON.stringify(response.body));
     text = JSON.stringify(response.body.result);
-    if (/OX_ALPHA_MCP_TEST_PASS/.test(text)) break;
+    if (/HY3_MCP_TEST_PASS/.test(text)) break;
     if (!/no text content/.test(text)) break;
   }
-  assert.match(text, /OX_ALPHA_MCP_TEST_PASS/, `expected model echo in response: ${text.slice(0, 400)}`);
-  assert.equal(registrySnapshot(), beforeModelRegistry, "DIAGNOSE model inference must not mutate the CTB registry");
-  // Runtime model identity must be verifiable through the read-only surface.
-  const modelSessionId = /ses_[A-Za-z0-9_-]+/.exec(text)?.[0];
-  assert.ok(modelSessionId, "expected session id in DIAGNOSE response");
+  assert.match(text, /HY3_MCP_TEST_PASS/, `expected model echo in response: ${text.slice(0, 400)}`);
+  assert.equal(runRegistrySnapshot(), beforeModelRuns, "DIAGNOSE model inference must not mutate the CTB run registry");
+  // Gateway-owned correlation is returned structurally; never parse identity from model text.
+  const modelExecutionId = response.body.result.structuredContent.executionId;
+  const modelSessionId = response.body.result.structuredContent.sessionId;
+  assert.ok(modelExecutionId && modelSessionId, "expected executionId and sessionId in DIAGNOSE response");
+  response = await rpc(token.access_token, sessionId, 641, "tools/call", { name: "opencode_execution_status", arguments: { executionId: modelExecutionId } });
+  assert.equal(response.body.result.structuredContent.sessionId, modelSessionId, "DIAGNOSE lifecycle status keeps the same session");
+  assert.equal(response.body.result.structuredContent.status, "completed", "DIAGNOSE lifecycle reaches completed");
   response = await rpc(token.access_token, sessionId, 64, "tools/call", { name: "opencode_message_model_info", arguments: { sessionId: modelSessionId } });
   assert.equal(response.body.result.isError, undefined, JSON.stringify(response.body));
   const conversation = JSON.stringify(response.body.result);
-  assert.match(conversation, /x-preview-f-free/, `assistant metadata missing modelID: ${conversation.slice(0, 300)}`);
+  assert.match(conversation, new RegExp(expectedModel), `assistant metadata missing modelID: ${conversation.slice(0, 300)}`);
   assert.match(conversation, /providerID":"opencode/, "assistant metadata missing providerID");
   assert.match(conversation, /"agent":"(plan|ctb-plan)"/, "DIAGNOSE inference must run on a read-only plan agent");
   console.log("Runtime model identity via read-only message history: PASS");
-  console.log("DIAGNOSE real model inference (Ox Alpha, plan agent, zero registry writes): PASS");
+  console.log(`DIAGNOSE real model inference (${expectedModel}, plan agent, authoritative lifecycle): PASS`);
 }
 
 // Telemetry integrity fixture: served runs must have contiguous sequences and no events after finishedAt.

@@ -177,7 +177,7 @@ for (const principal of ["ceo_bot", "coo_bot"]) {
 
 // 28. Revision detectability constants.
 ok(/^ctb-policy-\d+$/.test(CTB_POLICY_REVISION) && CTB_POLICY_REVISION > "ctb-policy-3", `/health revision advanced beyond ctb-policy-3 (${CTB_POLICY_REVISION})`);
-ok(doc.revision === "mcp-role-profiles-2", `role profile revision detectable (${doc.revision})`);
+ok(doc.revision === "mcp-role-profiles-4", `role profile revision detectable (${doc.revision})`);
 ok(canonicalPath("C:\\Windows\\..\\Temp").toLowerCase() !== "c:\\windows\\..\\temp", "canonicalPath resolves lexically at minimum");
 
 // Model contract helpers: model-ref parsing + explicit-fallback eligibility predicate.
@@ -187,12 +187,12 @@ ok(parseModelRef("garbage") === null, "parseModelRef rejects non-refs");
 ok(isProviderModelFailure(new Error("provider opencode model nope-model not found")), "provider/model failure detected");
 ok(isProviderModelFailure(Object.assign(new Error("too many requests"), { code: "HTTP_429" })), "rate limit detected as model failure");
 ok(!isProviderModelFailure(Object.assign(new Error("session not found"), { code: "CTB_SESSION_REQUIRED" })), "non-model errors are not fallback-eligible");
-// Fallback eligibility: upstream-masked transport failures qualify; bare "failed" or
-// gateway-local errors never do.
-ok(isFallbackEligibleError(new Error("500 UnknownError")), "masked 500 UnknownError is fallback-eligible");
-ok(isFallbackEligibleError(new Error("Unexpected server error")), "masked unexpected error is fallback-eligible");
-ok(isFallbackEligibleError(new Error('POST /session/ses_x/message failed (500): {"name":"UnknownError"}')), "real masked upstream shape is fallback-eligible");
-ok(!isFallbackEligibleError(new Error("POST /session/x/message failed")), "bare 'failed' without masked markers is NOT fallback-eligible");
+// Fallback eligibility is limited to explicit provider/model failures. Generic transport
+// failures can also represent session, schema or agent faults and must stay visible.
+ok(!isFallbackEligibleError(new Error("500 UnknownError")), "masked 500 UnknownError is not fallback-eligible");
+ok(!isFallbackEligibleError(new Error("Unexpected server error")), "masked unexpected error is not fallback-eligible");
+ok(!isFallbackEligibleError(new Error('POST /session/ses_x/message failed (500): {"name":"UnknownError"}')), "masked message transport is not fallback-eligible");
+ok(!isFallbackEligibleError(new Error("POST /session/x/message failed")), "bare 'failed' without provider/model evidence is NOT fallback-eligible");
 for (const [code, message] of [["CTB_PROJECT_DENIED", "denied"], ["CTB_SESSION_REQUIRED", "missing"], ["CTB_POLICY_INVALID", "invalid"], ["CTB_SECRET_PATH_DENIED", "denied"], ["PAPERCLIP_AUTH_FAILED", "auth"], ["INSUFFICIENT_SCOPE", "scope"], ["UPSTREAM_ENGINE_EXITED", "exited"]]) {
   ok(!isFallbackEligibleError(Object.assign(new Error(message + " (500)"), { code })), `${code} never triggers model fallback even with transport markers`);
 }

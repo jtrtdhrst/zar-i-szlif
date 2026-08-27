@@ -4,18 +4,41 @@ type: source
 tags: [baza-aktywnosci, api, prd]
 sources: [raw/PRD-BAZA-AKTYWNOSCI-RR.md, raw/API-SPRAWNOSCI.md, raw/API-DATA-GODZINA.md]
 created: 2026-08-20
-updated: 2026-08-20
+updated: 2026-08-27
 ---
 
-# Baza aktywności RR i API sprawności
+# Baza Aktywności RR i API sprawności
 
-**Baza aktywności RR** (`zabawy.kompaszbiorek.pl`) — kanał odczytu przez Worker. Filtry `category` (multiselect), `level`, `energy`, `participants`; zwraca wszystkie dopasowania bez paginacji; brak pola → `Brak danych`. Osobne OpenAPI Action (kontrakt MVP w `raw/PRD-BAZA-AKTYWNOSCI-RR.md`: model danych, walidacja).
+## Baza Aktywności RR — model produktowy
 
-**Sprawności RR** (`sprawnosci.kompaszbiorek.pl`) — `pobierzSprawnosciRR` jedno wywołanie na odpowiedź, jeden poziom, bez retry; nie wymyślać wymagań (raw/API-SPRAWNOSCI.md v14).
+Baza Aktywności RR jest wspólną, ręcznie moderowaną bazą gotowych aktywności. Użytkownicy mogą dodawać aktywności z opisem i kategoriami, m.in. wiekiem, czasem trwania i materiałami. Wpis trafia do wspólnej bazy po akceptacji moderatora; celem moderacji jest odfiltrowanie przypadkowych lub słabych wpisów.
 
-**Data/godzina** — zablokowana: brak bazowego URL i OpenAPI, strefa `Europe/Warsaw` (raw/API-DATA-GODZINA.md).
+Z zaakceptowanych aktywności można korzystać ręcznie w panelu i przez asystenta w ChatGPT. Aktywność może zostać wpięta do planu konkretnej zbiórki jako element przebiegu, zamiast przepisywania jej od zera.
 
-**Stopnie RR** — planowane, źródło prawdą oficjalny dokument lub placeholder `Wymaganie stopnia: do uzupełnienia`.
+## Baza Aktywności RR — kontrakt techniczny
 
-> Źródła: `raw/PRD-BAZA-AKTYWNOSCI-RR.md`, `raw/API-SPRAWNOSCI.md`, `raw/API-DATA-GODZINA.md`, `raw/documentation.md`.
+Kanał odczytu przez Worker: `zabawy.kompaszbiorek.pl`. Dostępne filtry obejmują `category` (multiselect), `level`, `energy`, `participants`; wynik zwraca wszystkie dopasowania bez paginacji. Brak pola lub danych nie może być uzupełniany zmyśleniem — obowiązuje `Brak danych`.
 
+Kontrakt MVP i walidację opisuje `raw/PRD-BAZA-AKTYWNOSCI-RR.md`.
+
+## Sprawności RR — model produktowy
+
+Instruktor wybiera sprawności realizowane przez drużynę i przypisuje konkretne wymagania do aktywności. Zaplanowane wymaganie nie oznacza wykonania — wykonanie zaznacza się dopiero po aktywności, w podsumowaniu/refleksji. Jedno wymaganie może być realizowane przez kilka aktywności.
+
+Po ukończeniu wszystkich wymagań sprawność zostaje domknięta i system tworzy zadanie wręczenia naszywki.
+
+System może sugerować aktywności lub sprawności na podstawie kontekstu drużyny oraz pomagać zauważyć brak balansu czterech aspektów programu: fizycznego, społecznego, duchowego i intelektualnego.
+
+## Sprawności RR — kontrakt API
+
+`sprawnosci.kompaszbiorek.pl` / `pobierzSprawnosciRR`: jedno wywołanie na odpowiedź, jeden poziom, bez retry. Wymagania muszą pochodzić z oficjalnego źródła RR; nie wolno ich wymyślać.
+
+## Data/godzina
+
+Integracja daty/godziny pozostaje zablokowana: brak bazowego URL i OpenAPI; strefa `Europe/Warsaw`.
+
+## Stopnie RR
+
+Pełna integracja ze stopniami pozostaje poza aktualnym zakresem. Nie obiecywać automatycznej integracji ze stopniami. Jeżeli pojawia się brakujące wymaganie stopnia w materiale roboczym, używać jawnego placeholdera zamiast wymyślania treści.
+
+> Źródła techniczne: `raw/PRD-BAZA-AKTYWNOSCI-RR.md`, `raw/API-SPRAWNOSCI.md`, `raw/API-DATA-GODZINA.md`, `raw/documentation.md`. Model produktowy zsynchronizowany z Docs 2026-08-27.

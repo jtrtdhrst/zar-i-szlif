@@ -15,6 +15,6 @@ Wykonanie kontraktowe odwołuje się do WSPOLNY_KONTEKST sekcji Project context/
 
 ## MAPA SYSTEMU.md (raw/MAPA-SYSTEMU.md)
 
-Pliki produktu: PRD, Prompt systemowy, historyczne materiały `00`–`06`, SZABLON GOOGLE DOCS, Dokumentacje API (sprawności, data/godzina, baza aktywności). Aktualny kontrakt: Planowanie → Realizacja → Analiza → Decyzja; tylko Planowanie ma checkpointy Cel i sprawności / Przebieg / Przygotowanie. Etapy 2–4 nie mają zatwierdzonych podzadań ani bramek. `00`–`06` zachowuje traceability metodologii, nie definiuje user-facing flow. Status integracji: Google Sheets wdrożone, data/godzina zablokowana, sprawności v14 zweryfikowane, stopnie planowane, baza aktywności kontrakt MVP.
+Pliki produktu: PRD, Prompt systemowy, historyczne materiały `00`–`06`, SZABLON GOOGLE DOCS, Dokumentacje API (sprawności, data/godzina, baza aktywności). Bieżący stan (CURRENT/AS-IS): Planowanie → Realizacja → Analiza → Decyzja (zob. `STATE.md`); tylko Planowanie ma checkpointy Cel i sprawności / Przebieg / Przygotowanie. Etapy 2–4 nie mają zatwierdzonych podzadań ani bramek. Docelowy kontrakt (TARGET): Planowanie → Realizacja → Refleksja → Doskonalenie (zob. `PRODUCT.md`). `00`–`06` zachowuje traceability metodologii, nie definiuje user-facing flow. Status integracji: Google Sheets wdrożone, data/godzina zablokowana, sprawności v14 zweryfikowane, stopnie planowane, baza aktywności kontrakt MVP.
 
 > Źródła: `raw/AGENTS.md`, `raw/MAPA-SYSTEMU.md`.

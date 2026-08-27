@@ -119,7 +119,7 @@ try {
 }
 
 // ============ 7. FALLBACK MATRIX EXTENSIONS ============
-ok(isFallbackEligibleError(Object.assign(new Error("(500) UnknownError"), { code: "" })) === true, "masked 500 UnknownError -> fallback");
+ok(isFallbackEligibleError(Object.assign(new Error("(500) UnknownError"), { code: "" })) === false, "masked 500 UnknownError does not trigger fallback");
 ok(isFallbackEligibleError(Object.assign(new Error("rate limit exceeded"), { code: "" })) === true, "rate limit -> fallback retry");
 ok(isFallbackEligibleError(Object.assign(new Error("provider not found"), { code: "" })) === true, "provider not found -> fallback retry");
 ok(isFallbackEligibleError(Object.assign(new Error("(500) UnknownError"), { code: "CTB_ISSUE_SCOPE_MISMATCH" })) === false, "500 in message but CTB_ code -> NO fallback");
@@ -145,7 +145,7 @@ async function spawnGateway(runtimeDir, port, envExtra = {}) {
 
 const crashRuntimeDir = path.join(tempBaseHardening(), "crash-runtime");
 fs.mkdirSync(crashRuntimeDir, { recursive: true });
-fs.writeFileSync(path.join(crashRuntimeDir, "ctb-runs.json"), JSON.stringify({ version: 2, runs: { ses_zombie: { runId: "ses_zombie", status: "running", createdAt: new Date().toISOString(), events: [] } } }));
+fs.writeFileSync(path.join(crashRuntimeDir, "ctb-runs.json"), JSON.stringify({ version: 2, runs: { ses_zombie: { runId: "ses_zombie", executionId: "exec_zombie", status: "running", createdAt: new Date().toISOString(), events: [] } }, executions: { exec_zombie: { executionId: "exec_zombie", sessionId: "ses_zombie", status: "running", createdAt: new Date().toISOString() } } }));
 try {
   const { child } = await spawnGateway(crashRuntimeDir, 4598);
   try {
@@ -154,6 +154,7 @@ try {
     ok(health.body.nativeAgents?.enabled === false && health.body.nativeAgents?.enforcementMode === "builtin_plan_build", "native mode off by default (persistent activation required)");
     const registry = JSON.parse(fs.readFileSync(path.join(crashRuntimeDir, "ctb-runs.json"), "utf8"));
     ok(registry.runs.ses_zombie.status === "process_lost" && registry.runs.ses_zombie.errorCode === "CTB_PROCESS_LOST", "registry row reconciled to process_lost (retryable)");
+    ok(registry.executions.exec_zombie.status === "failed" && registry.executions.exec_zombie.errorCode === "CTB_PROCESS_LOST" && registry.executions.exec_zombie.retryable === true, "orphaned execution is terminalized as retryable CTB_PROCESS_LOST");
   } finally { child.kill(); }
 } finally {
   fs.rmSync(crashRuntimeDir, { recursive: true, force: true });

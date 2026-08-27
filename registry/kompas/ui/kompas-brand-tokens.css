@@ -1,0 +1,91 @@
+/* Kanoniczne tokeny marki Kompas — źródło prawdy: wygląd produkcyjny kompaszbiorek.pl (kaskada v48).
+   Specyfikacja: kompas-ui-design/INSTRUKCJE-BRANDINGU-AI.md. Wartości finalne — nie zmieniać „na oko". */
+:root {
+  /* Kolory (§1) */
+  --forest-950: #162313;
+  --forest-900: #1d2d19;
+  --forest-800: #2a3d24;
+  --paper: #f5f0df;
+  --paper-2: #ece5d1;
+  --ink: #20301e;
+  --muted: #485347;
+  --red: #be302a;
+  --red-dark: #93221e;
+  --gold: #d6ad2f;
+  --gold-soft: #e4c557;
+  --black: #070907;
+  --white: #ffffff;
+  --line: rgba(32, 48, 30, .18);
+
+  /* Aliasy semantyczne (stabilne nazwy dla konsumentów) */
+  --fg-1: var(--ink);
+  --fg-2: var(--muted);
+  --bg-1: var(--paper);
+  --bg-2: var(--paper-2);
+  --surface-canvas: var(--paper);
+  --surface-primary: var(--red);
+  --surface-brand: var(--forest-950);
+  --surface-strong: var(--forest-950);
+  --surface-subtle: var(--paper-2);
+  --text-primary: var(--ink);
+  --text-inverse: var(--paper);
+  --border-subtle: var(--line);
+  --border-strong: var(--forest-800);
+  --action-primary: var(--red);
+
+  /* Typografia (§2): Noto Sans / Noto Sans Display */
+  --font-display: "Noto Sans Display", "Noto Sans", Arial, sans-serif;
+  --font-body: "Noto Sans", Arial, sans-serif;
+
+  /* Skala typograficzna */
+  --size-12: 12px;
+  --size-14: 14px;
+  --size-16: 16px;
+  --size-20: 20px;
+  --size-28: 28px;
+  --size-40: 40px;
+  --size-56: 56px;
+  --size-80: 80px;
+  --h1: clamp(38px, 4.4vw, 66px);
+  --h2: clamp(36px, 3.9vw, 50px);
+  --body: 16px;
+  --caption: 12px;
+
+  /* Odstępy — rytm 4 px (§3) */
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 16px;
+  --space-6: 24px;
+  --space-8: 32px;
+  --space-12: 48px;
+  --space-16: 64px;
+
+  /* Radiusy (anty-slop §18.8) */
+  --radius-none: 0;
+  --radius-card: 8px;
+  --radius-pill: 999px;
+  --radius-cap: 50%;
+  --radius-tight: 6px;
+  --radius-soft: 8px;
+
+  /* Ruch (§6) */
+  --motion-fast: .16s ease;
+  --motion-nav: .18s ease;
+  --lift-hover: translateY(-1px);
+  --focus-ring: 0 0 0 3px rgba(214, 173, 47, .36);
+
+  /* Kontener i breakpointy (§4) */
+  --shell: 1280px;
+  --shell-max: 1420px;
+  --shell-gutter: 64px;
+  --bp-mobile: 599px;
+  --bp-tablet: 959px;
+  --bp-header-collapse: 1180px;
+  --bp-desktop: 1280px;
+  --bp-wide: 1440px;
+
+  /* Akcent „L" (§9) */
+  --accent-offset: 7px;
+  --accent-stroke: 3px;
+}

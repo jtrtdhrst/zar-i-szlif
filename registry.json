@@ -1,0 +1,11 @@
+{
+  "$schema": "https://ui.shadcn.com/schema/registry.json",
+  "name": "kompas",
+  "homepage": "https://github.com/miloszspyrka-code/kompas-zbiorek",
+  "include": [
+    "registry/kompas/ui/registry.json",
+    "registry/kompas/components/registry.json",
+    "registry/kompas/blocks/registry.json",
+    "registry/kompas/shells/registry.json"
+  ]
+}

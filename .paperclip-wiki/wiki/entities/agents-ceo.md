@@ -14,7 +14,8 @@ updated: 2026-08-20
 - Persona: `SOUL.md`, narzędzia: `TOOLS.md`, heartbeat: `HEARTBEAT.md`, kontekst: `CONTEXT.md`
 
 **Required context (lazy-load)**:
-- `../../shared/PRODUCT.md` — produkt, repo, invariants, cykl 4 etapy
+- `../../shared/PRODUCT.md` — TARGET/MUST-HAVE: produkt, repo, invariants, docelowy cykl (Planowanie → Realizacja → Refleksja → Doskonalenie)
+- `../../shared/STATE.md` — CURRENT/AS-IS: zweryfikowany stan, bieżący cykl (Planowanie → Realizacja → Analiza → Decyzja)
 - `../../shared/GOVERNANCE.md` — governance, DoD, STARTUP I/O
 - `../../shared/TEAM.md` — zespół, skille, profile modeli
 - `../../shared/DELIVERY.md` — REPO MAP, produkcja, testy

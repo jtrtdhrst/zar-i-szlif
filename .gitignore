@@ -15,6 +15,11 @@ playwright-report/
 .codex/
 .codex-remote-attachments/
 .playwright-mcp/
+registry-dist/
+storybook-static/
+storybook-dev.log
+storybook-dev.err.log
+opencode-mcp-status.log
 .paperclip-worktrees/
 .paperclip-context
 .paperclip-context.backup/
@@ -39,3 +44,7 @@ kompas-ui-plugin/.lighthouseci/
 audyt-ui/shots/
 audyt-ui/*.json
 !audyt-ui/*.md
+
+*storybook.log
+storybook-static
+opencode-mcp/.runtime/

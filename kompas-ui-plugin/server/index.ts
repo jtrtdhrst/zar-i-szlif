@@ -29,6 +29,9 @@ server.registerTool("pokaż_kompas_zbiórek", {
 
 const app = express();
 app.use(express.json());
+app.get("/", async (_req, res) => {
+  res.type("html").send(await readFile(join(here, "../../web/dist/index.html"), "utf8"));
+});
 app.post("/mcp", async (req, res) => {
   const transport = new StreamableHTTPServerTransport({ sessionIdGenerator: undefined });
   res.on("close", () => transport.close());

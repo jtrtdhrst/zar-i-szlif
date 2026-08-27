@@ -40,3 +40,20 @@ Historical information must not overwrite newer verified state.
 - Do not treat issue status alone as proof of implementation.
 - VERIFIED requires evidence.
 - Never modify production systems from wiki maintenance.
+- Kanon statusów wiedzy agentów (TARGET/PRODUCT, CURRENT/STATE, DELTA, UNAPPROVED): `shared/CONTEXT.md`.
+
+## Paperclip MCP Wiki
+
+Paperclip MCP udostępnia bezpieczny read/write path dla stron `wiki/**/*.md` przez
+`paperclipWikiList`, `paperclipWikiSearch`, `paperclipWikiGetPage`,
+`paperclipWikiGetMetadata`, `paperclipWikiProposeChange` i
+`paperclipWikiApplyChange`.
+
+- Odczyt: `List/Search → GetPage` (metadata można pobrać osobno).
+- Przed edycją hash z `WikiList` traktuj wyłącznie jako wskazówkę. Zawsze użyj
+  aktualnego hash zwróconego przez `WikiGetPage` lub `WikiGetMetadata`.
+- Edycja: `GetPage → ProposeChange(expectedHash) → review → ApplyChange(expectedHash)`.
+- `ApplyChange` nie może wymuszać zapisu. `WIKI_HASH_CONFLICT` oznacza zmianę
+  równoległą i wymaga ponownego odczytu oraz nowej propozycji.
+- Nie używaj narzędzi Wiki do `raw/`, plików runtime, skilli, sekretów,
+  `AGENTS.md` ani ścieżek traversal. Szczegółowy kontrakt: [[wiki/concepts/paperclip-wiki-mcp]].

@@ -1,0 +1,22 @@
+{
+  "devDependencies": {
+    "@axe-core/playwright": "^4.13.0",
+    "@lhci/cli": "^0.15.1",
+    "@playwright/mcp": "0.0.79",
+    "@playwright/test": "^1.62.1",
+    "@storybook/addon-a11y": "10.5.10",
+    "@storybook/addon-docs": "10.5.10",
+    "@storybook/addon-mcp": "0.7.0",
+    "@storybook/html-vite": "10.5.10",
+    "shadcn": "4.19.0",
+    "storybook": "10.5.10",
+    "tsx": "^4.23.12"
+  },
+  "scripts": {
+    "ui:registry:build": "pnpm exec shadcn registry validate registry.json && pnpm exec shadcn build registry.json --output registry-dist/r",
+    "ui:registry:serve": "node scripts/ui-registry/serve.mjs",
+    "ui:promote": "node scripts/ui-registry/promote.mjs",
+    "storybook": "storybook dev -p 6006",
+    "build-storybook": "storybook build"
+  }
+}

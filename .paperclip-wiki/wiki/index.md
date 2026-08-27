@@ -19,6 +19,7 @@
 - [[wiki/concepts/stan-braku-danych]] — zasada UX przy braku API
 - [[wiki/concepts/brand-dna]] — Brand DNA mapa/topografia
 - [[wiki/concepts/bramka-jakosci-ui]] — Quality Gate (Playwright + Lighthouse)
+- [[wiki/concepts/paperclip-wiki-mcp]] — read path, proposal/apply i kontrola hash
 
 ## Entities (systemy i integracje)
 

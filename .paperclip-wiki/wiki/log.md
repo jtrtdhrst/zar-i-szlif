@@ -1,5 +1,11 @@
 ﻿# Wiki Maintenance Log
 
+## [2026-08-26] contract | Paperclip MCP Wiki read/write path
+- added: [[wiki/concepts/paperclip-wiki-mcp]] — narzędzia, read-before-edit, hash caveat, path safety i concurrency
+- updated: [[wiki/index]], [[wiki/sources/integracje-mcp]], root `AGENTS.md`
+- evidence: live read path, 35 bezpiecznych stron, SHA-256, `WIKI_PATH_FORBIDDEN`, zarejestrowane skille Wiki
+- limitation: pełny write-path E2E z zapisem i przywróceniem oryginału pozostaje do osobnej, jawnie autoryzowanej próby
+
 ## 2026-08-20 15:25
 - Initialized Kompas Zbiórek LLM Wiki root.
 - Root: C:\Kompas Zbiórek\.paperclip-wiki
