@@ -18,7 +18,7 @@ Routing table: `docs/AI-REPO-MAP.md` (kanoniczne ścieżki). Skrót:
 - `PRD Kompas Zbiórek.md` — zakres, kryteria akceptacji
 - `MAPA SYSTEMU.md` — rola plików i aktualny kontrakt 4 etapów
 - `AGENTS.md` — zasady wykonawcze
-- Cykl: Planowanie → Realizacja → Analiza → Decyzja; `00`–`06` to historyczny/metodologiczny materiał traceability, nie mapowanie bieżącego kontraktu
+- Cykl (kontrakt): TARGET = Planowanie → Realizacja → Refleksja → Doskonalenie (`PRODUCT.md`); CURRENT/AS-IS = Planowanie → Realizacja → Analiza → Decyzja (`STATE.md`). `00`–`06` to historyczny/metodologiczny materiał traceability, nie mapowanie bieżącego kontraktu.
 - Szablon: `SZABLON GOOGLE DOCS.md`
 - Architektura: patrz `shared/PRODUCT.md`
 

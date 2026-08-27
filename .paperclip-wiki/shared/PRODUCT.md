@@ -1,8 +1,10 @@
-# Produkt — Kompas Zbiórek
+# Produkt — Kompas Zbiórek (TARGET / MUST-HAVE)
 
-Wtyczka ChatGPT (https://wtyczka.kompaszbiorek.pl/ui) + własny interfejs (https://interfejs.kompaszbiorek.pl) dla liderów Royal Rangers Polska — cyfrowy przewodnik dla drużyny harcerskiej (ZHR/ZHP, instruktorzy, drużynowi). Rdzeń: SENS → DZIAŁANIE → REFLEKSJA. Aktualny cykl user-facing ma cztery etapy: **Planowanie → Realizacja → Analiza → Decyzja**. Źródłem AS-IS, zatwierdzonego TO-BE i DELTY jest [KOMAA-48](/KOMAA/issues/KOMAA-48). Model 9 kroków jest historyczny/metodologiczny.
+> Ten plik opisuje **cel / wymagania** produktu (TARGET). Stan obecny z dowodem: `shared/STATE.md`. Kontrakt ról: `shared/KONTRAKT-WIEDZY.md`.
 
-Karta zbiórki to samowystarczalny artefakt: dane i obecność, sprawności, eksperyment, przygotowanie, plan godzinowy, refleksja.
+Wtyczka ChatGPT (https://wtyczka.kompaszbiorek.pl/ui) + własny interfejs (https://interfejs.kompaszbiorek.pl) dla liderów Royal Rangers Polska — cyfrowy przewodnik dla drużyny harcerskiej (ZHR/ZHP, instruktorzy, drużynowi).
+
+**Docelowy cykl user-facing (TARGET): Planowanie → Realizacja → Refleksja → Doskonalenie.** (Bieżący stan: `STATE.md`; DELTA: [KOMAA-48](/KOMAA/issues/KOMAA-48).)
 
 **Repozytorium:** https://github.com/miloszspyrka-code/kompas-zbiorek
 **Workspace Paperclip:** `isolated_workspace` + `git_worktree`, `baseRef = main`, worktree parent `C:\Kompas Zbiórek\.paperclip-worktrees`

@@ -14,4 +14,3 @@ Workspace: `isolated_workspace` + `git_worktree` (`baseRef=main`, parent `.paper
 Agenci: CEO (`kompas-governance`), COO (`issue-triage`, `kompas-team-map`), CTO/Engineer (`kompas-technical-context`, `github-pr-workflow`), Designer (`kompas-design-context`, `agent-browser`), UI QA (`kompas-qa-context`, `qa-acceptance`), CMO (`kompas-brand-email`). Skille lekkie kontrakty `local/<hash>/<slug>`.
 
 Profile modeli: `cheap` (heartbeat, triage, docs) vs `primary` (kod, decyzja); eskalacja do Deepseek Pro tylko gdy cheap/primary nie rozwiązały.
-

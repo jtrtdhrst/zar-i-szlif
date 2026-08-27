@@ -32,8 +32,8 @@ Nie zaczynaj taska od: listowania wszystkich issue/projektów/goals/agentów, sz
 - Bez wyszukiwania po całym boardzie; bez discovery repo gdy lokalizacja znana
 - Autorytatywność mutacji: udana odpowiedź mutacji jest wiążąca, nie wykonuj potwierdzającego GET
 
-## Cykl doskonalenia (4 etapy — aktualny)
-**Planowanie → Realizacja → Analiza → Decyzja** to aktualny kontrakt user-facing. Planowanie ma wyłącznie checkpointy: Cel i sprawności, Przebieg, Przygotowanie. Etapy 2–4 nie mają zatwierdzonych podzadań ani bramek. `00`–`06` i model 9 kroków są historyczne/metodologiczne; nie są mapowaniem bieżącego kontraktu. AS-IS, TO-BE i DELTA: [KOMAA-48](/KOMAA/issues/KOMAA-48).
+## Cykl user-facing (kontrakt)
+Docelowy cykl (TARGET): **Planowanie → Realizacja → Refleksja → Doskonalenie** — zob. `shared/PRODUCT.md`. Bieżący stan (CURRENT/AS-IS): **Planowanie → Realizacja → Analiza → Decyzja** — zob. `shared/STATE.md`. `00`–`06` i model 9 kroków są historyczne/metodologiczne; nie są mapowaniem bieżącego kontraktu. AS-IS, TO-BE i DELTA: [KOMAA-48](/KOMAA/issues/KOMAA-48). Pełny kontrakt ról: `shared/KONTRAKT-WIEDZY.md`.
 
 ## Brand DNA
 Charakter mapy/topografii/terenu; oszczędny żółto-złoty akcent; display serif; body geometryczny sans; hierarchia nad dekoracją.

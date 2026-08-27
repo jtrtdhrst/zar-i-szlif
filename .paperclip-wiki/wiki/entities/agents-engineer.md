@@ -13,7 +13,8 @@ updated: 2026-08-20
 
 **Required context (MA DOSTĘP DO DOKUMENTACJI)**:
 - `../../shared/PRODUCT.md` — produkt, repo, invariants
-- `../../shared/GOVERNANCE.md` — governance, DoD, cykl 4 etapy
+- `../../shared/GOVERNANCE.md` — governance, DoD, STARTUP I/O
+- `../../shared/STATE.md` — CURRENT/AS-IS (zweryfikowany stan)
 - `../../shared/TEAM.md` — zespół, skille, profile modeli
 - `../../shared/DELIVERY.md` — REPO MAP, produkcja, testy, integracje
 - `kompas-ui-design/INSTRUKCJE-BRANDINGU-AI.md` — branding 1:1 live v48 (forest/paper/gold/red) — **MUSI znać przed UI**

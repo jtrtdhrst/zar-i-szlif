@@ -19,5 +19,13 @@ updated: 2026-08-20
 
 **ChatGPT**: wtyczka + Apps SDK, serwer mostu `kompas-ui-plugin/server/index.ts`, skill `chatgpt-apps`.
 
-> Źródła: `raw/DOKUMENTACJA-INTEGRACJI.md`, `raw/PROMPT-SYSTEMOWY.md`, `raw/documentation.md`.
+**Paperclip MCP Wiki**: bezpieczny katalog stron `wiki/**/*.md` udostępnia
+`paperclipWikiList`, `paperclipWikiSearch`, `paperclipWikiGetPage`,
+`paperclipWikiGetMetadata`, `paperclipWikiProposeChange` i
+`paperclipWikiApplyChange`. Przed edycją autorytatywny hash pobieraj przez
+`GetPage`/`GetMetadata`, nie z listingu. Konflikt równoległej zmiany zwraca
+`WIKI_HASH_CONFLICT`; `raw/` i traversal zwracają `WIKI_PATH_FORBIDDEN`.
 
+Szczegółowy kontrakt: [[wiki/concepts/paperclip-wiki-mcp]].
+
+> Źródła: `raw/DOKUMENTACJA-INTEGRACJI.md`, `raw/PROMPT-SYSTEMOWY.md`, `raw/documentation.md`.
