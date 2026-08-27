@@ -84,3 +84,9 @@
 - Playwright: `npm run test:all` — 92/92 passed (desktop + mobile)
 - Dostępność: WCAG A/AA (2.1 + 2.2) — przeszło na obu viewportach
 - Lighthouse: EPERM — problem środowiskowy, niezwiązany ze zmianami kodu
+
+## Storybook marketingowy
+
+Storybook kataloguje wyłącznie elementy wynikające ze strony `kompaszbiorek.pl`: tokeny marki, typografię, helper `kompas-site`, nagłówek, sekcje 01–04 oraz osobny brand book. Produktowe moduły `kompas-button`, `kompas-input`, `kompas-card`, `kompas-badge`, `kompas-tabs`, `kompas-dialog`, `brand-header`, `app-shell` i `stage-checklist` nie mają stories ani wpisów w rejestrach Storybooka; ich źródła pozostają dla runtime aplikacji. Szablony maili również nie są częścią Storybooka.
+
+Weryfikacja: `npm run build-storybook` w katalogu głównym projektu.

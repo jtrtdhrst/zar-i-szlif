@@ -7,7 +7,13 @@
     "build": "node web/scripts/build-static.mjs && node node_modules/typescript/bin/tsc -p server/tsconfig.json",
     "test:skill-completion-task": "node web/scripts/skill-completion-task-test.mjs",
     "start": "node server/dist/index.js",
-    "dev": "npm run build && npm run start"
+    "dev": "npm run build && npm run start",
+    "typecheck": "node node_modules/typescript/bin/tsc --noEmit -p server/tsconfig.json && node node_modules/typescript/bin/tsc --noEmit -p web/tsconfig.json",
+    "test:ui": "playwright test --config playwright.config.ts",
+    "test:a11y": "playwright test e2e/a11y.spec.ts --config playwright.config.ts",
+    "test:visual": "playwright test e2e/visual.spec.ts --config playwright.config.ts",
+    "test:ui:update": "playwright test e2e/visual.spec.ts --config playwright.config.ts --update-snapshots",
+    "test:all": "npm run build && npm run test:ui"
   },
   "dependencies": {
     "@modelcontextprotocol/sdk": "^1.27.1",

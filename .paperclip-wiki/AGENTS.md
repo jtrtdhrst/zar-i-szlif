@@ -40,7 +40,7 @@ Historical information must not overwrite newer verified state.
 - Do not treat issue status alone as proof of implementation.
 - VERIFIED requires evidence.
 - Never modify production systems from wiki maintenance.
-- Kontrakt statusów wiedzy agentów (TARGET/PRODUCT, CURRENT/STATE, DELTA, UNAPPROVED): `shared/KONTRAKT-WIEDZY.md`.
+- Kanon statusów wiedzy agentów (TARGET/PRODUCT, CURRENT/STATE, DELTA, UNAPPROVED): `shared/CONTEXT.md`.
 
 ## Paperclip MCP Wiki
 

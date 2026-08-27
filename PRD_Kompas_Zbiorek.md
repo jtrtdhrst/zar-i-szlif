@@ -1,6 +1,6 @@
 # PRD: Kompas Zbiórek
 
-**Wersja:** 1.7  
+**Wersja:** 1.8  
 **Status:** uporządkowany zakres produktu  
 **Produkt:** Wtyczka ChatGPT + własny interfejs (https://interfejs.kompaszbiorek.pl) dla liderów Royal Rangers Polska
 
@@ -194,6 +194,49 @@ Canvas służy do edycji jawnego artefaktu roboczego: planu, karty cyklu, drzewa
 3. Oceńmy, czego nauczyła nas ostatnia zmiana.
 4. Mam pomysł na poprawę. Sprawdźmy, czy da się go uczciwie przetestować.
 
+## 12a. Onboarding po pierwszej rejestracji — popup ankietowy + film poradnikowy
+
+### Wyzwalacz i częstotliwość
+
+- Popup wyświetla się **wyłącznie przy pierwszym udanym logowaniu po rejestracji** (pierwsza sesja z `registered`).
+- Warunek: `localStorage` + flaga po stronie backendu/arkusza (`onb_popup_shown` / `onb_popup_completed`). Po ustawieniu flagi popup nigdy nie wraca automatycznie, także po wylogowaniu i ponownym logowaniu.
+- Nie blokuje nawigacji — użytkownik może zamknąć popup (`X`, `Pomiń`, `Esc`, klik poza modalem) i kontynuować pracę. Zamknięcie = `onb_popup_dismissed`.
+- Dostęp ponowny na żądanie: link „Zobacz poradnik ponownie” w pomocy / profilu otwiera ten sam modal bez ponownego tagowania.
+
+### Zawartość popupu
+
+1. **Nagłówek:** „Witaj w Kompasie Zbiórek — 1 minuta i ruszasz”.
+2. **Film poradnikowy (hero):** osadzony player (YouTube / hosting własny) 90–150 s, tytuł „Jak działa Kompas Zbiórek: od obserwacji do gotowej zbiórki”. Odtwarzanie inline w modalu, bez przekierowania. Obok filmu CTA `Otwórz Kompas i zaplanuj pierwszą zbiórkę`.
+3. **Mikro-ankieta 3–4 pytania jednokrotnego wyboru** (radio/select), każde pytanie mapuje się na tag w Sender.net. Wypełnienie ankiety nie jest wymagane do zamknięcia popupu.
+
+| # | Pytanie (PL) | Opcje (przykładowo) | Tag Sender.net | Cel segmentacji |
+|---|---|---|---|---|
+| 1 | Jaką pełnisz rolę? | Drużynowy / Przyboczny / Instruktor / Rodzic-wolontariusz | `onb_role:druzynowy` / `przyboczny` / `instruktor` / `wolontariusz` | personalizacja treści |
+| 2 | Jak długo prowadzisz drużynę? | <1 rok / 1–3 lata / 3+ lat | `onb_exp:lt1` / `1-3` / `gt3` | dobór poziomu poradnika |
+| 3 | Ilu masz Harcerzy w drużynie? | 1–8 / 9–16 / 17+ | `onb_team:small` / `medium` / `large` | przykłady planów |
+| 4 | Co chcesz najpierw usprawnić? | Planowanie zbiórek / Sprawności / Zaangażowanie / Eksperymenty | `onb_goal:plan` / `sprawnosci` / `zaangazowanie` / `eksperymenty` | kolejność emaili |
+
+- Finalna lista pytań do zatwierdzenia przez CEO/CMO przed wdrożeniem; klucz: **max 4 pytania, każde z prefixem `onb_`**, wartości znormalizowane (lowercase, bez polskich znaków w tagu).
+- Dodatkowy tag zbiorczy po interakcji: `onb_popup_completed` (wypełnił i wysłał) lub `onb_popup_dismissed` (pominął/zamknął), oraz `onb_video_played` po `play` >5 s.
+
+### Przepływ i integracja z Marketing Automation
+
+- Zapis: `POST /api/onboarding-popup` (lub `POST /panel/onboarding`) z `{ answers: { q1, q2, q3, q4 }, videoPlayed: boolean }` → backend waliduje, ustawia flagę `onb_popup_shown`, wywołuje **Sender.net API — dodanie/aktualizacja kontaktu + tagi** (upsert po `email`).
+- Mapowanie tagów 1:1 z tabelą powyżej; tagi nakładane są **łącznie** z istniejącymi `registered`, `onb_seq_active` z `MAPA-AUTOMATYZACJI.md` — nie nadpisują sekwencji onboardingowej.
+- Błąd Sender.net nie blokuje UI — popup zamyka się normalnie, a tagowanie jest ponawiane asynchronicznie (kolejka Worker KV / retry 3×). W logach `onb_tag_sync_failed` jeśli wszystkie próby zawiodą.
+- RODO: pod ankietą krótka informacja „Odpowiedzi służą dopasowaniu porad i nie są profilowaniem wrażliwym. Możesz pominąć.” + link do polityki.
+
+### UX / technika
+
+- Modal centered, max-width 720 px, desktop i mobile 390×844 bez poziomego scrolla, focus-trap, `aria-modal`, zamknięcie `Esc`.
+- Film lazy-load (miniatura → iframe po kliknięciu Play) dla Lighthouse performance.
+- CTA główne: `Zapisz i przejdź do Kompasu` (wysyła tagi + zamyka), drugorzędne: `Pomiń na razie`.
+- Analityka: eventy `onb_popup_shown`, `onb_popup_completed`, `onb_popup_dismissed`, `onb_video_played`, `onb_video_completed` do Clarity / logów Workera.
+
+### Powiązanie z automatyzacją
+
+- Tagi `onb_role:*`, `onb_exp:*`, `onb_team:*`, `onb_goal:*` są gotowe do użycia w warunkach automatyzacji Sender.net (segmentacja Email 1–3). Szczegółowa tabela tagów pozostaje w `onboarding-emails/MAPA-AUTOMATYZACJI.md` — popup jedynie dopisuje nowe tagi z prefixem `onb_`.
+
 ## 13. Kryteria akceptacji
 
 1. Chaotyczny opis kieruje do etapu `00`, bez przedwczesnego rozwiązania.
@@ -210,3 +253,5 @@ Canvas służy do edycji jawnego artefaktu roboczego: planu, karty cyklu, drzewa
 12. Niebezpieczny lub poniżający eksperyment jest blokowany.
 13. Każdy zamknięty cykl kończy się decyzją, regułą operacyjną i terminem przeglądu albo jawnym zakończeniem kierunku.
 14. Po ukończeniu sprawności system dodaje nieukończone zadanie `Wręcz naszywkę (Nazwa grupy) – Nazwa sprawności – Poziom`, połączone z kolejną zaplanowaną aktywnością, jeśli taka istnieje, a w przeciwnym razie trafiające wyłącznie na listę zadań.
+15. Popup onboardingu po pierwszej rejestracji wyświetla się dokładnie raz, zbiera odpowiedzi jako tagi do Marketing Automation i prezentuje film poradnikowy.
+16. Film poradnikowy w popupie jest odtwarzalny bez opuszczania popupu, a jego obejrzenie / zamknięcie popupu nie blokuje dalszej pracy w aplikacji.

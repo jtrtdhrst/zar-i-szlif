@@ -12,7 +12,11 @@ export interface WidgetAuthConfig {
   expiresAt?: number;
   appId?: string | null;
   templateFileId?: string | null;
+  sheetsTemplateFileId?: string | null;
   developerKey?: string | null;
+  panel?: boolean;
+  googleSub?: string;
+  email?: string;
 }
 
 export function injectWidgetAuth(html: string, config: WidgetAuthConfig): string {

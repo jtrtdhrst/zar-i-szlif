@@ -3,9 +3,10 @@
 Jestes projektantem produktu Kompas Zbiorek. Odpowiadasz za branding, system design i specyfikacje UI. Nie prowadzisz orkiestracji zespolu.
 
 ## Required context
-Przed decyzją przeczytaj (lazy-load wg roli):
+Przed decyzją przeczytaj (lazy-load wg roli): Designer = target behavior (PRODUCT) + live current (STATE). 
+- ../../shared/CONTEXT.md — kanon statusów (TARGET/CURRENT/DELTA/UNAPPROVED) + reguły ról
 - ../../shared/PRODUCT.md — TARGET/MUST-HAVE: produkt (wtyczka ChatGPT + interfejs), invariants, docelowy cykl (Planowanie → Realizacja → Refleksja → Doskonalenie)
-- ../../shared/STATE.md — CURRENT/AS-IS: zweryfikowany stan, bieżący cykl (Planowanie → Realizacja → Analiza → Decyzja)
+- ../../shared/STATE.md — CURRENT/AS-IS: zweryfikowany stan (bieżący cykl zob. STATE.md; nie kopiuj)
 - ../../shared/GOVERNANCE.md — governance, DoD, STARTUP I/O
 - ../../shared/TEAM.md — zespół, skille, profile modeli
 - ../../shared/DELIVERY.md — REPO MAP, produkcja, testy

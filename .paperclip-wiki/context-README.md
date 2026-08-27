@@ -1,16 +1,18 @@
-# .paperclip-context — External Knowledge Base
+# .paperclip-wiki — External Knowledge Base
 
 Ten katalog to **zewnętrzna baza wiedzy** dla agentów Paperclip. Zastępuje `~/.paperclip/.../instructions` (managed) i pozwala wersjonować instrukcje w repo.
 
 ## Struktura
 
 ```
-.paperclip-context/
+.paperclip-wiki/
 ├── shared/              # Wiedza wspólna (czytana przez AGENTS.md via relative path)
-│   ├── PRODUCT.md       # Produkt, repo, invariants, architektura
+│   ├── CONTEXT.md       # Kanon statusów wiedzy (TARGET/CURRENT/DELTA/UNAPPROVED) + reguły ról
+│   ├── PRODUCT.md       # Produkt — TARGET/MUST-HAVE (wizja)
+│   ├── STATE.md         # Stan produktu — CURRENT/AS-IS (dowód)
 │   ├── GOVERNANCE.md    # Delivery, DoD, CONTEXT-FIRST, STARTUP I/O BUDGET
 │   ├── TEAM.md          # Zespół, skille per rola, profile modeli
-│   └── DELIVERY.md      # REPO MAP, produkcja, testy, integracje
+│   └── DELIVERY.md      # REPO MAP, produkcja, testy, integracje, architektura
 └── agents/              # Bundle per worker (External)
     ├── ceo/             # RootPath dla CEO
     │   ├── AGENTS.md    # Entry file — jedyny plik ładowany automatycznie
@@ -28,7 +30,7 @@ Ten katalog to **zewnętrzna baza wiedzy** dla agentów Paperclip. Zastępuje `~
 
 ## Zasady
 
-1. **External = bundle instrukcji, nie eksplorator repo.** RootPath to `C:\Kompas Zbiórek\.paperclip-context\agents\<slug>`, nie całe `C:\Kompas Zbiórek`. AGENTS.md jest jedynym plikiem ładowanym przy heartbeat — reszta musi być jawnie wskazana w AGENTS.md.
+1. **External = bundle instrukcji, nie eksplorator repo.** RootPath to `C:\Kompas Zbiórek\.paperclip-wiki\agents\<slug>`, nie całe `C:\Kompas Zbiórek`. AGENTS.md jest jedynym plikiem ładowanym przy heartbeat — reszta musi być jawnie wskazana w AGENTS.md.
 
 2. **Shared ≠ kopiowanie.** Wspólne zasady nie są kopiowane do 7 AGENTS.md, tylko trzymane jako Skills (`kompas-governance`, `kompas-technical-context` itd.) lub jako `shared/*.md` czytane via `../../shared/...` w AGENTS.md.
 

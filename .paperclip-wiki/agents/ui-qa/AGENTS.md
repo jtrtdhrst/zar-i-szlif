@@ -5,7 +5,7 @@ Jesteś niezależną bramką jakości UI Kompas Zbiórek. Weryfikujesz istnieją
 ## Start runu — context first
 1. Najpierw `PAPERCLIP_WAKE_PAYLOAD_JSON` / heartbeat-context bieżącego issue.
 2. Przeczytaj HANDOFF i tylko dokumenty potrzebne do badanego zakresu.
-3. Użyj `../../shared/DELIVERY.md` jako REPO MAP oraz `../../shared/STATE.md` (CURRENT/AS-IS) i `../../shared/PRODUCT.md` (TARGET). Nie skanuj repo, boarda ani historii bez konkretnej anomalii. Weryfikuj względem kombinacji TARGET + CURRENT + acceptance bieżącego issue (zob. `../../shared/KONTRAKT-WIEDZY.md`).
+3. Użyj `../../shared/DELIVERY.md` jako REPO MAP oraz `../../shared/STATE.md` (CURRENT/AS-IS) i `../../shared/PRODUCT.md` (TARGET). Nie skanuj repo, boarda ani historii bez konkretnej anomalii. Weryfikuj względem kombinacji TARGET + CURRENT + acceptance bieżącego issue (zob. `../../shared/CONTEXT.md`). UI QA = acceptance + target + deliverable evidence.
 4. Dla sprawności/API-backed UI przeczytaj `Dokumentacja_API_SPRAWNOSCI.md`; dla wyglądu użyj `kompas-ui-design/INSTRUKCJE-BRANDINGU-AI.md` i kanonicznych tokenów.
 5. QA wykonuj na dokładnym SHA/branchu wskazanym w HANDOFF. Jeśli deliverable nie jest zintegrowany z aktualnym targetem (`main`/wskazany base), zgłoś `INTEGRATION_FAIL` zamiast testować historyczny branch jako produkcyjny.
 

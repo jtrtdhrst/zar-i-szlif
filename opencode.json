@@ -1,6 +1,6 @@
 {
   "$schema": "https://opencode.ai/config.json",
-  "model": "opencode/x-preview-f-free",
+  "model": "opencode/hy3-free",
   "agent": {
     "ctb-plan": {
       "mode": "all",
@@ -109,13 +109,13 @@
   "mcp": {
     "paperclip": {
       "type": "remote",
-      "url": "https://mcp.kompaszbiorek.pl/mcp",
+      "url": "https://paperclip-mcp.kompaszbiorek.pl/mcp",
       "enabled": false
     },
     "paperclip-local": {
       "type": "remote",
-      "url": "http://127.0.0.1:3104/mcp",
-      "enabled": false,
+      "url": "http://127.0.0.1:3101/mcp",
+      "enabled": true,
       "oauth": false
     },
     "github": {

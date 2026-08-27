@@ -16,11 +16,18 @@
 ## Mapa systemu (REPO MAP)
 Routing table: `docs/AI-REPO-MAP.md` (kanoniczne ścieżki). Skrót:
 - `PRD Kompas Zbiórek.md` — zakres, kryteria akceptacji
-- `MAPA SYSTEMU.md` — rola plików i aktualny kontrakt 4 etapów
+- `MAPA SYSTEMU.md` — rola plików
 - `AGENTS.md` — zasady wykonawcze
-- Cykl (kontrakt): TARGET = Planowanie → Realizacja → Refleksja → Doskonalenie (`PRODUCT.md`); CURRENT/AS-IS = Planowanie → Realizacja → Analiza → Decyzja (`STATE.md`). `00`–`06` to historyczny/metodologiczny materiał traceability, nie mapowanie bieżącego kontraktu.
+- Cykl (kontrakt): TARGET zob. `shared/PRODUCT.md`; CURRENT/AS-IS zob. `shared/STATE.md`. `00`–`06` to historyczny/metodologiczny materiał traceability, nie mapowanie bieżącego kontraktu.
 - Szablon: `SZABLON GOOGLE DOCS.md`
-- Architektura: patrz `shared/PRODUCT.md`
+- Kanon statusów: `shared/CONTEXT.md`; architektura/integracje poniżej
+
+## Architektura i invarianty (CURRENT / AS-IS)
+- Widget `kompas-ui-plugin/web` (`static-app-v2.js`) — render statyczny, dane w `localStorage` (`kompas-zbiorek-draft-v1`)
+- Worker `wtyczka-rr` (`kompas-ui-plugin/cloudflare-worker`) — serwuje UI, proxy katalogów (`/api/activities`, `/api/skills`) z cache (Worker `caches.default` + IndexedDB), narzędzie MCP `zapisz_dane_kompasu`
+- Serwer MCP `kompas-ui-plugin/server` — most ChatGPT
+- Cache nie synchronizuje się między urządzeniami; bez sieci i wpisu w cache — jawny stan braku danych, nigdy wymyślona treść
+- Invarianty: MCP endpoint `/mcp`; Google OAuth scope `drive.file`; Cloudflare D1; struktura domen produkcyjnych; brak wdrożenia bez scoped zlecenia; brak bezpośredniego write do `main`
 
 Lokalizacje (najwęższe źródło):
 | Obszar | Ścieżka |

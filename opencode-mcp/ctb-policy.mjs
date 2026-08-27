@@ -10,7 +10,7 @@ export const TOOL_CLASSES = Object.freeze({
 });
 
 // Detectable policy revision surfaced through /health and every telemetry event.
-export const CTB_POLICY_REVISION = "ctb-policy-4";
+export const CTB_POLICY_REVISION = "ctb-policy-6";
 
 // Provider/model failure classification used for telemetry labels and fallback decisions.
 const PROVIDER_MODEL_FAILURE_PATTERN = /provider[^.\n]*(not found|unknown|unsupported|invalid|unauthorized)|model[^.\n]*(not found|unknown|unsupported|invalid)|no allowed providers|rate[ ._-]?limit|quota|too many requests|\b429\b/i;
@@ -20,21 +20,14 @@ export function isProviderModelFailure(error) {
   return PROVIDER_MODEL_FAILURE_PATTERN.test(`${error?.code || ""} ${error?.message || ""} ${data}`);
 }
 
-// Fallback eligibility at the model-invocation boundary. By this point every CTB/path/
-// scope/session/permission check has already passed, so gateway-local errors must NEVER
-// trigger a retry. Upstream masks provider/model failures as generic transport errors
-// ("500 UnknownError / Unexpected server error"), so those masked shapes qualify — but a
-// bare "failed" or ordinary tool error must NOT: the contract is provider/model failure,
-// not "any upstream hiccup".
+// Fallback eligibility is intentionally narrower than transport failure. A session,
+// schema, agent or gateway failure must remain observable and never consume the one
+// permitted fallback attempt as if it were a model failure.
 const NON_FALLBACK_CODE_PATTERN = /^(CTB_|PAPERCLIP_|INSUFFICIENT_SCOPE|UPSTREAM_ENGINE_|UNKNOWN_TOOL|MESSAGE_LOOKUP_FAILED|SKILL_)/i;
-const MASKED_TRANSPORT_FAILURE_PATTERN = /unknownerror|unexpected server error|internal server error|\(\s*500\s*\)|\b502 bad gateway\b|\b503 service unavailable\b|\b504 gateway timeout\b|econnrefused|etimedout|econnreset|fetch failed/i;
 export function isFallbackEligibleError(error) {
   const code = String(error?.code || "");
   if (NON_FALLBACK_CODE_PATTERN.test(code)) return false;
-  let data = "";
-  try { data = JSON.stringify(error?.data ?? {}).slice(0, 500); } catch { data = ""; }
-  const text = `${code} ${error?.message || ""} ${data}`;
-  return PROVIDER_MODEL_FAILURE_PATTERN.test(text) || MASKED_TRANSPORT_FAILURE_PATTERN.test(text);
+  return isProviderModelFailure(error);
 }
 
 // Splits "provider/model" (model id may itself contain slashes).
@@ -55,13 +48,15 @@ const byClass = Object.freeze({
     "opencode_command_list", "opencode_agent_list", "opencode_mcp_status", "opencode_events_poll", "opencode_path_get",
     "opencode_vcs_info", "opencode_lsp_status", "opencode_formatter_status", "opencode_tool_ids", "opencode_tool_list",
     "opencode_message_list", "opencode_message_get", "opencode_message_model_info",
+    "opencode_execution_get", "opencode_execution_status", "opencode_execution_inspect", "opencode_permission_list",
+    "opencode_models_list", "opencode_model_info", "opencode_find_files", "opencode_workspace_tree", "opencode_inspect",
   ],
   [TOOL_CLASSES.SESSION_CONTROL]: [
-    "opencode_session_abort", "opencode_session_fork", "opencode_session_update",
+    "opencode_session_abort", "opencode_session_fork", "opencode_session_update", "opencode_execution_abort",
   ],
   [TOOL_CLASSES.WRITE]: [
     "opencode_ask", "opencode_reply", "opencode_run", "opencode_fire", "opencode_message_send",
-    "opencode_message_send_async", "opencode_shell_execute",
+    "opencode_message_send_async", "opencode_shell_execute", "opencode_execution_start",
     "opencode_session_create", "opencode_session_summarize", "opencode_provider_test", "opencode_log",
     // State-mutating session operations with real external effect require the full EXECUTE
     // envelope (Paperclip issue + scope), not lightweight session management.
@@ -72,7 +67,7 @@ const byClass = Object.freeze({
     "opencode_tui_append_prompt", "opencode_tui_submit_prompt", "opencode_tui_clear_prompt", "opencode_tui_execute_command",
     "opencode_tui_show_toast", "opencode_tui_open_help", "opencode_tui_open_sessions", "opencode_tui_open_models", "opencode_tui_open_themes",
     // Publishing a session publicly and approving pending permissions are privileged actions.
-    "opencode_session_share", "opencode_session_unshare", "opencode_session_permission",
+    "opencode_session_share", "opencode_session_unshare", "opencode_session_permission", "opencode_permission_resolve",
   ],
   [TOOL_CLASSES.ADMIN]: [
     "opencode_config_update", "opencode_auth_set", "opencode_provider_oauth_authorize", "opencode_provider_oauth_callback",
@@ -231,3 +226,23 @@ export function normalizeAllowedDirectory(directory, allowedRoots) {
   return resolved;
 }
 export function validateToolPathArguments(args, allowedRoots, defaultDirectory) { const next = { ...(args || {}) }; next.directory = normalizeAllowedDirectory(next.directory ?? defaultDirectory, allowedRoots); if (typeof next.path === "string" && path.isAbsolute(next.path)) next.path = normalizeAllowedDirectory(next.path, allowedRoots); return next; }
+
+// Global roots are only a deployment boundary. Once Paperclip authorized an issue,
+// every filesystem argument must stay inside that issue's canonical workspace.
+export function normalizeIssueWorkspacePath(candidate, workspaceRoot, defaultDirectory = workspaceRoot) {
+  try {
+    const directory = candidate ?? defaultDirectory;
+    if (typeof directory !== "string" || directory.trim() === "") throw Object.assign(new Error("CTB_ISSUE_SCOPE_MISMATCH"), { code: "CTB_ISSUE_SCOPE_MISMATCH" });
+    return normalizeAllowedDirectory(directory, [workspaceRoot]);
+  } catch (error) {
+    if (error?.code === "CTB_SECRET_PATH_DENIED") throw error;
+    throw Object.assign(new Error("CTB_ISSUE_SCOPE_MISMATCH"), { code: "CTB_ISSUE_SCOPE_MISMATCH" });
+  }
+}
+export function validateIssueWorkspaceToolPathArguments(args, workspaceRoot, defaultDirectory = workspaceRoot) {
+  const next = { ...(args || {}) };
+  next.directory = normalizeIssueWorkspacePath(next.directory, workspaceRoot, defaultDirectory);
+  if (typeof next.path === "string") next.path = normalizeIssueWorkspacePath(path.isAbsolute(next.path) ? next.path : path.resolve(next.directory, next.path), workspaceRoot, next.directory);
+  if (typeof next.searchDirectory === "string") next.searchDirectory = normalizeIssueWorkspacePath(next.searchDirectory, workspaceRoot, next.directory);
+  return next;
+}

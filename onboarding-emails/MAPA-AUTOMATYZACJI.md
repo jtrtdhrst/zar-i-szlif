@@ -15,6 +15,23 @@
 | `onb_inactive` | `onb_inactive` | Użytkownik bez aktywności >7 dni | Warunek: brak aktywności | Po powrocie aktywności |
 | `onb_engaged` | `onb_engaged` | Użytkownik z interakcją (kliknął CTA) | Kliknięcie dowolnego CTA w sekwencji | — |
 | `txn_welcome` | `txn_welcome` | Oznaczenie wiadomości transakcyjnej | Email 0 | — |
+| `onb_popup_completed` | `onb_popup_completed` | Wypełnił popup onboardingu (ankieta wysłana) | Submit popupu po 1. rejestracji | — |
+| `onb_popup_dismissed` | `onb_popup_dismissed` | Pominął/zamknął popup bez wysyłki | Zamknięcie popupu bez submitu | Po późniejszym wypełnieniu (zastępuje dismissed) |
+| `onb_video_played` | `onb_video_played` | Odtworzył film poradnikowy >5 s | Play w popupie | — |
+| `onb_role:druzynowy` | `onb_role:druzynowy` | Rola: Drużynowy | Popup Q1 | Zmiana odpowiedzi |
+| `onb_role:przyboczny` | `onb_role:przyboczny` | Rola: Przyboczny | Popup Q1 | Zmiana odpowiedzi |
+| `onb_role:instruktor` | `onb_role:instruktor` | Rola: Instruktor | Popup Q1 | Zmiana odpowiedzi |
+| `onb_role:wolontariusz` | `onb_role:wolontariusz` | Rola: Wolontariusz | Popup Q1 | Zmiana odpowiedzi |
+| `onb_exp:lt1` | `onb_exp:lt1` | Staż <1 rok | Popup Q2 | Zmiana odpowiedzi |
+| `onb_exp:1-3` | `onb_exp:1-3` | Staż 1–3 lata | Popup Q2 | Zmiana odpowiedzi |
+| `onb_exp:gt3` | `onb_exp:gt3` | Staż 3+ lat | Popup Q2 | Zmiana odpowiedzi |
+| `onb_team:small` | `onb_team:small` | Drużyna 1–8 osób | Popup Q3 | Zmiana odpowiedzi |
+| `onb_team:medium` | `onb_team:medium` | Drużyna 9–16 osób | Popup Q3 | Zmiana odpowiedzi |
+| `onb_team:large` | `onb_team:large` | Drużyna 17+ osób | Popup Q3 | Zmiana odpowiedzi |
+| `onb_goal:plan` | `onb_goal:plan` | Cel: planowanie zbiórek | Popup Q4 | Zmiana odpowiedzi |
+| `onb_goal:sprawnosci` | `onb_goal:sprawnosci` | Cel: sprawności | Popup Q4 | Zmiana odpowiedzi |
+| `onb_goal:zaangazowanie` | `onb_goal:zaangazowanie` | Cel: zaangażowanie | Popup Q4 | Zmiana odpowiedzi |
+| `onb_goal:eksperymenty` | `onb_goal:eksperymenty` | Cel: eksperymenty | Popup Q4 | Zmiana odpowiedzi |
 
 ### Uwaga dot. Sender.net
 Sender.net obsługuje tagi jako pola niestandardowe (custom fields) lub etykiety (labels). Przed wdrożeniem zweryfikuj, czy Sender.net pozwala na:

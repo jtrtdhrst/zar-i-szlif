@@ -23,7 +23,8 @@ async function rpc(token, sessionId, id, method, params = {}) {
 
 // 0. Health + backend
 const health = await (await fetch(`${base}/health`)).json();
-assert.equal(health.revision, "ctb-policy-4");
+assert.equal(health.revision, "ctb-policy-5");
+assert.equal(health.revisions.gateway, "ctb-policy-8");
 assert.deepEqual(health.allowedRoots.map((root) => root.toLowerCase()), ["c:\\kompas zbiórek", "c:\\kompas zbiórek\\.paperclip-worktrees", "c:\\paperclip", "c:\\paperclip-worktrees"]);
 console.log(`SMOKE /health revision=${health.revision} profiles=${health.revisions.mcpRoleProfiles}: PASS`);
 
@@ -51,6 +52,7 @@ const aliases = ["opencode_list_runs", "opencode_get_run", "opencode_read_logs",
 assert.ok(!aliases.some((alias) => names.includes(alias)), `aliases leaked into eager schema: ${aliases.filter((a) => names.includes(a))}`);
 assert.ok(names.includes("opencode_mcp_effective_profile"));
 assert.ok(names.includes("opencode_message_model_info") && names.includes("opencode_session_status"));
+for (const name of ["opencode_execution_start", "opencode_execution_get", "opencode_execution_status", "opencode_execution_abort"]) assert.ok(names.includes(name), `${name} missing from public tools/list`);
 console.log(`SMOKE tools/list canonical=${names.length} (aliases de-promoted): PASS`);
 
 // 3. Effective profile resolution (operator principal unknown -> fail closed)
@@ -63,19 +65,25 @@ r = await rpc(token, sid, 4, "tools/call", { name: "opencode_status" });
 assert.equal(r.body.result.isError, undefined, JSON.stringify(r.body).slice(0, 300));
 console.log("SMOKE READ opencode_status without EXECUTE envelope: PASS");
 
-// 5. DIAGNOSE with DEFAULT model injection (no providerID/modelID passed)
+// 5. DIAGNOSE opencode_run with DEFAULT model injection (no providerID/modelID passed).
+// The gateway must allocate and report identity before model invocation, never infer it
+// from response text.
 r = await rpc(token, sid, 5, "tools/call", {
-  name: "opencode_ask",
+  name: "opencode_run",
   arguments: { prompt: "Zwróć dokładnie: CTB_DIAGNOSE_DEFAULT_MODEL_PASS", directory: "C:\\Kompas Zbírek".replace("Zbírek", "Zbiórek"), ctb: { mode: "DIAGNOSE", changeClass: "ctb" } },
 });
 assert.equal(r.body.result.isError, undefined, JSON.stringify(r.body).slice(0, 400));
 const diagText = JSON.stringify(r.body.result);
 assert.match(diagText, /CTB_DIAGNOSE_DEFAULT_MODEL_PASS/, `DIAGNOSE echo failed: ${diagText.slice(0, 300)}`);
-const diagSessionId = /ses_[A-Za-z0-9_-]+/.exec(diagText)?.[0];
+const { executionId: diagExecutionId, sessionId: diagSessionId } = r.body.result.structuredContent;
+assert.ok(diagExecutionId && diagSessionId, `DIAGNOSE identity missing: ${diagText.slice(0, 300)}`);
+r = await rpc(token, sid, 51, "tools/call", { name: "opencode_execution_status", arguments: { executionId: diagExecutionId } });
+assert.equal(r.body.result.structuredContent.sessionId, diagSessionId);
+assert.equal(r.body.result.structuredContent.status, "completed");
 r = await rpc(token, sid, 6, "tools/call", { name: "opencode_message_model_info", arguments: { sessionId: diagSessionId } });
 const modelInfo = JSON.stringify(r.body.result);
-assert.match(modelInfo, /x-preview-f-free/, `default model not served: ${modelInfo.slice(0, 300)}`);
-console.log("SMOKE DIAGNOSE on default model ox-alpha (x-preview-f-free), zero envelope: PASS");
+assert.match(modelInfo, /hy3-free/, `default model not served: ${modelInfo.slice(0, 300)}`);
+console.log("SMOKE DIAGNOSE opencode_run on default model hy3-free, authoritative lifecycle: PASS");
 
 // 6. PLAN
 r = await rpc(token, sid, 7, "tools/call", {

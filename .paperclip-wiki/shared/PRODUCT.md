@@ -1,26 +1,52 @@
 # Produkt — Kompas Zbiórek (TARGET / MUST-HAVE)
 
-> Ten plik opisuje **cel / wymagania** produktu (TARGET). Stan obecny z dowodem: `shared/STATE.md`. Kontrakt ról: `shared/KONTRAKT-WIEDZY.md`.
+> Cel / wymagania produktu (TARGET). Stan zweryfikowany: `shared/STATE.md` (CURRENT). Kanon statusów: `shared/CONTEXT.md`. Architektura/integracje: `shared/DELIVERY.md`.
 
-Wtyczka ChatGPT (https://wtyczka.kompaszbiorek.pl/ui) + własny interfejs (https://interfejs.kompaszbiorek.pl) dla liderów Royal Rangers Polska — cyfrowy przewodnik dla drużyny harcerskiej (ZHR/ZHP, instruktorzy, drużynowi).
+Wtyczka ChatGPT (`wtyczka.kompaszbiorek.pl/ui`) + własny interfejs (`interfejs.kompaszbiorek.pl`) dla **Royal Rangers Polska** — cyfrowy przewodnik dla instruktorów i drużynowych. Produkt pomaga liderowi przejść od improwizowanego planowania do prostego, powtarzalnego procesu. AI jest opcjonalnym interfejsem; nie decyduje za lidera.
 
-**Docelowy cykl user-facing (TARGET): Planowanie → Realizacja → Refleksja → Doskonalenie.** (Bieżący stan: `STATE.md`; DELTA: [KOMAA-48](/KOMAA/issues/KOMAA-48).)
+## Docelowy cykl user-facing (TARGET)
 
-**Repozytorium:** https://github.com/miloszspyrka-code/kompas-zbiorek
-**Workspace Paperclip:** `isolated_workspace` + `git_worktree`, `baseRef = main`, worktree parent `C:\Kompas Zbiórek\.paperclip-worktrees`
-**Produkcja:** https://kompaszbiorek.pl, UI https://wtyczka.kompaszbiorek.pl/ui, Worker `wtyczka-rr`, domena docelowa `interfejs.kompaszbiorek.pl`
+**Planowanie → Realizacja → Refleksja → Doskonalenie.**
 
-**Invarianty techniczne (nie zmieniaj bez upoważnienia):**
-- MCP endpoint `/mcp`
-- Google OAuth scope `drive.file`
-- Cloudflare D1
-- Struktura domen produkcyjnych
-- Brak wdrożenia bez scoped zlecenia
-- Brak bezpośredniego write do `main`
+## Karta zbiórki / aktywności (MUST-HAVE)
 
-**Architektura:**
-- Widget `kompas-ui-plugin/web` (`static-app-v2.js`) — render statyczny, dane w `localStorage` (`kompas-zbiorek-draft-v1`)
-- Worker `wtyczka-rr` (`kompas-ui-plugin/cloudflare-worker`) — serwuje UI, proxy katalogów (`/api/activities`, `/api/skills`) z cache (Worker `caches.default` + IndexedDB), narzędzie MCP `zapisz_dane_kompasu`
-- Serwer MCP `kompas-ui-plugin/server` — most ChatGPT
+Samowystarczalny artefakt roboczy: dane i obecność, sprawności, eksperyment, przygotowanie, plan godzinowy i refleksja.
 
-Cache nie synchronizuje się między urządzeniami. Bez sieci i wpisu w cache — jawny stan braku danych, nigdy wymyślona treść.
+- plan roczny jako kierunek;
+- cel na ok. 3 miesiące;
+- cel główny konkretnej aktywności;
+- elementy aktywności z czasem trwania;
+- cztery aspekty: fizyczny, społeczny, duchowy, intelektualny (+ balans/sugestie);
+- materiały i zadania przygotowawcze;
+- opcjonalny mały eksperyment;
+- po realizacji: wynik / opinie / refleksja i decyzja, co poprawić dalej (faktyczne wymagania → doskonalenie).
+
+`plan != wykonanie`: zaplanowane wymaganie nie oznacza wykonania; wykonanie potwierdza się po aktywności.
+
+## Sprawności (MUST-HAVE)
+
+- wymagania z oficjalnego katalogu RR;
+- zaplanowane wymaganie nie oznacza wykonania; wykonanie potwierdza się po aktywności;
+- po ukończeniu wszystkich wymagań sprawność zostaje domknięta;
+- system docelowo tworzy zadanie wręczenia naszywki (badge task);
+- przy braku danych: `Brak danych`, bez wymyślania wymagań.
+
+## Baza Aktywności RR (MUST-HAVE)
+
+Wspólna, ręcznie moderowana baza. Użytkownicy dodają aktywności z opisem i kategoriami; zaakceptowane wpisy dostępne w panelu i przez asystenta (AI). Wpięcie do planu bez przepisywania od zera.
+
+## Pamięć drużyny (MUST-HAVE)
+
+Google Sheets jako docelowa trwała pamięć i stan drużyny (wspólny kontekst kilku liderów). Istotny zapis po podglądzie i potwierdzeniu użytkownika.
+
+## Onboarding — UNAPPROVED
+
+Brak zatwierdzonego kontraktu produktowego. Nie należy do obowiązującego PRD ani wizji do czasu nowej decyzji.
+
+## Ograniczenia komunikacji
+
+- decyzje pozostają po stronie instruktora;
+- nie obiecywać idealnych rezultatów ani automatycznego przygotowania zbiórki;
+- nie przedstawiać TARGET jako CURRENT;
+- nie wymyślać statystyk, liczby użytkowników ani efektów procentowych;
+- brak fałszywych danych, dowodów ani automatycznych decyzji.
