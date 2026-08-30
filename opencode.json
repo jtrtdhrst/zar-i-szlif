@@ -156,6 +156,24 @@
       "url": "http://127.0.0.1:6006/mcp",
       "enabled": false
     },
+    "radzen-blazor": {
+      "type": "remote",
+      "url": "https://app.radzen.com/mcp",
+      "enabled": true,
+      "oauth": false,
+      "headers": {
+        "X-Radzen-Key": "{env:RADZEN_BLAZOR_KEY}"
+      }
+    },
+    "radzen-blazor-studio": {
+      "type": "local",
+      "command": [
+        "dotnet",
+        "c:\\Program Files\\Radzen Blazor Studio\\resources\\Radzen.Server\\Radzen.Server.dll",
+        "--mcp"
+      ],
+      "enabled": false
+    },
     "npm-run-scripts": {
       "enabled": false
     },
