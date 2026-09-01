@@ -14,9 +14,11 @@ export interface WidgetAuthConfig {
   templateFileId?: string | null;
   sheetsTemplateFileId?: string | null;
   developerKey?: string | null;
+  // Tożsamość zalogowanego użytkownika (Google OAuth) — przekazywana do
+  // widgetu, by mógł wysłać odpowiedzi onboardingowe pod właściwym użytkownikiem.
+  email?: string | null;
+  googleSub?: string | null;
   panel?: boolean;
-  googleSub?: string;
-  email?: string;
 }
 
 export function injectWidgetAuth(html: string, config: WidgetAuthConfig): string {
