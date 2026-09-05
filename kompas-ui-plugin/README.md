@@ -1,41 +1,17 @@
-# Kompas Zbiórek — prototyp UI
+# kompas-ui-plugin — UI, Worker, MCP (kanon UI)
 
-Interaktywny prototyp wtyczki do ChatGPT. Nie zawiera integracji z Google Docs, Google Calendar, OAuth ani produkcyjnego backendu. Wszystkie dane są demonstracyjne i działają wyłącznie lokalnie.
+Jedyne miejsce UI w repo. Render: `web/src/static-app-v2.js`, style: `web/src/styles.css`, build: `web/scripts/build-static.mjs`. Worker: `cloudflare-worker/src/public-ui.ts` (MCP `/mcp`), `panel-handler.ts` (Google Sheets), `oauth.ts`/`google-handler.ts`/`widget-auth.ts`. Serwer lokalny: `server/index.ts`.
 
-## Wymagania
-
-- Node.js 18+ (zalecana jest aktualna wersja LTS)
-- ChatGPT z włączonym Trybem programisty
-
-## Uruchomienie
-
-W terminalu, w katalogu projektu:
+> Historyczny opis „prototyp bez integracji" nieaktualny — integracje (OAuth `drive.file`, Sheets, MCP) weryfikuj w `wiki/sources/integracje-mcp` i `wiki/entities/panel-google-sheets`; brak dowodu = `niepotwierdzony stan bieżący`.
 
 ```powershell
 npm install
-npm run build
-npm start
+npm run build     # web + tsc server
+npm run dev       # = build + start (server/dist/index.js)
+npm run typecheck # server + web
+npm run test:all  # build + test:ui (Playwright desktop+mobile, axe A/AA)
 ```
 
-Po komunikacie o gotowym serwerze dodaj w ChatGPT lokalny konektor MCP o adresie:
+MCP lokalnie: `http://127.0.0.1:8787/mcp` → w ChatGPT: „Pokaż mi Kompas Zbiórek." Worker lokalnie: `cd cloudflare-worker && npx wrangler dev --port 8788`. Deploy: `node build-worker.mjs` → `wrangler deploy --dry-run` → `wrangler deploy --keep-vars` (cel `wtyczka-rr`).
 
-```
-http://127.0.0.1:8787/mcp
-```
-
-Następnie w nowej rozmowie napisz: **„Pokaż mi Kompas Zbiórek.”**
-
-## Co można przeklikać
-
-- karta inline i przejście do obszaru roboczego;
-- widok dokumentu i problemu;
-- edycja eksperymentu, czytelny podgląd zmian i lokalny zapis demonstracyjny;
-- plan zbiórki, wyszukiwarka aktywności, szczegóły oraz dodanie do planu;
-- podgląd kalendarza i komunikat sukcesu;
-- responsywny widok desktopowy i mobilny.
-
-## Struktura
-
-- `web/` — komponent React i ciemny interfejs nawiązujący do dostarczonego brandingu;
-- `server/` — minimalny lokalny serwer MCP, który udostępnia komponent ChatGPT;
-- `web/public/kompas-logo.png` — dostarczone logo.
+Konwencje: ten katalog nie duplikuje kontekstu biznesowego ani brand voice — te mieszkają w `.paperclip-wiki/wiki/sources/wspolny-kontekst.md` i `marketing/01–04`; hierarchia przekazu w root `README.md`. Szczegóły funkcji: `documentation.md`.
