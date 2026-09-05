@@ -1,31 +1,47 @@
-# BRAND + PRODUCT — Kompas Zbiórek
+# BRAND + PRODUCT — Kompas Zbiórek (KANON wiki 2026-09-05)
+
+Źródła kanoniczne: `wiki/synthesis/invarianty-i-brand.md`, `wiki/projects/kompas-zbiorek/decisions.md`, `wiki/sources/prd-kompas.md` v1.7, `wiki/sources/wspolny-kontekst.md`, `wiki/concepts/brand-dna.md`.
+Starszy snapshot `OBIETNICA: Od problemu w drużynie do sprawdzonej zmiany` + cykl `problem → przyczyna → eksperyment → wnioski` = SUPERSEDED, materiał metodologiczny, nie główny przekaz.
 
 ## Kim jesteśmy
-Asystent AI dla instruktorów harcerskich RR (ZHR/ZHP). Wtyczka do ChatGPT z własnym interfejsem. Prowadzi od problemu w drużynie do gotowego planu zbiórki.
+Dla każdego czynnego instruktora Royal Rangers planującego i prowadzącego aktywności. Młodsi / mniej doświadczeni ważniejsi komunikacyjnie, ale marka nie zawężona do nich. Realny konkurent to często brak procesu i improwizacja.
 
-## Obietnica marki
-„Od problemu w drużynie do sprawdzonej zmiany." Nie sprzedajemy magii — sprzedajemy porządek: fakty oddzielone od opinii, małe testowalne eksperymenty, pamięć pracy drużyny.
+Asystent w ChatGPT jako opcjonalny interfejs do tego samego procesu. Decyzje pozostają po stronie instruktora. Zawsze odróżniaj plan od wykonania.
 
-## Dlaczego ktoś ma się tym zainteresować
-Instruktor zna problem: zbiórki się odbywają, ale trudności wracają mimo reakcji. Ogólne porady nie działają. Kompas daje powtarzalny cykl doskonalenia i pamięć drużyny, więc każda kolejna rozmowa opiera się na tym, co już sprawdzono w akcji.
+## Obietnica marki — TARGET hierarchia
+1. prostsze planowanie i brak pustej kartki;
+2. ciągłość: sprawności, cele, materiały, zadania i plan;
+3. lepsze przygotowanie i bardziej zróżnicowane aktywności;
+4. pamięć i historia drużyny;
+5. AI jako opcjonalny interfejs;
+6. refleksja, małe eksperymenty i poprawa działania.
 
-## Co sprzedajemy (realne funkcje)
-1. **Karta zbiórki** — samowystarczalny artefakt roboczy: dane i obecność, sprawności, eksperyment, przygotowanie, plan godzinowy, refleksja.
-2. **Cykl doskonalenia**: zdefiniuj problem → rozpoznaj przyczynę (fakty vs opinie) → wykonaj eksperyment (jedna mała zmiana) → wyciągnij wnioski.
-3. **Pamięć drużyny** — historia pomysłów, trudności i wniosków; dokument kontekstu grupy aktualizowany na bieżąco; materiały programowe jako stała baza planowania.
-4. **Katalog zbiórek opartych na sprawnościach**, plan roczny (plan/kalendarz), obecności, kontekst zastępu (frekwencja, styl prowadzenia, samodzielność).
+Problem solving / systematyczne doskonalenie / eksperymenty = druga warstwa wartości, nie wejście produktu.
 
-## Korzyści
-- Koniec ogólnych porad: jasny plan + sposób sprawdzenia, czy zadziałał.
-- Mierzalne cele i widoczne postępy u skautów.
-- Dotarcie do źródła trudności zamiast łatacia objawów.
-- Testowanie zmian w małej skali przed decyzją o wdrożeniu.
-- Brak powtarzania informacji o drużynie przy każdej rozmowie.
+## Jedyny cykl
+**Planowanie → Realizacja → Refleksja → Doskonalenie** (ACTIVE 2026-09-04).
+Usunięto `Analiza → Decyzja`, `STATE.md`, routing `00-06`. Starszy model `obserwacje → problem → praprzyczyna → hipoteza → próby → wnioski → reguła` to materiał metodologiczny.
+
+## Co sprzedajemy (TARGET)
+1. **Karta aktywności** — dane aktywności i obecność, sprawności i wymagania, cel główny, plan z elementów i czasem, cztery aspekty (fizyczny / społeczny / duchowy / intelektualny), materiały i zadania przygotowawcze, opcjonalny mały eksperyment, refleksja i decyzja co poprawić dalej. Plan roczny wyznacza kierunek + kontekst celu średnioterminowego.
+2. **Sprawności** — wymagania z oficjalnego katalogu RR, zaplanowane ≠ wykonane, wykonanie po aktywności, jedno wymaganie przez wiele aktywności, po domknięciu zadanie wręczenia naszywki. Brak danych = `Brak danych`.
+3. **Baza Aktywności RR** — wspólna, ręcznie moderowana. Propozycje z opisem i kategoriami, zaakceptowane w panelu i przez asystenta, użycie w planie bez przepisywania.
+4. **Pamięć drużyny** — kanonicznie Supabase/Postgres: drużyny, historia, karty, obecności, sprawności, przygotowanie, eksperymenty, refleksje, plany, kalendarz, zadania. Cloudflare Worker = API/integracje/auth/sekrety, nie drugi SSOT. Bez D1 na dane domenowe. Google Sheets usunięte z produktu (2026-09-04).
 
 ## Różnicowanie
-- **vs ogólne porady / grupy na FB**: dostajesz plan i kryterium sprawdzenia, nie kolejną wskazówkę.
-- **vs zwykły ChatGPT**: zna kontekst Twojej drużyny, nie musisz tłumaczyć niczego od nowa.
-- **vs ciężkie systemy**: pracujesz w ChatGPT, którego już używasz; wynik ląduje w konkretnej karcie.
+- **vs brak procesu / improwizacja**: dostajesz powtarzalny proces zamiast kartki od zera.
+- **vs ogólne porady / grupy FB**: plan + kryterium sprawdzenia + ciągłość, nie wskazówka.
+- **vs zwykły ChatGPT**: zna kontekst drużyny, ciągnie sprawności / cele / materiały.
+- **vs ciężkie systemy**: pracujesz w ChatGPT + panel, wynik ląduje w konkretnej karcie.
+
+## Głos (skrót, pełnia w 03_VOICE_RULES.md)
+Jak doświadczony instruktor do instruktora: po polsku, konkretnie, bez zadęcia, bez udawania kumpla. Do jednej osoby, od rozpoznawalnej sytuacji potem funkcja, proces nie magia, AI opcjonalne, plan ≠ wykonanie, nie moralizować, konkretna korzyść.
+
+## Reguła statusu
+- **CURRENT / AS-IS** — tylko po aktualnym evidence (kod / runtime / schema / test).
+- **TARGET / MUST-HAVE** — kierunek / wymaganie, nie dostępność dziś.
+- **UNAPPROVED / DO NOT ASSUME** — nie komunikować jako funkcji ani planu. Onboarding = UNAPPROVED do nowej decyzji.
+- Nie przedstawiać TARGET jako CURRENT. Marketing claims wymagają CURRENT evidence.
 
 ## Ograniczenia (mówimy otwarcie)
-Wymaga ChatGPT. Nie prowadzi zbiórki i nie zastępuje metodyki harcerskiej. Decyzje pozostają po stronie instruktora.
+AI nie decyduje. Nie prowadzimy zbiórki i nie zastępujemy metodyki. Nie wymyślamy opinii / statystyk / procentów / liczby użytkowników. Nie używamy `sprawdzone na drużynach` bez evidence. Pokazuj mechanizm krok po kroku, realne ekrany, oddzielaj przykład od wyniku użytkownika.

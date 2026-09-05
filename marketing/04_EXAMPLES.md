@@ -1,53 +1,54 @@
-# EXAMPLES — wzorce dobrych treści Kompasu Zbiórek
+# EXAMPLES — wzorce dobrych treści (KANON wiki 2026-09-05)
 
-Odwzorowuj te struktury przy nowych tekstach.
+Źródła: invarianty-i-brand (Pozycjonowanie / Proof), PRD v1.7 (Karta aktywności), decisions (cykl 4-etapowy). Stara obietnica `Od problemu w drużynie do gotowego planu` = SUPERSEDED jako główna.
 
 ## 1. Hero — kim jesteśmy + obietnica + jak to działa
 
-> Asystent AI dla instruktorów RR — Od problemu w drużynie do gotowego planu zbiórki.
-> Planuj mądrze, oszczędzaj czas i testuj pomysły dopasowane do kontekstu twojej drużyny.
-> Przejdź krok po kroku cały cykl doskonalenia: nazwij główną trudność, wprowadź małą zmianę, która na nią odpowie, i wyciągnij wnioski z praktycznego działania.
+> Asystent w ChatGPT dla instruktorów Royal Rangers — koniec pustej kartki.
+> Ułóż plan aktywności krok po kroku z kontekstu Twojej drużyny: sprawności, cele, materiały i zadania w jednym miejscu.
+> Planowanie → Realizacja → Refleksja → Doskonalenie. Decyzje zostają po Twojej stronie.
 
-Dlaczego dobre: zero przymiotników-reklamy, konkretne trzy kroki, natychmiastowa obietnica.
+Dlaczego dobre: hierarchia 1) prostsze planowanie 2) ciągłość, AI jako opcjonalny interfejs, plan ≠ wykonanie, zero reklamy.
 
-## 2. Wyzwania — struktura „problem → antidotum"
+## 2. Wyzwania — `sytuacja → proces`
 
-> Zbiórki bawią, ale nie budują kompetencji. Plan działania jest fajny, ale brakuje widocznych postępów u skautów. → Wyznacz mierzalne cele i śledź ich realizację.
+> Zaczynasz planowanie od zera za każdym razem. → Weź gotowy szkielet Karty aktywności i kontekst drużyny.
+> Sprawności i materiały masz w różnych miejscach. → Trzymaj cele / sprawności / zadania w jednym procesie.
+> Zbiórki bawią, ale nie budują kompetencji. → Zaplanuj balans 4 aspektów i mierzalny cel główny.
 
-> Problem powraca mimo reakcji. Przypominasz zasady i rozmawiasz, ale poprawa jest tylko chwilowa. → Dotrzyj do źródła trudności zamiast łatać objawy.
+Dlaczego dobre: wejście planowaniem, nie problem solvingiem; druga osoba lp.; każdy punkt zamyka działaniem.
 
-> Obawiasz się reakcji na zmiany. Chcesz wprowadzić usprawnienie, ale nie wiesz, czy da efekt. → Przetestuj pomysł w małej skali i oceń wynik.
+## 3. Metoda — proces, nie magia
 
-Dlaczego dobre: druga osoba lp., każdy punkt zamyka działaniem, nie obietnicą.
+> Nie potrzebujesz specjalistycznej wiedzy. Zacznij od jednego planu z małym opcjonalnym eksperymentem zamiast rewolucji.
 
-## 3. Metoda — proces jako trasa, obniżenie bariery
+Dlaczego dobre: obniża próg wejścia, eksperyment opcjonalny (warstwa 6), nie główna obietnica.
 
-> Nie potrzebujesz specjalistycznej wiedzy, zacznij od małych eksperymentów zamiast rewolucji.
+## 4. Pamięć — ulga + SSOT
 
-Dlaczego dobre: usuwa obawę „to nie dla mnie".
+> Koniec z przepisywaniem kim jest Twoja drużyna. Kontekst, historia kart, obecności i sprawności czekają w pamięci (Supabase), więc od razu układasz plan.
 
-## 4. Pamięć — korzyść jako ulga użytkownika
+Dlaczego dobre: ulga, nie technologia; bez `MCP / D1 / Sheets` na zewnątrz. Sheets-out.
 
-> Koniec z wpisywaniem długich wstępów i tłumaczeniem, z kim pracujesz. Narzędzie stale zachowuje pełny obraz Twojej grupy, więc omijasz formalności i od razu przechodzisz do rozwiązywania problemu.
+## 5. Przykład produktu w akcji — Karta aktywności DEMO (jawnie oddziel od wyniku użytkownika)
 
-Dlaczego dobre: opisuje ulgę (koniec tłumaczenia), nie technologię.
+> DEMO, nie wynik użytkownika:
+> Aktywność: gra terenowa 90 min, cel główny: współpraca zastępu. Elementy z czasem, aspekt społeczny + fizyczny, materiały: mapa / kompas, zadania: wydruk mapy / podział zastępów. Sprawność: wymaganie z oficjalnego katalogu RR (zaplanowane ≠ wykonane). Refleksja: co poprawić następnym razem.
 
-## 5. Przykład produktu w akcji — realistyczny eksperyment
-
-> Problem: zbieranie zastępu po aktywności trwa ponad 3 minuty; część osób ignoruje komendę.
-> Hipoteza: skauci ociągają się, bo nie wiedzą, co ich za chwilę czeka.
-> Eksperyment: wydając komendę, od razu dodaj informację, co będzie następne. Zmierz, czy czas ustawienia w szyku spadnie poniżej 1 minuty.
-
-Dlaczego dobre: codzienna sytuacja drużynowa, kryterium mierzalne, pokazuje metodę zamiast ją opisywać.
+Dlaczego dobre: pokazuje mechanizm krok po kroku, realny ekran > opis, brak wymyślonych statystyk.
 
 ## 6. Domknięcie — krótkie, jedno CTA
 
-> Gotowy do pierwszej analizy? Kompas Zbiórek czeka w ChatGPT.
+> Gotowy na prostszy plan? Dodaj Kompas Zbiórek do ChatGPT.
 
-Dlaczego dobre: spójne z metaforą analizy/trasy, bez presji.
+Dlaczego dobre: jedno CTA, bez presji, bez FOMO.
 
-## Antywzorce (czego unikać)
+## Antywzorce
 
-- ❌ „Rewolucyjna platforma AI, która zautomatyzuje Twoje zbiórki!" — obietnica automatyzacji + ton reklamowy.
-- ❌ „Nasz innowacyjny system wspiera holistyczny rozwój młodzieży." — pustosłowie bez działania.
-- ❌ „Dołącz do tysięcy zadowolonych instruktorów!" — wymyślona liczba.
+- ❌ `Rewolucyjna platforma AI, która zautomatyzuje Twoje zbiórki!` — automatyzacja + reklamowość + żargon SaaS.
+- ❌ `Nasz innowacyjny system wspiera holistyczny rozwój młodzieży.` — pustosłowie bez działania.
+- ❌ `Dołącz do tysięcy zadowolonych instruktorów!` — wymyślona liczba / testimonial bez evidence.
+- ❌ `Sprawdzone na drużynach` bez evidence.
+- ❌ Przedstawianie TARGET (np. onboarding, auto-idealny plan) jako CURRENT.
+- ❌ `Opisz problem. Kompas zbuduje hipotezę` jako główne wejście — problem solving to warstwa 2, wejściem jest planowanie.
+- ❌ Żargon `MCP / skills / tools / D1 / Sheets` w treści zewnętrznej.
