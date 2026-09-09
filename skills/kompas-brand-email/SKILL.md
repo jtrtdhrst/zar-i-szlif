@@ -7,9 +7,12 @@ description: Stały kontekst e-mail marketingu Kompas Zbiórek — aktywa, voice
 
 ## Aktywa email
 
-- Szablony HTML: `onboarding-emails/html/` (`email-0-powitanie` … `email-4-reaktywacja`).
-- Warianty tekstowe: `onboarding-emails/plain-text/`.
-- Automatyzacja i mapa kampanii: `onboarding-emails/MAPA-AUTOMATYZACJI.md`.
+- Szablony HTML: `content/onboarding-emails/html/` (`email-0-powitanie` … `email-4-reaktywacja`).
+- Warianty tekstowe: `content/onboarding-emails/plain-text/`.
+- Automatyzacja i mapa kampanii: `content/onboarding-emails/MAPA-AUTOMATYZACJI.md`.
+- Materiały marketingowe: `content/marketing/`.
+
+`content/` zawiera treści, nie runtime aplikacji. Zmiana tekstu/emaila nie powinna trafiać do `app/`, chyba że task jawnie dotyczy renderowania lub integracji tych treści w produkcie.
 
 ## Voice
 
@@ -36,5 +39,5 @@ description: Stały kontekst e-mail marketingu Kompas Zbiórek — aktywa, voice
 ## Linki produktu
 
 - Strona publiczna: https://kompaszbiorek.pl/
-- UI aplikacji: https://wtyczka.kompaszbiorek.pl/ui
-- Documentation integracji: `dokumentacja-integracji-kompas-zbiorek.md` (tylko zakres CMO).
+- Aktualny UI/routing produkcyjny potwierdzaj z bieżącej konfiguracji przed publikacją linku; nie hardcoduj historycznego endpointu jako jedynego kanonu.
+- Dokumentacja runtime/integracji aplikacji: `app/documentation.md` w zakresie dotyczącym CMO.
