@@ -8,6 +8,7 @@ const context = {
   Intl,
   Date,
   console,
+  renderKompasButton() { return ""; },
   __SKILL_ICON_ASSETS__: {},
   location: { search: "", pathname: "/" },
   history: { replaceState() {} },
