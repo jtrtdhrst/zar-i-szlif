@@ -17,7 +17,7 @@ updated: 2026-08-20
 - `kompas-ui-design/opendesign/design-systems/kompas-rrp/tokens/colors_and_type.css`
 - `https://panel.kompaszbiorek.pl/ui` (live) — aktualny interfejs, porównaj przed zmianą
 - `kompas-ui-plugin/web/src/styles.css`
-- `PRD_Kompas_Zborek.md` §7.1 Karty robocze — domain model sprawność/aspekt/karta zbiórki
+- `PRD_Kompas_Zbiorek.md` §7.1 Karty robocze — domain model sprawność/aspekt/karta zbiórki
 - `SOUL.md`, `TOOLS.md`
 
 **Zakres**: `kompas-ui-design` (opendesign), specyfikacje UI dla Engineer, recenzje P0/P1/P2, MagicUI tylko gdy zlecone.
