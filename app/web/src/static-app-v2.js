@@ -1,5 +1,5 @@
-const API="https://wtyczka.kompaszbiorek.pl";
-const SKILLS_API="https://wtyczka.kompaszbiorek.pl";
+const API="https://panel.kompaszbiorek.pl";
+const SKILLS_API="https://panel.kompaszbiorek.pl";
 const CATEGORIES=["ruchowa","logiczna","kreatywna","harcerska","terenowa","przyrodnicza","muzyczna","integracyjna","duchowa","inna"];
 const PERIODS=["IX–X","XI–XII","I–II","III–IV","V–VI"];
 const SKILL_CATALOG={Fizyczny:["Puszczaństwo","Alarm","Terenoznawstwo","Pionierka","Wędrówka","Sport"],Intelektualny:["Historia","Czytelnictwo","Samozaradność","Technologia","Poznawanie świata","Logika"],Duchowy:["Biblia","Misja","Służba innym","Służba w Kościele","Pobożność","Samodyscyplina"],Społeczny:["Harce","Rodzina","Pasje i talenty","Szkoła – grupa","Społeczeństwo","Szczep"]};
