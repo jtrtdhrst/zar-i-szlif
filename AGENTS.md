@@ -1,153 +1,134 @@
 # Instrukcje dla agentów
 
-## MCP OPT-IN (domyślnie 0 serwerów)
+## Zasada nadrzędna
 
-Wszystkie serwery MCP w `opencode.json` są domyślnie wyłączone (`enabled: false`). Model nie ma żadnych narzędzi MCP, dopóki sam jawnie nie zadeklaruje, których potrzebuje.
+Ten plik zawiera tylko reguły wspólne dla repo. Szczegóły roli, domeny i workflow utrzymują skille. **Nie kopiuj REPO MAP, design rules ani test contract do wielu promptów.**
 
-Procedura włączenia:
+Najważniejsze skille kontekstowe:
 
-1. Wypowiedz w odpowiedzi, którego serwera MCP potrzebujesz i do czego (np. „włączam `shadcn` do wyszukiwania komponentów”).
-2. Ustaw `"enabled": true` tylko dla tego jednego serwera w `opencode.json`.
-3. Po zakończeniu pracy z tym serwerem ustaw ponownie `"enabled": false`.
+- technika/repo/data: `skills/kompas-technical-context/SKILL.md`;
+- design/UI: `skills/kompas-design-context/SKILL.md`;
+- UI QA: `skills/kompas-qa-context/SKILL.md`;
+- email/brand: `skills/kompas-brand-email/SKILL.md`;
+- iteracyjne UI: `skills/advanced-ui/SKILL.md`;
+- Paperclip control-plane: aktualny core skill `paperclip`.
 
-Zasady:
+## Repo layout
 
-- Włączaj wyłącznie serwery niezbędne do bieżącego zadania — nigdy kilku „na zapas”.
-- Lista dostępnych serwerów: `paperclip`, `paperclip-local`, `github`, `cloudflare`, `shadcn`, `playwright`, `kompas-storybook`.
-- Nie zmieniaj adresów URL ani definicji poleceń serwerów podczas włączania.
+- `app/` — jedyny runtime aplikacji.
+- `dev/` — design system, integracje developerskie i quality tooling.
+- `content/` — marketing i onboarding emails.
+- `archive/` — materiały historyczne; nie są CURRENT.
+- `skills/`, `registry/`, `scripts/`, `opencode.json` — tooling i kontrakty agentowe na root.
 
-## Wykonanie kontraktowe (CONTEXT-FIRST)
+Przed broad discovery użyj `kompas-technical-context`, który utrzymuje kanoniczne lokalizacje plików.
 
-Wspólny projektowy kontekst i stałe invarianty: `WSPÓLNY KONTEKST.md` (sekcja „Project context”, „Mapa systemu (REPO MAP)”, „Wykonanie kontraktowe”, „STARTUP I/O BUDGET”).
+## CONTEXT-FIRST
 
-- Python-startuj od dostarczonego kontekstu: `PAPERCLIP_WAKE_PAYLOAD_JSON` → `PAPERCLIP_TASK_ID` → `heartbeat-context` → inkrementalne komentarze. Nie odkrywaj ponownie stanu, który Paperclip już podaje (bez listowania całego boarda, goals, agentów, bez `git worktree list`, `git remote -v`, szerokich skanów repo na starcie taska).
-- Minimalny git preflight: `git branch --show-current` + `git status --short` (+ opcjonalnie `git rev-parse --show-toplevel`). Diagnostykę pogłębiaj tylko przy anomalii względem currentExecutionWorkspace.
-- Po udanej mutacji nie wykonuj potwierdzającego GET — odpowiedź mutacji jest wiążąca, chyba że świeży stan jest potrzebny do kolejnej decyzji.
-- Lokalizacje plików znajdziesz w REPO MAP (sekcja „Mapa systemu” w `WSPÓLNY KONTEKST.md`), a nie przez przeszukiwanie repo od zera.
+Startuj od bieżącego issue, wake payload/heartbeat context i `currentExecutionWorkspace`. Nie listuj całego boarda, goals, agentów ani repo na starcie bez konkretnej anomalii.
 
-## Realizacja zadań wykonawczych
+Minimalny git preflight:
 
-### Tryb Advanced UI
+- `git branch --show-current`;
+- `git status --short`;
+- opcjonalnie `git rev-parse --show-toplevel`.
 
-- Komenda `/ui`, `/advanced-ui` lub polecenie „Advanced UI” uruchamia `skills/advanced-ui/SKILL.md`.
-- W iteracji stosuj zakres zadaniowy z tego skilla; pełny audyt, SEO i Lighthouse wykonuj tylko na żądanie albo jako końcową bramkę release.
+Dopiero przy niezgodności workspace/brancha rozszerz diagnostykę.
 
-### KOMPAS UI REUSE POLICY
+Po udanej mutacji nie wykonuj potwierdzającego GET bez potrzeby następnej decyzji.
 
-Before implementing new UI:
+## MCP / narzędzia
 
-1. Search `@kompas` registry.
-2. Prefer an existing page, block or component over a new implementation.
-3. Prefer a block over assembling primitives when an appropriate block exists.
-4. Do not create a local equivalent of an existing `@kompas` item.
-5. Use Storybook MCP to inspect documented states, usage and component behavior.
-6. Preserve the existing responsive contract.
-7. Use Playwright against the real application after composition.
-8. New reusable UI starts locally.
-9. Promote to `@kompas` only after duplicate check, typecheck, responsive validation, accessibility validation where applicable, tests, a Storybook story and a successful registry validation/build.
-10. App-specific business logic must not be promoted into the canonical design system.
+Używaj minimalnego surface potrzebnego do taska. Narzędzia specjalistyczne są task-scoped/on-demand zgodnie z rolą; nie włączaj kilku integracji „na zapas”.
 
-### KOMPAS UI DISCOVERY POLICY
+- Git — repo/PR/review.
+- Cloudflare — tylko infra/deploy scope.
+- Playwright/browser — browser acceptance/UI QA.
+- Shadcn/Storybook — design/UI discovery.
+- Paperclip — control-plane issue/workspace/handoff.
 
-Before creating new UI:
+Nie loguj sekretów, tokenów ani nagłówków Authorization.
 
-1. Search `@kompas` through shadcn MCP.
-2. Inspect candidate component or block.
-3. Use Storybook MCP to understand supported states, composition, documented behavior and responsive examples.
-4. Prefer an existing block over rebuilding from primitives.
-5. Prefer an existing component over a local duplicate.
-6. After composing the page, use Playwright against the real application.
-7. New reusable UI remains local until promotion checks pass.
-8. Promotion to `@kompas` must also create or update its Storybook story.
+## Data architecture
 
-### Status przez MCP Paperclip
+- **Supabase/Postgres jest jedynym application source of truth.**
+- Cloudflare Worker jest warstwą API/integracji/sekretów, nie drugim SSOT domenowym.
+- Nie twórz nowej domenowej warstwy Cloudflare D1.
+- TARGET z PRD nie jest dowodem CURRENT; stan wdrożenia potwierdzaj kodem/runtime/testem.
+- Nie wymyślaj danych integracji. `Brak danych` jest legalnym stanem.
 
-- Komenda `/status` lub polecenie „status”, „jaki jest stan” uruchamia `skills/status/SKILL.md` — szybki przegląd stanu faktycznego i sprawdzenie, czy system czeka na decyzję.
+## Realizacja
 
+Gdy task jest wykonawczy, realizuj go end-to-end w jego scope:
 
-## ChatGPT Apps / MCP development
+1. targeted context;
+2. najmniejsza kompletna zmiana;
+3. istniejący targeted verification;
+4. diff;
+5. commit/push, jeśli task jest repo-write;
+6. evidence + handoff.
 
-For tasks involving OpenAI Apps SDK, ChatGPT Apps, MCP Apps, MCP tools/resources, ChatGPT-rendered UI, authentication or app submission, load and follow the `chatgpt-apps` skill before modifying implementation.
+Nie wykonuj opportunistic refactoru i nie twórz meta/recovery tasków bez niezależnej wartości.
 
-Do not guess OpenAI/MCP behavior. Verify unstable or undocumented behavior against current official documentation, SDK types, repository code, tests or runtime debugging.
+## UI
 
-- Gdy użytkownik zleca zadanie wykonawcze, realizuj je end-to-end.
-- Nie kończ pracy na planie, nie pytaj o potwierdzenie między krokami i nie opisuj niepotrzebnie procesu.
-- Przy zadaniach UI/HTML zawsze dostarcz finalny kod oraz screenshot efektu.
-- Przed zmianą UI potwierdź kanoniczny katalog projektu oraz aktualny widok produkcyjny; nie przenoś kodu z klona, starej wersji ani innego Workera.
-- Przy zadaniu brandingowym zachowaj istniejące sekcje, kolejność, timeline, listy zadań i zachowania. Zmieniaj wyłącznie tokeny, typografię i detale wizualne, chyba że użytkownik wyraźnie zleci zmianę struktury.
-- Nie dodawaj dekoracji, których nie ma w kanonicznym systemie marki. W szczególności nie używaj poziomic, koncentrycznych kół, gradientów, offsetowych cieni ani pasków w dwóch kolorach jako ozdobników kart.
-- Najpierw oceń hierarchię informacji na widoku: działanie główne musi być łatwe do zauważenia i wygodne do kliknięcia, a data, godzina, etykiety oraz pola formularza nie mogą konkurować z tytułem.
-- Motywy ilustracyjne stosuj wyłącznie wtedy, gdy mają udokumentowane zastosowanie, właściwą skalę i nie zabierają miejsca treści. Na ciemnych panelach preferuj czyste tło oraz kontrast tekstu.
-- Przed wdrożeniem UI porównaj wszystkie dostępne podstrony i breakpoint mobilny; usuń niespójne efekty globalnie, zamiast maskować je na jednym widoku.
-- Gdy istnieje kanoniczny komponent referencyjny (np. CTA), odwzoruj jego proporcje, kolory i podział elementów; nie twórz luźnej wariacji na jego temat.
-- Nie wymuszaj minimalnej wysokości karty, jeśli tworzy pustą przestrzeń. Wysokość ma wynikać z hierarchii treści i odstępów.
-- Nie dodawaj w interfejsie adnotacji o źródle danych ani technicznych objaśnień, jeśli użytkownik ich nie zlecił; źródło opisuj wyłącznie w dokumentacji projektu.
-- Dla widoków z tabelą sprawdź mobilny breakpoint bez poziomego przewijania: informacje i działania muszą pozostać dostępne w jednej kolumnie.
-- Gdy katalog wyklucza pozycje już wybrane lub ukończone, filtr stosuj zarówno przy pierwszym renderze, jak i podczas wpisywania wyszukiwania.
+Przy UI:
 
-## Zakres edycji
+- runtime = `app/web/`;
+- design system = `dev/design-system/`;
+- przed nowym reusable UI sprawdź `@kompas` registry;
+- zachowaj responsywność, hierarchię informacji i minimum touch target 44×44 px;
+- nie promuj app-specific business logic do design systemu/registry;
+- niezależny browser acceptance należy do UI QA.
 
-- Edytuj, twórz, przenoś i usuwaj wyłącznie pliki znajdujące się w katalogu `C:\Kompas Zbiórek` lub jego podkatalogach.
-- Nie modyfikuj plików poza `C:\Kompas Zbiórek`.
-- Nie przenoś plików poza `C:\Kompas Zbiórek`.
-- Nie twórz kopii tego projektu w innym katalogu.
-- Przed edycją sprawdź, czy ścieżka docelowa zaczyna się od `C:\Kompas Zbiórek\`.
+Szczegółowe reguły designu i QA są w odpowiednich skillach — nie duplikuj ich tutaj.
 
-## Zasady projektu
+## Aktualny test contract
 
-- Zachowuj język polski i istniejące nazwy plików.
-- Używaj `apply_patch` do ręcznej edycji plików.
-- Nie usuwaj istniejących treści ani plików bez wyraźnego polecenia użytkownika.
-- Po zmianach sprawdź linki wikilink, strukturę Markdown i spójność dokumentacji.
-- Przy zmianach prompta, PRD lub dokumentacji API zaktualizuj powiązane odwołania w tym samym katalogu.
+W `app/` istnieją:
 
-## Stały sposób pracy
+- `npm run build`;
+- `npm run typecheck`;
+- `npm run test:skill-completion-task`;
+- `npm run test:all` = build + typecheck + tracked targeted test.
 
-Przy każdej zmianie produktu wykonaj tę kolejność:
+**Repo nie zawiera obecnie tracked `app/e2e/`, `playwright.config.ts` ani `lighthouserc.json`.** Nie raportuj Playwright/Lighthouse PASS bez realnego uruchomienia odpowiedniego narzędzia. Jeśli acceptance wymaga browser/E2E, użyj task-scoped browser tooling lub zgłoś konkretny coverage gap.
 
-1. Przeczytaj aktualne PRD oraz dokumentację API dotyczącą zmienianego obszaru.
-2. Porównaj wymagania z istniejącą implementacją i zapisz brakujące lub niespójne funkcje.
-3. Wprowadź najmniejszą kompletną zmianę, która realizuje wymaganie i nie udaje działania niedostępnej integracji.
-4. Uruchom właściwe testy, kontrolę składni oraz build; dla zmian UI sprawdź również widok desktopowy i mobilny.
-5. Uzupełnij `documentation.md` w katalogu głównym: opisz funkcję, sposób użycia, źródła danych, ograniczenia i wykonane testy. Jeżeli plik nie istnieje, utwórz go.
+## Dokumentacja
 
-Nie oznaczaj funkcji jako gotowej, jeśli test, build, wdrożenie albo wymagany zapis do dokumentacji nie został wykonany.
+- Runtime/API/publiczne zachowanie: `app/documentation.md`.
+- Repo overview: `README.md`.
+- Trwała wiedza produktowa/architektoniczna: Paperclip Wiki.
 
-## Zasady UX i danych
+Aktualizuj dokumentację tylko wtedy, gdy zmiana rzeczywiście modyfikuje jej kontrakt. Nie edytuj wielu dokumentów przy czystym CSS, refactorze lub zmianie bez wpływu na publiczne zachowanie.
 
-- Nie zastępuj wymaganych danych roboczych tekstem typu „uzupełnij gdzie indziej”. Jeżeli dane są potrzebne w karcie, pokaż edytowalne pole albo jawny, nieblokujący stan braku danych.
-- Karta zbiórki jest samowystarczalnym artefaktem roboczym: zawiera dane i obecność, sprawności, eksperyment, przygotowanie, plan godzinowy oraz refleksję.
-- Dla powtarzalnych danych stosuj czytelne tabele z nagłówkami i wierszami edytowalnymi: zadania, plan, wymagania sprawności, plan roczny, kalendarz, funkcje i historia eksperymentów.
-- Nie wymyślaj wymagań sprawności ani danych z integracji. Gdy API nie jest podłączone, pokaż jasny stan braku danych i pozwól wyłącznie na roboczy opis użytkownika.
-- Przed zmianą UI porównaj widoki z aktualnym PRD, szablonem dokumentu drużyny i dokumentacją API. Nie redukuj wymaganych pól do demonstracyjnych skrótów bez wyraźnej zgody użytkownika.
-- Po zmianach UI sprawdź build, składnię oraz czytelność desktopową i mobilną; weryfikuj kolejność: nagłówek, kontekst, działanie, dane robocze.
+## Deploy Cloudflare
 
-## Obowiązkowe wdrożenie Cloudflare
+Deploy nie jest automatycznym skutkiem każdej zmiany kodu. Wykonuj go tylko dla scoped/autoryzowanego release/deploy taska.
 
-- Docelowym Workerem produkcyjnym jest `wtyczka-rr`, z powiązaną domeną interfejsu `interfejs.kompaszbiorek.pl`. Nie wdrażaj tego projektu na `kompas-zbiorek` ani nie twórz zastępczych Workerów.
-- Po każdej zmianie w `kompas-ui-plugin` zbuduj całość i wdroż aktualną wersję produkcyjną Workera `wtyczka-rr` na Cloudflare przed zgłoszeniem zadania jako ukończonego.
-- Kolejność jest stała: `npm run build` w `kompas-ui-plugin`, `node build-worker.mjs` w `kompas-ui-plugin\cloudflare-worker`, `npx wrangler deploy --dry-run` (walidacja), a następnie `npx wrangler deploy --keep-vars` w katalogu Workera. Wrangler jest lokalną devDependency wersji w `kompas-ui-plugin\cloudflare-worker\package.json`; nie używaj globalnego wranglera.
-- Po wdrożeniu podaj użytkownikowi adres produkcyjny oraz identyfikator wersji zwrócony przez Wrangler.
-- Jeśli wdrożenie jest zablokowane, nie przedstawiaj zmiany jako wdrożonej; podaj dokładną przyczynę i gotowy krok potrzebny do wznowienia.
+Dla aplikacji:
 
-## Plik bazy aktywności
+1. `npm run build` w `app/`;
+2. `node build-worker.mjs` w `app/cloudflare-worker/`;
+3. `npx wrangler deploy --dry-run`;
+4. `npx wrangler deploy --keep-vars` dopiero przy autoryzowanym wdrożeniu.
 
-Kanoniczny plik PRD i dokumentacji API bazy aktywności znajduje się tutaj:
+Docelowy Worker repo: `wtyczka-rr`. Nie twórz zastępczego Workera jako obejścia problemu.
 
-`C:\Kompas Zbiórek\PRD I DOKUMENTACJA API BAZY AKTYWNOŚCI RR.md`
+## Git / review
 
-Przy pracy nad Bazą Aktywności RR edytuj ten plik oraz powiązane pliki wyłącznie w katalogu `C:\Kompas Zbiórek`.
+Normalny repo-write powinien być wykonany na branchu/isolated worktree. Implementer dostarcza exact candidate SHA; niezależny review dotyczy tego SHA. Późniejszy commit wymaga ponownej weryfikacji.
 
-## Bramka jakości UI (Quality Gate)
+Merge/release prowadzi CTO/reviewer zgodnie z aktualną polityką repo, chyba że operator jawnie zdecyduje inaczej.
 
-Automatyczne testy UI znajdują się w `kompas-ui-plugin\e2e` i są uruchamiane komendą `npm run test:all` w katalogu `kompas-ui-plugin` (Playwright + Lighthouse). Szczegóły w `kompas-ui-plugin\documentation.md`.
+## Windows / encoding
 
-- Nie uznawaj zmiany UI za zakończoną wyłącznie na podstawie poprawności kodu. Po zmianie UI uruchom `npm run test:all` w `kompas-ui-plugin`, sprawdź że wszystkie testy przeszły, i potwierdź render (widok desktopowy i mobilny) w kontekście produkcyjnym.
-- Testy responsywności nie mogą być wyciszane przez `test.skip` zależne od viewportu. Każdy test desktopowy i mobilny ma wykonać się w obu projektach Playwright; jeśli zachowanie różni się między breakpointami, test ma użyć warunku i sprawdzić właściwy kontrakt dla danego viewportu. Raport końcowy nie powinien zawierać pominiętych testów z powodu rozmiaru ekranu.
-- Lighthouse nie zastępuje testów responsywności i nie jest testem SEO. Przy zmianach mobilnych wymagany jest osobny test DOM/CSS dla projektu `mobile` oraz ręczna kontrola widoku produkcyjnego przy 390×844 px.
-- Inspekcję działającego interfejsu wykonuj automatycznie przez Playwright MCP (skonfigurowany w `opencode.json` w katalogu głównym jako `mcp.playwright`). Do ręcznej weryfikacji widoku użyj narzędzi Playwright MCP zamiast polegania wyłącznie na screenshotach z testów.
-- Accessibility: reguły WCAG A/AA (2.1 + 2.2), poziom `critical` i `serious` blokują zakończenie zadania dotyczącego UI. Naruszenia napraw w kodzie; bez nieuzasadnionych `axe.exclude`/ignorów.
-- Wizualne regresje sprawdzaj przez testy screenshotowe (`e2e\visual.spec.ts`). Baseline zrzutów aktualizuj komendą `npm run test:ui:update` tylko gdy zmiana wizualna jest zamierzona i zaakceptowana przez użytkownika.
-- Lighthouse (LHCI) ma twarde progi asercji w `kompas-ui-plugin\lighthouserc.json` (accessibility ≥ 0.9, best-practices ≥ 0.9 jako error; performance ≥ 0.5 jako warn). Nie obniżaj progów bez uzasadnienia; w razie regresji napraw przyczynę.
-- Stan środowiska: Lighthouse wymaga Chrome/Chromium. Skrypt `npm run test:lighthouse` ustawia `CHROME_PATH` automatycznie (wskazuje na Chromium zainstalowane przez `npm run test:install`); nie uruchamiaj LHCI bez `CHROME_PATH`, bo healthcheck nie przejdzie.
+Host agents = Windows/PowerShell, jeśli runtime nie mówi inaczej. Używaj PowerShell-native i jawnego UTF-8. Nie enumeruj całego `Env:` i nie wypisuj sekretów.
+
+## Stop conditions
+
+Ta sama mutacja failuje dwa razy → STOP retry i raport:
+
+`BLOCKER / OWNER / EXACT ACTION`.
+
+Nie obchodź security, credential boundary ani workspace policy ręcznymi workaroundami.
