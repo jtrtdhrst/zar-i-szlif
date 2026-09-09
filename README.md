@@ -8,13 +8,12 @@ Aplikacja dla instruktorów Royal Rangers wspierająca cykl **Planowanie → Rea
 app/                       # jedyny katalog runtime aplikacji
 ├── web/                   # UI
 ├── server/                # serwer ChatGPT/MCP
-├── cloudflare-worker/     # API/integracje/Cloudflare
-└── e2e/                   # testy runtime aplikacji
+└── cloudflare-worker/     # API/integracje/Cloudflare
 
 dev/                       # kod wspierający rozwój aplikacji
 ├── design-system/         # OpenDesign/design tokens
 ├── integrations/          # Paperclip/OpenCode MCP i integracje developerskie
-└── quality/               # pipeline i dodatkowe testy jakości
+└── quality/               # dodatkowe testy/pipeline poza runtime
 
 content/                   # treści niebędące kodem runtime
 ├── marketing/
@@ -36,6 +35,7 @@ Root repo pozostaje możliwie płaski: konfiguracja workspace, registry, tooling
 
 - **Supabase/Postgres jest jedynym application source of truth.**
 - Cloudflare Worker jest warstwą API, integracji i bezpiecznego dostępu do sekretów; nie jest drugim źródłem prawdy domenowej.
+- Nie twórz nowej domenowej warstwy Cloudflare D1.
 - Pliki trafiają do Supabase Storage lub R2 zależnie od modułu.
 - Wymagania sprawności pochodzą z oficjalnego źródła RR; nie wolno ich wymyślać.
 - Brak danych jest jawnym stanem `Brak danych`, a nie pretekstem do generowania fikcyjnej treści.
@@ -57,15 +57,14 @@ pnpm install
 # zależności aplikacji
 cd app && npm install
 
-# build aplikacji
-npm run build
-
-# testy aplikacji
+# build + typecheck + tracked targeted test
 npm run test:all
 
 # dev
 npm run dev
 ```
+
+Obecny `app/npm run test:all` wykonuje build, typecheck i istniejący targeted test logiki. Repo **nie zawiera obecnie tracked `app/e2e/`, `playwright.config.ts` ani `lighthouserc.json`**; browser acceptance jest osobną warstwą QA i nie należy udawać historycznego Playwright/Lighthouse gate jako bieżącego stanu.
 
 ## Kanoniczne lokalizacje
 
@@ -74,11 +73,12 @@ npm run dev
 | Render statyczny | `app/web/src/static-app-v2.js` |
 | Style | `app/web/src/styles.css`, `app/web/src/extended.css` |
 | Build web | `app/web/scripts/build-static.mjs` |
+| Targeted test logiki | `app/web/scripts/skill-completion-task-test.mjs` |
 | MCP/API Worker | `app/cloudflare-worker/src/public-ui.ts` |
 | OAuth | `app/cloudflare-worker/src/oauth.ts`, `google-handler.ts`, `widget-auth.ts` |
 | Build Worker | `app/cloudflare-worker/build-worker.mjs` |
 | Serwer ChatGPT/MCP | `app/server/index.ts` |
-| Testy e2e | `app/e2e/` |
+| Dodatkowe testy/pipeline | `dev/quality/` |
 | Design tokens | `dev/design-system/opendesign/design-systems/kompas-rrp/tokens/colors_and_type.css` |
 | Maile onboardingowe | `content/onboarding-emails/` |
 | Marketing | `content/marketing/` |
@@ -86,10 +86,10 @@ npm run dev
 
 ## Delivery governance
 
-- `main` jest gałęzią chronionego stanu produktu.
+- `main` jest gałęzią stanu produktu.
 - Implementacja repo-write powinna kończyć się wskazaniem dokładnego `candidate_sha`.
 - Niezależny review ma dotyczyć dokładnie tego SHA; późniejszy commit wymaga ponownego review.
-- Merge po PASS należy do roli CTO/reviewera, a nie implementera tej samej zmiany.
+- Merge po PASS należy do roli CTO/reviewera, chyba że operator jawnie zdecyduje inaczej.
 
 ## Wiedza projektowa
 
