@@ -288,7 +288,8 @@ export function createGoogleAuthHandler(options: { widgetHtml: string }): Export
 
   return {
     async fetch(request, env, ctx) {
-      const { pathname } = new URL(request.url);
+      const url = new URL(request.url);
+      const { pathname } = url;
       console.log("route:", request.method, pathname);
 
       if (request.method === "OPTIONS") {
