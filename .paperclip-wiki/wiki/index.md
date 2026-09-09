@@ -1,4 +1,4 @@
-﻿# Kompas Zbiórek — Wiki Index
+# Kompas Zbiórek — Wiki Index
 
 ## Sources (znormalizowane źródła z raw/)
 
@@ -24,7 +24,7 @@
 ## Entities (systemy i integracje)
 
 - [[wiki/entities/repo-map]] — kanoniczne lokalizacje (REPO MAP)
-- [[wiki/entities/worker-wtyczka-rr]] — Worker `wtyczka-rr` runtime
+- [[wiki/entities/worker-wtyczka-rr]] — Worker `panel-kompaszbiorek` runtime
 - [[wiki/entities/panel-google-sheets]] — Panel Google Sheets (trwały stan)
 - [[wiki/entities/integracje-api]] — Status integracji zewnętrznych
 - [[wiki/entities/paperclip-organizacja]] — Paperclip workspace i agenci
@@ -52,7 +52,7 @@
 - [[wiki/entities/agents-coo]] — COO
 - [[wiki/entities/agents-cto]] — CTO — dodatkowo API sprawności + baza aktywności (v14)
 - [[wiki/entities/agents-engineer]] — **Engineer — MA DOSTĘP DO DOKUMENTACJI** (`kompas-ui-design/INSTRUKCJE-BRANDINGU`, `tokens`, `Dokumentacja_API_SPRAWNOSCI`, `PRD_BAZA_AKTYWNOSCI`, `dokumentacja-integracji` + `WSPOLNY_KONTEKST`)
-- [[wiki/entities/agents-designer]] — Designer — branding + tokeny + live `wtyczka.kompaszbiorek.pl/ui` + `PRD §7.1`
+- [[wiki/entities/agents-designer]] — Designer — branding + tokeny + live `https://panel.kompaszbiorek.pl/ui` + `PRD §7.1`
 - [[wiki/entities/agents-ui-qa]] — UI QA — `INSTRUKCJE-BRANDINGU` + `qa-acceptance`, `DATA DIAGNOSTIC CONTRACT`
 - [[wiki/entities/agents-cmo]] — CMO — `kompas-brand-email`, Sender.net
 
@@ -62,4 +62,4 @@ Baza: `C:\Kompas Zbiórek\.paperclip-wiki` — wiki (`wiki/`, `raw/`) + agenci (
 
 ## Raw (niemutowalne kopie kanonu)
 
-- `raw/WSPOLNY_KONTEKST.md`, `raw/AGENTS.md`, `raw/MAPA-SYSTEMU.md`, `raw/PRD-KOMPAS-ZBIOREK.md`, `raw/PRD-BAZA-AKTYWNOSCI-RR.md`, `raw/documentation.md`, `raw/API-*.md`, `raw/DOKUMENTACJA-INTEGRACJI.md`, `raw/PROMPT-SYSTEMOWY.md`, `raw/00-*.md`…`06-*.md`, `raw/SZABLON-GOOGLE-DOCS.md`, `raw/OPENCODE-GLOBAL-AGENTS.md`
+- `raw/WSPOLNY_KONTEKST.md`, `raw/AGENTS.md`, `raw/MAPA-SYSTEMU.md`, `raw/PRD-KOMPAS-ZBIOREK.md`, `raw/PRD-BAZA-AKTYWNOSCI-RR.md`, `raw/documentation.md`, `raw/API-*.md`, `raw/DOKUMENTACJA-INTEGRACJI.md`, `raw/PROMPT-SYSTEMOWY.md`, `raw/00-*.md`…`06-*.md`, `raw/SZABLON-GOOGLE-DOCS.md`, `raw/OPENCODE-GLOBAL-AGENTS.md`.
