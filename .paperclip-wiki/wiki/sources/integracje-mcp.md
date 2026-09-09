@@ -15,7 +15,7 @@ updated: 2026-08-20
 
 **Panel Google Sheets** `/panel` (`panel-handler.ts`) — arkusz jako trwały stan drużyny, landing 2 opcje (istniejący arkusz / kopia szablonu `SHEETS_TEMPLATE_FILE_ID`), zapis przez `POST /panel/save` (`values.append`) dopiero po podglądzie.
 
-**Produkcja**: Worker `wtyczka-rr`, domeny `interfejs.kompaszbiorek.pl` (docelowa), `wtyczka.kompaszbiorek.pl/ui` (fallback), `panel.kompaszbiorek.pl` (Worker `panel-kompaszbiorek`). Deploy: `npm run build` → `node build-worker.mjs` → `wrangler deploy --dry-run` → `deploy --keep-vars` (lokalny wrangler).
+**Produkcja**: Worker `panel-kompaszbiorek`, publiczny system `https://panel.kompaszbiorek.pl` (`/ui` dla UI, `/mcp` dla MCP). Deploy: `npm run build` w `app/` → `node build-worker.mjs` w `app/cloudflare-worker/` → `npx tsc --noEmit` → `npx wrangler deploy --dry-run` → `npx wrangler deploy --keep-vars` (ostatni krok po autoryzacji).
 
 **ChatGPT**: wtyczka + Apps SDK, serwer mostu `kompas-ui-plugin/server/index.ts`, skill `chatgpt-apps`.
 
