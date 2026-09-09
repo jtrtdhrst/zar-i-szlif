@@ -102,7 +102,7 @@ Jeżeli stan funkcji nie jest potwierdzony, agent ma powiedzieć `niepotwierdzon
 ## Warstwa techniczna
 
 - Repo: `https://github.com/miloszspyrka-code/kompas-zbiorek`, workspace `isolated_workspace` + `git_worktree` (`baseRef=main`, parent `.paperclip-worktrees`).
-- Produkcja: `kompaszbiorek.pl`, `panel.kompaszbiorek.pl`, `wtyczka.kompaszbiorek.pl/ui`, Worker `wtyczka-rr`; `interfejs.kompaszbiorek.pl` pozostaje domeną techniczną/interfejsową w istniejącej architekturze.
+- Produkcja: `kompaszbiorek.pl`, publiczny system `https://panel.kompaszbiorek.pl` (`/ui` dla UI, `/mcp` dla MCP), Worker `panel-kompaszbiorek`.
 - Invarianty techniczne: MCP `/mcp`, OAuth `drive.file`, Cloudflare D1, brak write do `main` bez worktree.
 - Delivery: Engineer→QA→Done, max 2 aktywne deliverable, `BLOCKER/OWNER/ACTION` dla zablokowanych.
 
@@ -112,14 +112,14 @@ Lazy-load: CEO/COO/CTO/Engineer/UI QA/Designer/CMO ładują różne sekcje. `doc
 
 ## Mapa systemu — skrót REPO MAP
 
-Kanoniczne lokalizacje: `kompas-ui-plugin/web/src/static-app-v2.js` (render), `styles.css`, `cloudflare-worker/src/public-ui.ts` (MCP), `oauth.ts`/`panel-handler.ts`, `server/index.ts`, `e2e/`, `lighthouserc.json`, `kompas-ui-design/opendesign`, `onboarding-emails/`. Komendy: `npm run build`, `npm run test:all`.
+Kanoniczne lokalizacje: `app/web/src/static-app-v2.js` (render), `app/web/src/styles.css`, `app/cloudflare-worker/src/oauth.ts` (MCP), `app/cloudflare-worker/src/panel-handler.ts`, `app/server/index.ts`, `e2e/`, `lighthouserc.json`, `kompas-ui-design/opendesign`, `onboarding-emails/`. Komendy: `npm run build`, `npm run test:all`.
 
 ## Cykl, Design, Produkcja
 
-Docelowe 4 etapy: **Planowanie → Realizacja → Refleksja → Doskonalenie**. Materiały `00`–`06` i model 9 kroków są historyczne/metodologiczne. Brand DNA: mapa/topografia, bez poziomic/gradientów. Produkcja: Worker `wtyczka-rr`, kolejność `build → build-worker.mjs → wrangler deploy --dry-run → deploy --keep-vars`.
+Docelowe 4 etapy: **Planowanie → Realizacja → Refleksja → Doskonalenie**. Materiały `00`–`06` i model 9 kroków są historyczne/metodologiczne. Brand DNA: mapa/topografia, bez poziomic/gradientów. Produkcja: Worker `panel-kompaszbiorek`, publiczny system `https://panel.kompaszbiorek.pl`, UI `/ui`, MCP `/mcp`; kolejność: `npm run build` w `app/` → `node build-worker.mjs` w `app/cloudflare-worker/` → `npx tsc --noEmit` → `npx wrangler deploy --dry-run` → `npx wrangler deploy --keep-vars`.
 
 ## Wykonanie kontraktowe
 
 CONTEXT-FIRST: `PAPERCLIP_WAKE_PAYLOAD_JSON`→HANDOFF→REPO MAP→targeted reads→code. STARTUP I/O BUDGET: 1 odczyt heartbeat, git `branch --show-current`+`status --short`, bez szerokiego discovery, autorytatywność mutacji bez potwierdzającego GET.
 
-> Techniczna baza źródłowa: `raw/WSPOLNY_KONTEKST.md`. Aktualna wizja produktowa zsynchronizowana z decyzjami z 2026-08-27; status implementacji wymaga osobnej weryfikacji CURRENT / AS-IS.
+> Techniczna baza źródłowa: `raw/WSPÓLNY_KONTEKST.md`. Aktualna wizja produktowa zsynchronizowana z decyzjami z 2026-08-27; status implementacji wymaga osobnej weryfikacji CURRENT / AS-IS.
