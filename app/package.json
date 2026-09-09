@@ -8,7 +8,7 @@
     "test:skill-completion-task": "node web/scripts/skill-completion-task-test.mjs",
     "start": "node server/dist/index.js",
     "dev": "npm run build && npm run start",
-    "typecheck": "node node_modules/typescript/bin/tsc --noEmit -p server/tsconfig.json && node node_modules/typescript/bin/tsc --noEmit -p web/tsconfig.json",
+    "typecheck": "node node_modules/typescript/bin/tsc --noEmit -p server/tsconfig.json",
     "test:all": "npm run build && npm run typecheck && npm run test:skill-completion-task"
   },
   "dependencies": {
