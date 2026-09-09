@@ -11,7 +11,7 @@ updated: 2026-08-27
 
 ## Invarianty techniczne
 
-Nie zmieniać bez upoważnienia: MCP `/mcp`, OAuth `drive.file`, Cloudflare D1, domeny `kompaszbiorek.pl` / `interfejs.kompaszbiorek.pl` / `wtyczka.kompaszbiorek.pl` / `panel.kompaszbiorek.pl`, Worker `wtyczka-rr` jako cel deploya, brak write do `main` bez worktree, `isolated_workspace` tylko.
+Nie zmieniać bez upoważnienia: publiczny system `https://panel.kompaszbiorek.pl`, UI `/ui`, MCP `/mcp`, OAuth `drive.file`, Cloudflare D1, domena `kompaszbiorek.pl`, Worker `panel-kompaszbiorek` jako cel deploya, brak write do `main` bez worktree, `isolated_workspace` tylko.
 
 ## Brand DNA UI
 
