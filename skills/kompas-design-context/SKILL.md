@@ -32,10 +32,19 @@ description: Stały kontekst designu Kompas Zbiórek — DNA marki, typografia, 
 - Szerokości: 360, 375, 390, 412, 430.
 - Bez poziomego przewijania; informacje i działania dostępne w jednej kolumnie.
 
+## Kanoniczne źródła designu
+
+- Skrócony brand system: `dev/design-system/BRAND-DESIGN-SYSTEM-COMPRESSED.md`.
+- Pełny brand system: `dev/design-system/BRAND-DESIGN-SYSTEM.md`.
+- Design system OpenDesign: `dev/design-system/opendesign/design-systems/kompas-rrp/`.
+- Tokeny: `dev/design-system/opendesign/design-systems/kompas-rrp/tokens/colors_and_type.css`.
+- Runtime UI, którego dotyczy implementacja: `app/web/`.
+
+Nie używaj `archive/` jako źródła aktualnego designu. Przy konflikcie brand systemu z runtime sprawdź bieżący task i aktualny widok, nie stary audyt.
+
 ## Zakres pracy
 
 - Domyślna praca Designera to specyfikacja i audyt.
 - Designer nie implementuje kodu produktu, chyba że task jawnie przypisuje implementację.
-- System design: `kompas-ui-design/opendesign/design-systems/kompas-rrp/` (SKILL.md, README.md, `tokens/colors_and_type.css`, `brand/`);
-  instrukcje brandingowe: `kompas-ui-design/INSTRUKCJE-BRANDINGU-AI.md`.
+- Kod design systemu jest w `dev/design-system/`; kod produktu jest w `app/` — nie mieszaj tych warstw.
 - Wynik audytu: priorytetyzacja jako P0/P1/P2.
