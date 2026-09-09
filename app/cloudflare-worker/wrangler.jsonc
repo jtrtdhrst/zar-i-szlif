@@ -4,9 +4,6 @@
   "main": "worker.js",
   "compatibility_date": "2026-08-07",
   "workers_dev": false,
-  "routes": [
-    { "pattern": "wtyczka.kompaszbiorek.pl", "custom_domain": true }
-  ],
   "vars": {
     "TEMPLATE_FILE_ID": "183nDdy9kE_DxfoLwPhhAlkboey66QI1QzM64UBXrTLI",
     "SHEETS_TEMPLATE_FILE_ID": "13jV1YPEh8G2-e7xKH3lsTxu9gY0ckvveaYQxxc6rzFs",
