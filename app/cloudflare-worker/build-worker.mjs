@@ -1,4 +1,11 @@
 import { readFile, writeFile } from "node:fs/promises";
+import { execFileSync } from "node:child_process";
+import { dirname, resolve } from "node:path";
+import { fileURLToPath } from "node:url";
+
+// ponytail: dashboard builds run this file directly — ensure web/dist exists first (cwd=app/)
+const here = dirname(fileURLToPath(import.meta.url));
+execFileSync(process.execPath, [resolve(here, "../web/scripts/build-static.mjs")], { cwd: resolve(here, ".."), stdio: "inherit" });
 
 const LOGO_URL = "https://baza-zabaw.milosz-spyrka.workers.dev/logo.png";
 const widget = (await readFile("../web/dist/index.html", "utf8"))
