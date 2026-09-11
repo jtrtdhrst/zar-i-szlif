@@ -25,7 +25,15 @@ const context = {
   },
 };
 const source = await readFile(new URL("../src/static-app-v2.js", import.meta.url), "utf8");
-vm.runInNewContext(`${source}\nglobalThis.__state=S; globalThis.__completeActivitySkillPoint=completeActivitySkillPoint;`, context);
+// ponytail: same runtime composition as web/scripts/build-static.mjs (registry globals first)
+const RUNTIME_FILES = [
+  "../../../registry/kompas/ui/kompas-button.js",
+  "../../../registry/kompas/components/brand-header.js",
+  "../../../registry/kompas/blocks/stage-checklist.js",
+  "../../../registry/kompas/shells/app-shell.js",
+];
+const runtime = (await Promise.all(RUNTIME_FILES.map((f) => readFile(new URL(f, import.meta.url), "utf8")))).join("\n").replace(/^export /gm, "");
+vm.runInNewContext(`${runtime}\n${source}\nglobalThis.__state=S; globalThis.__completeActivitySkillPoint=completeActivitySkillPoint;`, context);
 
 const state = context.__state;
 state.team.skillRecords = [{

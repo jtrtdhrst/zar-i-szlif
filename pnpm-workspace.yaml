@@ -1,2 +1,6 @@
+packages:
+  - .
+  - app
+  - app/cloudflare-worker
 allowBuilds:
   esbuild: true
