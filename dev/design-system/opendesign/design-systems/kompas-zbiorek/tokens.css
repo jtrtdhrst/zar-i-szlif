@@ -1,0 +1,84 @@
+/* Kompas Zbiórek — OpenDesign canonical semantic tokens.
+   Compatible with the current OpenDesign shared token contract.
+   Source: Kompas Zbiórek design-system export and canonical repository rules. */
+
+:root {
+  --bg: #f5f0df;
+  --surface: #ece5d1;
+  --surface-warm: #eee4c8;
+  --fg: #20301e;
+  --fg-2: #3f4b3e;
+  --muted: #485347;
+  --meta: #485347;
+  --border: rgba(32, 48, 30, 0.32);
+  --border-soft: rgba(32, 48, 30, 0.18);
+  --accent: #be302a;
+  --accent-on: #ffffff;
+  --accent-hover: #93221e;
+  --accent-active: #7d1f1a;
+  --success: #2d4025;
+  --warn: #d6ad2f;
+  --danger: #93221e;
+  --font-display: "Noto Sans Display", "Noto Sans", Arial, sans-serif;
+  --font-body: "Noto Sans", Arial, sans-serif;
+  --font-mono: ui-monospace, "SF Mono", "JetBrains Mono", Menlo, Monaco, Consolas, monospace;
+  --text-xs: 11px;
+  --text-sm: 12px;
+  --text-base: 16px;
+  --text-lg: 20px;
+  --text-xl: 24px;
+  --text-2xl: 38px;
+  --text-3xl: 52px;
+  --text-4xl: 76px;
+  --leading-body: 1.5;
+  --leading-tight: 1.1;
+  --tracking-display: -0.034em;
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 16px;
+  --space-5: 20px;
+  --space-6: 24px;
+  --space-8: 32px;
+  --space-12: 48px;
+  --section-y-desktop: 96px;
+  --section-y-tablet: 64px;
+  --section-y-phone: 48px;
+  --radius-sm: 8px;
+  --radius-md: 8px;
+  --radius-lg: 8px;
+  --radius-pill: 9999px;
+  --elev-flat: none;
+  --elev-ring: 0 0 0 1px var(--border);
+  --elev-raised: 0 2px 18px rgba(32, 48, 30, 0.06);
+  --focus-ring: 0 0 0 3px rgba(214, 173, 47, 0.36);
+  --motion-fast: 160ms;
+  --motion-base: 180ms;
+  --ease-standard: ease;
+  --container-max: 1280px;
+  --container-gutter-desktop: 32px;
+  --container-gutter-tablet: 16px;
+  --container-gutter-phone: 12px;
+}
+
+[data-theme="dark"] {
+  --bg: #1d2d19;
+  --surface: #162313;
+  --surface-warm: #3a4d34;
+  --fg: rgba(255, 255, 255, 0.96);
+  --fg-2: rgba(245, 240, 223, 0.85);
+  --muted: rgba(255, 255, 255, 0.60);
+  --meta: rgba(255, 255, 255, 0.50);
+  --border: rgba(214, 173, 47, 0.30);
+  --border-soft: rgba(214, 173, 47, 0.12);
+  --accent: #be302a;
+  --accent-on: #ffffff;
+  --accent-hover: #93221e;
+  --accent-active: #7d1f1a;
+  --success: #3a4d34;
+  --warn: #e4c557;
+  --danger: #be302a;
+  --elev-ring: 0 0 0 1px var(--border);
+  --elev-raised: none;
+  --focus-ring: 0 0 0 3px rgba(228, 197, 87, 0.36);
+}
