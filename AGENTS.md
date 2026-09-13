@@ -13,6 +13,8 @@ Najważniejsze skille kontekstowe:
 - iteracyjne UI: `skills/advanced-ui/SKILL.md`;
 - Paperclip control-plane: aktualny core skill `paperclip`.
 
+Dla konfliktu źródeł, niejasnego workspace, zadania cross-cutting albo incydentu Paperclip przeczytaj root `CONTEXT.md`. **Nie ładuj go automatycznie do prostego, dobrze zlokalizowanego taska.**
+
 ## Repo layout
 
 - `app/` — jedyny runtime aplikacji.
@@ -27,15 +29,25 @@ Przed broad discovery użyj `kompas-technical-context`, który utrzymuje kanonic
 
 Startuj od bieżącego issue, wake payload/heartbeat context i `currentExecutionWorkspace`. Nie listuj całego boarda, goals, agentów ani repo na starcie bez konkretnej anomalii.
 
+Przy sprzeczności źródeł obowiązuje: **bieżący issue/workspace → aktualny kod/runtime/test → `AGENTS.md` + właściwy skill → live Paperclip Wiki → lokalny mirror/history**. `TARGET` nie jest dowodem `CURRENT`.
+
 Minimalny git preflight:
 
 - `git branch --show-current`;
 - `git status --short`;
 - opcjonalnie `git rev-parse --show-toplevel`.
 
-Dopiero przy niezgodności workspace/brancha rozszerz diagnostykę.
+Dopiero przy niezgodności workspace/brancha rozszerz diagnostykę. Jeśli `currentExecutionWorkspace` nie wskazuje faktycznego checkoutu oczekiwanego repo, nie zaczynaj write — zwróć/routuj `WORKSPACE_FAIL / OWNER / EXACT ACTION`.
 
 Po udanej mutacji nie wykonuj potwierdzającego GET bez potrzeby następnej decyzji.
+
+## Repo vs execution harness
+
+`process_lost`, `workspace_validation_failed`, kolizje `heartbeat_run_events` i błędy Paperclip run-scoped persistence/auth **nie są automatycznie bugami produktu**. Zachowaj worktree/diff i najpierw sklasyfikuj, czy problem leży w repo, providerze czy Paperclip/OpenCode harnessie.
+
+Paperclip Ops może działać na primary workspace `/app`, który nie jest checkoutem `kompas-zbiorek`. Nie próbuj tworzyć git worktree produktu z nie-gitowego `/app`; dla repo-write użyj workspace wskazanego przez issue albo właściwego git workspace. External `instructionsRootPath` również nie jest execution workspace.
+
+Trwałe guardraile i przykłady incydentów są w `CONTEXT.md`; szczegóły runów pozostają w Paperclip issues.
 
 ## MCP / narzędzia
 
@@ -68,7 +80,7 @@ Gdy task jest wykonawczy, realizuj go end-to-end w jego scope:
 5. commit/push, jeśli task jest repo-write;
 6. evidence + handoff.
 
-Nie wykonuj opportunistic refactoru i nie twórz meta/recovery tasków bez niezależnej wartości.
+Nie wykonuj opportunistic refactoru i nie twórz meta/recovery tasków bez niezależnej wartości. Preferuj aktualizację istniejącego issue/runu zamiast tworzenia pracy dlatego, że Paperclip zaobserwował Paperclip.
 
 ## UI
 
@@ -96,6 +108,7 @@ W `app/` istnieją:
 
 ## Dokumentacja
 
+- Operacyjny router kontekstu i trwałe lekcje z incydentów: `CONTEXT.md`.
 - Runtime/API/publiczne zachowanie: `app/documentation.md`.
 - Repo overview: `README.md`.
 - Trwała wiedza produktowa/architektoniczna: Paperclip Wiki.
