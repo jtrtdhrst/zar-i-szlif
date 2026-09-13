@@ -4,11 +4,13 @@
   "version": "0.2.0",
   "type": "module",
   "scripts": {
-    "build": "node web/scripts/build-static.mjs && node node_modules/typescript/bin/tsc -p server/tsconfig.json",
+    "build": "node web/scripts/build-static.mjs && tsc -p server/tsconfig.json",
+    "lint": "node --check web/scripts/build-static.mjs && node --check web/scripts/skill-completion-task-test.mjs && node --check server/index.ts",
+    "test": "npm run test:skill-completion-task",
     "test:skill-completion-task": "node web/scripts/skill-completion-task-test.mjs",
     "start": "node server/dist/index.js",
     "dev": "npm run build && npm run start",
-    "typecheck": "node node_modules/typescript/bin/tsc --noEmit -p server/tsconfig.json && node node_modules/typescript/bin/tsc --noEmit -p web/tsconfig.json",
+    "typecheck": "tsc --noEmit -p server/tsconfig.json",
     "test:all": "npm run build && npm run typecheck && npm run test:skill-completion-task"
   },
   "dependencies": {

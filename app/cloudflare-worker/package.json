@@ -5,6 +5,7 @@
   "type": "module",
   "description": "Serwer MCP Kompas Zbiórek z OAuth 2.1 (Google OpenID Connect) na Cloudflare Workers",
   "scripts": {
+    "build": "node build-worker.mjs",
     "type-check": "tsc --noEmit",
     "test": "vitest run"
   },

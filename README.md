@@ -51,18 +51,31 @@ Root repo pozostaje możliwie płaski: konfiguracja workspace, registry, tooling
 ## Szybki start
 
 ```bash
-# zależności repo/toolingu
-pnpm install
+# instalacja całego repozytorium
+npm ci
 
-# zależności aplikacji
-cd app && npm install
-
-# build + typecheck + tracked targeted test
-npm run test:all
-
-# dev
+# lokalny serwer aplikacji v0
 npm run dev
 ```
+
+Root udostępnia jeden kontrakt npm dla panelu: `npm run lint`, `npm run typecheck`,
+`npm test` i `npm run build`. Wdrożony interfejs panelu jest dostępny pod
+`https://panel.kompaszbiorek.pl`; kod aplikacji znajduje się w `app/`, a Worker
+Cloudflare panelu w `app/cloudflare-worker/`.
+
+## Vercel i v0
+
+Projekt Vercel musi wskazywać **root repozytorium**, nie katalog `app/`.
+Konfiguracja w `vercel.json` ustawia:
+
+- install command: `npm ci`;
+- build command: `npm run build`;
+- output directory: `app/web/dist`;
+- framework: `Other` / brak frameworka.
+
+Vercel publikuje statyczny interfejs i preview dla v0. Ścieżka `/panel` przekierowuje
+do kanonicznego Workera Cloudflare pod `panel.kompaszbiorek.pl`, który obsługuje
+OAuth, API i zapis do Google. Nie ustawiaj katalogu `app/` jako Root Directory.
 
 Obecny `app/npm run test:all` wykonuje build, typecheck i istniejący targeted test logiki. Repo **nie zawiera obecnie tracked `app/e2e/`, `playwright.config.ts` ani `lighthouserc.json`**; browser acceptance jest osobną warstwą QA i nie należy udawać historycznego Playwright/Lighthouse gate jako bieżącego stanu.
 
