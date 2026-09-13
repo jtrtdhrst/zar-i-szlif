@@ -1,22 +1,24 @@
 {
-  "devDependencies": {
-    "@axe-core/playwright": "^4.13.0",
-    "@lhci/cli": "^0.15.1",
-    "@playwright/mcp": "0.0.79",
-    "@playwright/test": "^1.62.1",
-    "@storybook/addon-a11y": "10.5.10",
-    "@storybook/addon-docs": "10.5.10",
-    "@storybook/addon-mcp": "0.7.0",
-    "@storybook/html-vite": "10.5.10",
-    "shadcn": "4.19.0",
-    "storybook": "10.5.10",
-    "tsx": "^4.23.12"
-  },
+  "name": "kompas-zbiorek",
+  "version": "0.2.0",
+  "private": true,
+  "type": "module",
+  "workspaces": [
+    "app"
+  ],
   "scripts": {
-    "ui:registry:build": "pnpm exec shadcn registry validate registry.json && pnpm exec shadcn build registry.json --output registry-dist/r",
-    "ui:registry:serve": "node scripts/ui-registry/serve.mjs",
-    "ui:promote": "node scripts/ui-registry/promote.mjs",
-    "storybook": "storybook dev -p 6006",
-    "build-storybook": "storybook build"
+    "dev": "npm --prefix app run dev",
+    "build": "npm --prefix app run build && npm --prefix app/cloudflare-worker run build",
+    "lint": "node scripts/lint.mjs",
+    "typecheck": "npm --prefix app run typecheck && tsc --noEmit -p app/cloudflare-worker/tsconfig.json",
+    "test": "npm --prefix app run test && node --test tests/repo-structure.test.mjs && vitest run app/cloudflare-worker/src"
+  },
+  "dependencies": {
+    "@cloudflare/workers-oauth-provider": "^0.10.3"
+  },
+  "devDependencies": {
+    "@cloudflare/workers-types": "^5.20260730.1",
+    "typescript": "^5.8.3",
+    "vitest": "^4.1.11"
   }
 }
