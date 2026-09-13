@@ -1,45 +1,45 @@
-# .paperclip-context — External Knowledge Base
+# .paperclip-wiki — Wiki mirror + external agent knowledge
 
-Ten katalog to **zewnętrzna baza wiedzy** dla agentów Paperclip. Zastępuje `~/.paperclip/.../instructions` (managed) i pozwala wersjonować instrukcje w repo.
+Ten katalog pełni dwie powiązane, ale różne funkcje:
+
+1. **mirror trwałej wiedzy Paperclip Wiki** (`wiki/`, `raw/`),
+2. **wersjonowane external agent bundles** (`agents/`, `shared/`).
+
+Nie jest execution workspace i nie należy traktować go jako miejsca wykonywania zmian produktu.
 
 ## Struktura
 
-```
-.paperclip-context/
-├── shared/              # Wiedza wspólna (czytana przez AGENTS.md via relative path)
-│   ├── PRODUCT.md       # Produkt, repo, invariants, architektura
-│   ├── GOVERNANCE.md    # Delivery, DoD, CONTEXT-FIRST, STARTUP I/O BUDGET
-│   ├── TEAM.md          # Zespół, skille per rola, profile modeli
-│   └── DELIVERY.md      # REPO MAP, produkcja, testy, integracje
-└── agents/              # Bundle per worker (External)
-    ├── ceo/             # RootPath dla CEO
-    │   ├── AGENTS.md    # Entry file — jedyny plik ładowany automatycznie
-    │   ├── SOUL.md      # Persona
-    │   ├── HEARTBEAT.md # Procedura heartbeat (jeśli dotyczy)
-    │   ├── TOOLS.md     # Narzędzia
-    │   └── CONTEXT.md   # Dodatkowy kontekst (lazy-load)
-    ├── coo/
-    ├── cto/
-    ├── engineer/
-    ├── designer/
-    ├── ui-qa/
-    └── cmo/
+```text
+.paperclip-wiki/
+├── wiki/                 # znormalizowane strony durable knowledge
+├── raw/                  # historyczne/snapshotowe źródła; nie są automatycznie CURRENT
+├── shared/               # wspólny lazy-load dla agentów
+│   ├── CONTEXT.md        # TARGET/CURRENT/DELTA/UNAPPROVED + źródła prawdy
+│   ├── PRODUCT.md        # produkt TARGET / MUST-HAVE
+│   ├── STATE.md          # CURRENT / AS-IS z dowodem
+│   ├── GOVERNANCE.md     # delivery, DoD, context-first
+│   ├── TEAM.md           # routing ról
+│   └── DELIVERY.md       # delivery/deploy/integracje
+└── agents/               # bundle per agent; AGENTS.md jest entry pointem roli
 ```
 
-## Zasady
+## Zasady źródeł
 
-1. **External = bundle instrukcji, nie eksplorator repo.** RootPath to `C:\Kompas Zbiórek\.paperclip-context\agents\<slug>`, nie całe `C:\Kompas Zbiórek`. AGENTS.md jest jedynym plikiem ładowanym przy heartbeat — reszta musi być jawnie wskazana w AGENTS.md.
+- **Live Paperclip Wiki** jest trwałym źródłem decyzji produktowych/architektonicznych.
+- Ten mirror może pozostawać w tyle za refactorem repo. `TARGET` z Wiki nie dowodzi `CURRENT`.
+- Dla stanu wdrożenia rozstrzygają bieżący kod/runtime/testy.
+- Dla aktualnej mapy repo i technicznych invariantów używaj `skills/kompas-technical-context/SKILL.md`.
+- Root `CONTEXT.md` jest operacyjnym routerem konfliktów źródeł, workspace i trwałych lekcji z incydentów.
+- `raw/` i materiały historyczne służą do provenance/porównań; nie przywracaj z nich starej architektury bez jawnej decyzji.
 
-2. **Shared ≠ kopiowanie.** Wspólne zasady nie są kopiowane do 7 AGENTS.md, tylko trzymane jako Skills (`kompas-governance`, `kompas-technical-context` itd.) lub jako `shared/*.md` czytane via `../../shared/...` w AGENTS.md.
+## External instructions ≠ execution workspace
 
-3. **External ≠ workspace.** `instructionsRootPath` to gdzie agent czyta instrukcje. `execution workspace` (`C:\Kompas Zbiórek\.paperclip-worktrees\...`) to gdzie wykonuje zadania. Nie mieszaj.
+`instructionsRootPath` określa, skąd agent czyta instrukcje. `currentExecutionWorkspace` określa, gdzie agent może wykonywać task i pisać do repo. Nie wolno utożsamiać tych ścieżek.
 
-## Aktualizacja
+Zmiany w bundle instrukcji obowiązują od kolejnego wake/run. Nie edytuj ręcznie managed cache pod `~/.paperclip/...` jako substytutu wersjonowanego źródła.
 
-- Zmiany w `AGENTS.md` / `SOUL.md` obowiązują od następnego runa/heartbeat, nie w trakcie aktywnego runa.
-- Historia: 20.08.2026 — migracja z `managed` ( `~/.paperclip/.../agents/<id>/instructions` ) na `external` (ten katalog), 1:1 kopia + split shared.
-- Weryfikacja: `paperclipListAgents` → `adapterConfig.instructionsBundleMode == "external"` i `instructionsRootPath` wskazuje tutaj.
+## Minimalny model ładowania
 
-## Edycja
+Nie ładuj całej Wiki do każdego runu. Agent zaczyna od bieżącego issue/wake i ładuje tylko potrzebny shared context/skill. `shared/CONTEXT.md` definiuje status wiedzy; szczegóły domenowe zostają w dedykowanych stronach/skillach.
 
-Edytuj pliki w tym katalogu normalnie w IDE. Paperclip odczyta je przy następnym wake. Nie edytuj `~/.paperclip/...` ręcznie — ten katalog jest teraz source of truth.
+Szczegóły historycznej migracji external bundles są w `context-README.md`.
