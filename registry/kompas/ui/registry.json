@@ -35,5 +35,21 @@
       },
       "files": [{ "path": "kompas-typography.js", "type": "registry:ui" }]
     }
-  ]
+      ,
+    {
+      "name": "kompas-stat-card",
+      "type": "registry:ui",
+      "title": "Karta statystyki",
+      "description": "Karta statystyki zgodna z design systemem (OD user:kompas-zbiorek-2): wartość, etykieta, opcjonalna delta. Tokeny kompas-brand-tokens.",
+      "categories": ["ui", "kompas"],
+      "dependencies": [],
+      "registryDependencies": ["@kompas/kompas-brand-tokens"],
+      "meta": {
+        "purpose": "Prezentacja pojedynczej metryki.",
+        "recommendedUsage": "renderKompasStatCard({label, value, delta, tone}).",
+        "source": "registry/kompas/ui/kompas-stat-card.js"
+      },
+      "files": [{ "path": "kompas-stat-card.js", "type": "registry:ui" }]
+    }
+]
 }
