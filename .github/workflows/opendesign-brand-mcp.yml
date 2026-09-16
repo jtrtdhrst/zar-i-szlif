@@ -35,7 +35,22 @@ jobs:
           cache-dependency-path: ops/design-stack/package-lock.json
       - run: npm ci
       - run: npm test
-      - run: npm run typecheck
+      - name: Typecheck
+        id: typecheck
+        shell: bash
+        run: |
+          set +e
+          npm run typecheck 2>&1 | tee typecheck.log
+          code=${PIPESTATUS[0]}
+          echo "exit_code=$code" >> "$GITHUB_OUTPUT"
+          exit "$code"
+      - name: Upload typecheck diagnostics
+        if: failure() && steps.typecheck.outcome == 'failure'
+        uses: actions/upload-artifact@v4
+        with:
+          name: opendesign-brand-mcp-typecheck
+          path: ops/design-stack/typecheck.log
+          retention-days: 1
       - run: npm run lint
 
   image:
