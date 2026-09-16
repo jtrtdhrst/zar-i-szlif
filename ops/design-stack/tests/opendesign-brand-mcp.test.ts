@@ -99,7 +99,7 @@ function brandFetch(
       url.searchParams.get("path") === "assets/logos/logo.svg"
     ) {
       if (!state.canonicalAsset) return new Response("missing", { status: 404 });
-      return new Response(state.canonicalAsset, {
+      return new Response(new Uint8Array(state.canonicalAsset), {
         status: 200,
         headers: { "Content-Type": "image/svg+xml" },
       });
