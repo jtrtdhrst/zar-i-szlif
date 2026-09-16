@@ -33,11 +33,10 @@ services:
       timeout: 5s
       retries: 3
       start_period: 20s
+
   opendesign-bridge-mcp:
-    build:
-      context: /root/design-stack
-      dockerfile: Dockerfile.mcp
-    image: design-stack/opendesign-bridge-mcp:${IMAGE_TAG:-dev}
+    image: ghcr.io/miloszspyrka-code/kompas-zbiorek-opendesign-mcp:${OPENDESIGN_MCP_IMAGE_TAG:-latest}
+    pull_policy: always
     command: ["node", "services/opendesign-bridge-mcp/server.ts"]
     environment:
       OD_HOST: open-design
@@ -45,6 +44,9 @@ services:
       OD_API_TOKEN: ${OD_API_TOKEN:?}
       MCP_HTTP_PORT: "8092"
       MCP_AUTH_TOKEN: ${OPENDESIGN_BRIDGE_TOKEN:?}
+      BRAND_WRITE_ENABLED: ${OPENDESIGN_BRAND_WRITE_ENABLED:-true}
+      BRAND_ASSET_MAX_BYTES: ${OPENDESIGN_BRAND_ASSET_MAX_BYTES:-5000000}
+      MCP_MAX_BODY_BYTES: ${OPENDESIGN_MCP_MAX_BODY_BYTES:-7500000}
     networks: [open-design_default]
     mem_limit: 256m
     cpus: "0.5"
@@ -52,13 +54,15 @@ services:
     restart: unless-stopped
     read_only: true
     tmpfs: [/tmp]
+    stop_grace_period: 15s
     logging: { driver: local, options: { max-size: 10m, max-file: "3" } }
     healthcheck:
-      test: ["CMD-SHELL", "wget -qO- http://127.0.0.1:8092/health >/dev/null"]
+      test: ["CMD-SHELL", "wget -qO- http://127.0.0.1:8092/ready >/dev/null"]
       interval: 30s
       timeout: 5s
       retries: 3
       start_period: 20s
+
 networks:
   plasmic_default: { external: true }
   open-design_default: { external: true }
