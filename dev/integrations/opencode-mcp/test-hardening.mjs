@@ -72,6 +72,10 @@ ok(reconciledReleaseInfra.agent === "ctb-cto-infra" && reconciledReleaseInfra.un
 ok(resolveEffectiveProfile({ role: "engineer" }, doc, {}).eagerConnections.join(",") === "git", "engineer baseline: local git retained");
 ok(!resolveEffectiveProfile({ role: "ui-qa" }, doc, {}).eagerConnections.includes("git"), "ui-qa baseline: no git");
 ok(resolveEffectiveProfile({ role: "cto" }, doc, {}).eagerConnections.length === 0, "cto baseline stays empty (least privilege)");
+// KOMAA-260 single authority: Git Integrator company agent has no CTB role -> fail-closed, no second write authority.
+const giProfile = resolveEffectiveProfile({ role: "git-integrator" }, doc, {});
+const giReconciled = reconcileProfileWithAgent(giProfile, "EXECUTE");
+ok(giProfile.known === false && giReconciled.agent === "ctb-executor" && giReconciled.executableCapabilities.length === 0, "git-integrator: unknown role fail-closed, zero executable capabilities");
 // KOMAA-260 shell boundary without granted capability: git/gh denied, incl. push/PR/merge shapes.
 for (const command of ["git push origin KOMAA-260", "gh pr create --title x", "gh pr merge 15 --squash", "gh api repos/x/y/branches/main/protection"]) {
   let denied = false;
