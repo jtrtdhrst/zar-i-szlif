@@ -58,6 +58,31 @@ ok(reconciledDesignerGit.agent === "ctb-designer" && reconciledDesignerGit.execu
 const ctoInfra = resolveEffectiveProfile({ role: "cto", currentStage: "infra" }, doc, {});
 const reconciledCto = reconcileProfileWithAgent(ctoInfra, "EXECUTE");
 ok(reconciledCto.agent === "ctb-cto-infra" && JSON.stringify(reconciledCto.executableCapabilities) === JSON.stringify(["cloudflare"]) && reconciledCto.unenforceableCapabilities.length === 0, "cto infra stage: cloudflare granted AND executable");
+// KOMAA-260: CTO release/integration stage (server-derived) -> git enforced by EXISTING ctb-engineer (no new agent).
+const ctoRelease = resolveEffectiveProfile({ role: "cto", currentStage: "release" }, doc, {});
+const reconciledRelease = reconcileProfileWithAgent(ctoRelease, "EXECUTE");
+ok(ctoRelease.eagerConnections.join(",") === "git" && reconciledRelease.agent === "ctb-engineer" && reconciledRelease.executableCapabilities.join(",") === "git" && reconciledRelease.unenforceableCapabilities.length === 0, "cto release stage: git granted AND executable via existing ctb-engineer");
+const ctoIntegration = resolveEffectiveProfile({ role: "cto", currentStage: "integration" }, doc, {});
+ok(ctoIntegration.eagerConnections.join(",") === "git" && reconcileProfileWithAgent(ctoIntegration, "EXECUTE").agent === "ctb-engineer", "cto integration stage: git granted via existing ctb-engineer");
+// KOMAA-260: release+infra combined stays fail-closed (no silent widening): git reported unenforceable under ctb-cto-infra.
+const ctoReleaseInfra = resolveEffectiveProfile({ role: "cto", currentStage: "release infra" }, doc, {});
+const reconciledReleaseInfra = reconcileProfileWithAgent(ctoReleaseInfra, "EXECUTE");
+ok(reconciledReleaseInfra.agent === "ctb-cto-infra" && reconciledReleaseInfra.unenforceableCapabilities.includes("git"), "cto release+infra combined: git unenforceable (separate runs required)");
+// KOMAA-260 permission boundary: engineer keeps local git, ui-qa has no git, cto baseline stays empty.
+ok(resolveEffectiveProfile({ role: "engineer" }, doc, {}).eagerConnections.join(",") === "git", "engineer baseline: local git retained");
+ok(!resolveEffectiveProfile({ role: "ui-qa" }, doc, {}).eagerConnections.includes("git"), "ui-qa baseline: no git");
+ok(resolveEffectiveProfile({ role: "cto" }, doc, {}).eagerConnections.length === 0, "cto baseline stays empty (least privilege)");
+// KOMAA-260 single authority: Git Integrator company agent has no CTB role -> fail-closed, no second write authority.
+const giProfile = resolveEffectiveProfile({ role: "git-integrator" }, doc, {});
+const giReconciled = reconcileProfileWithAgent(giProfile, "EXECUTE");
+ok(giProfile.known === false && giReconciled.agent === "ctb-executor" && giReconciled.executableCapabilities.length === 0, "git-integrator: unknown role fail-closed, zero executable capabilities");
+// KOMAA-260 shell boundary without granted capability: git/gh denied, incl. push/PR/merge shapes.
+for (const command of ["git push origin KOMAA-260", "gh pr create --title x", "gh pr merge 15 --squash", "gh api repos/x/y/branches/main/protection"]) {
+  let denied = false;
+  try { assertShellCommandAllowed([], command); } catch (error) { denied = error?.code === "CTB_SHELL_CAPABILITY_DENIED"; }
+  ok(denied, `release shell denied without grant: ${command}`);
+}
+ok((() => { try { assertShellCommandAllowed(["git"], "git push origin KOMAA-260"); return true; } catch { return false; } })(), "release shell allowed with scoped git grant");
 // Agent capability table covers exactly the known dev MCP families used by profiles.
 for (const caps of Object.values(NATIVE_AGENT_CAPABILITIES)) for (const cap of caps) ok(KNOWN_DEV_MCP.includes(cap), `agent capability ${cap} is a known dev MCP`);
 
