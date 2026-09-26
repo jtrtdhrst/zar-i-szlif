@@ -107,6 +107,21 @@ export class QdrantClient {
     });
   }
 
+  /** Usunięcie całego źródła (V1 §6: delete źródła = purge wszystkich jego punktów). */
+  async deleteSource(sourceId: string): Promise<void> {
+    await this.req(`/collections/${this.collection}/points/delete`, "POST", {
+      filter: {
+        must: [{ key: "source_id", match: { value: sourceId } }],
+      },
+    });
+  }
+
+  /** Usunięcie sierocych chunków po ordinalach (shrink dokumentu, V1 §6). */
+  async deletePoints(ids: string[]): Promise<void> {
+    if (ids.length === 0) return;
+    await this.req(`/collections/${this.collection}/points/delete`, "POST", { points: ids });
+  }
+
   /**
    * Wyszukiwanie z obowiązkowym prefiltrem autoryzacyjnym (V1 §4).
    * `extraFilter` (np. source_id) jest DOKŁADANY do filtra auth, nigdy go nie zastępuje.
