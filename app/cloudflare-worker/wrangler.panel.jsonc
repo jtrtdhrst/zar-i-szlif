@@ -1,0 +1,23 @@
+{
+  "$schema": "https://unpkg.com/wrangler/config-schema.json",
+  "name": "panel-kompaszbiorek",
+  "main": "worker.js",
+  "compatibility_date": "2026-08-07",
+  "workers_dev": false,
+  "routes": [
+    { "pattern": "panel.kompaszbiorek.pl", "custom_domain": true }
+  ],
+  "vars": {
+    "TEMPLATE_FILE_ID": "183nDdy9kE_DxfoLwPhhAlkboey66QI1QzM64UBXrTLI",
+    "SHEETS_TEMPLATE_FILE_ID": "13jV1YPEh8G2-e7xKH3lsTxu9gY0ckvveaYQxxc6rzFs",
+    "GOOGLE_CLOUD_PROJECT_NUMBER": "450955230972",
+    "SENDER_ONBOARDING_ENABLED": "false",
+    "SENDER_ONBOARDING_GROUP": "onboarding-sekwencja"
+  },
+  "kv_namespaces": [
+    {
+      "binding": "OAUTH_KV",
+      "id": "2a0acb7d28e249a989ca9ca8ffeca24e"
+    }
+  ]
+}
