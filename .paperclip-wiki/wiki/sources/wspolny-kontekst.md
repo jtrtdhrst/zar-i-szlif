@@ -102,7 +102,7 @@ Jeżeli stan funkcji nie jest potwierdzony, agent ma powiedzieć `niepotwierdzon
 ## Warstwa techniczna
 
 - Repo: `https://github.com/miloszspyrka-code/kompas-zbiorek`, workspace `isolated_workspace` + `git_worktree` (`baseRef=main`, parent `.paperclip-worktrees`).
-- Produkcja: `kompaszbiorek.pl`, `panel.kompaszbiorek.pl`, `wtyczka.kompaszbiorek.pl/ui`, Worker `wtyczka-rr`; `interfejs.kompaszbiorek.pl` pozostaje domeną techniczną/interfejsową w istniejącej architekturze.
+- Produkcja: `kompaszbiorek.pl`, publiczny system `https://panel.kompaszbiorek.pl` (`/ui` dla UI, `/mcp` dla MCP), Worker `panel-kompaszbiorek`.
 - Invarianty techniczne: MCP `/mcp`, OAuth `drive.file`, Cloudflare D1, brak write do `main` bez worktree.
 - Delivery: Engineer→QA→Done, max 2 aktywne deliverable, `BLOCKER/OWNER/ACTION` dla zablokowanych.
 

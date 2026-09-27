@@ -17,6 +17,6 @@ updated: 2026-08-20
 - `kompas-ui-design/opendesign/design-systems/kompas-rrp/tokens/colors_and_type.css`
 - `SOUL.md`, `TOOLS.md`
 
-**Kontrakt**: `kompas-qa-context` + `qa-acceptance`. Audyty `https://interfejs.kompaszbiorek.pl` desktop+mobile 390×844 via Playwright, `npm run test:all`, axe WCAG A/AA critical/serious blokuje, Clarity, `DATA DIAGNOSTIC CONTRACT` (pobierzSprawnosciRR 1 poziom/call, `Wymaganie stopnia: do uzupełnienia` legalne).
+**Kontrakt**: `kompas-qa-context` + `qa-acceptance`. Audyty `https://panel.kompaszbiorek.pl/ui` desktop+mobile 390×844 via Playwright, `npm run test:all`, axe WCAG A/AA critical/serious blokuje, Clarity, `DATA DIAGNOSTIC CONTRACT` (pobierzSprawnosciRR 1 poziom/call, `Wymaganie stopnia: do uzupełnienia` legalne).
 
 **Wiki**: [[wiki/concepts/bramka-jakosci-ui]].

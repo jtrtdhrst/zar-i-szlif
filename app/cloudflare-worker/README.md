@@ -33,7 +33,7 @@ konto Google użytkownika (identyfikacja przez `sub`)
         ↓
 Worker wydaje własny token MCP (scope: kompas.read)
         ↓
-ChatGPT wywołuje https://panel.kompaszbiorek.pl/mcp (wtyczka.kompaszbiorek.pl/* → 308 → panel)
+ChatGPT wywołuje https://panel.kompaszbiorek.pl/mcp
 ```
 
 Worker pełni jednocześnie rolę OAuth Servera dla klientów MCP (endpointy `/authorize`, `/token`, `/register`) oraz OAuth Clienta względem Google (`/authorize` → Google → `/callback`). Token Google NIE jest tokenem MCP — do `/mcp` trafia wyłącznie token wydany przez Workera.
@@ -80,8 +80,8 @@ Nigdy nie wpisuj sekretów do `src/`, `wrangler.jsonc`, Git ani README.
 
 1. Google Cloud Console → **Google Auth Platform → Clients → Create Client → Web application**.
 2. Nazwa: `Kompas Zbiórek`.
-3. Authorized redirect URI: `https://wtyczka.kompaszbiorek.pl/callback`.
-4. Authorized JavaScript origins (jeśli wymagane): `https://wtyczka.kompaszbiorek.pl`.
+3. Authorized redirect URI: `https://panel.kompaszbiorek.pl/callback`.
+4. Authorized JavaScript origins (jeśli wymagane): `https://panel.kompaszbiorek.pl`.
 5. Consent screen: External, app name `Kompas Zbiórek`, scopes: `openid email profile` oraz `https://www.googleapis.com/auth/drive.file` (tylko te — bez Workspace API, bez `drive`, bez `drive.readonly`). Uwaga: `drive.file` to sensitive scope — bez weryfikacji aplikacji Google liczy 100 logowań.
 6. Ustaw wartości: `npx wrangler secret put GOOGLE_CLIENT_ID` i `npx wrangler secret put GOOGLE_CLIENT_SECRET`.
 7. Opcjonalnie (podglądy w Google Pickerze): **APIs & Services → Picker API** (i Drive API) włączone, **Credentials → API Key** → `npx wrangler secret put GOOGLE_PICKER_API_KEY`. Numer projektu (`GOOGLE_CLOUD_PROJECT_NUMBER`) jest w nagłówku konsoli Google Cloud.
@@ -90,11 +90,11 @@ Nigdy nie wpisuj sekretów do `src/`, `wrangler.jsonc`, Git ani README.
 
 ```powershell
 # TEST A — metadata resource (200 JSON)
-curl.exe https://wtyczka.kompaszbiorek.pl/.well-known/oauth-protected-resource
+curl.exe https://panel.kompaszbiorek.pl/.well-known/oauth-protected-resource
 # TEST B — niezalogowane /mcp musi zwracać 401 + WWW-Authenticate
-curl.exe -X POST https://wtyczka.kompaszbiorek.pl/mcp -H "content-type: application/json" -d "{}"
+curl.exe -X POST https://panel.kompaszbiorek.pl/mcp -H "content-type: application/json" -d "{}"
 # TEST G — OAuth discovery (authorization_endpoint, token_endpoint, registration_endpoint, code_challenge_methods_supported)
-curl.exe https://wtyczka.kompaszbiorek.pl/.well-known/oauth-authorization-server
+curl.exe https://panel.kompaszbiorek.pl/.well-known/oauth-authorization-server
 ```
 
 Pełny przepływ (Connect → zgoda → Google → callback → token MCP) zweryfikuj w MCP Inspector:
@@ -103,7 +103,7 @@ Pełny przepływ (Connect → zgoda → Google → callback → token MCP) zwery
 npx @modelcontextprotocol/inspector@latest
 ```
 
-Połączenie: `https://wtyczka.kompaszbiorek.pl/mcp`.
+Połączenie: `https://panel.kompaszbiorek.pl/mcp`.
 
 ## Development lokalny
 

@@ -4,7 +4,7 @@
 
 - Kod interfejsu: `C:\Kompas Zbiórek\kompas-ui-plugin\web`.
 - Testy UI: `C:\Kompas Zbiórek\kompas-ui-plugin\e2e`.
-- Worker produkcyjny: `wtyczka-rr`, interfejs: `https://interfejs.kompaszbiorek.pl`.
+- Produkcyjny punkt wejścia UI/API: `https://panel.kompaszbiorek.pl`.
 - Dokumentacja projektu: `C:\Kompas Zbiórek\documentation.md`.
 - Zasady nadrzędne: `C:\Kompas Zbiórek\AGENTS.md`.
 
