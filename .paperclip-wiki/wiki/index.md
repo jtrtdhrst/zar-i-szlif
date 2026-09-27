@@ -52,7 +52,7 @@
 - [[wiki/entities/agents-coo]] — COO
 - [[wiki/entities/agents-cto]] — CTO — dodatkowo API sprawności + baza aktywności (v14)
 - [[wiki/entities/agents-engineer]] — **Engineer — MA DOSTĘP DO DOKUMENTACJI** (`kompas-ui-design/INSTRUKCJE-BRANDINGU`, `tokens`, `Dokumentacja_API_SPRAWNOSCI`, `PRD_BAZA_AKTYWNOSCI`, `dokumentacja-integracji` + `WSPOLNY_KONTEKST`)
-- [[wiki/entities/agents-designer]] — Designer — branding + tokeny + live `wtyczka.kompaszbiorek.pl/ui` + `PRD §7.1`
+- [[wiki/entities/agents-designer]] — Designer — branding + tokeny + live `https://panel.kompaszbiorek.pl/ui` + `PRD §7.1`
 - [[wiki/entities/agents-ui-qa]] — UI QA — `INSTRUKCJE-BRANDINGU` + `qa-acceptance`, `DATA DIAGNOSTIC CONTRACT`
 - [[wiki/entities/agents-cmo]] — CMO — `kompas-brand-email`, Sender.net
 

@@ -2,7 +2,7 @@
 
 > Cel / wymagania produktu (TARGET). Stan zweryfikowany: `shared/STATE.md` (CURRENT). Kanon statusów: `shared/CONTEXT.md`. Architektura/integracje: `shared/DELIVERY.md`.
 
-Wtyczka ChatGPT (`wtyczka.kompaszbiorek.pl/ui`) + własny interfejs (`interfejs.kompaszbiorek.pl`) dla **Royal Rangers Polska** — cyfrowy przewodnik dla instruktorów i drużynowych. Produkt pomaga liderowi przejść od improwizowanego planowania do prostego, powtarzalnego procesu. AI jest opcjonalnym interfejsem; nie decyduje za lidera.
+Wtyczka ChatGPT + publiczny system (`https://panel.kompaszbiorek.pl/ui`) dla **Royal Rangers Polska** — cyfrowy przewodnik dla instruktorów i drużynowych. Produkt pomaga liderowi przejść od improwizowanego planowania do prostego, powtarzalnego procesu. AI jest opcjonalnym interfejsem; nie decyduje za lidera.
 
 ## Docelowy cykl user-facing (TARGET)
 

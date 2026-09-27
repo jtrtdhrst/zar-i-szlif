@@ -68,7 +68,7 @@
 
 ### Źródła danych
 
-- Katalog sprawności: `https://wtyczka.kompaszbiorek.pl/api/skills?poziom=...&aspekt=...`
+- Katalog sprawności: `https://panel.kompaszbiorek.pl/api/skills?poziom=...&aspekt=...`
 - Stan trwały: `localStorage["kompas-zbiorek-draft-v1"]` (pole `team.skillRecords`, `team.skillHistoryRecords`)
 - Cache katalogu: IndexedDB `kompas-catalog-v1` (TTL 24h dla sprawności)
 
