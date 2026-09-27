@@ -31,7 +31,21 @@ Minimalny git preflight:
 
 - `git branch --show-current`;
 - `git status --short`;
-- opcjonalnie `git rev-parse --show-toplevel`.
+- `git rev-parse --show-toplevel`.
+
+### Fresh-workspace gate — obowiązkowy przed repo-facing work
+
+Przed pierwszą zmianą kodu, buildem, commitem, pushem albo wystawieniem kandydata:
+
+1. `git fetch origin main`;
+2. `git rev-list --count HEAD..origin/main` musi zwrócić `0`;
+3. `git merge-base --is-ancestor origin/main HEAD` musi zakończyć się sukcesem;
+4. repo root musi odpowiadać `currentExecutionWorkspace`;
+5. kanoniczny layout produktu to `app/` (w tym `app/cloudflare-worker/`). Nie implementuj nowej pracy produktowej w historycznym `kompas-ui-plugin/`.
+
+Jeśli którykolwiek warunek nie przechodzi: **nie produkuj kandydata, nie pushuj i nie uruchamiaj deployu**. Oznacz workspace jako stale/mismatched i przejdź na świeży isolated workspace z `baseRef=main`. `reuse_existing` nie jest uzasadnieniem do pracy na branchu będącym behind względem `origin/main`.
+
+Po zmianie `main` przed finalnym handoff/review powtórz gate. Candidate SHA jest ważny tylko wtedy, gdy jego `origin/main` jest przodkiem i `HEAD..origin/main = 0`.
 
 Dopiero przy niezgodności workspace/brancha rozszerz diagnostykę.
 
