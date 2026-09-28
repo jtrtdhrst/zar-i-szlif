@@ -15,8 +15,9 @@ Najważniejsze skille kontekstowe:
 
 ## Repo layout
 
-- `app/` — jedyny runtime aplikacji.
-- `dev/` — design system, integracje developerskie i quality tooling.
+- `app/` — jedyny runtime aplikacji; `app/plugin/` to Wtyczka / MCP Kompasu Zbiórek.
+- `branding/` — jedyne kanoniczne miejsce na źródła brandingu produktu; obecnie celowo puste.
+- `dev/` — techniczny design system, integracje developerskie i quality tooling.
 - `content/` — marketing i onboarding emails.
 - `archive/` — materiały historyczne; nie są CURRENT.
 - `skills/`, `registry/`, `scripts/`, `opencode.json` — tooling i kontrakty agentowe na root.
@@ -89,7 +90,8 @@ Nie wykonuj opportunistic refactoru i nie twórz meta/recovery tasków bez nieza
 Przy UI:
 
 - runtime = `app/web/`;
-- design system = `dev/design-system/`;
+- branding source = `branding/` (obecnie brak artefaktów; nie wymyślaj reguł marki);
+- design system / implementacja tokenów = `dev/design-system/`;
 - przed nowym reusable UI sprawdź `@kompas` registry;
 - zachowaj responsywność, hierarchię informacji i minimum touch target 44×44 px;
 - nie promuj app-specific business logic do design systemu/registry;
