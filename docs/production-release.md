@@ -24,6 +24,23 @@ Każdy checkout repo po `npm ci` automatycznie ustawia
 Dzięki temu lokalna walidacja nie sprawdza już wyłącznie Vercela, gdy realny
 produkcyjny deploy panelu jest wykonywany przez Cloudflare.
 
+## Pre-merge production readiness
+
+Każdy PR do `main` uruchamia oddzielny workflow
+`.github/workflows/release-readiness.yml` jako `pull_request_target`.
+Workflow bierze definicję z zaufanego `main`, nie checkoutuje kodu PR i nie
+uruchamia skryptów z gałęzi kandydata. Jego jedynym zadaniem jest sprawdzenie,
+czy GitHub Environment `production` jest realnie gotowe do deployu:
+
+- `CLOUDFLARE_API_TOKEN` istnieje,
+- `CLOUDFLARE_ACCOUNT_ID` istnieje,
+- przypięty `wrangler@4.123.0 whoami` przechodzi nieinteraktywnie.
+
+To jest zdalny kontrakt zgodności, którego nie da się wiarygodnie zastąpić
+lokalnym pre-pushem. Dla agentów i reviewerów `Release Readiness` musi być PASS
+przed merge/release. Jeśli plan GitHub nie pozwala wymusić required check przez
+branch protection, wymóg pozostaje twardą regułą repo w `AGENTS.md`.
+
 ## CI i artefakt
 
 Workflow najpierw wykonuje `npm run validate:code`, build oraz sprawdzenie

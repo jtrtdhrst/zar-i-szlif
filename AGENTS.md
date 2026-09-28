@@ -135,6 +135,17 @@ Docelowy Worker repo: `wtyczka-rr`. Nie twórz zastępczego Workera jako obejśc
 
 Normalny repo-write powinien być wykonany na branchu/isolated worktree. Implementer dostarcza exact candidate SHA; niezależny review dotyczy tego SHA. Późniejszy commit wymaga ponownej weryfikacji.
 
+### Hard release-readiness gate
+
+Przed merge do `main` agent/reviewer musi potwierdzić dla bieżącego PR:
+
+- standardowy workflow `CI` = PASS;
+- workflow `Release Readiness` / job `production-config-preflight` = PASS.
+
+`Release Readiness` działa przez `pull_request_target` z workflow zaufanego `main`, nie checkoutuje kodu PR i sprawdza wyłącznie gotowość GitHub Environment `production`: obecność `CLOUDFLARE_API_TOKEN`, `CLOUDFLARE_ACCOUNT_ID` oraz nieinteraktywny `wrangler whoami`. FAIL/SKIPPED/PENDING oznacza **NO MERGE / NO RELEASE**. Lokalny `npm run validate:release` nie zastępuje tego checku, bo nie potwierdza zdalnych sekretów GitHub.
+
+Jeżeli plan/permissions GitHub nie pozwalają technicznie oznaczyć checku jako required branch protection, ta reguła nadal jest twardym kontraktem agentowym: agent nie może scalać ani raportować release-ready bez obu zielonych checków.
+
 Merge/release prowadzi CTO/reviewer zgodnie z aktualną polityką repo, chyba że operator jawnie zdecyduje inaczej.
 
 ## Windows / encoding

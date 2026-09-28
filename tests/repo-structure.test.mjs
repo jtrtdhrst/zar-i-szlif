@@ -17,6 +17,7 @@ test("repo exposes the V0 application contract", () => {
     "supabase",
     "tests",
     ".github",
+    ".github/workflows/release-readiness.yml",
     "README.md",
     "AGENTS.md",
     ".env.example",
@@ -37,7 +38,7 @@ test("repo exposes the V0 application contract", () => {
   assert.equal(vercelJson.framework, null);
 });
 
-test("release guardrails cover both build targets and production auth preflight", () => {
+test("release guardrails cover build targets, pre-merge readiness and production auth", () => {
   for (const script of ["validate:code", "validate:vercel", "validate:cloudflare", "validate:release"]) {
     assert.equal(typeof packageJson.scripts[script], "string", `missing npm script: ${script}`);
   }
@@ -55,4 +56,13 @@ test("release guardrails cover both build targets and production auth preflight"
   assert.match(ci, /CLOUDFLARE_ACCOUNT_ID/);
   assert.match(ci, /wrangler whoami/);
   assert.match(ci, /needs: production-preflight/);
+
+  const readiness = readFileSync(`${root}/.github/workflows/release-readiness.yml`, "utf8");
+  assert.match(readiness, /pull_request_target:/);
+  assert.match(readiness, /production-config-preflight:/);
+  assert.match(readiness, /environment: production/);
+  assert.match(readiness, /CLOUDFLARE_API_TOKEN/);
+  assert.match(readiness, /CLOUDFLARE_ACCOUNT_ID/);
+  assert.match(readiness, /wrangler@4\.123\.0 whoami/);
+  assert.doesNotMatch(readiness, /actions\/checkout/);
 });
