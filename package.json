@@ -16,7 +16,8 @@
     "validate:code": "npm run lint && npm run typecheck && npm test",
     "validate:vercel": "npm run validate:code && node scripts/validate-vercel.mjs",
     "validate:cloudflare": "npm run build && cd app/cloudflare-worker && npx wrangler deploy --dry-run --config wrangler.panel.jsonc",
-    "validate:release": "npm run validate:vercel && npm run validate:cloudflare"
+    "validate:worker": "npm run validate:code && npm run validate:cloudflare",
+    "validate:release": "npm run validate:vercel"
   },
   "dependencies": {
     "@cloudflare/workers-oauth-provider": "^0.10.3"
