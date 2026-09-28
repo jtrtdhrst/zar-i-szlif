@@ -3,62 +3,76 @@
 ## Kanon
 
 Produkcja jest wydawana wyłącznie z `main` na `panel.kompaszbiorek.pl` przez
-`.github/workflows/ci.yml`. Gałęzie `KOMAA-*` bazują na `main` i trafiają do
-produkcji dopiero po scaleniu. `alpha`, `beta` i `develop` nie są ścieżkami
-release ani deployu; ich ewentualne zdalne istnienie nie jest zmieniane przez
-ten workflow.
+`.github/workflows/ci.yml`. Gałęzie `KOMAA-*` i inne gałęzie robocze bazują na
+`main` i trafiają do produkcji dopiero po scaleniu PR. Bezpośredni lokalny push
+na `main` jest blokowany przez `.githooks/pre-push`.
 
-## Artefakt i bramki
+## Bramki przed pushem
 
-Workflow wykonuje kanoniczny `npm run validate:code` (lint, typecheck i testy),
-następnie build. Sprawdza wygenerowane `app/web/dist/index.html` oraz
-`app/cloudflare-worker/worker.js`, publikuje je jako artefakt workflow i wykonuje
-`wrangler deploy --dry-run` z `wrangler.panel.jsonc`. Tylko push do
-`refs/heads/main` może przejść do realnego deployu; workflow ma ten warunek
-zarówno w jobie, jak i w kroku shellowym.
+Każdy checkout repo po `npm ci` automatycznie ustawia
+`core.hooksPath=.githooks`. Hook `.githooks/pre-push`:
 
-Każdy checkout repo po `npm ci` automatycznie ustawia `core.hooksPath=.githooks`.
-Hook `.githooks/pre-push` uruchamia `npm run validate:vercel` i blokuje push,
-jeśli nie przejdą lint/typecheck/test albo lokalny build Vercela.
+1. odrzuca bezpośredni push do `refs/heads/main`,
+2. uruchamia `npm run validate:release`.
+
+`validate:release` jest wspólną bramką release i obejmuje:
+
+- `validate:vercel`: lint, typecheck, testy oraz build zgodny z konfiguracją Vercel,
+- `validate:cloudflare`: produkcyjny build aplikacji i `wrangler deploy --dry-run`
+  z `app/cloudflare-worker/wrangler.panel.jsonc`.
+
+Dzięki temu lokalna walidacja nie sprawdza już wyłącznie Vercela, gdy realny
+produkcyjny deploy panelu jest wykonywany przez Cloudflare.
+
+## CI i artefakt
+
+Workflow najpierw wykonuje `npm run validate:code`, build oraz sprawdzenie
+wygenerowanych artefaktów:
+
+- `app/web/dist/index.html`,
+- `app/cloudflare-worker/worker.js`.
+
+Następnie publikuje artefakt workflow i wykonuje
+`wrangler deploy --dry-run --config wrangler.panel.jsonc`.
+
+Dry-run sprawdza poprawność bundle/config, ale sam w sobie nie potwierdza
+gotowości poświadczeń produkcyjnych. Dlatego realny deploy ma oddzielny job
+`production-preflight`.
+
+## Production preflight
+
+Przed uruchomieniem `deploy-production` workflow wymaga, aby środowisko GitHub
+`production` udostępniało:
+
+- `CLOUDFLARE_API_TOKEN`,
+- `CLOUDFLARE_ACCOUNT_ID`.
+
+`production-preflight` najpierw fail-closed sprawdza, że oba sekrety są
+niepuste, a następnie uruchamia `wrangler whoami` z tym samym kontekstem
+autoryzacji. Dopiero po PASS job `deploy-production` może wystartować.
+
+To rozdziela trzy różne klasy błędów:
+
+1. błąd kodu/builda — zatrzymany przed pushem lub w pierwszym CI,
+2. błąd konfiguracji Cloudflare — zatrzymany przez dry-run,
+3. brak/nieważne poświadczenia produkcyjne — zatrzymany w
+   `production-preflight`, zanim rozpocznie się deploy.
+
+## Vercel
 
 `npm run validate:vercel` używa przypiętej wersji Vercel CLI, wykonuje
 `vercel pull --environment=preview`, a następnie `vercel build`. Jeśli checkout
 nie ma `.vercel/project.json`, wymagane są `VERCEL_ORG_ID` i
 `VERCEL_PROJECT_ID`; `VERCEL_TOKEN` powinien być dostarczony w środowiskach
-nieinteraktywnych. Gate celowo nie wykonuje automatycznego linkowania do
-nieznanego projektu.
-
-Realny deploy wymaga sekretów `CLOUDFLARE_API_TOKEN` i
-`CLOUDFLARE_ACCOUNT_ID` w środowisku GitHub `production`. Ten dokument i
-workflow nie wykonują deployu produkcyjnego lokalnie.
-
-## FlutterFlow / generated upstream
-
-Aktualne repo nie zawiera tracked źródeł FlutterFlow ani katalogu FlutterFlow.
-Jeśli upstream zostanie podłączony, jego output jest kodem generated/upstream:
-agenci nie edytują go ręcznie; zmiany powstają w źródle upstream i są
-importowane w osobnym, jawnie zleconym kroku. Obecny workflow nie dodaje
-pozornego guardraila dla nieistniejącego katalogu.
+nieinteraktywnych. Gate nie wykonuje automatycznego linkowania do nieznanego
+projektu.
 
 ## Bezpieczny dry-run lokalny
 
-Walidacja kodu:
-
 ```bash
 npm ci
-npm run validate:code
-npm run build
-cd app/cloudflare-worker
-npx wrangler deploy --dry-run --config wrangler.panel.jsonc
+npm run validate:release
 ```
 
-Walidacja zgodności z Vercel przed pushem:
-
-```bash
-# W CI/agentach ustaw:
-# VERCEL_TOKEN
-# VERCEL_ORG_ID
-# VERCEL_PROJECT_ID
-
-npm run validate:vercel
-```
+Do produkcyjnego deployu nadal używane są wyłącznie sekrety środowiska GitHub
+`production`; nie należy kopiować tokenu Cloudflare do repo ani do logów.

@@ -1,5 +1,14 @@
 #!/bin/sh
 set -eu
 
-echo "[pre-push] Running Kompas Vercel release gate..."
-exec npm run validate:vercel
+while read local_ref local_sha remote_ref remote_sha
+do
+  if [ "$remote_ref" = "refs/heads/main" ]; then
+    echo "[pre-push] Direct pushes to main are blocked."
+    echo "[pre-push] Push a branch and merge through a PR after CI passes."
+    exit 1
+  fi
+done
+
+echo "[pre-push] Running Kompas release gate (Vercel + Cloudflare)..."
+exec npm run validate:release
