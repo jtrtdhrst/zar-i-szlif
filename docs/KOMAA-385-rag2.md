@@ -50,9 +50,10 @@
   jako pass. Blokada pierwszorzędna: KOMAA-383 (Harness Agent).
 - Live Qdrant (`ingest → Qdrant → scoped retrieval → MCP ze źródłem`)
   NIE był uruchomiony: `QDRANT_URL`/`QDRANT_API_KEY` nie są projekowane do
-  execution workspace. Blokada pierwszorzędna: child issue tego issue
-  (Harness Agent, secret flow). Do czasu provisioningu jedynym dowodem
-  ingestu jest E2E memory-backed na tym samym kodzie klienta.
+  execution workspace. Blokada pierwszorzędna: **KOMAA-400** (Harness Agent,
+  secret flow). Do czasu provisioningu jedynym dowodem ingestu jest E2E
+  memory-backed na tym samym kodzie klienta.
 - Niezależny review przez istniejący review stage: `request_changes` na
-  `702114a` (B1/B2/B3 + R1/R2). B1, R1, R2 zamknione kodem w tym SHA;
-  B2 i B3 to blokady zewnętrzne poza zasięgiem agenta.
+  `702114a` (B1/B2/B3 + R1/R2). B1, R1, R2 zamknięte kodem w `50933e4`;
+  B2 (**KOMAA-400**) i B3 (**KOMAA-383**) to blokady zewnętrzne poza
+  zasięgiem agenta. Status issue: `blocked` do czasu ich rozwiązania.
