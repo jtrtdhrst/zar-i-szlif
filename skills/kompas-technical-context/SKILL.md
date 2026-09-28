@@ -21,7 +21,7 @@ Nie zmieniaj bez jawnego upoważnienia w zadaniu:
 
 ## REPO MAP
 
-Repo ma cztery warstwy. Nie odkrywaj ich ponownie broad scanem, jeśli zadanie wskazuje obszar.
+Repo ma wydzielone warstwy o jednoznacznej odpowiedzialności. Nie odkrywaj ich ponownie broad scanem, jeśli zadanie wskazuje obszar.
 
 ### `app/` — runtime aplikacji
 
@@ -30,7 +30,9 @@ Repo ma cztery warstwy. Nie odkrywaj ich ponownie broad scanem, jeśli zadanie w
 - Style: `app/web/src/styles.css`, `app/web/src/extended.css`.
 - Build web: `app/web/scripts/build-static.mjs`.
 - Targeted test logiki: `app/web/scripts/skill-completion-task-test.mjs`.
-- Serwer ChatGPT/MCP: `app/server/index.ts`.
+- Wtyczka / MCP Kompasu Zbiórek: `app/plugin/`.
+  - entrypoint MCP: `app/plugin/index.ts`.
+  - `plugin`, `wtyczka` i `MCP Kompasu Zbiórek` oznaczają ten sam element produktu; nie twórz równoległego `app/server/`.
 - Cloudflare/API/OAuth: `app/cloudflare-worker/`.
   - Worker/API: `app/cloudflare-worker/src/public-ui.ts`.
   - OAuth: `app/cloudflare-worker/src/oauth.ts`, `google-handler.ts`, `widget-auth.ts`, `workers-oauth-utils.ts`.
@@ -41,11 +43,16 @@ Repo ma cztery warstwy. Nie odkrywaj ich ponownie broad scanem, jeśli zadanie w
 - Komendy aplikacji uruchamiaj z `app/`: `npm run build`, `npm run typecheck`, `npm run test:all`.
 - Obecny `test:all` = build + typecheck + tracked targeted test. **Repo nie zawiera obecnie tracked `app/e2e/`, `playwright.config.ts` ani `lighthouserc.json`; nie deklaruj ich jako istniejącego gate.** Niezależną walidację przeglądarkową wykonuje UI QA narzędziem task-scoped/on-demand.
 
+### `branding/` — branding produktu
+
+- Jedyne kanoniczne miejsce na przyszłe źródła brandingu produktu.
+- Folder jest obecnie celowo pusty; brak zawartości oznacza brak ustanowionego źródła brandingu w tej warstwie.
+- Nie twórz drugiego folderu `brand/`, `brand-assets/` ani podobnego.
+
 ### `dev/` — kod wspierający development
 
-- Design system: `dev/design-system/`.
-- Kanoniczne skrócone zasady marki: `dev/design-system/BRAND-DESIGN-SYSTEM-COMPRESSED.md`.
-- Pełny brand system: `dev/design-system/BRAND-DESIGN-SYSTEM.md`.
+- Techniczny design system: `dev/design-system/`.
+- Istniejące pliki `BRAND-DESIGN-SYSTEM*.md` w `dev/design-system/` traktuj jako dokumentację technicznej implementacji design systemu, nie jako alternatywny katalog źródłowy brandingu.
 - Design tokens: `dev/design-system/opendesign/design-systems/kompas-rrp/tokens/colors_and_type.css`.
 - Integracje developerskie: `dev/integrations/`.
 - Profile OpenCode/MCP: `dev/integrations/opencode-mcp/mcp-role-profiles.json`.
@@ -62,6 +69,7 @@ Repo ma cztery warstwy. Nie odkrywaj ich ponownie broad scanem, jeśli zadanie w
 
 ### Root repo
 
+- `branding/` — kanoniczny folder brandingu produktu (obecnie pusty).
 - `opencode.json` — konfiguracja agentów/MCP.
 - `package.json`, `registry/`, `registry.json`, `scripts/` — tooling i registry UI.
 - `skills/` — skille agentowe/developerskie.
@@ -73,7 +81,9 @@ Normalny przypadek: `git branch --show-current` + `git status --short`. Opcjonal
 
 ## CTO routing contract
 
-- Zmiana w `app/` → architektura/review CTO, implementacja domyślnie Engineer.
+- Zmiana w `app/plugin/` (Wtyczka / MCP Kompasu Zbiórek) → architektura/review CTO, implementacja domyślnie Engineer.
+- Inna zmiana w `app/` → architektura/review CTO, implementacja domyślnie Engineer.
+- Zmiana źródeł brandingu → wyłącznie `branding/`; `dev/design-system/` służy implementacji technicznej.
 - Zmiana w `dev/integrations/` → MCP/integracje deleguj MCP Engineerowi, chyba że issue jawnie przypisuje CTO.
 - Zmiana wizualna lub design system w `dev/design-system/` → Designer; CTO sprawdza tylko konsekwencje techniczne.
 - Niezależna walidacja UI/browser → UI QA.
