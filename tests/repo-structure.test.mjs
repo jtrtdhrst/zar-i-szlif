@@ -12,6 +12,8 @@ test("repo exposes the V0 application contract", () => {
     "package.json",
     "vercel.json",
     "app",
+    "app/plugin",
+    "branding",
     "supabase",
     "tests",
     ".github",
@@ -25,6 +27,8 @@ test("repo exposes the V0 application contract", () => {
   for (const script of ["dev", "build", "lint", "typecheck", "test"]) {
     assert.equal(typeof packageJson.scripts[script], "string", `missing npm script: ${script}`);
   }
+
+  assert.equal(existsSync(`${root}/app/server`), false, "legacy app/server must stay removed; use app/plugin");
 
   assert.deepEqual(packageJson.workspaces, ["app"]);
   assert.equal(vercelJson.buildCommand, "npm run build");
