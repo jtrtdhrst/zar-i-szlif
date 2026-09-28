@@ -16,7 +16,7 @@ import { StreamableHTTPServerTransport } from "@modelcontextprotocol/sdk/server/
 import { createPluginServer } from "./server.js";
 import { SERVER_NAME } from "./server.js";
 import { uiCspHeader } from "./ui.js";
-import { protectedResourceMetadata, resolveAuth } from "./auth.js";
+import { protectedResourceMetadata, publicResourceUrl, resolveAuth } from "./auth.js";
 import { createStubRagAdapter } from "./rag.js";
 
 const here = dirname(fileURLToPath(import.meta.url));
@@ -24,6 +24,8 @@ const bundlePath = join(here, "../../web/dist/index.html");
 
 export function createApp() {
   const app = express();
+  // Za TLS-terminating ingress: honoruj X-Forwarded-Proto z zaufanego proxy.
+  app.set("trust proxy", "loopback");
   app.use(express.json());
 
   // Auth per request: kontekst dokładany do requestu; publiczne narzędzie
@@ -68,7 +70,11 @@ export function createApp() {
   });
 
   app.get("/.well-known/oauth-protected-resource", (req, res) => {
-    res.json(protectedResourceMetadata(`${req.protocol}://${req.get("host")}/mcp`));
+    // Kanoniczny origin z konfiguracji (PLUGIN_PUBLIC_ORIGIN) albo
+    // walidowany Host; nieprawidłowy Host -> 400 zamiast odbicia atakującego.
+    const resource = publicResourceUrl(req);
+    if (!resource) return res.status(400).json({ error: "invalid_host" });
+    res.json(protectedResourceMetadata(resource));
   });
 
   return app;

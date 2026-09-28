@@ -5,13 +5,22 @@
 // URI (np. .../v2/...) zamiast zmieniać znaczenie v1.
 
 export const UI_RESOURCE_URI_V1 = "ui://kompas-zbiorek/v1/workspace.html";
+// Compat alias: the second publisher in this repo (app/cloudflare-worker)
+// still serves ui://kompas-zbiorek/workspace.html. Keep resolving it here
+// (deprecated) so clients on either side resolve; remove after worker migrates.
+export const UI_RESOURCE_URI_LEGACY = "ui://kompas-zbiorek/workspace.html";
 export const UI_MIME_TYPE = "text/html;profile=mcp-app";
 
-// Zadeklarowana polityka osadzania bundla UI. Egzekwowana nagłówkiem CSP
-// przy serwowaniu HTML (GET /); MCP Apps host stosuje własny sandbox.
+// Real embedding allowlist, enforced as CSP header on GET /.
+// Public demo bundle: same-origin only; no remote script/style/object sources.
 export const UI_CSP = {
   frameAncestors: ["'self'"],
   connectDomains: ["'self'"],
+  defaultSrc: ["'self'"],
+  scriptSrc: ["'self'"],
+  styleSrc: ["'self'", "'unsafe-inline'"],
+  objectSrc: ["'none'"],
+  baseUri: ["'self'"],
 } as const;
 
 // Kontrakt domenowy: przestrzeń nazw resource + wersja.
@@ -33,5 +42,13 @@ export function uiResourceMeta() {
 }
 
 export function uiCspHeader(): string {
-  return `frame-ancestors ${UI_CSP.frameAncestors[0]}; connect-src ${UI_CSP.connectDomains[0]}`;
+  return [
+    `default-src ${UI_CSP.defaultSrc.join(" ")}`,
+    `script-src ${UI_CSP.scriptSrc.join(" ")}`,
+    `style-src ${UI_CSP.styleSrc.join(" ")}`,
+    `object-src ${UI_CSP.objectSrc.join(" ")}`,
+    `base-uri ${UI_CSP.baseUri.join(" ")}`,
+    `frame-ancestors ${UI_CSP.frameAncestors.join(" ")}`,
+    `connect-src ${UI_CSP.connectDomains.join(" ")}`,
+  ].join("; ");
 }

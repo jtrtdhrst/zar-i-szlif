@@ -13,7 +13,7 @@
 
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { z } from "zod";
-import { UI_MIME_TYPE, UI_RESOURCE_URI_V1, uiResourceMeta } from "./ui.js";
+import { UI_MIME_TYPE, UI_RESOURCE_URI_LEGACY, UI_RESOURCE_URI_V1, uiResourceMeta } from "./ui.js";
 import { PUBLIC_SECURITY_SCHEME } from "./auth.js";
 import type { RagAdapter } from "./rag.js";
 
@@ -43,6 +43,24 @@ export function createPluginServer(deps: PluginDeps): McpServer {
     { mimeType: UI_MIME_TYPE, _meta: uiResourceMeta() },
     async () => ({
       contents: [{ uri: UI_RESOURCE_URI_V1, mimeType: UI_MIME_TYPE, text: await deps.readBundle(), _meta: uiResourceMeta() }],
+    }),
+  );
+
+  // Deprecated alias dla drugiego publishera (app/cloudflare-worker,
+  // WIDGET_URI bez /v1/). Ten sam bundle; _meta wskazuje kanon.
+  server.registerResource(
+    "kompas-workspace-legacy",
+    UI_RESOURCE_URI_LEGACY,
+    { mimeType: UI_MIME_TYPE, _meta: { ...uiResourceMeta(), aliasOf: UI_RESOURCE_URI_V1, deprecated: true } },
+    async () => ({
+      contents: [
+        {
+          uri: UI_RESOURCE_URI_LEGACY,
+          mimeType: UI_MIME_TYPE,
+          text: await deps.readBundle(),
+          _meta: { ...uiResourceMeta(), aliasOf: UI_RESOURCE_URI_V1, deprecated: true },
+        },
+      ],
     }),
   );
 

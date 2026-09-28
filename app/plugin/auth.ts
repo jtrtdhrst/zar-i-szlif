@@ -13,8 +13,12 @@ export const OAUTH_ISSUER = "https://accounts.google.com";
 export const OAUTH_SCOPES = ["openid", "email", "profile"] as const;
 
 // Schemat bezpieczeństwa dla publicznego narzędzia demo (brak prywatnych danych).
+// Lokalny kontrakt _meta.securitySchemes, wiążący przez contract.test.mjs
+// (assert exact: type === "none" && requiresAuth === false). Nie jest to
+// OpenAPI/OAuth scheme — publiczne narzędzie nie ma wymogu auth.
 export const PUBLIC_SECURITY_SCHEME = {
   type: "none",
+  requiresAuth: false,
   reason: "public demo tool; no private data leaves the local bundle",
 } as const;
 
@@ -43,6 +47,38 @@ export function requireAuth(auth: AuthContext): void {
     (error as { status?: number }).status = 401;
     throw error;
   }
+}
+
+// Strukturalny gate dla przyszłych prywatnych narzędzi: owiń handler,
+// żeby rejestracja bez auth była niemożliwa bez wywołania tego wrappera.
+// Demo (publiczne) go nie używa — pokryte testem jednostkowym w kontrakcie.
+// Token flow dla prywatnych danych należy do Workera (window.__KOMPAS_OAUTH__);
+// GET / tego serwera celowo serwuje publiczny bundle demo bez iniekcji tokenów.
+export function guardPrivateTool<TArgs extends unknown[], TResult>(
+  auth: AuthContext,
+  handler: (...args: TArgs) => Promise<TResult>,
+): (...args: TArgs) => Promise<TResult> {
+  return async (...args: TArgs): Promise<TResult> => {
+    requireAuth(auth);
+    return handler(...args);
+  };
+}
+
+// Kanoniczny origin dla RFC 9728 metadata. PLUGIN_PUBLIC_ORIGIN (np.
+// https://mcp.kompaszbiorek.pl) ma pierwszeństwo i jest jedyną ścieżką prod.
+// Fallback bez env: tylko loopback (localhost/127.0.0.1/::1, test/dev).
+// Wszystko inne -> null -> endpoint zwraca 400 zamiast odbijać Host atakującego.
+const LOOPBACK_RE = /^(localhost|127\.0\.0\.1|\[?::1\]?)(:\d+)?$/i;
+export function publicResourceUrl(req: {
+  protocol: string;
+  get: (name: string) => string | undefined;
+}): string | null {
+  const configured = (process.env.PLUGIN_PUBLIC_ORIGIN ?? "").trim().replace(/\/+$/, "");
+  if (configured) return `${configured}/mcp`;
+  const host = (req.get("host") ?? "").trim();
+  if (!LOOPBACK_RE.test(host)) return null;
+  const proto = req.protocol === "https" ? "https" : "http";
+  return `${proto}://${host}/mcp`;
 }
 
 export function protectedResourceMetadata(resource: string) {

@@ -4,7 +4,8 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import { createApp } from "./dist/index.js";
-import { UI_RESOURCE_URI_V1 } from "./dist/ui.js";
+import { UI_RESOURCE_URI_LEGACY, UI_RESOURCE_URI_V1 } from "./dist/ui.js";
+import { guardPrivateTool } from "./dist/auth.js";
 
 const _server = createApp().listen(0, "127.0.0.1");
 await new Promise((resolve) => _server.on("listening", resolve));
@@ -52,7 +53,11 @@ test("tools/list: schematy, adnotacje i kanoniczny resourceUri", async () => {
   assert.equal(tool.annotations.destructiveHint, false);
   assert.equal(tool.annotations.openWorldHint, false);
   assert.equal(tool._meta.ui.resourceUri, UI_RESOURCE_URI_V1);
-  assert.ok(Array.isArray(tool._meta.securitySchemes) && tool._meta.securitySchemes.length > 0);
+  // Lokalny kontrakt securitySchemes (auth.ts:PUBLIC_SECURITY_SCHEME) —
+  // exact assert, nie tylko Array.isArray.
+  assert.equal(tool._meta.securitySchemes.length, 1);
+  assert.equal(tool._meta.securitySchemes[0].type, "none");
+  assert.equal(tool._meta.securitySchemes[0].requiresAuth, false);
 });
 
 test("tools/call działa bez pobierania UI (default + jawny widok)", async () => {
@@ -68,10 +73,11 @@ test("tools/call nieznanego narzędzia zwraca błąd", async () => {
   assert.ok(body.error || body.result?.isError, "oczekiwany błąd JSON-RPC");
 });
 
-test("resource: kanoniczne URI, MCP Apps mime + prefersBorder", async () => {
+test("resource: kanoniczne URI + deprecated legacy alias (worker compat)", async () => {
   const list = await rpc("resources/list", {});
   const uris = list.body.result.resources.map((r) => r.uri);
   assert.ok(uris.includes(UI_RESOURCE_URI_V1));
+  assert.ok(uris.includes(UI_RESOURCE_URI_LEGACY), "legacy alias musi być listowany do migracji workera");
   const read = await rpc("resources/read", { uri: UI_RESOURCE_URI_V1 });
   const content = read.body.result.contents[0];
   assert.equal(content.mimeType, "text/html;profile=mcp-app");
@@ -79,6 +85,48 @@ test("resource: kanoniczne URI, MCP Apps mime + prefersBorder", async () => {
   assert.match(content.text, /<html/i);
 });
 
+test("legacy alias read zwraca ten sam bundle z _meta.aliasOf", async () => {
+  const read = await rpc("resources/read", { uri: UI_RESOURCE_URI_LEGACY });
+  const content = read.body.result.contents[0];
+  assert.equal(content.mimeType, "text/html;profile=mcp-app");
+  assert.equal(content._meta.aliasOf, UI_RESOURCE_URI_V1);
+  assert.equal(content._meta.deprecated, true);
+  assert.match(content.text, /<html/i);
+});
+
+test("CSP: nagłówek GET / jest realną allowlistą", async () => {
+  const res = await fetch(`${base}/`);
+  const csp = res.headers.get("content-security-policy") ?? "";
+  for (const d of ["default-src 'self'", "script-src", "style-src", "object-src 'none'", "frame-ancestors 'self'"]) {
+    assert.ok(csp.includes(d), `CSP musi zawierać ${d} (aktualnie: ${csp})`);
+  }
+});
+
+test("protected-resource: zły Host -> 400, X-Forwarded-Proto honorowane", async () => {
+  const { request } = await import("node:http");
+  // Review repro: Host: evil.example.com nie może być odbity w metadata.
+  for (const evilHost of ["evil.example.com", "evil.example.com<script>"]) {
+    const status = await new Promise((resolve, reject) => {
+      const r = request(`${base}/.well-known/oauth-protected-resource`, { headers: { Host: evilHost } }, (res) => {
+        res.resume();
+        res.on("end", () => resolve(res.statusCode));
+      });
+      r.on("error", reject);
+      r.end();
+    });
+    assert.equal(status, 400, `Host ${evilHost} musi dać 400`);
+  }
+  const fwd = await fetch(`${base}/.well-known/oauth-protected-resource`, { headers: { "X-Forwarded-Proto": "https" } });
+  const prm = await fwd.json();
+  assert.match(prm.resource, /^https:\/\//);
+});
+
+test("fail-closed: guardPrivateTool rzuca 401 dla anonima", async () => {
+  const guarded = guardPrivateTool({ anonymous: true }, async () => "sekret");
+  await assert.rejects(guarded, /unauthorized/);
+  const ok = guardPrivateTool({ anonymous: false, bearerPresent: true }, async () => "sekret");
+  assert.equal(await ok(), "sekret");
+});
 test("transport bezstanowy: GET/DELETE /mcp to 405", async () => {
   assert.equal((await fetch(`${base}/mcp`)).status, 405);
   assert.equal((await fetch(`${base}/mcp`, { method: "DELETE" })).status, 405);
