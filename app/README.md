@@ -1,41 +1,36 @@
-# Kompas Zbiórek — prototyp UI
+# Kompas Zbiórek — runtime produktu
 
-Interaktywny prototyp wtyczki do ChatGPT. Nie zawiera integracji z Google Docs, Google Calendar, OAuth ani produkcyjnego backendu. Wszystkie dane są demonstracyjne i działają wyłącznie lokalnie.
+Katalog `app/` zawiera runtime produktu Kompas Zbiórek. Nie jest to osobny prototyp ani alternatywny produkt.
 
-## Wymagania
+## Struktura
 
-- Node.js 18+ (zalecana jest aktualna wersja LTS)
-- ChatGPT z włączonym Trybem programisty
+- `web/` — interfejs produktu.
+- `plugin/` — **Wtyczka / MCP Kompasu Zbiórek**. Te nazwy oznaczają ten sam element produktu. Lokalny entrypoint MCP to `plugin/index.ts`, endpoint: `/mcp`.
+- `cloudflare-worker/` — produkcyjna warstwa API, OAuth i integracji Cloudflare.
+- `documentation.md` — dokumentacja zachowania runtime.
 
-## Uruchomienie
+Nie twórz równoległego `server/`, `mcp/` ani drugiego katalogu „wtyczki”. Kanoniczną lokalizacją jest `app/plugin/`.
 
-W terminalu, w katalogu projektu:
+## Uruchomienie lokalne
 
-```powershell
-npm install
+Z katalogu `app/`:
+
+```bash
+npm ci
 npm run build
 npm start
 ```
 
-Po komunikacie o gotowym serwerze dodaj w ChatGPT lokalny konektor MCP o adresie:
+Lokalna Wtyczka / MCP Kompasu Zbiórek jest wtedy dostępna pod:
 
-```
+```text
 http://127.0.0.1:8787/mcp
 ```
 
-Następnie w nowej rozmowie napisz: **„Pokaż mi Kompas Zbiórek.”**
+Root repo udostępnia również wspólny kontrakt `npm run lint`, `npm run typecheck`, `npm test` i `npm run build`.
 
-## Co można przeklikać
+## Granice odpowiedzialności
 
-- karta inline i przejście do obszaru roboczego;
-- widok dokumentu i problemu;
-- edycja eksperymentu, czytelny podgląd zmian i lokalny zapis demonstracyjny;
-- plan zbiórki, wyszukiwarka aktywności, szczegóły oraz dodanie do planu;
-- podgląd kalendarza i komunikat sukcesu;
-- responsywny widok desktopowy i mobilny.
+`app/plugin/` udostępnia powierzchnię ChatGPT/MCP produktu. `app/cloudflare-worker/` odpowiada za produkcyjne API, OAuth, integracje i bezpieczny dostęp do sekretów. Nie należy traktować lokalnego serwera MCP jako zamiennika produkcyjnego Workera.
 
-## Struktura
-
-- `web/` — komponent React i ciemny interfejs nawiązujący do dostarczonego brandingu;
-- `server/` — minimalny lokalny serwer MCP, który udostępnia komponent ChatGPT;
-- `web/public/kompas-logo.png` — dostarczone logo.
+Branding produktu ma osobny kanoniczny katalog `/branding` w root repo. Jest obecnie celowo pusty; techniczna implementacja design systemu pozostaje w `/dev/design-system`.
