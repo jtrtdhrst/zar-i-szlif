@@ -8,6 +8,9 @@
   `fetchFn` — logika `QdrantClient` bez zmian), `sources.ts` (realne źródła
   S3–S6 + runtime-doc + denylista V1 §3 jako kod), fallback
   `deterministicEmbed()` (FNV worki, L2; prod = Workers AI bge-m3).
+  Emulacja **odrzuca każdy nieznany klucz warunku** (`min_should`, `filter`,
+  `min_count`) tak jak prawdziwy silnik 400 — dzięki temu zielony suite na
+  emulacji nie przepuszcza filtra, którego Qdrant nie zna (KOMAA-403).
 - MCP: `search_knowledge`, `get_knowledge_source` w `app/plugin/server.ts`
   (zod schemas, `readOnlyHint`, `securitySchemes: [oauth2]`); scope
   **wyłącznie z Bearer** (`bearerSubject` = sha256, server-derived, zero
@@ -17,11 +20,12 @@
   bez bindingu Workers AI wymaga jawnego `EMBEDDING_ALLOW_LEXICAL=1`,
   inaczej start pada zamiast cicho truć kolekcję bge-m3 leksyką.
   Żadnych sekretów w kodzie/testach.
-- DoD w `app/plugin/contract.test.mjs` (20 green): idempotencja 2x ingest
+- DoD w `app/plugin/contract.test.mjs` (21 green): idempotencja 2x ingest
   (drugi sync przez liczący embed — zero re-embedów realnie),
   update/delete/no-result, cross-user/tenant leakage, denylist, malformed +
   `__proto__`, unauthorized, tools/schemas/annotations/securitySchemes,
-  memory-backed ingest → scoped retrieval → MCP ze źródłem.
+  memory-backed ingest → scoped retrieval → MCP ze źródłem,
+  kształt filtra zgodny z Qdrant 1.19.1 (bez `min_should`/`min_count`).
 - Denylista V1 §3 w jednym module (`knowledge/denylist.ts`) egzekwowana na
   **ścieżce zapisu** (`syncDocument`) i na ścieżce odczytu (`sources.ts`),
   nie tylko przy czytaniu plików. Reguły treściowe celowo wąskie
@@ -41,9 +45,11 @@
 - `ponytail:` w kodzie znaczą sufity (opaque-bearer sub, heurystyka leksykalna, brak HNSW).
 
 ## Evidence (uczciwie)
-- `npm run validate:code` green na finalnym SHA (lint + typecheck + 20 kontrakt
+- `npm run validate:code` green na finalnym SHA (lint + typecheck + 21 kontrakt
   + 1 repo-structure + 9 vitest). Testy mutacyjne: po usunięciu guardu
   denylisty z `syncDocument` test R2 pada (nie jest tautologiczny).
+  Dodatkowo po KOMAA-403: reintrodukcja `min_should` do filtra wywala kontrakt
+  przez emulację (guard na kształcie, nie na konkretnej wartości).
 - `npm run validate:vercel`: gate kończy się **kodem 2** w tym checkoutcie
   (brak linku projektu Vercel: `VERCEL_ORG_ID`/`VERCEL_PROJECT_ID`, brak
   `.vercel/project.json`; gate słusznie odmawia auto-linku) — NIE raportować
