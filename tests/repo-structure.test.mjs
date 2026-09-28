@@ -17,7 +17,8 @@ test("repo exposes the V0 application contract", () => {
     "supabase",
     "tests",
     ".github",
-    ".github/workflows/release-readiness.yml",
+    ".github/workflows/ci.yml",
+    ".github/workflows/cloudflare-worker-release.yml",
     "README.md",
     "AGENTS.md",
     ".env.example",
@@ -38,31 +39,46 @@ test("repo exposes the V0 application contract", () => {
   assert.equal(vercelJson.framework, null);
 });
 
-test("release guardrails cover build targets, pre-merge readiness and production auth", () => {
-  for (const script of ["validate:code", "validate:vercel", "validate:cloudflare", "validate:release"]) {
+test("frontend and Cloudflare Worker release paths stay separated", () => {
+  for (const script of [
+    "validate:code",
+    "validate:vercel",
+    "validate:cloudflare",
+    "validate:worker",
+    "validate:release",
+  ]) {
     assert.equal(typeof packageJson.scripts[script], "string", `missing npm script: ${script}`);
   }
 
   assert.match(packageJson.scripts["validate:release"], /validate:vercel/);
-  assert.match(packageJson.scripts["validate:release"], /validate:cloudflare/);
+  assert.doesNotMatch(packageJson.scripts["validate:release"], /validate:cloudflare/);
+  assert.match(packageJson.scripts["validate:worker"], /validate:cloudflare/);
 
   const prePush = readFileSync(`${root}/.githooks/pre-push`, "utf8");
   assert.match(prePush, /refs\/heads\/main/);
+  assert.match(prePush, /frontend release gate \(Vercel\)/);
   assert.match(prePush, /validate:release/);
 
   const ci = readFileSync(`${root}/.github/workflows/ci.yml`, "utf8");
-  assert.match(ci, /production-preflight:/);
-  assert.match(ci, /CLOUDFLARE_API_TOKEN/);
-  assert.match(ci, /CLOUDFLARE_ACCOUNT_ID/);
-  assert.match(ci, /wrangler whoami/);
-  assert.match(ci, /needs: production-preflight/);
+  assert.match(ci, /verify-and-package:/);
+  assert.doesNotMatch(ci, /CLOUDFLARE_API_TOKEN/);
+  assert.doesNotMatch(ci, /deploy-production:/);
+  assert.doesNotMatch(ci, /production-preflight:/);
 
-  const readiness = readFileSync(`${root}/.github/workflows/release-readiness.yml`, "utf8");
-  assert.match(readiness, /pull_request_target:/);
-  assert.match(readiness, /production-config-preflight:/);
-  assert.match(readiness, /environment: production/);
-  assert.match(readiness, /CLOUDFLARE_API_TOKEN/);
-  assert.match(readiness, /CLOUDFLARE_ACCOUNT_ID/);
-  assert.match(readiness, /wrangler@4\.123\.0 whoami/);
-  assert.doesNotMatch(readiness, /actions\/checkout/);
+  const workerRelease = readFileSync(
+    `${root}/.github/workflows/cloudflare-worker-release.yml`,
+    "utf8",
+  );
+  assert.match(workerRelease, /Cloudflare Worker Release/);
+  assert.match(workerRelease, /app\/cloudflare-worker\/\*\*/);
+  assert.match(workerRelease, /CLOUDFLARE_API_TOKEN/);
+  assert.match(workerRelease, /CLOUDFLARE_ACCOUNT_ID/);
+  assert.match(workerRelease, /wrangler@4\.123\.0 whoami/);
+  assert.match(workerRelease, /deploy-production:/);
+
+  assert.equal(
+    existsSync(`${root}/.github/workflows/release-readiness.yml`),
+    false,
+    "global Cloudflare readiness must not gate Vercel/frontend PRs",
+  );
 });
