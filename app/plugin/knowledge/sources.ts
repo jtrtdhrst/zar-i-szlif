@@ -4,21 +4,7 @@
 import { readdirSync, readFileSync } from "node:fs";
 import { join, relative } from "node:path";
 import { ALLOWED_SOURCES, assertAllowedSource, type SourceDocument } from "./pipeline.js";
-
-/** Ścieżki/treści, które NIGDY nie trafiają do indeksu (V1 §3). */
-const DENIED = [
-  /(^|\/)\.paperclip-wiki\//, /(^|\/)ops\//, /(^|\/)\.env(\.|$)/, /(^|\/)AGENTS\.md$/,
-  /(^|\/)skills\//, /(^|\/)registry\//, /(^|\/)scripts\//, /(^|\/)dev\//, /(^|\/)archive\//,
-  /_comment\.md$/, /_test\./, /\.test\./, /wrangler\..*\.jsonc$/, /instructions|toolInvocation|system prompt/i,
-  /paperclip|runbook|sekret|token|Authorization|TEMPLATE_FILE_ID/i,
-];
-
-export function assertNotDenied(path: string, text?: string): void {
-  if (DENIED.some((re) => re.test(path))) throw new Error(`source denied (V1 §3 denylist): ${path}`);
-  if (text !== undefined && /(sk-ant-|ghp_|xoxb-|AIza|BEGIN [A-Z ]*PRIVATE KEY)/.test(text)) {
-    throw new Error(`source denied: secret material in ${path}`);
-  }
-}
+import { assertNotDenied } from "./denylist.js";
 
 function stripWorkerHtml(workerJs: string): string {
   return workerJs

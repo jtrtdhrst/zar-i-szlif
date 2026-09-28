@@ -150,7 +150,7 @@ import { bearerSubject } from "./dist/auth.js";
 import { deterministicEmbed } from "./dist/knowledge/embeddings.js";
 import { QdrantClient } from "./dist/knowledge/qdrant.js";
 import { syncCorpus, syncDocument } from "./dist/knowledge/pipeline.js";
-import { assertNotDenied } from "./dist/knowledge/sources.js";
+import { DENIED_TEXT, assertNotDenied } from "./dist/knowledge/denylist.js";
 import { loadAllowedDocuments } from "./dist/knowledge/sources.js";
 import { validatePayload, contentHash, chunkId } from "./dist/knowledge/schema.js";
 import { dirname as _dirname, join as _join } from "node:path";
@@ -185,10 +185,10 @@ async function seedLiveCorpus() {
   const state = new Map();
   const first = await syncCorpus(backend.client, backend.embed, docs, state);
   assert.ok(first.every((r) => r.upserted === r.chunks), "pierwszy ingest zapisuje wszystko");
-  // Idempotencja: powtórka = same id, zero nowych embeddingów.
+  // Idempotencja: powtórka = same id, zero nowych embeddingów (liczone realnie).
   const calls = { n: 0 };
   const counting = async (texts) => { calls.n += texts.length; return deterministicEmbed()(texts); };
-  const second = await syncCorpus(backend.client, backend.embed, docs, state);
+  const second = await syncCorpus(backend.client, counting, docs, state);
   assert.ok(second.every((r) => r.upserted === 0 && r.skipped === r.chunks), "drugi ingest to no-op");
   assert.equal(calls.n, 0);
   return { backend, docs };
@@ -344,4 +344,68 @@ test("RAG malformed: client-scope/prototype/object-key negatives", async () => {
   assert.ok(validatePayload({ source_id: "h", document_id: "d", chunk_id: await chunkId("d", 0), tenant: "zły", visibility: "global", content_type: "help", content_hash: "h", source_version: "v", updated_at: new Date().toISOString() }).length > 0, "zły tenant invalid");
   assert.throws(() => assertNotDenied("ops/runbook.md"), /denied/);
   assert.throws(() => assertNotDenied("AGENTS.md"), /denied/);
+});
+
+// ---- Review R2: denylista na ścieżce zapisu + na zindeksowanym korpusie ----
+
+test("R2 write path: denylista blokuje zapis, a odrzucone dokumenty zostają poza kolekcją", async () => {
+  const { createMemoryFetch } = await import("./dist/knowledge/memory.js");
+  const client = new QdrantClient({ baseUrl: "memory://denylist", fetchFn: createMemoryFetch() });
+  const scope = { userId: "u", workspaceIds: [] };
+  const before = (await client.scrollScoped(scope, { limit: 200 })).result.length;
+  for (const doc of [
+    { documentId: "ops/runbook.md", rawText: "zdeniadowana ścieżka operacyjna" },
+    { documentId: "help-page", rawText: "klucz sk-ant-abcdefghijklmnopqrst w treści" },
+    { documentId: "help-page", rawText: "runbook Paperclipa: kroki operacyjne agenta" },
+  ]) {
+    // Ten sam dokument przez źródła (read path) i przez pipeline (write path).
+    await assert.rejects(
+      syncDocument(client, deterministicEmbed(), { sourceId: "help-page", sourceVersion: "test:deny", ...doc }),
+      /denied/,
+    );
+  }
+  const after = (await client.scrollScoped(scope, { limit: 200 })).result.length;
+  assert.equal(after, before, "dokument odrzucony na zapisie nie zostawia punktu w kolekcji");
+});
+
+test("R2 korpus: każdy zindeksowany chunk spełnia politykę denylisty", async () => {
+  const { backend } = await seedLiveCorpus();
+  const res = await backend.client.scrollScoped(
+    { userId: bearerSubject(`Bearer ${TOKEN_A}`), workspaceIds: [] }, { limit: 500 },
+  );
+  const points = res.result;
+  assert.ok(points.length >= 5, `skan korpusu nie może być pusty (jest ${points.length} chunków)`);
+  for (const p of points) {
+    const text = p.payload.text ?? "";
+    for (const re of DENIED_TEXT) {
+      assert.ok(!re.test(text), `zindeksowano treść denylistowaną (${re}) w ${p.payload.document_id}`);
+    }
+    assert.doesNotThrow(() => assertNotDenied(p.payload.document_id, text),
+      `zindeksowany dokument łamie denylistę: ${p.payload.document_id}`);
+  }
+});
+
+test("B1 fail-closed: prawdziwy QDRANT_URL bez realnego embeddera nie konstruuje backendu", async () => {
+  const { resetKnowledgeBackend } = await import("./dist/index.js");
+  const prevUrl = process.env.QDRANT_URL;
+  const prevFlag = process.env.EMBEDDING_ALLOW_LEXICAL;
+  const prevAi = globalThis.AI;
+  const restore = (k, v) => (v === undefined ? delete process.env[k] : (process.env[k] = v));
+  try {
+    process.env.QDRANT_URL = "https://qdrant.example.invalid";
+    delete process.env.EMBEDDING_ALLOW_LEXICAL;
+    resetKnowledgeBackend();
+    // Bez Workers AI i bez jawnej zgody na leksykę lepszy jest upadek niż ciche zatrucie kolekcji bge-m3.
+    assert.throws(() => knowledgeBackend(), /refusing to write lexical vectors/);
+    process.env.EMBEDDING_ALLOW_LEXICAL = "1";
+    assert.equal(knowledgeBackend().embedder, "lexical-explicit");
+    resetKnowledgeBackend();
+    globalThis.AI = { run: async () => ({ data: [new Array(1024).fill(0)] }) };
+    assert.equal(knowledgeBackend().embedder, "workers-ai", "prod runtime = Workers AI bge-m3");
+  } finally {
+    globalThis.AI = prevAi;
+    restore("QDRANT_URL", prevUrl);
+    restore("EMBEDDING_ALLOW_LEXICAL", prevFlag);
+    resetKnowledgeBackend();
+  }
 });

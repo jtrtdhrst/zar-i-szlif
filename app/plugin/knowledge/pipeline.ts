@@ -19,6 +19,7 @@ import {
 } from "./schema.js";
 import type { QdrantClient } from "./qdrant.js";
 import type { EmbedFn } from "./embeddings.js";
+import { assertNotDenied } from "./denylist.js";
 
 /** V1 §2: indeksowalne źródła (kod, nie flaga). S2 i S7 wyłączone do decyzji V2. */
 export const ALLOWED_SOURCES: Record<string, { contentType: ContentType; visibility: Visibility }> = {
@@ -92,6 +93,9 @@ export async function syncDocument(
   opts?: { knownHashes?: Record<number, string>; prevCount?: number; now?: string },
 ): Promise<SyncResult> {
   assertAllowedSource(doc.sourceId);
+  // V1 §3 na ścieżce zapisu: każdy dokument przechodzi przez denylistę
+  // niezależnie od tego, skąd pochodzi — nie tylko `loadAllowedDocuments`.
+  assertNotDenied(doc.documentId, doc.rawText);
   const meta = ALLOWED_SOURCES[doc.sourceId];
   const chunks = chunkText(doc.rawText);
   const now = opts?.now ?? new Date().toISOString();

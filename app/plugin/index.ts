@@ -19,7 +19,7 @@ import { uiCspHeader } from "./ui.js";
 import { bearerSubject, protectedResourceMetadata, publicResourceUrl, resolveAuth } from "./auth.js";
 import { createStubRagAdapter } from "./rag.js";
 import { QdrantClient } from "./knowledge/qdrant.js";
-import { deterministicEmbed, type EmbedFn } from "./knowledge/embeddings.js";
+import { deterministicEmbed, workersAiEmbed, type EmbedFn } from "./knowledge/embeddings.js";
 import { createMemoryFetch } from "./knowledge/memory.js";
 import { COLLECTION_NAME } from "./knowledge/schema.js";
 import type { TokenProps } from "./knowledge/mcp-tools.js";
@@ -31,17 +31,35 @@ const bundlePath = join(here, "../../web/dist/index.html");
 // ale store w procesie musi przetrwać między requestami).
 // Secret flow: QDRANT_URL + QDRANT_API_KEY z env (Vercel env w prod);
 // brak QDRANT_URL = in-memory (dev/test, bez sekretów).
+// Fail-closed B1: prawdziwy QDRANT_URL + leksykalne wektory FNV to ciche
+// zatrucie kolekcji bge-m3 — bez bindingu Workers AI wymagany jawny
+// EMBEDDING_ALLOW_LEXICAL=1, inaczej start pada z czytelnym błędem.
 // ponytail: jeden procesowy singleton; upgrade = zewnętrzny Qdrant.
-let knowledgeSingleton: { client: QdrantClient; embed: EmbedFn } | null = null;
-export function knowledgeBackend(): { client: QdrantClient; embed: EmbedFn } {
+let knowledgeSingleton: { client: QdrantClient; embed: EmbedFn; embedder: string } | null = null;
+export function knowledgeBackend(): { client: QdrantClient; embed: EmbedFn; embedder: string } {
   if (!knowledgeSingleton) {
     const url = (process.env.QDRANT_URL ?? "").trim().replace(/\/+$/, "");
-    const client = url
-      ? new QdrantClient({ baseUrl: url, apiKey: process.env.QDRANT_API_KEY || undefined, collection: COLLECTION_NAME })
-      : new QdrantClient({ baseUrl: "memory://kompas-knowledge", collection: COLLECTION_NAME, fetchFn: createMemoryFetch() });
-    knowledgeSingleton = { client, embed: deterministicEmbed() };
+    const ai = (globalThis as { AI?: { run(model: string, input: { text: string[] }): Promise<{ data: number[][] }> } }).AI;
+    if (url) {
+      const client = new QdrantClient({ baseUrl: url, apiKey: process.env.QDRANT_API_KEY || undefined, collection: COLLECTION_NAME });
+      if (ai?.run) {
+        knowledgeSingleton = { client, embed: workersAiEmbed(ai), embedder: "workers-ai" };
+      } else if (process.env.EMBEDDING_ALLOW_LEXICAL === "1") {
+        knowledgeSingleton = { client, embed: deterministicEmbed(), embedder: "lexical-explicit" };
+      } else {
+        throw new Error("QDRANT_URL set but no Workers AI binding and EMBEDDING_ALLOW_LEXICAL!=1: refusing to write lexical vectors into bge-m3 collection");
+      }
+    } else {
+      const client = new QdrantClient({ baseUrl: "memory://kompas-knowledge", collection: COLLECTION_NAME, fetchFn: createMemoryFetch() });
+      knowledgeSingleton = { client, embed: ai?.run ? workersAiEmbed(ai) : deterministicEmbed(), embedder: ai?.run ? "workers-ai" : "lexical-memory" };
+    }
   }
   return knowledgeSingleton;
+}
+
+/** Reset singletonu (tylko testy — izolacja między scenariuszami seed). */
+export function resetKnowledgeBackend(): void {
+  knowledgeSingleton = null;
 }
 
 // Auth scope per request, wyłącznie z nagłówka Bearer (server-derived).

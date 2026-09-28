@@ -13,19 +13,46 @@
   **wyłącznie z Bearer** (`bearerSubject` = sha256, server-derived, zero
   client override — nadmiarowe klucze stripuje schema albo odrzuca walidacja).
 - Secret flow: `QDRANT_URL` + `QDRANT_API_KEY` z env (Vercel env w prod);
-  brak `QDRANT_URL` = in-memory (dev/test). Żadnych sekretów w kodzie/testach.
-- DoD w `app/plugin/contract.test.mjs` (17/17 green): idempotencja 2x ingest,
+  brak `QDRANT_URL` = in-memory (dev/test). Fail-closed B1: `QDRANT_URL`
+  bez bindingu Workers AI wymaga jawnego `EMBEDDING_ALLOW_LEXICAL=1`,
+  inaczej start pada zamiast cicho truć kolekcję bge-m3 leksyką.
+  Żadnych sekretów w kodzie/testach.
+- DoD w `app/plugin/contract.test.mjs` (20 green): idempotencja 2x ingest
+  (drugi sync przez liczący embed — zero re-embedów realnie),
   update/delete/no-result, cross-user/tenant leakage, denylist, malformed +
   `__proto__`, unauthorized, tools/schemas/annotations/securitySchemes,
-  live ingest → scoped retrieval → MCP ze źródłem.
+  memory-backed ingest → scoped retrieval → MCP ze źródłem.
+- Denylista V1 §3 w jednym module (`knowledge/denylist.ts`) egzekwowana na
+  **ścieżce zapisu** (`syncDocument`) i na ścieżce odczytu (`sources.ts`),
+  nie tylko przy czytaniu plików. Reguły treściowe celowo wąskie
+  (`paperclip`/`runbook`/`toolInvocation` + materiał sekretowy): realna treść
+  produktowa używa słów „token" i „sekret", więc zakaz słów odrzucałby
+  wiedzę użytkownika. Test skanuje **zindeksowany korpus** (34 chunki) —
+  każdy punkt musi spełniać politykę, skan nie może być pusty.
 - Inspector smoke: `tools/list` = 3 tools; `tools/call search_knowledge`
   bez Bearer → `isError` fail-closed.
 
 ## Celowo pominięte (decyzje V2, nie dług)
 - S1 (live API RR), S2/S7 (dane użytkownika/Drive) — brak SSOT/migracji; indeks tylko treści globalne.
 - Wektory bge-m3 + prawdziwy Qdrant: wymaga alias-swap na nową kolekcję;
-  live smoke z realnym Qdrant po stronie posiadacza sekretu.
+  live smoke (`scripts/rag-live-smoke.mjs`) uruchamia posiadacz sekretu
+  (`QDRANT_URL` + `QDRANT_API_KEY` + `EMBEDDING_ALLOW_LEXICAL=1` dla leksyki);
+  w tym checkoutcie live Qdrant NIE był uruchomiony — E2E jest memory-backed.
 - `ponytail:` w kodzie znaczą sufity (opaque-bearer sub, heurystyka leksykalna, brak HNSW).
 
-## Evidence
-`npm run validate:vercel` na finalnym SHA; niezależny review przez istniejący review stage.
+## Evidence (uczciwie)
+- `npm run validate:code` green na finalnym SHA (lint + typecheck + 20 kontrakt
+  + 1 repo-structure + 9 vitest). Testy mutacyjne: po usunięciu guardu
+  denylisty z `syncDocument` test R2 pada (nie jest tautologiczny).
+- `npm run validate:vercel`: gate kończy się **kodem 2** w tym checkoutcie
+  (brak linku projektu Vercel: `VERCEL_ORG_ID`/`VERCEL_PROJECT_ID`, brak
+  `.vercel/project.json`; gate słusznie odmawia auto-linku) — NIE raportować
+  jako pass. Blokada pierwszorzędna: KOMAA-383 (Harness Agent).
+- Live Qdrant (`ingest → Qdrant → scoped retrieval → MCP ze źródłem`)
+  NIE był uruchomiony: `QDRANT_URL`/`QDRANT_API_KEY` nie są projekowane do
+  execution workspace. Blokada pierwszorzędna: child issue tego issue
+  (Harness Agent, secret flow). Do czasu provisioningu jedynym dowodem
+  ingestu jest E2E memory-backed na tym samym kodzie klienta.
+- Niezależny review przez istniejący review stage: `request_changes` na
+  `702114a` (B1/B2/B3 + R1/R2). B1, R1, R2 zamknione kodem w tym SHA;
+  B2 i B3 to blokady zewnętrzne poza zasięgiem agenta.
