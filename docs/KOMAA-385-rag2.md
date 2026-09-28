@@ -20,6 +20,15 @@
   bez bindingu Workers AI wymaga jawnego `EMBEDDING_ALLOW_LEXICAL=1`,
   inaczej start pada zamiast cicho truć kolekcję bge-m3 leksyką.
   Żadnych sekretów w kodzie/testach.
+- **Inwariant reuse-first (KOMAA-385, decyzja 2026-09-28):** kod jest
+  backend-agnostyczny — klient gada z Qdrantem bezpośrednio po REST, adres
+  i klucz wyłącznie z env. `mcp-qdrant` (`http://mcp-qdrant:8000/mcp`) to
+  narzędzie agenta/admina/dev, **nie** backend produktu. Brak
+  `QDRANT_URL`/`QDRANT_API_KEY` w runie agenta NIE jest dowodem na potrzebę
+  drugiego klastra — wybór backendu i projekcja `secret_ref` należą do
+  KOMAA-400. Guard: `tests/repo-structure.test.mjs`
+  („product knowledge path is direct-to-Qdrant and env-addressed") — brak
+  referencji do endpointu narzędziowego i brak zahardkodowanego URL Qdrant.
 - DoD w `app/plugin/contract.test.mjs` (21 green): idempotencja 2x ingest
   (drugi sync przez liczący embed — zero re-embedów realnie),
   update/delete/no-result, cross-user/tenant leakage, denylist, malformed +
@@ -55,10 +64,20 @@
   `.vercel/project.json`; gate słusznie odmawia auto-linku) — NIE raportować
   jako pass. Blokada pierwszorzędna: KOMAA-383 (Harness Agent).
 - Live Qdrant (`ingest → Qdrant → scoped retrieval → MCP ze źródłem`)
-  NIE był uruchomiony: `QDRANT_URL`/`QDRANT_API_KEY` nie są projekowane do
-  execution workspace. Blokada pierwszorzędna: **KOMAA-400** (Harness Agent,
-  secret flow). Do czasu provisioningu jedynym dowodem ingestu jest E2E
-  memory-backed na tym samym kodzie klienta.
+  NIE był uruchomiony — zgodnie z inwariantem reuse-first wynika to z braku
+  projekcji `QDRANT_URL`/`QDRANT_API_KEY` w execution workspace, a **nie** z
+  wniosku o nowym klastrze. Blokada pierwszorzędna: **KOMAA-400** (Harness
+  Agent, discovery-first). Kryteria kompatybilności, które musi potwierdzić
+  discovery (to one, nie zmiana kodu, decydują o reuse):
+  1. osiągalność REST Qdrant z runtime produktu (Vercel), nie tylko z sieci
+     Paperclip — wewnętrzny DNS typu `mcp-qdrant` nie wystarcza;
+  2. uprawnienia pojedynczego sekretu: `PUT /collections`
+     (`kompas-knowledge-v1`) + payload-indexy, albo kolekcja założona
+     wcześniej przez admina;
+  3. współdzielenie klastra nie koliduje z kolekcjami narzędzia
+     (produkt: `kompas-knowledge-v1`, `tenant=kompas-zbiorek`).
+  Do czasu projekcji jedynym dowodem ingestu jest E2E memory-backed na tym
+  samym kodzie klienta.
 - Niezależny review przez istniejący review stage: `request_changes` na
   `702114a` (B1/B2/B3 + R1/R2). B1, R1, R2 zamknięte kodem w `50933e4`;
   B2 (**KOMAA-400**) i B3 (**KOMAA-383**) to blokady zewnętrzne poza

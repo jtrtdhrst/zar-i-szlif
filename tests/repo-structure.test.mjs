@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { existsSync, readFileSync } from "node:fs";
+import { existsSync, readFileSync, readdirSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import test from "node:test";
 
@@ -35,4 +35,18 @@ test("repo exposes the V0 application contract", () => {
   assert.equal(vercelJson.installCommand, "npm ci");
   assert.equal(vercelJson.outputDirectory, "app/web/dist");
   assert.equal(vercelJson.framework, null);
+});
+
+// Inwariant architektury (KOMAA-385): produkt gada z Qdrantem bezpośrednio po
+// REST, a `mcp-qdrant` zostaje narzędziem agenta/admina/dev. Adres Qdrantu
+// przychodzi wyłącznie ze zmiennej środowiskowej (secret flow), nigdy z kodu.
+test("product knowledge path is direct-to-Qdrant and env-addressed", () => {
+  const sources = readdirSync(`${root}/app/plugin`, { recursive: true })
+    .filter((f) => f.endsWith(".ts"))
+    .map((f) => readFileSync(`${root}/app/plugin/${f}`, "utf8"))
+    .join("\n");
+
+  assert.doesNotMatch(sources, /mcp-qdrant|:8000\/mcp/);
+  assert.doesNotMatch(sources, /https?:\/\/[^\s"'`]*qdrant/i);
+  assert.match(sources, /process\.env\.QDRANT_URL/);
 });
