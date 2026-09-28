@@ -1,0 +1,5 @@
+#!/bin/sh
+set -eu
+
+echo "[pre-push] Running Kompas Vercel release gate..."
+exec npm run validate:vercel
