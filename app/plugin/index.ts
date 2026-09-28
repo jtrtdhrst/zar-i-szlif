@@ -16,11 +16,43 @@ import { StreamableHTTPServerTransport } from "@modelcontextprotocol/sdk/server/
 import { createPluginServer } from "./server.js";
 import { SERVER_NAME } from "./server.js";
 import { uiCspHeader } from "./ui.js";
-import { protectedResourceMetadata, publicResourceUrl, resolveAuth } from "./auth.js";
+import { bearerSubject, protectedResourceMetadata, publicResourceUrl, resolveAuth } from "./auth.js";
 import { createStubRagAdapter } from "./rag.js";
+import { QdrantClient } from "./knowledge/qdrant.js";
+import { deterministicEmbed, type EmbedFn } from "./knowledge/embeddings.js";
+import { createMemoryFetch } from "./knowledge/memory.js";
+import { COLLECTION_NAME } from "./knowledge/schema.js";
+import type { TokenProps } from "./knowledge/mcp-tools.js";
 
 const here = dirname(fileURLToPath(import.meta.url));
 const bundlePath = join(here, "../../web/dist/index.html");
+
+// Singleton backendu wiedzy (serwer jest bezstanowy per request MCP,
+// ale store w procesie musi przetrwać między requestami).
+// Secret flow: QDRANT_URL + QDRANT_API_KEY z env (Vercel env w prod);
+// brak QDRANT_URL = in-memory (dev/test, bez sekretów).
+// ponytail: jeden procesowy singleton; upgrade = zewnętrzny Qdrant.
+let knowledgeSingleton: { client: QdrantClient; embed: EmbedFn } | null = null;
+export function knowledgeBackend(): { client: QdrantClient; embed: EmbedFn } {
+  if (!knowledgeSingleton) {
+    const url = (process.env.QDRANT_URL ?? "").trim().replace(/\/+$/, "");
+    const client = url
+      ? new QdrantClient({ baseUrl: url, apiKey: process.env.QDRANT_API_KEY || undefined, collection: COLLECTION_NAME })
+      : new QdrantClient({ baseUrl: "memory://kompas-knowledge", collection: COLLECTION_NAME, fetchFn: createMemoryFetch() });
+    knowledgeSingleton = { client, embed: deterministicEmbed() };
+  }
+  return knowledgeSingleton;
+}
+
+// Auth scope per request, wyłącznie z nagłówka Bearer (server-derived).
+// Brak klienta-nadpisanego tenant/workspace/user: mcp-tools odrzucają
+// takie klucze w argumentach, a googleSub pochodzi tylko stąd.
+function tokenProps(req: { headers: Record<string, unknown> }): TokenProps | null {
+  const header = req.headers["authorization"];
+  if (typeof header !== "string") return null;
+  const sub = bearerSubject(header);
+  return sub ? { googleSub: sub, workspaceIds: [] } : null;
+}
 
 export function createApp() {
   const app = express();
@@ -46,9 +78,11 @@ export function createApp() {
   app.post("/mcp", async (req, res) => {
     const transport = new StreamableHTTPServerTransport({ sessionIdGenerator: undefined });
     res.on("close", () => transport.close());
+    const backend = knowledgeBackend();
     const server = createPluginServer({
       readBundle: () => readFile(bundlePath, "utf8"),
       rag: createStubRagAdapter(),
+      knowledge: { client: backend.client, embed: backend.embed, props: tokenProps(req) },
     });
     await server.connect(transport);
     await transport.handleRequest(req, res, req.body);

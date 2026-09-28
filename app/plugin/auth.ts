@@ -12,6 +12,8 @@
 export const OAUTH_ISSUER = "https://accounts.google.com";
 export const OAUTH_SCOPES = ["openid", "email", "profile"] as const;
 
+import { createHash } from "node:crypto";
+
 // Schemat bezpieczeństwa dla publicznego narzędzia demo (brak prywatnych danych).
 // Lokalny kontrakt _meta.securitySchemes, wiążący przez contract.test.mjs
 // (assert exact: type === "none" && requiresAuth === false). Nie jest to
@@ -49,6 +51,18 @@ export function requireAuth(auth: AuthContext): void {
   }
 }
 
+// Stabilny, serwerowy identyfikator podmiotu z tokenu Bearer (sha256,
+// nigdy sam token; nie logować). Izolacja scope bez lokalnej weryfikacji
+// JWT: ten serwer nie ufa żadnemu user_id z argumentów klienta — tożsamość
+// pochodzi wyłącznie stąd. Prod upgrade: prawdziwy `sub` z weryfikacji
+// w Workerze (window.__KOMPAS_OAUTH__), ten hash to fallback dla opaque tokenów.
+//
+// ponytail: jeden hash zamiast stosu JWT; upgrade gdy Worker poda sub.
+export function bearerSubject(authorizationHeader: string): string | null {
+  const m = /^bearer\s+(\S+)$/i.exec(authorizationHeader.trim());
+  if (!m) return null;
+  return `bearer:${createHash("sha256").update(m[1]).digest("hex")}`;
+}
 // Strukturalny gate dla przyszłych prywatnych narzędzi: owiń handler,
 // żeby rejestracja bez auth była niemożliwa bez wywołania tego wrappera.
 // Demo (publiczne) go nie używa — pokryte testem jednostkowym w kontrakcie.

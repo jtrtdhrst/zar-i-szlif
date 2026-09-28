@@ -143,3 +143,205 @@ test("health, readiness i protected resource metadata", async () => {
   assert.ok(prm.authorization_servers.includes("https://accounts.google.com"));
   assert.ok(prm.scopes_supported.includes("openid"));
 });
+
+// ---- KOMAA-385 RAG2: wiedza end-to-end (live ingest -> scoped retrieval -> MCP) ----
+import { knowledgeBackend } from "./dist/index.js";
+import { bearerSubject } from "./dist/auth.js";
+import { deterministicEmbed } from "./dist/knowledge/embeddings.js";
+import { QdrantClient } from "./dist/knowledge/qdrant.js";
+import { syncCorpus, syncDocument } from "./dist/knowledge/pipeline.js";
+import { assertNotDenied } from "./dist/knowledge/sources.js";
+import { loadAllowedDocuments } from "./dist/knowledge/sources.js";
+import { validatePayload, contentHash, chunkId } from "./dist/knowledge/schema.js";
+import { dirname as _dirname, join as _join } from "node:path";
+import { fileURLToPath as _furl } from "node:url";
+
+const repoRoot = _join(_dirname(_furl(import.meta.url)), "../..");
+const TOKEN_A = "E2E-USER-A-token";
+const TOKEN_B = "E2E-USER-B-token";
+
+async function rpcAuth(method, params, token) {
+  const headers = { "content-type": "application/json", accept: "application/json, text/event-stream" };
+  if (token) headers.authorization = `Bearer ${token}`;
+  const res = await fetch(`${base}/mcp`, {
+    method: "POST",
+    headers,
+    body: JSON.stringify({ jsonrpc: "2.0", id: id++, method, params }),
+  });
+  const text = await res.text();
+  const ctype = res.headers.get("content-type") ?? "";
+  if (ctype.includes("text/event-stream")) {
+    const data = text.split("\n").find((line) => line.startsWith("data: "));
+    return { status: res.status, body: JSON.parse(data.slice("data: ".length)) };
+  }
+  return { status: res.status, body: JSON.parse(text) };
+}
+
+async function seedLiveCorpus() {
+  const backend = knowledgeBackend();
+  await backend.client.ensureCollection();
+  const docs = loadAllowedDocuments(repoRoot, "test:contract");
+  assert.ok(docs.length >= 5, `realne źródła S3-S6 muszą się załadować (jest ${docs.length})`);
+  const state = new Map();
+  const first = await syncCorpus(backend.client, backend.embed, docs, state);
+  assert.ok(first.every((r) => r.upserted === r.chunks), "pierwszy ingest zapisuje wszystko");
+  // Idempotencja: powtórka = same id, zero nowych embeddingów.
+  const calls = { n: 0 };
+  const counting = async (texts) => { calls.n += texts.length; return deterministicEmbed()(texts); };
+  const second = await syncCorpus(backend.client, backend.embed, docs, state);
+  assert.ok(second.every((r) => r.upserted === 0 && r.skipped === r.chunks), "drugi ingest to no-op");
+  assert.equal(calls.n, 0);
+  return { backend, docs };
+}
+
+test("RAG tools/list: schematy, adnotacje, oauth2 securitySchemes", async () => {
+  const { body } = await rpc("tools/list", {});
+  const search = body.result.tools.find((t) => t.name === "search_knowledge");
+  const source = body.result.tools.find((t) => t.name === "get_knowledge_source");
+  assert.ok(search && source, "oba narzędzia wiedzy muszą być listowane");
+  assert.deepEqual(search.inputSchema.required, ["query"]);
+  assert.equal(search.inputSchema.properties.query.maxLength, 500);
+  assert.equal(search.annotations.readOnlyHint, true);
+  assert.equal(search.annotations.destructiveHint, false);
+  assert.equal(search.annotations.openWorldHint, false);
+  assert.equal(search._meta.securitySchemes[0].type, "oauth2");
+  assert.deepEqual(source.inputSchema.required, ["source_id", "document_id"]);
+  assert.equal(source._meta.securitySchemes[0].type, "oauth2");
+});
+
+test("RAG unauthorized: brak Bearer = błąd przed jakimkolwiek query", async () => {
+  for (const params of [
+    { name: "search_knowledge", arguments: { query: "logowanie" } },
+    { name: "get_knowledge_source", arguments: { source_id: "help-page", document_id: "help-page" } },
+  ]) {
+    const { body } = await rpc("tools/call", params);
+    assert.ok(body.error || body.result?.isError, `oczekiwany 401/fail-closed dla ${params.name}`);
+  }
+});
+
+test("RAG live: ingest -> scoped retrieval -> MCP response ze źródłem", async () => {
+  await seedLiveCorpus();
+  const { body } = await rpcAuth("tools/call", {
+    name: "search_knowledge",
+    arguments: { query: "logowanie Google pomoc", minScore: 0 },
+  }, TOKEN_A);
+  assert.ok(!body.error, `search nie może failować: ${JSON.stringify(body.error)}`);
+  const results = body.body?.result ?? body.result;
+  assert.ok(results.structuredContent.results.length > 0, "live retrieval zwraca trafienia");
+  const hit = results.structuredContent.results[0];
+  assert.ok(hit.source_id && hit.document_id && hit.text.length > 0, "hit ma attribution (źródło+dokument+tekst)");
+  assert.match(results.content[0].text, new RegExp(hit.source_id));
+});
+
+test("RAG source: get_knowledge_source zwraca chunki + update/delete/no-result", async () => {
+  const { backend } = await seedLiveCorpus();
+  const got = await rpcAuth("tools/call", {
+    name: "get_knowledge_source", arguments: { source_id: "help-page", document_id: "help-page" },
+  }, TOKEN_A);
+  const sc = (got.body.body?.result ?? got.body.result).structuredContent;
+  assert.ok(sc.chunks.length > 0, "dokument help-page ma chunki");
+  // Update: zmiana treści = re-embed zmienionych.
+  const upd = await syncDocument(backend.client, backend.embed, {
+    sourceId: "help-page", documentId: "help-page",
+    rawText: "Pomoc: logowanie przez Google. Nowy akapit o odzyskiwaniu konta. ".repeat(60),
+    sourceVersion: "test:update",
+  }, { knownHashes: {}, prevCount: 1 });
+  assert.ok(upd.upserted > 0, "update embedduje zmienione chunki");
+  // Delete: pusty tekst = purge dokumentu.
+  await syncCorpus(backend.client, backend.embed, [{
+    sourceId: "help-page", documentId: "help-page", rawText: "   ", sourceVersion: "test:delete",
+  }], new Map());
+  const after = await rpcAuth("tools/call", {
+    name: "get_knowledge_source", arguments: { source_id: "help-page", document_id: "help-page" },
+  }, TOKEN_A);
+  assert.equal((after.body.body?.result ?? after.body.result).structuredContent.chunks.length, 0, "po delete brak chunków");
+  // No-result: zapytanie bez sensownej treści przy ostrym progu.
+  const none = await rpcAuth("tools/call", {
+    name: "search_knowledge", arguments: { query: "xyqqz nieistniejący frazes", minScore: 0.99 },
+  }, TOKEN_A);
+  assert.equal((none.body.body?.result ?? none.body.result).structuredContent.results.length, 0);
+});
+
+test("RAG leakage negatives: cross-user/tenant/denylist niewidzialne", async () => {
+  const { backend } = await seedLiveCorpus();
+  const subA = bearerSubject(`Bearer ${TOKEN_A}`);
+  const alien = {
+    id: "11111111-2222-3333-4444-555555555555",
+    vector: (await deterministicEmbed()( ["sekretny plan użytkownika A"] ))[0],
+    payload: {
+      source_id: "help-page", document_id: "cudzy-dokument", chunk_id: "c0",
+      tenant: "kompas-zbiorek", user_id: subA, workspace_id: null, visibility: "user",
+      content_type: "help", content_hash: await contentHash("sekretny plan użytkownika A"),
+      source_version: "test:leak", updated_at: new Date().toISOString(), text: "sekretny plan użytkownika A",
+    },
+  };
+  const foreignTenant = { ...alien, id: "22222222-3333-4444-5555-666666666666",
+    payload: { ...alien.payload, tenant: "inny-produkt", visibility: "global", user_id: null } };
+  const denylisted = { ...alien, id: "33333333-4444-5555-6666-777777777777",
+    payload: { ...alien.payload, source_id: "paperclip-issues", visibility: "global", user_id: null } };
+  await backend.client.upsertPoints([alien, denylisted]);
+  // Obcy tenant odrzucany już przy zapisie (fail-closed write, V1 §5).
+  await assert.rejects(backend.client.upsertPoints([foreignTenant]), /tenant must be/);
+  // Obrona w głąb na odczycie: nawet gdyby silnik zwrócił nadmiarowy hit,
+  // post-filtr retrieval go tnie (canned fetch omija write-validation).
+  const { retrieve } = await import("./dist/knowledge/retrieval.js");
+  const stubFetch = async () => ({ ok: true, status: 200,
+    json: async () => ({ result: [
+      { score: 0.99, payload: foreignTenant.payload },
+      { score: 0.98, payload: denylisted.payload },
+      { score: 0.9, payload: { ...denylisted.payload, source_id: "help-page", tenant: "kompas-zbiorek" } },
+    ] }),
+    text: async () => "ok" });
+  const stubClient = new QdrantClient({ baseUrl: "memory://stub", fetchFn: stubFetch });
+  const stubHits = await retrieve(stubClient, deterministicEmbed(), "sekretny plan", { userId: subA, workspaceIds: [] }, { minScore: 0 });
+  assert.equal(stubHits.length, 1, "post-filtr tnie obcy tenant i denylist");
+  assert.equal(stubHits[0].source_id, "help-page");
+  const asB = await rpcAuth("tools/call", {
+    name: "search_knowledge", arguments: { query: "sekretny plan użytkownika", minScore: 0 },
+  }, TOKEN_B);
+  const textsB = JSON.stringify((asB.body.body?.result ?? asB.body.result).structuredContent);
+  assert.ok(!textsB.includes("sekretny plan użytkownika A"), "użytkownik B nie widzi chunka A");
+  assert.ok(!textsB.includes("paperclip-issues"), "denylistowany content nigdy nie wraca");
+  assert.ok(!textsB.includes("inny-produkt"), "obcy tenant niewidzialny");
+  const asA = await rpcAuth("tools/call", {
+    name: "search_knowledge", arguments: { query: "sekretny plan użytkownika", minScore: 0 },
+  }, TOKEN_A);
+  assert.ok(JSON.stringify((asA.body.body?.result ?? asA.body.result).structuredContent).includes("sekretny plan użytkownika A"),
+    "właściciel widzi własny chunk");
+  await backend.client.deletePoints([alien.id, foreignTenant.id, denylisted.id]);
+});
+
+test("RAG malformed: client-scope/prototype/object-key negatives", async () => {
+  // Warstwa walidacji odrzuca client override scope (izolacja z tokenu).
+  const { validateSearchArgs } = await import("./dist/knowledge/mcp-tools.js");
+  for (const key of ["tenant", "userId", "user_id", "workspaceIds", "workspace_id", "workspaces"]) {
+    assert.throws(() => validateSearchArgs({ query: "x", [key]: "cudzy-scope" }), /niedozwolony/);
+  }
+  // Przez transport MCP nieznane klucze są stripowane przez inputSchema
+  // (zod) — override nie dociera do silnika: B z cudzym user_id widzi nic.
+  const stripped = await rpcAuth("tools/call", {
+    name: "search_knowledge", arguments: { query: "sekretny plan użytkownika", minScore: 0, user_id: bearerSubject(`Bearer ${TOKEN_A}`) },
+  }, TOKEN_B);
+  assert.ok(!JSON.stringify(stripped.body.result ?? stripped.body).includes("sekretny plan użytkownika A"),
+    "stripowany scope override nie wycieka");
+  // Prototype pollution: __proto__ jako klucz nie eskaluje scope ani nie crashuje.
+  const polluted = JSON.parse('{"query":"logowanie","__proto__":{"user_id":"evil"}}');
+  const { body } = await rpcAuth("tools/call", { name: "search_knowledge", arguments: polluted }, TOKEN_A);
+  assert.ok(!JSON.stringify(body).includes("evil"), "__proto__ nie wstrzykuje scope");
+  // Nieznane źródło + zły topK/minScore = czytelny błąd.
+  for (const args of [
+    { query: "x", sourceIds: ["drive-user"] }, { query: "x", topK: 99 },
+    { query: "x", minScore: 5 }, { query: "   " }, { query: "x".repeat(501) },
+  ]) {
+    const { body: b } = await rpcAuth("tools/call", { name: "search_knowledge", arguments: args }, TOKEN_A);
+    assert.ok(b.error || b.result?.isError, `malformed musi być odrzucony: ${JSON.stringify(args).slice(0, 60)}`);
+  }
+  // Fail-closed payload: denylist źródła + niekompletny payload.
+  await assert.rejects(syncDocument(new QdrantClient({ baseUrl: "memory://x", fetchFn: (await import("./dist/knowledge/memory.js")).createMemoryFetch() }), deterministicEmbed(), {
+    sourceId: "paperclip-issues", documentId: "d", rawText: "sekret", sourceVersion: "v",
+  }), /not allowed/);
+  assert.ok(validatePayload({}).length > 0, "pusty payload invalid");
+  assert.ok(validatePayload({ source_id: "h", document_id: "d", chunk_id: await chunkId("d", 0), tenant: "zły", visibility: "global", content_type: "help", content_hash: "h", source_version: "v", updated_at: new Date().toISOString() }).length > 0, "zły tenant invalid");
+  assert.throws(() => assertNotDenied("ops/runbook.md"), /denied/);
+  assert.throws(() => assertNotDenied("AGENTS.md"), /denied/);
+});
