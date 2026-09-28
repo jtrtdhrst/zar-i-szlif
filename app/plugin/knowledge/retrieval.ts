@@ -91,7 +91,7 @@ export async function retrieve(
   const res = await client.searchScoped(vector, auth, {
     limit: topK,
     scoreThreshold: minScore,
-    extraFilter: { should: sources.map((s) => ({ key: "source_id", match: { value: s } })), min_should: { conditions: 1 } },
+    extraFilter: { should: sources.map((s) => ({ key: "source_id", match: { value: s } })) },
   });
 
   return (res.result ?? [])

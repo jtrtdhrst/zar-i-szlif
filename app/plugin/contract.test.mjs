@@ -233,6 +233,38 @@ test("RAG live: ingest -> scoped retrieval -> MCP response ze źródłem", async
   assert.match(results.content[0].text, new RegExp(hit.source_id));
 });
 
+test("RAG filter: kształt zgodny z Qdrant 1.19.1 (bez min_should/min_count/filtra w warunku)", async () => {
+  const { buildAuthFilter } = await import("./dist/knowledge/schema.js");
+  const { createMemoryFetch } = await import("./dist/knowledge/memory.js");
+  const { QdrantClient } = await import("./dist/knowledge/qdrant.js");
+  const auth = { userId: bearerSubject(`Bearer ${TOKEN_A}`), workspaceIds: ["ws-1"] };
+  const wire = JSON.stringify([buildAuthFilter(auth)]);
+  // Prawdziwy Qdrant 1.19.1 odpowiada 400 na `min_should`/`min_count`/`filter`
+  // wewnątrz warunku złożonego — na `/points/search` i `/points/query`.
+  for (const bad of ["min_should", "min_count", '"filter"']) {
+    assert.ok(!wire.includes(bad), `filtr nie może zawierać ${bad}: ${wire}`);
+  }
+  // Emulacja musi odrzucać ten sam kształt co silnik, inaczej suite przepuści zepsuty filtr.
+  const client = new QdrantClient({ baseUrl: "memory://shape", fetchFn: createMemoryFetch() });
+  await client.upsertPoints([{
+    id: "aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee", vector: [0, 1],
+    payload: {
+      source_id: "help-page", document_id: "d", chunk_id: "c0", tenant: "kompas-zbiorek",
+      user_id: auth.userId, workspace_id: null, visibility: "user", content_type: "help",
+      content_hash: "h", source_version: "v", updated_at: new Date().toISOString(), text: "t",
+    },
+  }]);
+  await assert.rejects(
+    client.searchScoped([0, 1], auth, { extraFilter: { should: [{ key: "source_id", match: { value: "x" } }], min_should: { conditions: 1 } } }),
+    /unsupported condition key "min_should"/,
+  );
+  // Kształt akceptowany nadal działa i respektuje widoczność.
+  const own = await client.searchScoped([0, 1], auth);
+  assert.equal(own.result.length, 1, "własny chunk widoczny");
+  const alien = await client.searchScoped([0, 1], { userId: bearerSubject(`Bearer ${TOKEN_B}`), workspaceIds: [] });
+  assert.equal(alien.result.length, 0, "obcy user nie widzi cudzego chunka");
+});
+
 test("RAG source: get_knowledge_source zwraca chunki + update/delete/no-result", async () => {
   const { backend } = await seedLiveCorpus();
   const got = await rpcAuth("tools/call", {

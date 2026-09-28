@@ -17,19 +17,24 @@ function cosine(a: number[], b: number[]): number {
   return dot / (Math.sqrt(na) * Math.sqrt(nb));
 }
 
+// Dozwolone klucze warunku wg Qdrant 1.19.1. `min_should`, `filter`, `min_count`
+// NIE są warunkami — prawdziwy Qdrant odpowiada na nie HTTP 400, więc emulacja
+// odrzuca je tak samo (inaczej zielony suite na emulacji przepuszczałby filtr,
+// który pada na produkcji).
+const CONDITION_KEYS = new Set(["key", "match", "must", "should"]);
+
 // Fail-closed: nieznany kształt warunku = brak dopasowania.
 function matches(payload: Record<string, unknown>, cond: unknown): boolean {
   if (!cond || typeof cond !== "object") return false;
   const c = cond as Record<string, unknown>;
+  for (const k of Object.keys(c)) {
+    if (!CONDITION_KEYS.has(k)) throw new Error(`qdrant filter: unsupported condition key "${k}"`);
+  }
   if (typeof c.key === "string" && c.match && typeof c.match === "object") {
     return payload[c.key] === (c.match as Record<string, unknown>).value;
   }
   if (Array.isArray(c.must)) return c.must.every((s) => matches(payload, s));
-  if (Array.isArray(c.should)) {
-    const minRaw = c.min_should as { conditions?: number } | number | undefined;
-    const min = typeof minRaw === "number" ? minRaw : (minRaw?.conditions ?? 1);
-    return c.should.filter((s) => matches(payload, s)).length >= min;
-  }
+  if (Array.isArray(c.should)) return c.should.some((s) => matches(payload, s));
   return false;
 }
 

@@ -158,9 +158,10 @@ export function buildAuthFilter(auth: AuthContext): QdrantFilter {
       must: [{ key: "visibility", match: { value: "workspace" } }, { key: "workspace_id", match: { value: workspaceId } }],
     });
   }
-  return {
-    must: [{ key: "tenant", match: { value: TENANT } }, { should, min_should: { conditions: 1 } }],
-  };
+  // Legarna tablica `should` już znaczy "min. 1 warunek". `min_should` (ani nowa
+  // składnia `should: {conditions, min_count}`) NIE jest warunkiem — Qdrant 1.19.1
+  // odrzuca je w warunku złożonym HTTP 400 na /points/search i /points/query.
+  return { must: [{ key: "tenant", match: { value: TENANT } }, { should }] };
 }
 
 /** Body tworzenia kolekcji (PUT /collections/{name}) — deterministyczne, testowane. */
