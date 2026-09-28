@@ -52,13 +52,24 @@
   (`QDRANT_URL` + `QDRANT_API_KEY` + `EMBEDDING_ALLOW_LEXICAL=1` dla leksyki);
   w tym checkoutcie live Qdrant NIE był uruchomiony — E2E jest memory-backed.
 - `ponytail:` w kodzie znaczą sufity (opaque-bearer sub, heurystyka leksykalna, brak HNSW).
+- Ścieżka live smoke (`knowledge/smoke.ts`) jest **ta sama** dla prawdziwego
+  Qdranta i dla emulacji REST — różni się tylko `fetchFn`. Dzięki temu
+  jednorazowy live nie może zawieść na błędzie skryptu: kontraktowy test
+  przepuszcza pełną ścieżkę (ingest → MCP → negatyw wycieku → sprzątanie)
+  bez sekretów. Zakres env smoke to dokładnie dwa sekrety
+  (`QDRANT_URL`, `QDRANT_API_KEY`) + jawna flaga `EMBEDDING_ALLOW_LEXICAL=1`
+  (nie sekret) — ścieżka `existing_instance` nie wymaga żadnej pracy poza
+  bindingiem tych dwóch zmiennych.
 
 ## Evidence (uczciwie)
-- `npm run validate:code` green na finalnym SHA (lint + typecheck + 21 kontrakt
+- `npm run validate:code` green na finalnym SHA (lint + typecheck + 22 kontrakt
   + 1 repo-structure + 9 vitest). Testy mutacyjne: po usunięciu guardu
   denylisty z `syncDocument` test R2 pada (nie jest tautologiczny).
   Dodatkowo po KOMAA-403: reintrodukcja `min_should` do filtra wywala kontrakt
   przez emulację (guard na kształcie, nie na konkretnej wartości).
+  Po wyciągnięciu live smoke: zepsucie `buildAuthFilter` (gałąź `user_id`)
+  wywala test ścieżki smoke komunikatem „filtr scope popsujony" — negatyw
+  wycieku nie jest pozorny.
 - `npm run validate:vercel`: gate kończy się **kodem 2** w tym checkoutcie
   (brak linku projektu Vercel: `VERCEL_ORG_ID`/`VERCEL_PROJECT_ID`, brak
   `.vercel/project.json`; gate słusznie odmawia auto-linku) — NIE raportować
@@ -76,8 +87,16 @@
      wcześniej przez admina;
   3. współdzielenie klastra nie koliduje z kolekcjami narzędzia
      (produkt: `kompas-knowledge-v1`, `tenant=kompas-zbiorek`).
-  Do czasu projekcji jedynym dowodem ingestu jest E2E memory-backed na tym
-  samym kodzie klienta.
+   Do czasu projekcji jedynym dowodem ingestu jest E2E memory-backed na tym
+   samym kodzie klienta.
+  Jeden live run po projekcji zamyka całą linię B2 naraz (to dlatego smoke
+  nie woła wewnętrznego `retrieve()`, tylko `search_knowledge` /
+  `get_knowledge_source`): ingest przez pipeline → odpowiedź MCP
+  z `source_id`/`chunk_id` → chunki źródła → negatyw wycieku
+  (`user`-scoped chunk widoczny dla właściciela, niewidoczny dla obcego
+  tokenu, na filtrze silnika) → delete → asercja „po delete nic nie wraca".
+  Zero dodatkowych sekretów, zero drugiego clustera, zero board-gated pracy
+  poza tymi dwoma bindingami.
 - Niezależny review przez istniejący review stage: `request_changes` na
   `702114a` (B1/B2/B3 + R1/R2). B1, R1, R2 zamknięte kodem w `50933e4`;
   B2 (**KOMAA-400**) i B3 (**KOMAA-383**) to blokady zewnętrzne poza

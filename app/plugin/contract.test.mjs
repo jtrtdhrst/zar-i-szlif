@@ -233,6 +233,30 @@ test("RAG live: ingest -> scoped retrieval -> MCP response ze źródłem", async
   assert.match(results.content[0].text, new RegExp(hit.source_id));
 });
 
+test("RAG live-smoke: ścieżka skryptu przechodzi na emulacji (jednorazowy live nie może zawieść)", async () => {
+  // Uruchomienie przeciw prawdziwemu Qdrantowi kosztuje jednorazową akcję boardową
+  // (sekret), więc cała ścieżka `scripts/rag-live-smoke.mjs` musi być sprawdzona
+  // na tej samej emulacji REST, na której klient zobaczy produkcyjne odpowiedzi.
+  const { createMemoryFetch } = await import("./dist/knowledge/memory.js");
+  const { runKnowledgeSmoke } = await import("./dist/knowledge/smoke.js");
+  const client = new QdrantClient({ baseUrl: "memory://smoke", fetchFn: createMemoryFetch() });
+  const owner = bearerSubject(`Bearer ${TOKEN_A}`);
+
+  const report = await runKnowledgeSmoke(client, deterministicEmbed(), owner);
+  assert.equal(report.cleanedUp, true, "smoke sprzata po sobie");
+  assert.ok(report.topHit?.source_id && report.topHit.chunk_id && report.topHit.text.length > 0,
+    "odpowiedź MCP z atrybucją źródła (DoD: 'MCP response ze źródłem')");
+  assert.ok(report.sourceChunks > 0, "get_knowledge_source zwraca chunki");
+  assert.ok(report.privateVisibleToOwner > 0, "wlasciciel widzi wlasny chunk");
+  assert.equal(report.privateVisibleToAlien, 0, "obcy token nie widzi prywatnego chunka");
+
+  // Powtorka na tej samej kolekcji = brak zasmiecenia po sprzataniu (ta sama sciezka kodu).
+  const again = await runKnowledgeSmoke(client, deterministicEmbed(), owner);
+  assert.equal(again.topHit?.document_id, report.topHit.document_id, "smoke jest powtarzalne");
+  // Smoke nie udaje passu: każde zalozenie to throw, nie log.
+  await assert.rejects(runKnowledgeSmoke(client, deterministicEmbed(), ""), /ownerSub/);
+});
+
 test("RAG filter: kształt zgodny z Qdrant 1.19.1 (bez min_should/min_count/filtra w warunku)", async () => {
   const { buildAuthFilter } = await import("./dist/knowledge/schema.js");
   const { createMemoryFetch } = await import("./dist/knowledge/memory.js");

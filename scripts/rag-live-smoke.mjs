@@ -1,10 +1,10 @@
-// Live smoke: ingest -> Qdrant -> scoped retrieval (wymaga sekretów).
+// Live smoke: ingest -> Qdrant -> scoped retrieval -> odpowiedź MCP (wymaga sekretów).
 // Uruchamia posiadacz sekretu: QDRANT_URL (+QDRANT_API_KEY) node scripts/rag-live-smoke.mjs
 // Bez QDRANT_URL gate kończy się kodem 2 z czytelną instrukcją (nie udaje live).
+// Sama ścieżka żyje w knowledge/smoke.ts — pokryta testem na emulacji REST.
 import { QdrantClient } from "../app/plugin/dist/knowledge/qdrant.js";
 import { deterministicEmbed } from "../app/plugin/dist/knowledge/embeddings.js";
-import { syncCorpus } from "../app/plugin/dist/knowledge/pipeline.js";
-import { retrieve } from "../app/plugin/dist/knowledge/retrieval.js";
+import { runKnowledgeSmoke } from "../app/plugin/dist/knowledge/smoke.js";
 import { bearerSubject } from "../app/plugin/dist/auth.js";
 
 const url = (process.env.QDRANT_URL ?? "").trim().replace(/\/+$/, "");
@@ -17,12 +17,6 @@ if (process.env.EMBEDDING_ALLOW_LEXICAL !== "1") {
   process.exit(2);
 }
 const client = new QdrantClient({ baseUrl: url, apiKey: process.env.QDRANT_API_KEY || undefined });
-await client.ensureCollection();
-const docs = [{ sourceId: "help-page", documentId: "live-smoke", rawText: "Pomoc: logowanie przez Google. Smoke Qdrant live.", sourceVersion: "smoke" }];
-const res = await syncCorpus(client, deterministicEmbed(), docs, new Map());
-const sub = bearerSubject("Bearer live-smoke-token");
-const hits = await retrieve(client, deterministicEmbed(), "logowanie Google", { userId: sub, workspaceIds: [] }, { minScore: 0 });
-console.log(JSON.stringify({ upserted: res[0], hits: hits.slice(0, 2) }, null, 2));
-if (hits.length === 0) { console.error("[rag-live-smoke] FAIL: no hits"); process.exit(1); }
-await client.deleteDocument("help-page", "live-smoke");
-console.log("[rag-live-smoke] PASS (smoke doc cleaned up)");
+const report = await runKnowledgeSmoke(client, deterministicEmbed(), bearerSubject("Bearer live-smoke-token"));
+console.log(JSON.stringify(report, null, 2));
+console.log("[rag-live-smoke] PASS (dokumenty smoke usunięte)");
