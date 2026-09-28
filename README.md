@@ -7,8 +7,10 @@ Aplikacja dla instruktorów Royal Rangers wspierająca cykl **Planowanie → Rea
 ```text
 app/                       # jedyny katalog runtime aplikacji
 ├── web/                   # UI
-├── server/                # serwer ChatGPT/MCP
+├── plugin/                # Wtyczka / MCP Kompasu Zbiórek
 └── cloudflare-worker/     # API/integracje/Cloudflare
+
+branding/                  # kanoniczny folder brandingu produktu; obecnie pusty
 
 dev/                       # kod wspierający rozwój aplikacji
 ├── design-system/         # OpenDesign/design tokens
@@ -29,7 +31,7 @@ scripts/                   # tooling repozytorium
 skills/                    # skille developerskie/agentowe
 ```
 
-Root repo pozostaje możliwie płaski: konfiguracja workspace, registry, tooling i dokumentacja. Kod produkcyjny nie powinien wracać na root.
+Root repo pozostaje możliwie płaski: konfiguracja workspace, registry, tooling, dokumentacja oraz wydzielony `branding/`. Kod produkcyjny pozostaje w `app/`.
 
 ## Kanon architektury
 
@@ -94,9 +96,10 @@ Obecny `app/npm run test:all` wykonuje build, typecheck i istniejący targeted t
 | MCP/API Worker | `app/cloudflare-worker/src/public-ui.ts` |
 | OAuth | `app/cloudflare-worker/src/oauth.ts`, `google-handler.ts`, `widget-auth.ts` |
 | Build Worker | `app/cloudflare-worker/build-worker.mjs` |
-| Serwer ChatGPT/MCP | `app/server/index.ts` |
+| Wtyczka / MCP Kompasu Zbiórek | `app/plugin/index.ts` |
 | Dodatkowe testy/pipeline | `dev/quality/` |
-| Design tokens | `dev/design-system/opendesign/design-systems/kompas-rrp/tokens/colors_and_type.css` |
+| Branding produktu | `branding/` (obecnie pusty; jedyne kanoniczne miejsce na przyszłe źródła brandingu) |
+| Techniczny design system / tokeny | `dev/design-system/opendesign/design-systems/kompas-rrp/tokens/colors_and_type.css` |
 | Maile onboardingowe | `content/onboarding-emails/` |
 | Marketing | `content/marketing/` |
 | Integracje developerskie | `dev/integrations/` |
