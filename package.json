@@ -14,7 +14,9 @@
     "test": "npm --prefix app run test && node --test tests/repo-structure.test.mjs && vitest run app/cloudflare-worker/src",
     "prepare": "node scripts/install-git-hooks.mjs",
     "validate:code": "npm run lint && npm run typecheck && npm test",
-    "validate:vercel": "npm run validate:code && node scripts/validate-vercel.mjs"
+    "validate:vercel": "npm run validate:code && node scripts/validate-vercel.mjs",
+    "validate:cloudflare": "npm run build && cd app/cloudflare-worker && npx wrangler deploy --dry-run --config wrangler.panel.jsonc",
+    "validate:release": "npm run validate:vercel && npm run validate:cloudflare"
   },
   "dependencies": {
     "@cloudflare/workers-oauth-provider": "^0.10.3"
