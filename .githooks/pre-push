@@ -10,5 +10,5 @@ do
   fi
 done
 
-echo "[pre-push] Running Kompas release gate (Vercel + Cloudflare)..."
+echo "[pre-push] Running Kompas frontend release gate (Vercel)..."
 exec npm run validate:release
