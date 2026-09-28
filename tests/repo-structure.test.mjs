@@ -36,3 +36,23 @@ test("repo exposes the V0 application contract", () => {
   assert.equal(vercelJson.outputDirectory, "app/web/dist");
   assert.equal(vercelJson.framework, null);
 });
+
+test("release guardrails cover both build targets and production auth preflight", () => {
+  for (const script of ["validate:code", "validate:vercel", "validate:cloudflare", "validate:release"]) {
+    assert.equal(typeof packageJson.scripts[script], "string", `missing npm script: ${script}`);
+  }
+
+  assert.match(packageJson.scripts["validate:release"], /validate:vercel/);
+  assert.match(packageJson.scripts["validate:release"], /validate:cloudflare/);
+
+  const prePush = readFileSync(`${root}/.githooks/pre-push`, "utf8");
+  assert.match(prePush, /refs\/heads\/main/);
+  assert.match(prePush, /validate:release/);
+
+  const ci = readFileSync(`${root}/.github/workflows/ci.yml`, "utf8");
+  assert.match(ci, /production-preflight:/);
+  assert.match(ci, /CLOUDFLARE_API_TOKEN/);
+  assert.match(ci, /CLOUDFLARE_ACCOUNT_ID/);
+  assert.match(ci, /wrangler whoami/);
+  assert.match(ci, /needs: production-preflight/);
+});
