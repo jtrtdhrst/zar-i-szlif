@@ -32,6 +32,22 @@ wraz z `QDRANT_URL` / `QDRANT_API_KEY` / `EMBEDDING_ALLOW_LEXICAL`, oraz
 zachowanie przy każdej kombinacji: `app/README.md`, sekcja „Zmienne
 środowiskowe Wtyczki / MCP”, i `.env.example` w root repo.
 
+## Produkcyjny endpoint MCP (Cloudflare)
+
+Kanoniczny serwer MCP z logowaniem Google żyje na Cloudflare Workerze, nie na Vercelu:
+
+- **MCP endpoint:** `https://mcp.kompaszbiorek.pl/mcp` (Streamable HTTP, bezstanowy)
+- **Origin authorization servera:** `https://mcp.kompaszbiorek.pl` — binding `MCP_PUBLIC_ORIGIN`
+- **Google OAuth callback:** `https://mcp.kompaszbiorek.pl/callback`
+- **Custom domain:** `mcp.kompaszbiorek.pl` jako `custom_domain` tego samego Workera co `panel.kompaszbiorek.pl` (oba w `routes`). `panel.kompaszbiorek.pl` nadal obsługuje `/mcp` dla istniejących klientów, ale w metadanych OAuth reklamowany jest wyłącznie `https://mcp.kompaszbiorek.pl/mcp`.
+- Workers.dev jest wyłącznie smoke/preview i nie jest adresem produkcyjnym.
+
+**Vercel nie jest bramką tego MCP.** Brak `VERCEL_ORG_ID` / `VERCEL_PROJECT_ID` blokuje `validate:vercel` (frontend), ale nie blokuje wdrożenia ani akceptacji MCP — to celowy podział targetów opisany wyżej.
+
+Wymagane sekrety Workera (nazwy bez wartości): `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET`, `COOKIE_ENCRYPTION_KEY`, `QDRANT_URL`, `QDRANT_API_KEY`; opcjonalnie `GOOGLE_PICKER_API_KEY`. Bindingi: `OAUTH_KV` (KV dla `workers-oauth-provider`), `AI` (Workers AI `bge-m3`).
+
+Canonicalny opis protokołu, narzędzi, sekretów i smoke: `app/cloudflare-worker/README.md`.
+
 ## Frontend / Vercel
 
 Frontend jest publikowany przez podpiętą integrację Vercel ↔ GitHub.

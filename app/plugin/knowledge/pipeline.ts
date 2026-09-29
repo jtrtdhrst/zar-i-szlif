@@ -22,17 +22,47 @@ import type { EmbedFn } from "./embeddings.js";
 import { assertNotDenied } from "./denylist.js";
 
 /** V1 §2: indeksowalne źródła (kod, nie flaga). S2 i S7 wyłączone do decyzji V2. */
-export const ALLOWED_SOURCES: Record<string, { contentType: ContentType; visibility: Visibility }> = {
-  "skills-catalog": { contentType: "rr-requirement", visibility: "global" },
-  marketing: { contentType: "marketing", visibility: "global" },
-  "onboarding-emails": { contentType: "onboarding-email", visibility: "global" },
-  "help-page": { contentType: "help", visibility: "global" },
-  legal: { contentType: "legal", visibility: "global" },
-  "runtime-doc": { contentType: "runtime-doc", visibility: "global" },
-};
+export const ALLOWED_SOURCES: Record<string, { contentType: ContentType; visibility: Visibility }> = Object.assign(
+  Object.create(null) as Record<string, { contentType: ContentType; visibility: Visibility }>,
+  {
+    "skills-catalog": { contentType: "rr-requirement", visibility: "global" },
+    marketing: { contentType: "marketing", visibility: "global" },
+    "onboarding-emails": { contentType: "onboarding-email", visibility: "global" },
+    "help-page": { contentType: "help", visibility: "global" },
+    legal: { contentType: "legal", visibility: "global" },
+    "runtime-doc": { contentType: "runtime-doc", visibility: "global" },
+  },
+);
 
+// BEZ PROTOTYPU (`Object.create(null)` wyżej) — jedna naprawa wszystkich odwołań
+// `ALLOWED_SOURCES[id]` naraz. Na zwykłym obiekcie literału
+// `ALLOWED_SOURCES["__proto__"]`, `["constructor"]`, `["toString"]`, `["valueOf"]`
+// oraz `["hasOwnProperty"]` zwracają `Object.prototype`/metody, czyli wartość
+// TRUTY, więc allowlista przepuszczała klucze obiektowe podane przez klienta
+// (negatywy bezpieczeństwa KOMAA-446). Guards sprawdzają prawdę, nie własność: z
+// zerowym prototypem każdy z nich, również ten dodany w przyszłości, odrzuca
+// cokolwiek poza własnymi kluczami.
 export function assertAllowedSource(sourceId: string): void {
   if (!ALLOWED_SOURCES[sourceId]) throw new Error(`source not allowed (V1 allowlist): ${sourceId}`);
+}
+
+/**
+ * Publiczne, absolutne adresy dokumentów — jedyne źródło `url` w wynikach
+ * narzędzi `search` / `fetch` (ChatGPT tworzy cytowanie tylko dla niepustego
+ * `url`; brak URL = zwykłe wyjście narzędzia, nie pusta cytowanie).
+ *
+ * Pusty string = brak zweryfikowanego publicznego adresu. Nie wpisujemy tu
+ * adresu, którego nie potwierdziliśmy jako osiągalny (2026-09-29: domeny
+ * `polityka-prywatnosci.*` / `warunki.kompaszbiorek.pl` nie odpowiadają, więc
+ * dokumenty `legal/*` wracają bez `url` zamiast z fałszywą cytacją).
+ */
+export const PUBLIC_DOCUMENT_URLS: Record<string, string> = {
+  "help-page": "https://pomoc.kompaszbiorek.pl/",
+};
+
+/** Kanoniczny `url` dokumentu albo `""` (wynik bez cytowania). Fail-closed. */
+export function publicDocumentUrl(documentId: string): string {
+  return PUBLIC_DOCUMENT_URLS[documentId] ?? "";
 }
 
 export interface SourceDocument {

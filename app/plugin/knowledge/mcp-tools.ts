@@ -12,7 +12,7 @@
  */
 
 import { TENANT, type AuthContext, type ChunkPayload } from "./schema.js";
-import { ALLOWED_SOURCES } from "./pipeline.js";
+import { ALLOWED_SOURCES, publicDocumentUrl } from "./pipeline.js";
 import { RETRIEVAL_DEFAULT_MIN_SCORE, RETRIEVAL_DEFAULT_TOP_K, RETRIEVAL_MAX_TOP_K, retrieve } from "./retrieval.js";
 import type { QdrantClient } from "./qdrant.js";
 import type { EmbedFn } from "./embeddings.js";
@@ -192,6 +192,109 @@ export async function getKnowledgeSource(
     }));
   return { source_id, document_id, chunks };
 }
+
+// ---- Company Knowledge compatibility: cienkie `search` / `fetch` ----
+//
+// ChatGPT (deep research / company knowledge) wymaga dwóch standardowych
+// narzędzi read-only o ustalonych schematach. To NADPROWŻE, nie duplikat:
+// oba wołają dokładnie ten sam rdzeń (`searchKnowledge` / `getKnowledgeSource`
+// → `retrieve` → Qdrant z filtrem auth z tokenu). Klient nadal nie może
+// narzucić scope: `fetch` przyjmuje wyłącznie `id` dokumentu, a `search`
+// dokładnie ten sam argument `query` co `search_knowledge`.
+
+export const DOC_HANDLE_MAX_CHARS = 256;
+
+/** Uchwyt dokumentu = `<source_id>/<document_id>`; `source_id` nigdy nie zawiera `/`. */
+export function documentHandle(sourceId: string, documentId: string): string {
+  return `${sourceId}/${documentId}`;
+}
+
+/** Fail-closed: uchwyt spoza allowlisty lub bez separatora = błąd, nie ciche `""`. */
+export function parseDocumentHandle(raw: unknown): { source_id: string; document_id: string } {
+  const id = typeof raw === "string" ? raw.trim() : "";
+  if (!id) throw new Error("Parametr \"id\" jest wymagany.");
+  if (id.length > DOC_HANDLE_MAX_CHARS) throw new Error(`Parametr "id" jest za długi (max ${DOC_HANDLE_MAX_CHARS} znaków).`);
+  const sep = id.indexOf("/");
+  if (sep <= 0 || sep === id.length - 1) throw new Error("Parametr \"id\" musi mieć postać <source_id>/<document_id>.");
+  const source_id = id.slice(0, sep);
+  const document_id = id.slice(sep + 1);
+  if (!ALLOWED_SOURCES[source_id]) throw new Error(`Źródło niedozwolone (allowlista V1): ${source_id}.`);
+  return { source_id, document_id };
+}
+
+/** Company Knowledge `search`: lista uchwytów do dalszego `fetch`. */
+export async function companySearch(
+  client: QdrantClient,
+  embed: EmbedFn,
+  props: TokenProps | null | undefined,
+  rawArgs: unknown,
+): Promise<{ results: { id: string; title: string; url: string }[] }> {
+  // Identyczna walidacja co `search_knowledge` — wspólny rdzeń, brak obejścia.
+  const { query, topK, minScore, sourceIds } = validateSearchArgs(rawArgs);
+  const hits = await searchKnowledge(client, embed, props, { query, topK, minScore, sourceIds });
+  const byDocument = new Map<string, { id: string; title: string; url: string }>();
+  for (const hit of hits) {
+    const id = documentHandle(hit.source_id, hit.document_id);
+    if (!byDocument.has(id)) byDocument.set(id, { id, title: hit.document_id, url: publicDocumentUrl(hit.document_id) });
+  }
+  return { results: [...byDocument.values()] };
+}
+
+/** Company Knowledge `fetch`: pełna treść dokumentu widocznego dla tokenu. */
+export async function companyFetch(
+  client: QdrantClient,
+  props: TokenProps | null | undefined,
+  rawArgs: unknown,
+): Promise<{ id: string; title: string; text: string; url: string; metadata: Record<string, unknown> }> {
+  const args = typeof rawArgs === "object" && rawArgs !== null && !Array.isArray(rawArgs) ? (rawArgs as Record<string, unknown>) : {};
+  assertNoClientScope(args);
+  const { source_id, document_id } = parseDocumentHandle(args.id);
+  const { chunks } = await getKnowledgeSource(client, props, { source_id, document_id, limit: SOURCE_MAX_LIMIT });
+  const first = chunks[0];
+  return {
+    id: documentHandle(source_id, document_id),
+    title: document_id,
+    text: chunks.map((c) => c.text).filter(Boolean).join("\n\n"),
+    url: publicDocumentUrl(document_id),
+    metadata: {
+      source_id,
+      chunk_count: chunks.length,
+      ...(first ? { content_type: first.content_type, source_version: first.source_version, updated_at: first.updated_at } : {}),
+    },
+  };
+}
+
+export const COMPANY_SEARCH_TOOL = {
+  name: "search",
+  title: "Szukaj w bazie wiedzy",
+  description:
+    "Standardowe wyszukiwanie w bazie wiedzy Kompasu Zbiórek (pomoc, onboarding, treści marketingowe, dokumenty prawne). Zwrócone identyfikatory dokumentów przekaż do narzędzia fetch, aby pobrać pełną treść.",
+  inputSchema: {
+    type: "object",
+    properties: {
+      query: { type: "string", description: "Zapytanie w języku naturalnym (max 500 znaków).", maxLength: 500 },
+      topK: { type: "integer", description: "Liczba wyników (1–20, domyślnie 8).", minimum: 1, maximum: 20 },
+      minScore: { type: "number", description: "Minimalne podobieństwo 0–1 (domyślnie 0.35).", minimum: 0, maximum: 1 },
+      sourceIds: { type: "array", items: { type: "string" }, description: "Opcjonalne zawężenie do źródeł (podzbiór allowlisty)." },
+    },
+    required: ["query"],
+    additionalProperties: false,
+  },
+  annotations: { readOnlyHint: true, openWorldHint: false, destructiveHint: false },
+};
+
+export const COMPANY_FETCH_TOOL = {
+  name: "fetch",
+  title: "Pobierz dokument wiedzy",
+  description: "Zwraca pełną treść dokumentu bazy wiedzy na podstawie identyfikatora zwróconego przez wyszukiwanie.",
+  inputSchema: {
+    type: "object",
+    properties: { id: { type: "string", description: "Identyfikator dokumentu <source_id>/<document_id>.", maxLength: DOC_HANDLE_MAX_CHARS } },
+    required: ["id"],
+    additionalProperties: false,
+  },
+  annotations: { readOnlyHint: true, openWorldHint: false, destructiveHint: false },
+};
 
 export const SEARCH_KNOWLEDGE_TOOL = {
   name: "search_knowledge",

@@ -5,6 +5,7 @@
   "compatibility_date": "2026-08-07",
   "workers_dev": false,
   "routes": [
+    { "pattern": "mcp.kompaszbiorek.pl", "custom_domain": true },
     { "pattern": "panel.kompaszbiorek.pl", "custom_domain": true }
   ],
   "vars": {
@@ -12,7 +13,11 @@
     "SHEETS_TEMPLATE_FILE_ID": "13jV1YPEh8G2-e7xKH3lsTxu9gY0ckvveaYQxxc6rzFs",
     "GOOGLE_CLOUD_PROJECT_NUMBER": "450955230972",
     "SENDER_ONBOARDING_ENABLED": "false",
-    "SENDER_ONBOARDING_GROUP": "onboarding-sekwencja"
+    "SENDER_ONBOARDING_GROUP": "onboarding-sekwencja",
+    "MCP_PUBLIC_ORIGIN": "https://mcp.kompaszbiorek.pl"
+  },
+  "ai": {
+    "binding": "AI"
   },
   "kv_namespaces": [
     {

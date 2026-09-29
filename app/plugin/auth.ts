@@ -1,4 +1,9 @@
-// Kontrakt auth/readiness dla Wtyczki / MCP.
+// Kontrakt auth/readiness dla Wtyczki / MCP (lokalny stack Node/Express).
+//
+// Nagłówki bezpieczeństwa (`*_SECURITY_SCHEME`) żyją w `security.js` — wspólnym
+// module bez `node:*`, żeby produkcyjny Worker korzystał z tego samego kontraktu.
+// `AuthContext` poniżej dotyczy lokalnego transportu Express; scope retrievalu
+// (`knowledge/schema.ts`) ma własny, pochodzący z tokenu typ.
 //
 // - Prywatne dane wymagają OAuth 2.1; walidacja tokenów należy do
 //   istniejącego stosu (Cloudflare Worker, Google OpenID Connect) —
@@ -9,27 +14,10 @@
 // - Narzędzie demo jest publiczne (securitySchemes: none); przyszłe
 //   narzędzia z prywatnymi danymi muszą wołać requireAuth() (fail-closed).
 
-export const OAUTH_ISSUER = "https://accounts.google.com";
-export const OAUTH_SCOPES = ["openid", "email", "profile"] as const;
+export { OAUTH2_SECURITY_SCHEME, OAUTH_ISSUER, OAUTH_SCOPES, PUBLIC_SECURITY_SCHEME } from "./security.js";
 
 import { createHash } from "node:crypto";
-
-// Schemat bezpieczeństwa dla publicznego narzędzia demo (brak prywatnych danych).
-// Lokalny kontrakt _meta.securitySchemes, wiążący przez contract.test.mjs
-// (assert exact: type === "none" && requiresAuth === false). Nie jest to
-// OpenAPI/OAuth scheme — publiczne narzędzie nie ma wymogu auth.
-export const PUBLIC_SECURITY_SCHEME = {
-  type: "none",
-  requiresAuth: false,
-  reason: "public demo tool; no private data leaves the local bundle",
-} as const;
-
-// Schemat dla przyszłych narzędzi z prywatnymi danymi (OAuth 2.1 Bearer).
-export const OAUTH2_SECURITY_SCHEME = {
-  type: "oauth2",
-  issuer: OAUTH_ISSUER,
-  scopes: [...OAUTH_SCOPES],
-} as const;
+import { OAUTH_ISSUER, OAUTH_SCOPES } from "./security.js";
 
 export type AuthContext = { anonymous: true } | { anonymous: false; bearerPresent: true };
 
