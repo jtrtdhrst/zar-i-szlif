@@ -64,7 +64,11 @@
   bindingiem tych dwóch zmiennych.
 
 ## Evidence (uczciwie)
-- `npm run validate:code` green na finalnym SHA (lint + typecheck + 22 kontrakt
+- Kandydat końcowy: HEAD brancha `feature/rag-chatgpt-plugin`. Exact SHA jest
+  w watku issue, nie tutaj — każda edycja tego pliku unieważniałaby wpisany
+  SHA. Poprzednia recenzja (`request_changes`) dotyczyła `702114a`; od tamtej
+  pory doszło commity zamykające B1/B2/B3 + R1/R2.
+- `npm run validate:code` green na finalnym SHA (lint + typecheck + 24 kontrakt
   + 1 repo-structure + 9 vitest). Testy mutacyjne: po usunięciu guardu
   denylisty z `syncDocument` test R2 pada (nie jest tautologiczny).
   Dodatkowo po KOMAA-403: reintrodukcja `min_should` do filtra wywala kontrakt
@@ -80,7 +84,10 @@
   URUCHOMIONY 2026-09-29 (KOMAA-408) — wynik w sekcji „Live run".
   Wniosek o nowym klastrze był zbyt wczesny: blokada wynikała z braku
   projekcji `QDRANT_URL`/`QDRANT_API_KEY`, a **nie** z braku kompatybilności.
-  Blokada pierwszorzędna: **KOMAA-400** (Harness Agent, discovery-first).
+  Blokada pierwszorzędna była wtedy **KOMAA-400** (Harness Agent,
+  discovery-first) — **zamknięta** (`done` 2026-09-29; krawędź
+  `KOMAA-400 -> KOMAA-385` zdjęta przez COO w KOMAA-421). Dziś jedyną żywą
+  bramką jest **KOMAA-383** (projekcja `VERCEL_*`).
   Kryteria kompatybilności potwierdzone live na 1.19.0 (wszystkie trzy TAK):
   1. osiągalność REST Qdrant z sieci — potwierdzone z execution workspace
      (publiczny endpoint Cloud, nie wewnętrzny DNS `mcp-qdrant`); osiągalność
