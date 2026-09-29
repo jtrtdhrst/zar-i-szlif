@@ -5,7 +5,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import { createApp } from "./dist/index.js";
 import { UI_RESOURCE_URI_LEGACY, UI_RESOURCE_URI_V1 } from "./dist/ui.js";
-import { guardPrivateTool } from "./dist/auth.js";
+import { assertPluginPublicOrigin, guardPrivateTool, publicResourceUrl } from "./dist/auth.js";
 
 const _server = createApp().listen(0, "127.0.0.1");
 await new Promise((resolve) => _server.on("listening", resolve));
@@ -119,6 +119,29 @@ test("protected-resource: zły Host -> 400, X-Forwarded-Proto honorowane", async
   const fwd = await fetch(`${base}/.well-known/oauth-protected-resource`, { headers: { "X-Forwarded-Proto": "https" } });
   const prm = await fwd.json();
   assert.match(prm.resource, /^https:\/\//);
+});
+
+test("F3: PLUGIN_PUBLIC_ORIGIN bez schematu pada przy starcie, nie trafia verbatim do `resource`", () => {
+  const prev = process.env.PLUGIN_PUBLIC_ORIGIN;
+  const withEnv = (v) => (v === undefined ? delete process.env.PLUGIN_PUBLIC_ORIGIN : (process.env.PLUGIN_PUBLIC_ORIGIN = v));
+  const evilReq = { protocol: "https", get: () => "127.0.0.1:8787" };
+  try {
+    for (const bad of ["mcp.example.com", "http://mcp.example.com", "https://mcp.example.com/mcp", "https://user:pw@x", "ftp://x"]) {
+      withEnv(bad);
+      assert.throws(assertPluginPublicOrigin, /PLUGIN_PUBLIC_ORIGIN is invalid/, `origin ${bad} musi być odrzucony`);
+      assert.throws(() => publicResourceUrl(evilReq), /PLUGIN_PUBLIC_ORIGIN is invalid/);
+    }
+    // Poprawne wartości: https gdziekolwiek, http tylko loopback, trailing slash dozwolony.
+    for (const good of ["https://mcp.kompaszbiorek.pl", "https://mcp.kompaszbiorek.pl/", "http://127.0.0.1:8787"]) {
+      withEnv(good);
+      assert.doesNotThrow(assertPluginPublicOrigin, `origin ${good} musi przeszść asert`);
+      assert.equal(publicResourceUrl(evilReq), `${good.replace(/\/+$/, "")}/mcp`);
+    }
+    withEnv(undefined);
+    assert.doesNotThrow(assertPluginPublicOrigin, "brak env = legalny fallback na loopback");
+  } finally {
+    withEnv(prev);
+  }
 });
 
 test("fail-closed: guardPrivateTool rzuca 401 dla anonima", async () => {

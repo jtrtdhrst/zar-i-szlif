@@ -81,13 +81,38 @@ export function guardPrivateTool<TArgs extends unknown[], TResult>(
 // Kanoniczny origin dla RFC 9728 metadata. PLUGIN_PUBLIC_ORIGIN (np.
 // https://mcp.kompaszbiorek.pl) ma pierwszeństwo i jest jedyną ścieżką prod.
 // Fallback bez env: tylko loopback (localhost/127.0.0.1/::1, test/dev).
-// Wszystko inne -> null -> endpoint zwraca 400 zamiast odbijać Host atakującego.
+// Wszystko inne -> null -> endpoint zwraca 400 zamiast odbicia Host atakującego.
 const LOOPBACK_RE = /^(localhost|127\.0\.0\.1|\[?::1\]?)(:\d+)?$/i;
+// F3: origin to schemat + host (bez ścieżki/query/credentials) — inaczej
+// `https://x/y` sklejałoby się w `https://x/y/mcp`, a `https://u:p@x` wbiłoby
+// sekrety w identyfikator `resource`. http tylko dla loopback.
+const ORIGIN_RE = /^(https:\/\/[^\s/?#@]+|http:\/\/(?:localhost|127\.0\.0\.1|\[?::1\]?)(?::\d+)?)$/i;
+
+// "" = nieustawione. Błędna wartość to błąd konfiguracji (zaufane wejście),
+// nie atak — dlatego głośny throw zamiast cichego odbicia verbatim.
+function configuredOrigin(): string {
+  const origin = (process.env.PLUGIN_PUBLIC_ORIGIN ?? "").trim().replace(/\/+$/, "");
+  if (origin && !ORIGIN_RE.test(origin)) {
+    throw new Error(
+      `PLUGIN_PUBLIC_ORIGIN is invalid: ${JSON.stringify(origin)}. ` +
+        `Expected an origin like https://mcp.kompaszbiorek.pl (scheme https + host only, ` +
+        `no path/query/credentials; http only for localhost/127.0.0.1/::1). ` +
+        `It is echoed verbatim into the RFC 9728 "resource" identifier.`,
+    );
+  }
+  return origin;
+}
+
+/** Asert schematu przy starcie (wołany z entrypointu): zły origin ma padać głośno. */
+export function assertPluginPublicOrigin(): void {
+  configuredOrigin();
+}
+
 export function publicResourceUrl(req: {
   protocol: string;
   get: (name: string) => string | undefined;
 }): string | null {
-  const configured = (process.env.PLUGIN_PUBLIC_ORIGIN ?? "").trim().replace(/\/+$/, "");
+  const configured = configuredOrigin();
   if (configured) return `${configured}/mcp`;
   const host = (req.get("host") ?? "").trim();
   if (!LOOPBACK_RE.test(host)) return null;

@@ -32,6 +32,17 @@ Realny deploy wymaga sekretów `CLOUDFLARE_API_TOKEN` i
 `CLOUDFLARE_ACCOUNT_ID` w środowisku GitHub `production`. Ten dokument i
 workflow nie wykonują deployu produkcyjnego lokalnie.
 
+## Wymagane zmienne środowiskowe Wtyczki / MCP
+
+Wtyczka / MCP (`app/plugin/`) wymaga w produkcji `PLUGIN_PUBLIC_ORIGIN` —
+kanonicznego originu w formacie `https://<host>` (bez ścieżki, query i
+credentials). Bez niej `/.well-known/oauth-protected-resource` zwraca `400`, bo
+serwer odrzuca `Host` i poprawnie nie odbicia go w metadanych; z błędnym
+formatem serwer w ogóle nie wstaje (asert przy starcie). Kontrakt zmiennych,
+wraz z `QDRANT_URL` / `QDRANT_API_KEY` / `EMBEDDING_ALLOW_LEXICAL`, oraz
+zachowanie przy każdej kombinacji: `app/README.md`, sekcja „Zmienne
+środowiskowe Wtyczki / MCP”, i `.env.example` w root repo.
+
 ## FlutterFlow / generated upstream
 
 Aktualne repo nie zawiera tracked źródeł FlutterFlow ani katalogu FlutterFlow.

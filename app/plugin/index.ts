@@ -16,7 +16,7 @@ import { StreamableHTTPServerTransport } from "@modelcontextprotocol/sdk/server/
 import { createPluginServer } from "./server.js";
 import { SERVER_NAME } from "./server.js";
 import { uiCspHeader } from "./ui.js";
-import { bearerSubject, protectedResourceMetadata, publicResourceUrl, resolveAuth } from "./auth.js";
+import { assertPluginPublicOrigin, bearerSubject, protectedResourceMetadata, publicResourceUrl, resolveAuth } from "./auth.js";
 import { createStubRagAdapter } from "./rag.js";
 import { QdrantClient } from "./knowledge/qdrant.js";
 import { deterministicEmbed, workersAiEmbed, type EmbedFn } from "./knowledge/embeddings.js";
@@ -136,5 +136,8 @@ export function createApp() {
 // żeby testy mogły importować createApp() bez zajmowania portu.
 const invokedDirectly = process.argv[1] === fileURLToPath(import.meta.url);
 if (invokedDirectly) {
+  // F3: błędnie ustawiony PLUGIN_PUBLIC_ORIGIN ma zatrzymać start, zanim
+  // trafi verbatim do identyfikatora `resource` (brak env = martwy endpoint).
+  assertPluginPublicOrigin();
   createApp().listen(8787, "127.0.0.1", () => console.log("Kompas Zbiórek MCP działa na http://127.0.0.1:8787/mcp"));
 }
