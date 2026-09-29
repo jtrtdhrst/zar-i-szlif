@@ -18,6 +18,7 @@ const files = [
   "app/plugin/knowledge/mcp-tools.ts",
   "app/plugin/knowledge/sources.ts",
   "app/plugin/contract.test.mjs",
+  "scripts/mcp-qdrant-verify.mjs",
   "app/cloudflare-worker/build-worker.mjs",
   "app/cloudflare-worker/worker.js",
   "tests/repo-structure.test.mjs",
