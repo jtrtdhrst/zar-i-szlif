@@ -82,10 +82,12 @@ export function createMemoryFetch(): typeof fetch {
       return ok({ result });
     }
     if (method === "POST" && u.endsWith("/points/scroll")) {
-      const result = filterPoints(points, body.filter)
+      // Kształt drutu jak w Qdrant >= 1.8 (`result: {points, next_page_offset}`),
+      // inaczej emulacja przepuszcza klienta, który na prawdziwym silniku pada.
+      const scrolled = filterPoints(points, body.filter)
         .slice(0, (body.limit as number) ?? 20)
         .map(([id, p]) => ({ id, payload: p.payload }));
-      return ok({ result });
+      return ok({ result: { points: scrolled, next_page_offset: null } });
     }
     return { ok: false, status: 404, json: async () => ({ error: "unknown" }), text: async () => "unknown" };
   }) as unknown as typeof fetch;

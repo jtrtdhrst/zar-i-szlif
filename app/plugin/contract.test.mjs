@@ -289,6 +289,23 @@ test("RAG filter: kształt zgodny z Qdrant 1.19.1 (bez min_should/min_count/filt
   assert.equal(alien.result.length, 0, "obcy user nie widzi cudzego chunka");
 });
 
+test("RAG scroll: klient normalizuje oba kształty odpowiedzi (points / tablica)", async () => {
+  const { createMemoryFetch } = await import("./dist/knowledge/memory.js");
+  const { QdrantClient } = await import("./dist/knowledge/qdrant.js");
+  const auth = { userId: "u", workspaceIds: [] };
+  const point = { id: "p1", payload: { chunk_id: "c0", text: "t" } };
+  // Prawdziwy 1.19.0 (live, smoke) odpowiada `result: {points, next_page_offset}`.
+  const wire = await new QdrantClient({ baseUrl: "memory://s", fetchFn: createMemoryFetch() }).scrollScoped(auth, { limit: 1 });
+  assert.ok(Array.isArray(wire.result), "scroll musi zwracać tablicę punktów");
+  // Starsza emulacja/stary klient: goły array w `result` — ten sam kontrakt wyjściowy.
+  const legacy = new QdrantClient({
+    baseUrl: "mock://s",
+    fetchFn: async () => ({ ok: true, status: 200, json: async () => ({ result: [point] }), text: async () => "" }),
+  });
+  const res = await legacy.scrollScoped(auth, { limit: 1 });
+  assert.deepEqual(res.result, [point], "goły array w result też się normalizuje");
+});
+
 test("RAG source: get_knowledge_source zwraca chunki + update/delete/no-result", async () => {
   const { backend } = await seedLiveCorpus();
   const got = await rpcAuth("tools/call", {

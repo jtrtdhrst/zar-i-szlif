@@ -154,11 +154,16 @@ export class QdrantClient {
   ): Promise<{ result: { id: string; payload: ChunkPayload }[] }> {
     const must: unknown[] = [buildAuthFilter(auth)];
     if (opts?.extraFilter) must.push(opts.extraFilter);
-    return (await this.req(`/collections/${this.collection}/points/scroll`, "POST", {
+    const res = (await this.req(`/collections/${this.collection}/points/scroll`, "POST", {
       limit: opts?.limit ?? 20,
       filter: { must },
       with_payload: opts?.withPayload ?? true,
       ...(opts?.offset !== undefined ? { offset: opts.offset } : {}),
-    })) as { result: { id: string; payload: ChunkPayload }[] };
+    })) as { result: { id: string; payload: ChunkPayload }[] | { points: { id: string; payload: ChunkPayload }[] } };
+    // Scroll zwraca `result: {points, next_page_offset}` (Qdrant >= 1.8, potwierdzone
+    // live na 1.19.0); starsza emulacja oddawała go jako tablicę. Ktokolwiek
+    // konsumuje wynik, ma jedną kształtowną listę punktów.
+    const result = Array.isArray(res.result) ? res.result : (res.result?.points ?? []);
+    return { result };
   }
 }

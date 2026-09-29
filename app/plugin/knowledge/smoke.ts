@@ -22,7 +22,9 @@ const SOURCE_ID = "help-page";
 const DOC_ID = "live-smoke";
 /** Prywatny chunk cudzego użytkownika — wstawiany wprost, bo V1 allowlista ma tylko źródła globalne. */
 const PRIVATE_DOC_ID = "live-smoke-private";
-const PRIVATE_POINT_ID = "0badf00d-0000-4000-8000-0000000c0de";
+/** Qdrant przyjmuje tylko uint albo UUID w formacie 8-4-4-4-12 hex (potwierdzone live na 1.19.0). */
+const PRIVATE_POINT_ID = "0badf00d-0000-4000-8000-000000000cde";
+const UUID_SHAPE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/;
 const PRIVATE_TEXT = "notatka prywatna: haslo odzyskania konta dla jednego uzytkownika";
 /** Inny podmiot niż właściciel — token drugiego użytkownika, nie klient. */
 const ALIEN_SUB = "bearer:live-smoke-alien";
@@ -58,6 +60,7 @@ export async function runKnowledgeSmoke(
   ownerSub: string,
 ): Promise<SmokeReport> {
   assertLive(ownerSub, "brak tożsamości właściciela (ownerSub) — token nie został rozpoznany");
+  assertLive(UUID_SHAPE.test(PRIVATE_POINT_ID), `point id nie jest UUID 8-4-4-4-12 — Qdrant odrzuci zapis: ${PRIVATE_POINT_ID}`);
   await client.ensureCollection();
 
   const owner = { googleSub: ownerSub, workspaceIds: [] };
