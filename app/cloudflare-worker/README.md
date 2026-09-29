@@ -92,7 +92,9 @@ npx tsc --noEmit
 npx wrangler deploy --keep-vars
 ```
 
-Endpoint produkcyjny: `https://mcp.kompaszbiorek.pl/mcp` (Worker `panel-kompaszbiorek`; kanon `MCP_PUBLIC_ORIGIN=https://mcp.kompaszbiorek.pl`). Drugi `custom_domain` tego samego Workera, `panel.kompaszbiorek.pl`, nadal obsługuje `/mcp` (host widgetu), ale w metadanych OAuth reklamowany jest wyłącznie jeden zasób: `https://mcp.kompaszbiorek.pl/mcp`. Workers.dev służy wyłącznie do smoke, nie jest adresem produkcyjnym.
+Endpoint produkcyjny (docelowy): `https://mcp.kompaszbiorek.pl/mcp` (Worker `panel-kompaszbiorek`; kanon `MCP_PUBLIC_ORIGIN=https://mcp.kompaszbiorek.pl`). Drugi `custom_domain` tego samego Workera, `panel.kompaszbiorek.pl`, nadal obsługuje `/mcp` (host widgetu), ale w metadanych OAuth reklamowany jest wyłącznie jeden zasób: `https://mcp.kompaszbiorek.pl/mcp`. Workers.dev służy wyłącznie do smoke, nie jest adresem produkcyjnym.
+
+> **Uwaga — host `mcp.kompaszbiorek.pl` jest już zajęty.** Na produkcji działa pod nim inny serwer MCP z OAuth 2.1 (agregat Paperclip, `/oauth/register`, zakresy `mcp:read`/`paperclip:*`). Wdrożenie poniższych `routes` przejmie ten działający endpoint, a `cloudflare-worker-release.yml` robi to automatycznie na każdym pushu do `main` dotykającym `app/cloudflare-worker/**` — `production-preflight` sprawdza tylko obecność poświadczeń Cloudflare, nie własność hosta. **Nie wdrażać, dopóki właściciel hosta nie zdecyduje** (pytanie 1 interakcji `6bdf812b` na KOMAA-447). Szczegóły i procedura zmiany hosta: `docs/production-release.md`.
 
 ## Sekrety (Cloudflare Workers Secrets)
 

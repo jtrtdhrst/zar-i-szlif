@@ -5,6 +5,11 @@
   "compatibility_date": "2026-08-07",
   "workers_dev": false,
   "routes": [
+    // UWAGA: mcp.kompaszbiorek.pl jest ZAJĘTY — działa tam produkcyjny serwer
+    // MCP z OAuth 2.1 (agregat Paperclip). Wdrożenie tej trasy go przejmie,
+    // a cloudflare-worker-release.yml robi to automatycznie na pushu do main.
+    // Nie scalać bez decyzji właściciela hosta (KOMAA-447, interakcja 6bdf812b).
+    // Patrz docs/production-release.md.
     { "pattern": "mcp.kompaszbiorek.pl", "custom_domain": true },
     { "pattern": "panel.kompaszbiorek.pl", "custom_domain": true }
   ],
