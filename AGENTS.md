@@ -118,22 +118,33 @@ W `app/` istnieją:
 
 Aktualizuj dokumentację tylko wtedy, gdy zmiana rzeczywiście modyfikuje jej kontrakt. Nie edytuj wielu dokumentów przy czystym CSS, refactorze lub zmianie bez wpływu na publiczne zachowanie.
 
-## Deploy Cloudflare
+## Deployment targets
 
-Deploy nie jest automatycznym skutkiem każdej zmiany kodu. Wykonuj go tylko dla scoped/autoryzowanego release/deploy taska.
+Frontend/statyczny panel jest targetem **Vercel** i korzysta z integracji Vercel ↔ GitHub oraz `vercel.json`. Zwykły frontend release nie wymaga sekretów Cloudflare w GitHub Actions.
 
-Dla aplikacji:
+Cloudflare dotyczy wyłącznie `app/cloudflare-worker/` (API/integracje/OAuth). Jego release jest osobnym workflow `.github/workflows/cloudflare-worker-release.yml` i uruchamia się automatycznie tylko po zmianach w `app/cloudflare-worker/**` albo ręcznie przez workflow dispatch.
 
-1. `npm run build` w `app/`;
-2. `node build-worker.mjs` w `app/cloudflare-worker/`;
-3. `npx wrangler deploy --dry-run`;
-4. `npx wrangler deploy --keep-vars` dopiero przy autoryzowanym wdrożeniu.
+Dla zmian Workera:
 
-Docelowy Worker repo: `wtyczka-rr`. Nie twórz zastępczego Workera jako obejścia problemu.
+1. `npm run validate:worker`;
+2. Cloudflare `production-preflight`;
+3. `wrangler deploy --keep-vars` dopiero po poprawnej autoryzacji produkcyjnej.
+
+Nie dokładaj Cloudflare credential gate do ogólnego CI ani do frontendowego Vercel release.
 
 ## Git / review
 
 Normalny repo-write powinien być wykonany na branchu/isolated worktree. Implementer dostarcza exact candidate SHA; niezależny review dotyczy tego SHA. Późniejszy commit wymaga ponownej weryfikacji.
+
+### Target-specific release gates
+
+Przed merge do `main` standardowy workflow `CI` musi być PASS.
+
+Dla frontendu dodatkowym sygnałem release jest status deploymentu Vercel przypięty przez integrację GitHub. Cloudflare readiness **nie jest** warunkiem frontendowego merge/release, chyba że kandydat zmienia `app/cloudflare-worker/**`.
+
+Dla zmian Workera workflow `Cloudflare Worker Release` jest osobnym gate'em wdrożeniowym. Brak `CLOUDFLARE_API_TOKEN` lub `CLOUDFLARE_ACCOUNT_ID` blokuje tylko release Workera, nie frontend Vercel.
+
+Jeżeli do tego samego SHA raportuje kilka projektów Vercel, nie zgaduj który jest produkcyjny. Potwierdź projekt związany z właściwą domeną/środowiskiem i zgłoś duplikaty jako config drift.
 
 Merge/release prowadzi CTO/reviewer zgodnie z aktualną polityką repo, chyba że operator jawnie zdecyduje inaczej.
 

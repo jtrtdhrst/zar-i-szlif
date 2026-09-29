@@ -1,36 +1,25 @@
 # Produkcyjny release
 
-## Kanon
+## Dwa niezależne targety
 
-Produkcja jest wydawana wyłącznie z `main` na `panel.kompaszbiorek.pl` przez
-`.github/workflows/ci.yml`. Gałęzie `KOMAA-*` bazują na `main` i trafiają do
-produkcji dopiero po scaleniu. `alpha`, `beta` i `develop` nie są ścieżkami
-release ani deployu; ich ewentualne zdalne istnienie nie jest zmieniane przez
-ten workflow.
+Repo ma dwa różne targety wdrożeniowe i nie wolno ich łączyć w jeden globalny gate:
 
-## Artefakt i bramki
+1. **Vercel** — frontend/statyczny panel z `app/web/dist`, wdrażany przez integrację Vercel ↔ GitHub według `vercel.json`.
+2. **Cloudflare Worker** — API/integracje/OAuth z `app/cloudflare-worker/`, wdrażany osobnym workflow GitHub Actions.
 
-Workflow wykonuje kanoniczny `npm run validate:code` (lint, typecheck i testy),
-następnie build. Sprawdza wygenerowane `app/web/dist/index.html` oraz
-`app/cloudflare-worker/worker.js`, publikuje je jako artefakt workflow i wykonuje
-`wrangler deploy --dry-run` z `wrangler.panel.jsonc`. Tylko push do
-`refs/heads/main` może przejść do realnego deployu; workflow ma ten warunek
-zarówno w jobie, jak i w kroku shellowym.
+Brak poświadczeń Cloudflare nie oznacza, że frontend Vercel jest niesprawny lub niewdrażalny.
 
-Każdy checkout repo po `npm ci` automatycznie ustawia `core.hooksPath=.githooks`.
-Hook `.githooks/pre-push` uruchamia `npm run validate:vercel` i blokuje push,
-jeśli nie przejdą lint/typecheck/test albo lokalny build Vercela.
+## Core CI
 
-`npm run validate:vercel` używa przypiętej wersji Vercel CLI, wykonuje
-`vercel pull --environment=preview`, a następnie `vercel build`. Jeśli checkout
-nie ma `.vercel/project.json`, wymagane są `VERCEL_ORG_ID` i
-`VERCEL_PROJECT_ID`; `VERCEL_TOKEN` powinien być dostarczony w środowiskach
-nieinteraktywnych. Gate celowo nie wykonuje automatycznego linkowania do
-nieznanego projektu.
+`.github/workflows/ci.yml` jest deployment-target neutralny. Dla każdego PR/pusha do `main`:
 
-Realny deploy wymaga sekretów `CLOUDFLARE_API_TOKEN` i
-`CLOUDFLARE_ACCOUNT_ID` w środowisku GitHub `production`. Ten dokument i
-workflow nie wykonują deployu produkcyjnego lokalnie.
+- instaluje zależności;
+- wykonuje `npm run validate:code`;
+- wykonuje `npm run build`;
+- sprawdza wygenerowany frontend i Worker;
+- publikuje artefakt buildu.
+
+Core CI nie wymaga `CLOUDFLARE_API_TOKEN` ani `CLOUDFLARE_ACCOUNT_ID` i nie wykonuje deployu Cloudflare.
 
 ## Wymagane zmienne środowiskowe Wtyczki / MCP
 
@@ -43,33 +32,57 @@ wraz z `QDRANT_URL` / `QDRANT_API_KEY` / `EMBEDDING_ALLOW_LEXICAL`, oraz
 zachowanie przy każdej kombinacji: `app/README.md`, sekcja „Zmienne
 środowiskowe Wtyczki / MCP”, i `.env.example` w root repo.
 
-## FlutterFlow / generated upstream
+## Frontend / Vercel
 
-Aktualne repo nie zawiera tracked źródeł FlutterFlow ani katalogu FlutterFlow.
-Jeśli upstream zostanie podłączony, jego output jest kodem generated/upstream:
-agenci nie edytują go ręcznie; zmiany powstają w źródle upstream i są
-importowane w osobnym, jawnie zleconym kroku. Obecny workflow nie dodaje
-pozornego guardraila dla nieistniejącego katalogu.
+Frontend jest publikowany przez podpiętą integrację Vercel ↔ GitHub.
 
-## Bezpieczny dry-run lokalny
+`vercel.json` definiuje:
 
-Walidacja kodu:
+- root repozytorium;
+- `npm ci`;
+- `npm run build`;
+- output `app/web/dist`;
+- framework = brak / Other.
+
+Lokalny pre-push uruchamia `npm run validate:release`, które jest aliasem frontendowego `validate:vercel`. Ten gate sprawdza kod oraz Vercel-equivalent build; nie wymaga Cloudflare auth.
+
+Po pushu/merge status deploymentu Vercel jest zewnętrznym sygnałem powodzenia wdrożenia frontendu. Jeśli do jednego SHA raportuje kilka projektów Vercel, trzeba ustalić który projekt jest związany z właściwą domeną produkcyjną; nie należy traktować wszystkich jako równoważnych bez potwierdzenia.
+
+## Cloudflare Worker
+
+Worker ma osobny workflow:
+
+`.github/workflows/cloudflare-worker-release.yml`
+
+Automatycznie uruchamia się wyłącznie po zmianach w:
+
+`app/cloudflare-worker/**`
+
+Może też zostać uruchomiony ręcznie przez `workflow_dispatch`.
+
+Pipeline Workera wykonuje:
+
+1. `npm run validate:worker`;
+2. fail-closed check `CLOUDFLARE_API_TOKEN` i `CLOUDFLARE_ACCOUNT_ID`;
+3. `wrangler whoami`;
+4. produkcyjny `wrangler deploy --keep-vars`.
+
+Jeśli Cloudflare secrets są brakujące lub nieważne, blokowany jest wyłącznie release Workera. Nie może to zaczerwienić zwykłego frontendowego Vercel release.
+
+## Lokalne bramki
+
+Frontend:
 
 ```bash
 npm ci
-npm run validate:code
-npm run build
-cd app/cloudflare-worker
-npx wrangler deploy --dry-run --config wrangler.panel.jsonc
+npm run validate:release
 ```
 
-Walidacja zgodności z Vercel przed pushem:
+Worker:
 
 ```bash
-# W CI/agentach ustaw:
-# VERCEL_TOKEN
-# VERCEL_ORG_ID
-# VERCEL_PROJECT_ID
-
-npm run validate:vercel
+npm ci
+npm run validate:worker
 ```
+
+Sekretów produkcyjnych nie zapisujemy w repo, issue ani logach.

@@ -65,9 +65,10 @@ Root udostępnia jeden kontrakt npm dla panelu: `npm run lint`, `npm run typeche
 `https://panel.kompaszbiorek.pl`; kod aplikacji znajduje się w `app/`, a Worker
 Cloudflare panelu w `app/cloudflare-worker/`.
 
-Kanoniczny release produkcyjny opisuje `docs/production-release.md`. Workflow
-buduje artefakt z `app/web/dist` i wygenerowanego `worker.js`, a deploy Cloudflare
-wykonuje wyłącznie po pushu do `main`.
+Kanoniczny release produkcyjny opisuje `docs/production-release.md`. Frontend
+`app/web/dist` jest publikowany przez integrację Vercel ↔ GitHub. Cloudflare Worker
+ma osobny workflow i jest wdrażany tylko przy zmianach w `app/cloudflare-worker/**`;
+brak Cloudflare credentials nie blokuje frontendowego release Vercel.
 
 ## Vercel i v0
 
