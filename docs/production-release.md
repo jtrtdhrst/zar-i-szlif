@@ -38,13 +38,13 @@ Kanoniczny serwer MCP z logowaniem Google żyje na Cloudflare Workerze, nie na V
 Poniższy zestaw to **docelowy** kontrakt — host nie jest jeszcze wolny ani wdrożony,
 patrz sekcja niżej:
 
-- **MCP endpoint:** `https://mcp.kompaszbiorek.pl/mcp` (Streamable HTTP, bezstanowy)
-- **Origin authorization servera:** `https://mcp.kompaszbiorek.pl` — binding `MCP_PUBLIC_ORIGIN`
-- **Google OAuth callback:** `https://mcp.kompaszbiorek.pl/callback`
-- **Custom domain:** `mcp.kompaszbiorek.pl` jako `custom_domain` tego samego Workera co `panel.kompaszbiorek.pl` (oba w `routes`). `panel.kompaszbiorek.pl` nadal obsługuje `/mcp` dla istniejących klientów, ale w metadanych OAuth reklamowany jest wyłącznie `https://mcp.kompaszbiorek.pl/mcp`.
+- **MCP endpoint:** `https://mcp-kompas.kompaszbiorek.pl/mcp` (Streamable HTTP, bezstanowy)
+- **Origin authorization servera:** `https://mcp-kompas.kompaszbiorek.pl` — binding `MCP_PUBLIC_ORIGIN`
+- **Google OAuth callback:** `https://mcp-kompas.kompaszbiorek.pl/callback`
+- **Custom domain:** `mcp-kompas.kompaszbiorek.pl` jako `custom_domain` tego samego Workera co `panel.kompaszbiorek.pl` (oba w `routes`). `panel.kompaszbiorek.pl` nadal obsługuje `/mcp` dla istniejących klientów, ale w metadanych OAuth reklamowany jest wyłącznie `https://mcp-kompas.kompaszbiorek.pl/mcp`. Rekord DNS dla `custom_domain` tworzy samo `wrangler deploy` — nie ma osobnego kroku DNS.
 - Workers.dev jest wyłącznie smoke/preview i nie jest adresem produkcyjnym.
 
-### `mcp.kompaszbiorek.pl` jest ZAJĘTY — nie wdrażać trasy bez decyzji właściciela hosta
+### `mcp.kompaszbiorek.pl` jest ZAJĘTY — decyzja właściciela hosta: osobna poddomena
 
 Host nie jest wolny. Stan zweryfikowany na produkcji (2026-09-29, surowe
 odpowiedzi): `GET /health` → `200 {"ok":true}`;
@@ -67,10 +67,15 @@ własności hosta**. Wdrożenie `routes` z `custom_domain` dla
 `mcp.kompaszbiorek.pl` przejmie więc działający endpoint produkcyjny i
 przekieruje go na Workera panelowego.
 
-**Nie scalać `app/cloudflare-worker/**` z `routes` wskazującym na
-`mcp.kompaszbiorek.pl`, dopóki właściciel hosta nie zdecyduje.** Decyzja jest
-board-owned i jest otwarta jako pytanie 1 interakcji `6bdf812b` na KOMAA-447
-(`ask_user_questions`, `human_only`, `wake_assignee`).
+**ROZWIĄZANE (2026-09-30, właściciel hosta odpowiedział na interakcję `6bdf812b`
+na KOMAA-447).** Decyzja: `mcp.kompaszbiorek.pl` **zostaje** przypisany do
+agregatu Paperclip, a Wtyczka/MCP dostaje **osobną poddomenę**
+`mcp-kompas.kompaszbiorek.pl`. Wdrożenie `routes` wskazujących na
+`mcp.kompaszbiorek.pl` nadal byłoby przejęciem działającego endpointu i jest
+zabronione — `wrangler.jsonc` i `wrangler.panel.jsonc` mają w `routes` wyłącznie
+`mcp-kompas.kompaszbiorek.pl` i `panel.kompaszbiorek.pl`. Ścieżka deployu
+pozostaje bez zmian: `production-preflight` → `deploy-production` w
+`cloudflare-worker-release.yml`.
 
 Host jest w kodzie **wyłącznie konfiguracją**, nie logiką — zmiana hosta po
 decyzji to edycja dwóch linii, bez zmian w kodzie:
@@ -84,7 +89,9 @@ decyzji to edycja dwóch linii, bez zmian w kodzie:
 głośnym throwiem**; bez konfiguracji i poza loopbackiem zwracają `null`, czyli
 `400`, a nigdy nie odbijają `Host` atakującego. Wzmianki
 `https://mcp.kompaszbiorek.pl` w `auth.ts` i `mcp.ts` są wyłącznie
-przykładami w komunikatach błędów i komentarzach.
+przykładami w komunikatach błędów i komentarzach — nie są źródłem prawdy
+o hoście; host pochodzi wyłącznie z `vars.MCP_PUBLIC_ORIGIN` i zmiennych
+środowiskowych.
 
 **Vercel nie jest bramką tego MCP.** Brak `VERCEL_ORG_ID` / `VERCEL_PROJECT_ID` blokuje `validate:vercel` (frontend), ale nie blokuje wdrożenia ani akceptacji MCP — to celowy podział targetów opisany wyżej.
 

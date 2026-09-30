@@ -27,13 +27,13 @@ Oba tryby używają wyłącznie scopes `openid email profile https://www.googlea
 ```text
 ChatGPT / MCP client
         ↓  OAuth 2.1 + PKCE
-Cloudflare Worker (panel-kompaszbiorek, kanon https://mcp.kompaszbiorek.pl)
+Cloudflare Worker (panel-kompaszbiorek, kanon https://mcp-kompas.kompaszbiorek.pl)
         ↓  Google OAuth / OpenID Connect (openid email profile)
 konto Google użytkownika (identyfikacja przez `sub`)
         ↓
 Worker wydaje własny token MCP (scope: kompas.read)
         ↓
-ChatGPT wywołuje https://mcp.kompaszbiorek.pl/mcp
+ChatGPT wywołuje https://mcp-kompas.kompaszbiorek.pl/mcp
 ```
 
 Worker pełni jednocześnie rolę OAuth Servera dla klientów MCP (endpointy `/authorize`, `/token`, `/register`) oraz OAuth Clienta względem Google (`/authorize` → Google → `/callback`). Token Google NIE jest tokenem MCP — do `/mcp` trafia wyłącznie token wydany przez Workera.
@@ -92,9 +92,9 @@ npx tsc --noEmit
 npx wrangler deploy --keep-vars
 ```
 
-Endpoint produkcyjny (docelowy): `https://mcp.kompaszbiorek.pl/mcp` (Worker `panel-kompaszbiorek`; kanon `MCP_PUBLIC_ORIGIN=https://mcp.kompaszbiorek.pl`). Drugi `custom_domain` tego samego Workera, `panel.kompaszbiorek.pl`, nadal obsługuje `/mcp` (host widgetu), ale w metadanych OAuth reklamowany jest wyłącznie jeden zasób: `https://mcp.kompaszbiorek.pl/mcp`. Workers.dev służy wyłącznie do smoke, nie jest adresem produkcyjnym.
+Endpoint produkcyjny: `https://mcp-kompas.kompaszbiorek.pl/mcp` (Worker `panel-kompaszbiorek`; kanon `MCP_PUBLIC_ORIGIN=https://mcp-kompas.kompaszbiorek.pl`). Drugi `custom_domain` tego samego Workera, `panel.kompaszbiorek.pl`, nadal obsługuje `/mcp` (host widgetu), ale w metadanych OAuth reklamowany jest wyłącznie jeden zasób: `https://mcp-kompas.kompaszbiorek.pl/mcp`. Workers.dev służy wyłącznie do smoke, nie jest adresem produkcyjnym.
 
-> **Uwaga — host `mcp.kompaszbiorek.pl` jest już zajęty.** Na produkcji działa pod nim inny serwer MCP z OAuth 2.1 (agregat Paperclip, `/oauth/register`, zakresy `mcp:read`/`paperclip:*`). Wdrożenie poniższych `routes` przejmie ten działający endpoint, a `cloudflare-worker-release.yml` robi to automatycznie na każdym pushu do `main` dotykającym `app/cloudflare-worker/**` — `production-preflight` sprawdza tylko obecność poświadczeń Cloudflare, nie własność hosta. **Nie wdrażać, dopóki właściciel hosta nie zdecyduje** (pytanie 1 interakcji `6bdf812b` na KOMAA-447). Szczegóły i procedura zmiany hosta: `docs/production-release.md`.
+> **Uwaga — host `mcp.kompaszbiorek.pl` jest zajęty i pozostaje przypisany do aggregatu Paperclip.** Decyzja właściciela hosta (2026-09-30, interakcja `6bdf812b` na KOMAA-447): Wtyczka/MCP dostaje osobną poddomenę `mcp-kompas.kompaszbiorek.pl`. `routes` **nie mogą** wskazywać na `mcp.kompaszbiorek.pl` — `cloudflare-worker-release.yml` wdraża je automatycznie na każdym pushu do `main` dotykającym `app/cloudflare-worker/**`, a `production-preflight` sprawdza tylko obecność poświadczeń Cloudflare, nie własność hosta. Rekord DNS dla `mcp-kompas.kompaszbiorek.pl` tworzy samo `wrangler deploy`. Szczegóły: `docs/production-release.md`.
 
 ## Sekrety (Cloudflare Workers Secrets)
 
@@ -114,8 +114,8 @@ Nigdy nie wpisuj sekretów do `src/`, `wrangler.jsonc`, Git ani README.
 
 1. Google Cloud Console → **Google Auth Platform → Clients → Create Client → Web application**.
 2. Nazwa: `Kompas Zbiórek`.
-3. Authorized redirect URI: `https://mcp.kompaszbiorek.pl/callback` (`redirect_uri` w `src/google-handler.ts` jest wyprowadzany z hostu requestu, więc ten sam Worker obsługuje też `/callback` na `panel.kompaszbiorek.pl`).
-4. Authorized JavaScript origins (jeśli wymagane): `https://mcp.kompaszbiorek.pl`.
+3. Authorized redirect URI: `https://mcp-kompas.kompaszbiorek.pl/callback` (`redirect_uri` w `src/google-handler.ts` jest wyprowadzany z hostu requestu, więc ten sam Worker obsługuje też `/callback` na `panel.kompaszbiorek.pl` — dodaj oba URI, jeśli klient jest rejestrowany ręcznie).
+4. Authorized JavaScript origins (jeśli wymagane): `https://mcp-kompas.kompaszbiorek.pl`.
 5. Consent screen: External, app name `Kompas Zbiórek`, scopes: `openid email profile` oraz `https://www.googleapis.com/auth/drive.file` (tylko te — bez Workspace API, bez `drive`, bez `drive.readonly`). Uwaga: `drive.file` to sensitive scope — bez weryfikacji aplikacji Google liczy 100 logowań.
 6. Ustaw wartości: `npx wrangler secret put GOOGLE_CLIENT_ID` i `npx wrangler secret put GOOGLE_CLIENT_SECRET`.
 7. Opcjonalnie (podglądy w Google Pickerze): **APIs & Services → Picker API** (i Drive API) włączone, **Credentials → API Key** → `npx wrangler secret put GOOGLE_PICKER_API_KEY`. Numer projektu (`GOOGLE_CLOUD_PROJECT_NUMBER`) jest w nagłówku konsoli Google Cloud.
@@ -124,11 +124,11 @@ Nigdy nie wpisuj sekretów do `src/`, `wrangler.jsonc`, Git ani README.
 
 ```powershell
 # TEST A — metadata resource (200 JSON)
-curl.exe https://mcp.kompaszbiorek.pl/.well-known/oauth-protected-resource
+curl.exe https://mcp-kompas.kompaszbiorek.pl/.well-known/oauth-protected-resource
 # TEST B — niezalogowane /mcp musi zwracać 401 + WWW-Authenticate
-curl.exe -X POST https://mcp.kompaszbiorek.pl/mcp -H "content-type: application/json" -d "{}"
+curl.exe -X POST https://mcp-kompas.kompaszbiorek.pl/mcp -H "content-type: application/json" -d "{}"
 # TEST G — OAuth discovery (authorization_endpoint, token_endpoint, registration_endpoint, code_challenge_methods_supported)
-curl.exe https://mcp.kompaszbiorek.pl/.well-known/oauth-authorization-server
+curl.exe https://mcp-kompas.kompaszbiorek.pl/.well-known/oauth-authorization-server
 ```
 
 Pełny przepływ (Connect → zgoda → Google → callback → token MCP) zweryfikuj w MCP Inspector:
@@ -137,7 +137,7 @@ Pełny przepływ (Connect → zgoda → Google → callback → token MCP) zwery
 npx @modelcontextprotocol/inspector@latest
 ```
 
-Połączenie: `https://mcp.kompaszbiorek.pl/mcp`.
+Połączenie: `https://mcp-kompas.kompaszbiorek.pl/mcp`.
 
 ## Development lokalny
 
