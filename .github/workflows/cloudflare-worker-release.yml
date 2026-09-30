@@ -61,7 +61,13 @@ jobs:
         with:
           node-version: 24
           cache: npm
+      - run: npm ci
       - run: npm ci --prefix app/cloudflare-worker
+      # worker.js jest generowany przez build-worker.mjs, a src/mcp.ts importuje
+      # ../../plugin/server.js -> bez `npm run build` nie ma app/plugin/dist, wiec
+      # esbuild cofa sie do server.ts i nie znajduje zod / @modelcontextprotocol/sdk
+      # (zaden z tych pakietow nie jest deps app/cloudflare-worker).
+      - run: npm run build
       - name: Deploy Cloudflare Worker
         working-directory: app/cloudflare-worker
         env:
