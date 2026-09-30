@@ -67,7 +67,7 @@ export function guardPrivateTool<TArgs extends unknown[], TResult>(
 }
 
 // Kanoniczny origin dla RFC 9728 metadata. PLUGIN_PUBLIC_ORIGIN (np.
-// https://mcp.kompaszbiorek.pl) ma pierwszeństwo i jest jedyną ścieżką prod.
+// https://mcp-kompas.kompaszbiorek.pl) ma pierwszeństwo i jest jedyną ścieżką prod.
 // Fallback bez env: tylko loopback (localhost/127.0.0.1/::1, test/dev).
 // Wszystko inne -> null -> endpoint zwraca 400 zamiast odbicia Host atakującego.
 const LOOPBACK_RE = /^(localhost|127\.0\.0\.1|\[?::1\]?)(:\d+)?$/i;
@@ -83,7 +83,7 @@ function configuredOrigin(): string {
   if (origin && !ORIGIN_RE.test(origin)) {
     throw new Error(
       `PLUGIN_PUBLIC_ORIGIN is invalid: ${JSON.stringify(origin)}. ` +
-        `Expected an origin like https://mcp.kompaszbiorek.pl (scheme https + host only, ` +
+        `Expected an origin like https://mcp-kompas.kompaszbiorek.pl (scheme https + host only, ` +
         `no path/query/credentials; http only for localhost/127.0.0.1/::1). ` +
         `It is echoed verbatim into the RFC 9728 "resource" identifier.`,
     );

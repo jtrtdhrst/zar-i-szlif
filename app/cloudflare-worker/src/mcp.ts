@@ -37,8 +37,10 @@ const WIDGET_URI_LEGACY = "ui://kompas-zbiorek/workspace.html";
 const SIBLING_HOSTS = ["panel.kompaszbiorek.pl"];
 
 export interface KompasMcpEnv {
-  /** Kanoniczny origin AS, np. `https://panel.kompaszbiorek.pl` (scheme + host). */
+  /** Kanoniczny origin AS, np. `https://mcp-kompas.kompaszbiorek.pl` (scheme + host). */
   MCP_PUBLIC_ORIGIN?: string;
+  /** Allowlist `redirect_uri` dla DCR (RFC 7591) — patrz `dcr.ts`. Fail-closed. */
+  MCP_ALLOWED_REDIRECT_URIS?: string;
   QDRANT_URL?: string;
   QDRANT_API_KEY?: string;
   EMBEDDING_ALLOW_LEXICAL?: string;
@@ -78,7 +80,7 @@ export function canonicalOrigin(env: KompasMcpEnv): string {
   try {
     parsed = new URL(origin);
   } catch {
-    throw new Error(`MCP_PUBLIC_ORIGIN is invalid: ${JSON.stringify(origin)}. Expected an origin like https://mcp.kompaszbiorek.pl (scheme + host only, no path/query/credentials).`);
+    throw new Error(`MCP_PUBLIC_ORIGIN is invalid: ${JSON.stringify(origin)}. Expected an origin like https://mcp-kompas.kompaszbiorek.pl (scheme + host only, no path/query/credentials).`);
   }
   if (parsed.protocol !== "https:" || parsed.pathname !== "/" || parsed.search || parsed.hash || parsed.username || parsed.password) {
     throw new Error(`MCP_PUBLIC_ORIGIN is invalid: ${JSON.stringify(origin)}. Expected an origin like https://panel.kompaszbiorek.pl (https + host only, no path/query/credentials).`);

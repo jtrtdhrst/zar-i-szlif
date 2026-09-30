@@ -97,6 +97,16 @@ o hoście; host pochodzi wyłącznie z `vars.MCP_PUBLIC_ORIGIN` i zmiennych
 
 Wymagane sekrety Workera (nazwy bez wartości): `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET`, `COOKIE_ENCRYPTION_KEY`, `QDRANT_URL`, `QDRANT_API_KEY`; opcjonalnie `GOOGLE_PICKER_API_KEY`. Bindingi: `OAUTH_KV` (KV dla `workers-oauth-provider`), `AI` (Workers AI `bge-m3`).
 
+Wymagane zmienne konfiguracyjne (bez wartości w tym dokumencie, format w
+`app/cloudflare-worker/README.md`): `MCP_PUBLIC_ORIGIN` (kanoniczny origin AS) i
+`MCP_ALLOWED_REDIRECT_URIS` (allowlist `redirect_uri` dla dynamic client
+registration). Druga jest granicą bezpieczeństwa: `POST /register` na produkcyjnym
+authorization serverze bez allowlisty przyjmuje klienta z dowolnym
+`redirect_uri`, co pozwala przejąć kod autoryzacji — potwierdzone na produkcji
+przed fixem (`https://evil.example.com/cb` → `201`). Fail-closed w `src/dcr.ts`;
+pusta wartość dopuszcza wyłącznie loopback. Zmiana redirect URI ChatGPT
+wymaga dopisania go tutaj, inaczej DCR zwróci `400 invalid_redirect_uri`.
+
 Canonicalny opis protokołu, narzędzi, sekretów i smoke: `app/cloudflare-worker/README.md`.
 
 ## Frontend / Vercel

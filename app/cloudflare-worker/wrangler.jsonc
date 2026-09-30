@@ -17,7 +17,9 @@
     "GOOGLE_CLOUD_PROJECT_NUMBER": "450955230972",
     "SENDER_ONBOARDING_ENABLED": "false",
     "SENDER_ONBOARDING_GROUP": "onboarding-sekwencja",
-    "MCP_PUBLIC_ORIGIN": "https://mcp-kompas.kompaszbiorek.pl"
+    "MCP_PUBLIC_ORIGIN": "https://mcp-kompas.kompaszbiorek.pl",
+    // Allowlist redirect_uri dla DCR (RFC 7591) — fail-closed. Patrz src/dcr.ts.
+    "MCP_ALLOWED_REDIRECT_URIS": "https://chatgpt.com/connector/oauth/,https://chatgpt.com/connector_platform_oauth_redirect"
   },
   "ai": {
     "binding": "AI"

@@ -33,7 +33,7 @@ Root repo udostępnia również wspólny kontrakt `npm run lint`, `npm run typec
 
 | Zmienna | Wymagana | Opis |
 | --- | --- | --- |
-| `PLUGIN_PUBLIC_ORIGIN` | tak w produkcji | Kanoniczny origin serwera, np. `https://mcp.kompaszbiorek.pl`. Wartość trafia verbatim do identyfikatora `resource` w metadanych RFC 9728 (`/.well-known/oauth-protected-resource`), więc format jest twardo walidowany: **scheme + host, bez ścieżki, query i credentials**; `https` wszędzie poza loopbackiem (`http://localhost`, `http://127.0.0.1`, `http://[::1]` dopuszczalne). Trailing `/` jest obcinany. |
+| `PLUGIN_PUBLIC_ORIGIN` | tak w produkcji | Kanoniczny origin serwera, np. `https://mcp-kompas.kompaszbiorek.pl`. Wartość trafia verbatim do identyfikatora `resource` w metadanych RFC 9728 (`/.well-known/oauth-protected-resource`), więc format jest twardo walidowany: **scheme + host, bez ścieżki, query i credentials**; `https` wszędzie poza loopbackiem (`http://localhost`, `http://127.0.0.1`, `http://[::1]` dopuszczalne). Trailing `/` jest obcinany. |
 | `QDRANT_URL` | nie | Adres Qdrant dla wiedzy (RAG). Brak = in-memory, bez sekretów. |
 | `QDRANT_API_KEY` | nie | Klucz API Qdrant. |
 | `EMBEDDING_ALLOW_LEXICAL=1` | tylko eksperymentalnie | Wymagane jawnie, gdy `QDRANT_URL` jest ustawiony, a nie ma bindingu Workers AI — inaczej start pada, zamiast cicho zapisać leksykalne wektory do kolekcji `bge-m3`. |

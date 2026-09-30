@@ -65,7 +65,8 @@ Każde narzędzie wiedzy ma w `_meta.securitySchemes` Bearer OAuth 2.1 z issuer 
 ## Pliki
 
 - `worker.js` — generowany entrypoint (nie edytować ręcznie; generuje go `build-worker.mjs`);
-- `src/oauth.ts` — konfiguracja `OAuthProvider` (endpointy, scopes, metadata resource);
+- `src/oauth.ts` — konfiguracja `OAuthProvider` (endpointy, scopes, metadata resource) + hook `clientRegistrationCallback` walidujący `redirect_uri` przy DCR;
+- `src/dcr.ts` — allowlist `redirect_uri` dla DCR (RFC 7591), fail-closed, czysta funkcja bez `node:*` i bez `process.env`;
 - `src/mcp.ts` — produkcyjny handler MCP: Streamable HTTP bezstanowy, ten sam `createPluginServer` i ten sam rdzeń retrieval co lokalna Wtyczka, fail-closed scope z grantu, walidacja `MCP_PUBLIC_ORIGIN` i ochrona `Host`;
 - `src/identity.ts` — jedyne miejsce powstania `userId`/`workspaceIds` retrievalu: zweryfikowany subject Google (nigdy email), fail-closed;
 - `src/google-handler.ts` — logowanie Google: `/authorize`, `/callback`, plus publiczne `/health`, `/preview`, `/`; scopes `openid email profile drive.file`;
@@ -75,6 +76,7 @@ Każde narzędzie wiedzy ma w `_meta.securitySchemes` Bearer OAuth 2.1 z issuer 
 ## Zmienne konfiguracyjne (wrangler.jsonc)
 
 - `MCP_PUBLIC_ORIGIN` — **wymagany**. Kanoniczny origin authorization servera (`https://<host>`, bez ścieżki/query/credentials). Trafia verbatim do `resource` w `/.well-known/oauth-protected-resource`, więc walidowany twardo w `src/mcp.ts: canonicalOrigin()`. Pusty lub źle sformatowany = Worker nie wstaje.
+- `MCP_ALLOWED_REDIRECT_URIS` — allowlist `redirect_uri` dla DCR (`/register`), fail-closed, walidacja w `src/dcr.ts`. Format: przecinki lub nowe linie; wpis **bez** ukośnika na końcu = exact match ścieżki, wpis **z** ukośnikiem = prefiks; `https://host/` = cały origin. Pusta/nieustawiona dopuszcza wyłącznie loopback. Dopasowanie origin jest **dokładne**, więc `https://chatgpt.com.evil.example` nie przechodzi dla wpisu `https://chatgpt.com`. Domyślna wartość dopuszcza oba redirect URI ChatGPT — `/connector/oauth/{callback_id}` (prefiks) i legacy `https://chatgpt.com/connector_platform_oauth_redirect` (exact) — bo `workers-oauth-provider` 0.10.3 nie implementuje RFC 9207, bez którego OpenAI użyłby tylko tego stabilnego. Prowadzenie `https://` spoza allowlisty = `400 invalid_redirect_uri`.
 - `TEMPLATE_FILE_ID` — ID publicznego szablonu Google Docs używanego w TRYBIE 1 (`183nDdy9kE_DxfoLwPhhAlkboey66QI1QzM64UBXrTLI`); brak wartości = TRYB 1 ukryty w interfejsie.
 - `GOOGLE_CLOUD_PROJECT_NUMBER` — numer projektu Google (`setAppId`); fallback: część numeryczna `GOOGLE_CLIENT_ID`.
 - `EMBEDDING_ALLOW_LEXICAL` — tylko `1` pozwala zastąpić Workers AI deterministycznym embedderem (nie wolno nim zapisywać wektorów leksykalnych do kolekcji bge-m3).

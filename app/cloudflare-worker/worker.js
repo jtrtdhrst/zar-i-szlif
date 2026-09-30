@@ -14,7 +14,12 @@ let _provider = null;
 
 export default {
   async fetch(request, env, ctx) {
-    _provider ??= createKompasOAuthProvider({ apiHandler, widgetHtml: WIDGET_HTML, canonicalOrigin: canonicalOrigin(env) });
+    _provider ??= createKompasOAuthProvider({
+      apiHandler,
+      widgetHtml: WIDGET_HTML,
+      canonicalOrigin: canonicalOrigin(env),
+      allowedRedirectUris: env.MCP_ALLOWED_REDIRECT_URIS,
+    });
     const url = new URL(request.url);
     if (url.hostname === "wtyczka.kompaszbiorek.pl") {
       const target = new URL(request.url);

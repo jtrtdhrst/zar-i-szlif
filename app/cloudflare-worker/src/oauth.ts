@@ -14,6 +14,7 @@
 // RFC 9728, więc jest twardo walidowany w `mcp.ts: canonicalOrigin()`.
 
 import OAuthProvider from "@cloudflare/workers-oauth-provider";
+import { dcrRedirectUriError } from "./dcr";
 import { createGoogleAuthHandler, type GoogleAuthHandlerEnv } from "./google-handler";
 import { createKompasMcpHandler, type KompasMcpEnv } from "./mcp";
 
@@ -26,10 +27,13 @@ export interface KompasOAuthEnv extends GoogleAuthHandlerEnv, KompasMcpEnv {}
 export function createKompasOAuthProvider(options: {
   apiHandler: { fetch(request: Request, env: KompasOAuthEnv, ctx: ExecutionContext): Promise<Response> };
   widgetHtml: string;
-  /** Kanoniczny origin AS, np. `https://panel.kompaszbiorek.pl`. */
+  /** Kanoniczny origin AS, np. `https://mcp-kompas.kompaszbiorek.pl`. */
   canonicalOrigin: string;
+  /** Allowlist `redirect_uri` dla DCR — patrz `dcr.ts`. Fail-closed. */
+  allowedRedirectUris?: string;
 }): OAuthProvider<KompasOAuthEnv> {
   const canonicalOrigin = options.canonicalOrigin.replace(/\/+$/, "");
+  const allowedRedirectUris = options.allowedRedirectUris ?? "";
   return new OAuthProvider({
     apiRoute: "/mcp",
     apiHandler: options.apiHandler,
@@ -38,6 +42,13 @@ export function createKompasOAuthProvider(options: {
     tokenEndpoint: "/token",
     clientRegistrationEndpoint: "/register",
     scopesSupported: [...MCP_SCOPES],
+    // Hook nie dostaje `env`, więc allowlist przechodzi przez konstrukcję
+    // providera (jak `canonicalOrigin`). Odrzucenie przed zapisem klienta.
+    clientRegistrationCallback: ({ clientMetadata }) => {
+      const error = dcrRedirectUriError(clientMetadata.redirect_uris, allowedRedirectUris);
+      if (!error) return;
+      return { code: "invalid_redirect_uri", description: error, httpStatus: 400 };
+    },
     resourceMetadata: {
       resource: `${canonicalOrigin}/mcp`,
       authorization_servers: [canonicalOrigin],
