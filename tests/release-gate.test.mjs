@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { spawnSync } from "node:child_process";
-import { mkdirSync, mkdtempSync, readFileSync, realpathSync, rmSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, mkdtempSync, readFileSync, realpathSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { isAbsolute, join } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -19,6 +19,12 @@ const ci = readFileSync(`${root}/.github/workflows/ci.yml`, "utf8");
 const suiteHeadBefore = spawnSync("git", ["rev-parse", "HEAD"], { cwd: root, encoding: "utf8" }).stdout;
 const suitePorcelainBefore = spawnSync("git", ["status", "--porcelain"], { cwd: root, encoding: "utf8" }).stdout;
 
+const GIT_ENV = (() => {
+  const env = { ...process.env };
+  for (const key of ["GIT_DIR", "GIT_WORK_TREE", "GIT_INDEX_FILE", "GIT_PREFIX", "GIT_COMMON_DIR"]) delete env[key];
+  return env;
+})();
+
 function fixtureTmpBase() {
   const base = tmpdir();
   return base && isAbsolute(base) ? base : "/tmp";
@@ -35,9 +41,10 @@ function assertFixtureDirPathIsolated(dir) {
 }
 
 function assertFixtureRepoIsolated(dir) {
-  const r = spawnSync("git", ["rev-parse", "--show-toplevel"], { cwd: dir, encoding: "utf8" });
+  const r = spawnSync("git", ["rev-parse", "--show-toplevel"], { cwd: dir, encoding: "utf8", env: GIT_ENV });
   assert.equal(r.status, 0, `isolation check failed, git rev-parse --show-toplevel: ${r.stderr}`);
   assert.equal(realpathSync(r.stdout.trim()), realpathSync(dir), `fixture dir is not its own repo: ${dir}`);
+  assert.ok(existsSync(join(dir, ".git")), `git init created no repo in ${dir} (inherited GIT_DIR?)`);
 }
 
 // Regression fixture: production candidate 8526d68, on which worker validation
@@ -111,7 +118,7 @@ test("ambiguous classification fails closed instead of skipping validation", () 
   // non-zero exit with no gate executed.
   const dir = mkdtempSync(join(fixtureTmpBase(), "kompas-gate-"));
   const git = (...args) => {
-    const r = spawnSync("git", args, { cwd: dir, encoding: "utf8" });
+    const r = spawnSync("git", args, { cwd: dir, encoding: "utf8", env: GIT_ENV });
     assert.equal(r.status, 0, `git ${args.join(" ")} failed: ${r.stderr}`);
     return r;
   };
@@ -119,7 +126,7 @@ test("ambiguous classification fails closed instead of skipping validation", () 
     const r = spawnSync(
       process.execPath,
       [`${root}/scripts/release-targets.mjs`, "--plan", `--base=${base}`, sha],
-      { cwd: dir, encoding: "utf8" },
+      { cwd: dir, encoding: "utf8", env: GIT_ENV },
     );
     return { status: r.status, out: `${r.stdout}${r.stderr}` };
   };
@@ -166,7 +173,7 @@ test("ambiguous classification fails closed instead of skipping validation", () 
 test("fixture isolation guard fires on broken isolation without mutating the enclosing repo", () => {
   const enclosing = mkdtempSync(join(fixtureTmpBase(), "kompas-gate-enclosing-"));
   const egit = (...args) => {
-    const r = spawnSync("git", args, { cwd: enclosing, encoding: "utf8" });
+    const r = spawnSync("git", args, { cwd: enclosing, encoding: "utf8", env: GIT_ENV });
     assert.equal(r.status, 0, `git ${args.join(" ")} failed: ${r.stderr}`);
     return r;
   };
