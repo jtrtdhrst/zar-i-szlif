@@ -38,14 +38,24 @@ zachowanie przy każdej kombinacji: `app/README.md`, sekcja „Zmienne
 ## Produkcyjny endpoint MCP (Cloudflare)
 
 Kanoniczny serwer MCP z logowaniem Google żyje na Cloudflare Workerze, nie na Vercelu.
-Poniższy zestaw to **docelowy** kontrakt — host nie jest jeszcze wolny ani wdrożony,
-patrz sekcja niżej:
+Poniższy zestaw to kontrakt **wdrożony na produkcji** 2026-10-01 (worker
+`panel-kompaszbiorek`, kandydat `e3c6ba6`, release run 36789230919 zielony):
 
 - **MCP endpoint:** `https://mcp-kompas.kompaszbiorek.pl/mcp` (Streamable HTTP, bezstanowy)
 - **Origin authorization servera:** `https://mcp-kompas.kompaszbiorek.pl` — binding `MCP_PUBLIC_ORIGIN`
 - **Google OAuth callback:** `https://mcp-kompas.kompaszbiorek.pl/callback`
 - **Custom domain:** `mcp-kompas.kompaszbiorek.pl` jako `custom_domain` tego samego Workera co `panel.kompaszbiorek.pl` (oba w `routes`). `panel.kompaszbiorek.pl` nadal obsługuje `/mcp` dla istniejących klientów, ale w metadanych OAuth reklamowany jest wyłącznie `https://mcp-kompas.kompaszbiorek.pl/mcp`. Rekord DNS dla `custom_domain` tworzy samo `wrangler deploy` — nie ma osobnego kroku DNS.
 - Workers.dev jest wyłącznie smoke/preview i nie jest adresem produkcyjnym.
+
+Zweryfikowane na żywo 2026-10-01 (`scripts/mcp-oauth-smoke.mjs`, 6/6 PASS):
+`/health` 200, `/mcp` bez tokenu 401 + `WWW-Authenticate`, metadane RFC 9728/8414
+spójne, DCR fail-closed dla `redirect_uri` spoza allowlisty oraz 302 na
+`accounts.google.com` z `redirect_uri=https://mcp-kompas.kompaszbiorek.pl/callback`
+— czyli `OAUTH_KV`, `COOKIE_ENCRYPTION_KEY`, `GOOGLE_CLIENT_ID` i
+`GOOGLE_CLIENT_SECRET` są realnie ustawione w produkcyjnym Workerze. **Nie
+potwierdza to jeszcze**: akceptacji `redirect_uri` przez Google oraz bindingów
+`QDRANT_URL` / `QDRANT_API_KEY` i tożsamości Supabase — te są widoczne dopiero
+po uwierzytelnionym wywołaniu `search_knowledge`, czyli w akceptacji KOMAA-446.
 
 ### `mcp.kompaszbiorek.pl` jest ZAJĘTY — decyzja właściciela hosta: osobna poddomena
 
