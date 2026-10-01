@@ -1,8 +1,8 @@
 import assert from "node:assert/strict";
 import { spawnSync } from "node:child_process";
-import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { mkdirSync, mkdtempSync, readFileSync, realpathSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
-import { join } from "node:path";
+import { isAbsolute, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import test from "node:test";
 
@@ -14,6 +14,31 @@ const root = fileURLToPath(new URL("../", import.meta.url));
 const packageJson = JSON.parse(readFileSync(`${root}/package.json`, "utf8"));
 const workerRelease = readFileSync(`${root}/.github/workflows/cloudflare-worker-release.yml`, "utf8");
 const ci = readFileSync(`${root}/.github/workflows/ci.yml`, "utf8");
+
+// --- KOMAA-477: fixture isolation guards (fixture-side only) ---------------
+const suiteHeadBefore = spawnSync("git", ["rev-parse", "HEAD"], { cwd: root, encoding: "utf8" }).stdout;
+const suitePorcelainBefore = spawnSync("git", ["status", "--porcelain"], { cwd: root, encoding: "utf8" }).stdout;
+
+function fixtureTmpBase() {
+  const base = tmpdir();
+  return base && isAbsolute(base) ? base : "/tmp";
+}
+
+function assertFixtureDirPathIsolated(dir) {
+  assert.ok(isAbsolute(dir), `fixture dir must be absolute (TMPDIR leak?): ${dir}`);
+  const realDir = realpathSync(dir);
+  const realRoot = realpathSync(root);
+  assert.ok(
+    realDir !== realRoot && !realDir.startsWith(`${realRoot}/`),
+    `fixture dir resolves inside the repo: ${realDir}`,
+  );
+}
+
+function assertFixtureRepoIsolated(dir) {
+  const r = spawnSync("git", ["rev-parse", "--show-toplevel"], { cwd: dir, encoding: "utf8" });
+  assert.equal(r.status, 0, `isolation check failed, git rev-parse --show-toplevel: ${r.stderr}`);
+  assert.equal(realpathSync(r.stdout.trim()), realpathSync(dir), `fixture dir is not its own repo: ${dir}`);
+}
 
 // Regression fixture: production candidate 8526d68, on which worker validation
 // passed. A provider-unrelated gate must not be able to misclassify it.
@@ -84,8 +109,12 @@ test("ambiguous classification fails closed instead of skipping validation", () 
   // Behavioural, not a source-string assertion: build a throwaway repo whose
   // only change touches an unclassified path, run the real gate, and require a
   // non-zero exit with no gate executed.
-  const dir = mkdtempSync(join(tmpdir(), "kompas-gate-"));
-  const git = (...args) => spawnSync("git", args, { cwd: dir, encoding: "utf8" });
+  const dir = mkdtempSync(join(fixtureTmpBase(), "kompas-gate-"));
+  const git = (...args) => {
+    const r = spawnSync("git", args, { cwd: dir, encoding: "utf8" });
+    assert.equal(r.status, 0, `git ${args.join(" ")} failed: ${r.stderr}`);
+    return r;
+  };
   const run = (sha, base) => {
     const r = spawnSync(
       process.execPath,
@@ -96,7 +125,9 @@ test("ambiguous classification fails closed instead of skipping validation", () 
   };
 
   try {
+    assertFixtureDirPathIsolated(dir);
     git("init", "--initial-branch=main");
+    assertFixtureRepoIsolated(dir);
     git("config", "user.email", "gate@example.invalid");
     git("config", "user.name", "gate");
     writeFileSync(join(dir, "seed.txt"), "seed\n");
@@ -129,6 +160,37 @@ test("ambiguous classification fails closed instead of skipping validation", () 
     assert.equal(noBase.status, 2);
   } finally {
     rmSync(dir, { recursive: true, force: true });
+  }
+});
+
+test("fixture isolation guard fires on broken isolation without mutating the enclosing repo", () => {
+  const enclosing = mkdtempSync(join(fixtureTmpBase(), "kompas-gate-enclosing-"));
+  const egit = (...args) => {
+    const r = spawnSync("git", args, { cwd: enclosing, encoding: "utf8" });
+    assert.equal(r.status, 0, `git ${args.join(" ")} failed: ${r.stderr}`);
+    return r;
+  };
+  try {
+    egit("init", "--initial-branch=main");
+    egit("config", "user.email", "gate@example.invalid");
+    egit("config", "user.name", "gate");
+    writeFileSync(join(enclosing, "f1.txt"), "1\n");
+    writeFileSync(join(enclosing, "f2.txt"), "2\n");
+    writeFileSync(join(enclosing, "f3.txt"), "3\n");
+    egit("add", "-A");
+    egit("commit", "-m", "base");
+    const headBefore = egit("rev-parse", "HEAD").stdout.trim();
+    rmSync(join(enclosing, "f1.txt"));
+    rmSync(join(enclosing, "f2.txt"));
+    rmSync(join(enclosing, "f3.txt"));
+    const broken = join(enclosing, "kompas-gate-broken-xxx");
+    mkdirSync(broken);
+    // No `git init` here: rev-parse walks up to the enclosing repo, so the
+    // fixture's post-init isolation assertion must throw before any commit.
+    assert.throws(() => assertFixtureRepoIsolated(broken), /not its own repo/);
+    assert.equal(egit("rev-parse", "HEAD").stdout.trim(), headBefore);
+  } finally {
+    rmSync(enclosing, { recursive: true, force: true });
   }
 });
 
@@ -284,4 +346,13 @@ test("production preflight proves zone route access, not just secret presence", 
   });
   assert.equal(unknownZone.length, 1);
   assert.match(unknownZone[0], /not visible/);
+});
+
+// --- KOMAA-477: the suite itself must not mutate the repo -------------------
+
+test("release-gate suite leaves repo HEAD and working tree unchanged", () => {
+  const headAfter = spawnSync("git", ["rev-parse", "HEAD"], { cwd: root, encoding: "utf8" }).stdout;
+  const porcelainAfter = spawnSync("git", ["status", "--porcelain"], { cwd: root, encoding: "utf8" }).stdout;
+  assert.equal(headAfter, suiteHeadBefore);
+  assert.equal(porcelainAfter, suitePorcelainBefore);
 });
