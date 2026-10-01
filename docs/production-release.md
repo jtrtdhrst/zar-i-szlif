@@ -147,6 +147,10 @@ Zasady:
 - **Fail closed.** Niezklasyfikowana ścieżka blokuje push (`exit 2`) zamiast
   cicho pominąć walidację. Klasyfikujesz ją w `RELEASE_RULES` /
   `NON_RELEASE_RULES` w `scripts/release-targets.mjs`.
+- **Prawdziwe commity mają kanoniczną tożsamość.** `scripts/assert-git-identity.mjs`
+  odrzuca syntetyczne identity autora/committer (`gate@example.invalid`,
+  domeny `example.*` / `.invalid` / `.local`, konta role-only jak
+  `Engineer <engineer@paperclip.local>`) — patrz sekcja niżej.
 - Brakujący base ref też blokuje — najpierw `git fetch origin main`.
 - Gate brudnego working tree nie działa: walidowany content musi być
   pushowanym content.
@@ -160,6 +164,29 @@ Podgląd planu bez uruchamiania gate'ów (używany do smoke):
 ```bash
 node scripts/release-targets.mjs --plan HEAD
 ```
+
+## Tożsamość autora/commiterów (fail-closed)
+
+Prawdziwa historia repo niesie wyłącznie kanoniczną ludzką tożsamość.
+`scripts/assert-git-identity.mjs` odrzuca syntetyczne identity — fixture
+`gate@example.invalid`, domeny `example.*` / `.invalid` / `.local` /
+`.test`, konta role-only (`gate`, `Engineer`, `CTO (Paperclip)`,
+`MCP Engineer`, `Harness Agent`, ... jako nazwa lub local-part adresu).
+Wyjątek: committer `GitHub <noreply@github.com>` przy merge-commitach z PR.
+
+Egzekucja na zwykłej ścieżce (ten sam moduł, więc nie mogą się rozejść):
+
+1. `.githooks/pre-commit` — `--check-config` (efektywne `user.name` / `user.email`);
+2. `.githooks/pre-push` — obiekty commitów z pushowanego zakresu, **przed**
+   gate'em target-aware (czyli przed pushem/Vercel);
+3. `CI` — `--base/--head` na zakresie PR/pusha, więc `--no-verify` nie jest
+   normalną ścieżką, tylko obejściem łapanym serwerowo.
+
+Tożsamości fixture (`gate@example.invalid`, role-only) zostają w izolowanych
+tymczasowych repo testowych z lokalnym configiem i nigdy nie mutują
+globalnego ani workspace'owego configu gita. Guard tylko odrzuca — nie
+przypisuje ani nie naprawia tożsamości; projekcja tożsamości runtime należy
+do Harnessa.
 
 ## Provenance produkcji
 
