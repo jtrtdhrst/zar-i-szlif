@@ -172,6 +172,7 @@ test("fixture isolation guard fires on broken isolation without mutating the enc
   };
   try {
     egit("init", "--initial-branch=main");
+    assertFixtureRepoIsolated(enclosing);
     egit("config", "user.email", "gate@example.invalid");
     egit("config", "user.name", "gate");
     writeFileSync(join(enclosing, "f1.txt"), "1\n");
