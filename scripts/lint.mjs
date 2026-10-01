@@ -21,6 +21,9 @@ const files = [
   "scripts/mcp-qdrant-verify.mjs",
   "app/cloudflare-worker/build-worker.mjs",
   "app/cloudflare-worker/worker.js",
+  "scripts/assert-release-provenance.mjs",
+  "scripts/release-targets.mjs",
+  "tests/release-gate.test.mjs",
   "tests/repo-structure.test.mjs",
 ];
 

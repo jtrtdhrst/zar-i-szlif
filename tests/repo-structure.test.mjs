@@ -64,14 +64,15 @@ test("frontend and Cloudflare Worker release paths stay separated", () => {
     assert.equal(typeof packageJson.scripts[script], "string", `missing npm script: ${script}`);
   }
 
-  assert.match(packageJson.scripts["validate:release"], /validate:vercel/);
-  assert.doesNotMatch(packageJson.scripts["validate:release"], /validate:cloudflare/);
+  // validate:release is the target-aware dispatcher (KOMAA-457); it must not
+  // collapse to a single provider's gate.
+  assert.match(packageJson.scripts["validate:release"], /release-targets\.mjs/);
+  assert.doesNotMatch(packageJson.scripts["validate:release"], /validate:vercel/);
   assert.match(packageJson.scripts["validate:worker"], /validate:cloudflare/);
 
   const prePush = readFileSync(`${root}/.githooks/pre-push`, "utf8");
   assert.match(prePush, /refs\/heads\/main/);
-  assert.match(prePush, /frontend release gate \(Vercel\)/);
-  assert.match(prePush, /validate:release/);
+  assert.match(prePush, /release-targets\.mjs/);
 
   const ci = readFileSync(`${root}/.github/workflows/ci.yml`, "utf8");
   assert.match(ci, /verify-and-package:/);
