@@ -65,7 +65,9 @@ bramka tego nie zatrzyma**: `.github/workflows/cloudflare-worker-release.yml`
 uruchamia się na każdym pushu do `main` dotykającym `app/cloudflare-worker/**`,
 a `deploy-production` wykonuje `wrangler deploy --keep-vars --config
 wrangler.panel.jsonc`. `production-preflight` sprawdza tylko, czy
-`CLOUDFLARE_API_TOKEN` / `CLOUDFLARE_ACCOUNT_ID` są niepuste — **nie sprawdza
+`CLOUDFLARE_API_TOKEN` / `CLOUDFLARE_ACCOUNT_ID` są niepuste i czy token może
+odczytać `Workers Routes` strefy (`scripts/assert-cloudflare-route-access.mjs`,
+KOMAA-466) — **nie sprawdza
 własności hosta**. Wdrożenie `routes` z `custom_domain` dla
 `mcp.kompaszbiorek.pl` przejmie więc działający endpoint produkcyjny i
 przekieruje go na Workera panelowego.
