@@ -1,14 +1,26 @@
 #!/bin/sh
 set -eu
 
-while read local_ref local_sha remote_ref remote_sha
+shas=""
+
+while read -r local_ref local_sha remote_ref remote_sha
 do
   if [ "$remote_ref" = "refs/heads/main" ]; then
     echo "[pre-push] Direct pushes to main are blocked."
     echo "[pre-push] Push a branch and merge through a PR after CI passes."
     exit 1
   fi
+  case "$local_sha" in
+    ""|0*) ;;  # ref deletion — nothing to validate
+    *) shas="$shas $local_sha" ;;
+  esac
 done
 
-echo "[pre-push] Running Kompas frontend release gate (Vercel)..."
-exec npm run validate:release
+if [ -z "$(git status --porcelain)" ]; then :; else
+  echo "[pre-push] Refusing to gate a dirty working tree."
+  echo "[pre-push] A dirty tree means the validated content is not the pushed content."
+  exit 1
+fi
+
+# shellcheck disable=SC2086
+exec node scripts/release-targets.mjs $shas

@@ -21,6 +21,9 @@ Brak poświadczeń Cloudflare nie oznacza, że frontend Vercel jest niesprawny l
 
 Core CI nie wymaga `CLOUDFLARE_API_TOKEN` ani `CLOUDFLARE_ACCOUNT_ID` i nie wykonuje deployu Cloudflare.
 
+CI pozostaje źródłem prawdy. Lokalny hook pre-push jest defense-in-depth: może
+zablokować push, ale nigdy nie zastępuje `CI` ani target-specific gate'ów.
+
 ## Wymagane zmienne środowiskowe Wtyczki / MCP
 
 Wtyczka / MCP (`app/plugin/`) wymaga w produkcji `PLUGIN_PUBLIC_ORIGIN` —
@@ -109,6 +112,74 @@ wymaga dopisania go tutaj, inaczej DCR zwróci `400 invalid_redirect_uri`.
 
 Canonicalny opis protokołu, narzędzi, sekretów i smoke: `app/cloudflare-worker/README.md`.
 
+## Lokalna bramka jest target-aware
+
+`npm run validate:release` **nie jest** aliasem `validate:vercel`. To dispatcher
+`scripts/release-targets.mjs`, który klasyfikuje zmienione ścieżki względem
+`origin/main` i uruchamia wyłącznie gate'y właścicielów touched targetów:
+
+| Zmienione ścieżki | Gate |
+| --- | --- |
+| `app/cloudflare-worker/**` | `validate:worker` |
+| `app/web/**`, `vercel.json` | `validate:vercel` |
+| `app/plugin/**`, `package.json`, `package-lock.json`, `scripts/**`, `tests/**`, `.githooks/**`, `.github/workflows/**` | oba |
+| tylko dokumentacja / non-release | `validate:code` (minimum) |
+
+`app/plugin/**` jest celowo wspólne: `tsc -p plugin/tsconfig.json` wchodzi do
+buildu Vercel, a `src/mcp.ts` -> `../../plugin/server.js` do bundla Workera.
+
+Zasady:
+
+- **Fail closed.** Niezklasyfikowana ścieżka blokuje push (`exit 2`) zamiast
+  cicho pominąć walidację. Klasyfikujesz ją w `RELEASE_RULES` /
+  `NON_RELEASE_RULES` w `scripts/release-targets.mjs`.
+- Brakujący base ref też blokuje — najpierw `git fetch origin main`.
+- Gate brudnego working tree nie działa: walidowany content musi być
+  pushowanym content.
+- **Zwykła ścieżka Cloudflare nie używa `--no-verify`.** Push zmiany
+  Workera przechodzi `validate:worker` bez `VERCEL_*`; push zmiany Vercel
+  przechodzi `validate:vercel` bez `CLOUDFLARE_*`. `--no-verify` nie jest
+  normalną ścieżką żadnego z targetów.
+
+Podgląd planu bez uruchamiania gate'ów (używany do smoke):
+
+```bash
+node scripts/release-targets.mjs --plan HEAD
+```
+
+## Provenance produkcji
+
+Produkcja Vercel i Cloudflare wdraża **jeden dokładny zweryfikowany SHA na
+`origin/main`**. `scripts/assert-release-provenance.mjs` jest jedynym
+fail-closed asercją używaną lokalnie i w CI, więc ścieżki nie mogą się rozejść.
+Sprawdza:
+
+- ref == `refs/heads/main` (non-main nigdy nie mutuje produkcji);
+- wyrenderowany HEAD == kandydat SHA (artifact provenance);
+- SHA jest osiągalny z `origin/main`;
+- przy `push` SHA jest tipem `origin/main` (przy `workflow_dispatch` ancestor
+  jest dozwolony).
+
+Mutacja produkcyjna z lokalnego, zmiennego checkoutu Paperclip jest
+niemożliwa: brak SHA == brak refu.
+
+## Release: branch -> PR -> CI -> main
+
+1. branch z `origin/main`;
+2. `validate:release` lokalnie (target-aware);
+3. push brancha — **push do `main` jest zablokowany** przez `.githooks/pre-push`;
+4. PR + `CI` PASS na tym samym SHA;
+5. merge do `main`;
+6. target-specific release: `Cloudflare Worker Release` dla Workera,
+   integracja Vercel dla frontendu.
+
+`Cloudflare Worker Release` jest zserializowany per repo
+(`concurrency: cloudflare-worker-production`, `cancel-in-progress: false`), więc
+dwa runy `main` nie race'ują i nie publikują poza kolejnością. Anulowanie
+trwającej mutacji produkcyjnej jest wyłączone. Build jest robiony raz, w jobie
+`verify-worker`, a `deploy-production` konsumuje ten sam artefakt z tego samego
+SHA zamiast przebudowywać z późniejszego stanu workspace.
+
 ## Frontend / Vercel
 
 Frontend jest publikowany przez podpiętą integrację Vercel ↔ GitHub.
@@ -121,7 +192,8 @@ Frontend jest publikowany przez podpiętą integrację Vercel ↔ GitHub.
 - output `app/web/dist`;
 - framework = brak / Other.
 
-Lokalny pre-push uruchamia `npm run validate:release`, które jest aliasem frontendowego `validate:vercel`. Ten gate sprawdza kod oraz Vercel-equivalent build; nie wymaga Cloudflare auth.
+Gate frontendu (`validate:vercel`) sprawdza kod i Vercel-equivalent build; nie
+wymaga Cloudflare auth.
 
 Po pushu/merge status deploymentu Vercel jest zewnętrznym sygnałem powodzenia wdrożenia frontendu. Jeśli do jednego SHA raportuje kilka projektów Vercel, trzeba ustalić który projekt jest związany z właściwą domeną produkcyjną; nie należy traktować wszystkich jako równoważnych bez potwierdzenia.
 
@@ -139,27 +211,28 @@ Może też zostać uruchomiony ręcznie przez `workflow_dispatch`.
 
 Pipeline Workera wykonuje:
 
-1. `npm run validate:worker`;
-2. fail-closed check `CLOUDFLARE_API_TOKEN` i `CLOUDFLARE_ACCOUNT_ID`;
-3. `wrangler whoami`;
-4. produkcyjny `wrangler deploy --keep-vars`.
+1. `npm run validate:worker` + upload artefaktu `cloudflare-worker-<sha>`;
+2. fail-closed asercja provenance (`GITHUB_SHA`, `refs/heads/main`);
+3. fail-closed check `CLOUDFLARE_API_TOKEN` i `CLOUDFLARE_ACCOUNT_ID`;
+4. `wrangler whoami`;
+5. produkcyjny `wrangler deploy --keep-vars` na pobranym artefakcie.
 
 Jeśli Cloudflare secrets są brakujące lub nieważne, blokowany jest wyłącznie release Workera. Nie może to zaczerwienić zwykłego frontendowego Vercel release.
 
 ## Lokalne bramki
 
-Frontend:
+Target-aware (domyślna ścieżka pre-push):
 
 ```bash
 npm ci
 npm run validate:release
 ```
 
-Worker:
+Ręcznie, jeden target:
 
 ```bash
-npm ci
-npm run validate:worker
+npm run validate:vercel   # frontend / Vercel
+npm run validate:worker   # Cloudflare Worker
 ```
 
 Sekretów produkcyjnych nie zapisujemy w repo, issue ani logach.

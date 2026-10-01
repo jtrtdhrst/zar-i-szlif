@@ -127,18 +127,33 @@ Cloudflare dotyczy wyłącznie `app/cloudflare-worker/` (API/integracje/OAuth). 
 Dla zmian Workera:
 
 1. `npm run validate:worker`;
-2. Cloudflare `production-preflight`;
-3. `wrangler deploy --keep-vars` dopiero po poprawnej autoryzacji produkcyjnej.
+2. fail-closed asercja provenance (`GITHUB_SHA`, `refs/heads/main`);
+3. Cloudflare `production-preflight`;
+4. `wrangler deploy --keep-vars` dopiero po poprawnej autoryzacji produkcyjnej.
 
 Nie dokładaj Cloudflare credential gate do ogólnego CI ani do frontendowego Vercel release.
+
+### Target-aware release gate
+
+`npm run validate:release` to dispatcher `scripts/release-targets.mjs`, **nie** alias `validate:vercel`. Klasyfikuje zmienione ścieżki względem `origin/main` i uruchamia gate'y tylko dla touched targetów: worker-only → `validate:worker` (bez `VERCEL_*`), vercel-only → `validate:vercel` (bez `CLOUDFLARE_*`), mixed → oba, docs-only → `validate:code`. Niezklasyfikowana ścieżka **fail-closed** (`exit 2`), nigdy ciche pominięcie walidacji.
+
+`--no-verify` nie jest normalną ścieżką żadnego targetu. Push do `main` pozostaje zablokowany.
+
+### Provenance produkcji
+
+Produkcja Vercel i Cloudflare wdraża **jeden dokładny zweryfikowany SHA na `origin/main`**. `scripts/assert-release-provenance.mjs` jest wspólną fail-closed asercją dla ścieżki lokalnej i CI: ref musi być `refs/heads/main`, wyrenderowany HEAD musi równać się kandydatowi SHA, a SHA musi być osiągalny z `origin/main` (przy `push` być tipem). Mutacja produkcji z lokalnego, zmiennego checkoutu jest niemożliwa.
+
+`Cloudflare Worker Release` jest zserializowany (`concurrency: cloudflare-worker-production`, `cancel-in-progress: false`); build jest robiony raz w `verify-worker`, a `deploy-production` konsumuje ten sam artefakt z tego samego SHA.
 
 ## Git / review
 
 Normalny repo-write powinien być wykonany na branchu/isolated worktree. Implementer dostarcza exact candidate SHA; niezależny review dotyczy tego SHA. Późniejszy commit wymaga ponownej weryfikacji.
 
+Release: branch → PR → CI → merge do `main` → target-specific deploy. Push do `main` jest zablokowany lokalnie i niezalecany.
+
 ### Target-specific release gates
 
-Przed merge do `main` standardowy workflow `CI` musi być PASS.
+Przed merge do `main` standardowy workflow `CI` musi być PASS. Lokalny hook pre-push jest defense-in-depth i nie zastępuje CI.
 
 Dla frontendu dodatkowym sygnałem release jest status deploymentu Vercel przypięty przez integrację GitHub. Cloudflare readiness **nie jest** warunkiem frontendowego merge/release, chyba że kandydat zmienia `app/cloudflare-worker/**`.
 

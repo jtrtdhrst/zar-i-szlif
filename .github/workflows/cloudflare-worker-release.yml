@@ -10,11 +10,19 @@ on:
 permissions:
   contents: read
 
+# Serialize production mutations: two main runs must not race and publish out
+# of order. Never cancel an already-mutating production deploy.
+concurrency:
+  group: cloudflare-worker-production
+  cancel-in-progress: false
+
 jobs:
   verify-worker:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.sha }}
       - uses: actions/setup-node@v4
         with:
           node-version: 24
@@ -22,13 +30,32 @@ jobs:
       - run: npm ci
       - run: npm ci --prefix app/cloudflare-worker
       - run: npm run validate:worker
+      # Build once. The deploy job consumes this exact artifact instead of
+      # rebuilding from a later mutable workspace state.
+      - uses: actions/upload-artifact@v4
+        with:
+          name: cloudflare-worker-${{ github.sha }}
+          retention-days: 7
+          if-no-files-found: error
+          path: |
+            app/cloudflare-worker/worker.js
+            app/plugin/dist/**
 
   production-preflight:
     needs: verify-worker
-    if: (github.event_name == 'push' || github.event_name == 'workflow_dispatch') && github.ref == 'refs/heads/main'
+    if: github.event_name != 'pull_request' && github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
     environment: production
     steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.sha }}
+      - name: Assert exact-SHA production provenance
+        env:
+          GITHUB_REF: ${{ github.ref }}
+          GITHUB_SHA: ${{ github.sha }}
+          GITHUB_EVENT_NAME: ${{ github.event_name }}
+        run: node scripts/assert-release-provenance.mjs
       - name: Verify required Cloudflare production secrets
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
@@ -52,22 +79,36 @@ jobs:
 
   deploy-production:
     needs: production-preflight
-    if: (github.event_name == 'push' || github.event_name == 'workflow_dispatch') && github.ref == 'refs/heads/main'
+    if: github.event_name != 'pull_request' && github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
     environment: production
     steps:
       - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.sha }}
       - uses: actions/setup-node@v4
         with:
           node-version: 24
           cache: npm
       - run: npm ci
       - run: npm ci --prefix app/cloudflare-worker
-      # worker.js jest generowany przez build-worker.mjs, a src/mcp.ts importuje
-      # ../../plugin/server.js -> bez `npm run build` nie ma app/plugin/dist, wiec
-      # esbuild cofa sie do server.ts i nie znajduje zod / @modelcontextprotocol/sdk
-      # (zaden z tych pakietow nie jest deps app/cloudflare-worker).
-      - run: npm run build
+      # Build once / deploy exact candidate: this is the artifact produced by
+      # verify-worker from the same verified SHA that passed the Worker gate.
+      - uses: actions/download-artifact@v4
+        with:
+          name: cloudflare-worker-${{ github.sha }}
+          path: .
+      - name: Assert exact-SHA production provenance
+        env:
+          GITHUB_REF: ${{ github.ref }}
+          GITHUB_SHA: ${{ github.sha }}
+          GITHUB_EVENT_NAME: ${{ github.event_name }}
+        run: node scripts/assert-release-provenance.mjs
+      - name: Verify deployed artifact provenance
+        run: |
+          test -s app/cloudflare-worker/worker.js
+          node --check app/cloudflare-worker/worker.js
+          test -d app/plugin/dist
       - name: Deploy Cloudflare Worker
         working-directory: app/cloudflare-worker
         env:
