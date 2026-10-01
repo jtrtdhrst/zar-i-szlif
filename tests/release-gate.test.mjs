@@ -6,6 +6,7 @@ import { join } from "node:path";
 import { fileURLToPath } from "node:url";
 import test from "node:test";
 
+import { collectRouteAccessViolations } from "../scripts/assert-cloudflare-route-access.mjs";
 import { checkProvenance, PRODUCTION_REF } from "../scripts/assert-release-provenance.mjs";
 import { classifyTargets } from "../scripts/release-targets.mjs";
 
@@ -237,4 +238,50 @@ test("production deploy consumes the artifact built from the verified SHA", () =
   assert.match(workerRelease, /name: cloudflare-worker-\$\{\{ github\.sha \}\}/);
   assert.match(workerRelease, /actions\/download-artifact@v4/);
   assert.doesNotMatch(workerRelease, /- run: npm run build\s*\n\s*\n\s*- name: Deploy/);
+});
+
+// --- KOMAA-466: zone route permission is proven before any mutation ---------
+
+test("production preflight proves zone route access, not just secret presence", async () => {
+  // `wrangler whoami` only proves account reachability. Deploy reads
+  // /zones/{zone}/workers/routes after uploading the script, so an
+  // under-scoped token used to fail mid-deploy with production mutated.
+  assert.match(workerRelease, /assert-cloudflare-route-access\.mjs/);
+  assert.match(workerRelease, /CLOUDFLARE_ZONE_NAME/);
+
+  // The check must live in preflight, i.e. before deploy-production exists.
+  const zoneStep = workerRelease.indexOf("assert-cloudflare-route-access.mjs");
+  const deployJob = workerRelease.indexOf("deploy-production:");
+  assert.ok(zoneStep > -1 && deployJob > zoneStep, "zone check must precede deploy-production");
+
+  const ok = await collectRouteAccessViolations({
+    fetchImpl: async () => ({ json: async () => ({ success: true, result: [{ id: "zone-1" }] }) }),
+    accountId: "acct",
+    token: "tok",
+    zoneName: "kompaszbiorek.pl",
+  });
+  assert.deepEqual(ok, []);
+
+  // The production failure: token reads no routes for the zone.
+  const denied = await collectRouteAccessViolations({
+    fetchImpl: async (url) =>
+      url.includes("/workers/routes")
+        ? { json: async () => ({ success: false, errors: [{ message: "No access to the specified resource." }] }) }
+        : { json: async () => ({ success: true, result: [{ id: "zone-1" }] }) },
+    accountId: "acct",
+    token: "tok",
+    zoneName: "kompaszbiorek.pl",
+  });
+  assert.equal(denied.length, 1);
+  assert.match(denied[0], /Workers Routes/);
+
+  // An invisible zone must fail closed rather than silently pass.
+  const unknownZone = await collectRouteAccessViolations({
+    fetchImpl: async () => ({ json: async () => ({ success: true, result: [] }) }),
+    accountId: "acct",
+    token: "tok",
+    zoneName: "kompaszbiorek.pl",
+  });
+  assert.equal(unknownZone.length, 1);
+  assert.match(unknownZone[0], /not visible/);
 });
