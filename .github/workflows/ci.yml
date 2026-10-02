@@ -15,12 +15,27 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+        with:
+          # Identity gate diffs origin/main..HEAD; a shallow clone has no
+          # merge-base and would fail closed on every PR.
+          fetch-depth: 0
       - uses: actions/setup-node@v4
         with:
           node-version: 24
           cache: npm
       - run: npm ci
       - run: npm ci --prefix app/cloudflare-worker
+      - name: Reject synthetic Git identities
+        run: |
+          git fetch --no-tags origin main
+          base="origin/main"
+          if [ "${{ github.event_name }}" = "push" ]; then
+            case "${{ github.event.before }}" in
+              ""|0*) ;;
+              *) base="${{ github.event.before }}" ;;
+            esac
+          fi
+          node scripts/assert-git-identity.mjs --base="$base" --head=HEAD
       - run: npm run validate:code
       - run: npm run build
       - name: Verify generated artifacts
