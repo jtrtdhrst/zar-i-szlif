@@ -108,7 +108,7 @@ przykładami w komunikatach błędów i komentarzach — nie są źródłem praw
 o hoście; host pochodzi wyłącznie z `vars.MCP_PUBLIC_ORIGIN` i zmiennych
 środowiskowych.
 
-**Vercel nie jest bramką tego MCP.** Brak `VERCEL_ORG_ID` / `VERCEL_PROJECT_ID` blokuje `validate:vercel` (frontend), ale nie blokuje wdrożenia ani akceptacji MCP — to celowy podział targetów opisany wyżej.
+**Vercel nie jest bramką tego MCP.** Brak `VERCEL_ORG_ID` / `VERCEL_PROJECT_ID` blokuje `validate:vercel:platform` (platform check frontendu na `main`), ale nie blokuje candidate gate'u brancha ani wdrożenia ani akceptacji MCP — to celowy podział targetów opisany wyżej.
 
 Wymagane sekrety Workera (nazwy bez wartości): `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET`, `COOKIE_ENCRYPTION_KEY`, `QDRANT_URL`, `QDRANT_API_KEY`; opcjonalnie `GOOGLE_PICKER_API_KEY`. Bindingi: `OAUTH_KV` (KV dla `workers-oauth-provider`), `AI` (Workers AI `bge-m3`).
 
@@ -183,7 +183,7 @@ niemożliwa: brak SHA == brak refu.
 4. PR + `CI` PASS na tym samym SHA;
 5. merge do `main`;
 6. target-specific release: `Cloudflare Worker Release` dla Workera,
-   integracja Vercel dla frontendu.
+   `Vercel Frontend Platform Check` + integracja Vercel dla frontendu.
 
 `Cloudflare Worker Release` jest zserializowany per repo
 (`concurrency: cloudflare-worker-production`, `cancel-in-progress: false`), więc
@@ -194,7 +194,9 @@ SHA zamiast przebudowywać z późniejszego stanu workspace.
 
 ## Frontend / Vercel
 
-Frontend jest publikowany przez podpiętą integrację Vercel ↔ GitHub.
+Frontend jest publikowany przez podpiętą integrację Vercel ↔ GitHub **z `main`**.
+Lokalny checkout nigdy nie deployuje produkcji; deploy platformy dzieje się
+po merge do `main` w integracji Vercel, nie z worktree dewelopera.
 
 `vercel.json` definiuje:
 
@@ -204,8 +206,26 @@ Frontend jest publikowany przez podpiętą integrację Vercel ↔ GitHub.
 - output `app/web/dist`;
 - framework = brak / Other.
 
-Gate frontendu (`validate:vercel`) sprawdza kod i Vercel-equivalent build; nie
-wymaga Cloudflare auth.
+Gate frontendu ma dwie rozdzielne ścieżki (KOMAA-499):
+
+- **Candidate validation (domyślna, `npm run validate:vercel`)** — sprawdza kod
+  (`validate:code`), wykonuje `npm run build`, asertuje niepusty
+  `app/web/dist/index.html` i statycznie waliduje kluczowe pola `vercel.json`
+  (`buildCommand`, `installCommand`, `outputDirectory`). **Zero `vercel pull` /
+  `vercel build`, zero `VERCEL_*`, zero `.vercel/project.json`.** To jest
+  ścieżka brancha/PR i hooka pre-push; zwykły push nigdy nie wymaga lokalnego
+  linku Vercel ani Vercel API.
+- **Platform deploy validation (`npm run validate:vercel:platform`, czyli
+  `node scripts/validate-vercel.mjs --platform`)** — pełna walidacja Vercel
+  (`vercel pull` + `vercel build`) z `VERCEL_ORG_ID` / `VERCEL_PROJECT_ID` /
+  `VERCEL_TOKEN`; działa w jawnej ścieżce `main`: workflow
+  `.github/workflows/vercel-frontend-platform.yml` (push na `main` dla
+  `app/web/**`, `app/plugin/**`, `vercel.json` + `workflow_dispatch`, środowisko
+  `production`, fail-closed na brakujących sekretach, `concurrency:
+  vercel-frontend-production`). Nigdy jako wymóg pushowania brancha.
+
+`--no-verify` nie jest normalną ścieżką żadnego targetu; zielony push
+przechodzi hooka bez niego.
 
 Po pushu/merge status deploymentu Vercel jest zewnętrznym sygnałem powodzenia wdrożenia frontendu. Jeśli do jednego SHA raportuje kilka projektów Vercel, trzeba ustalić który projekt jest związany z właściwą domeną produkcyjną; nie należy traktować wszystkich jako równoważnych bez potwierdzenia.
 
@@ -243,8 +263,9 @@ npm run validate:release
 Ręcznie, jeden target:
 
 ```bash
-npm run validate:vercel   # frontend / Vercel
-npm run validate:worker   # Cloudflare Worker
+npm run validate:vercel            # frontend / Vercel (candidate, bez Vercel API)
+npm run validate:vercel:platform   # frontend / Vercel (platforma, wymaga linku + VERCEL_*)
+npm run validate:worker            # Cloudflare Worker
 ```
 
 Sekretów produkcyjnych nie zapisujemy w repo, issue ani logach.

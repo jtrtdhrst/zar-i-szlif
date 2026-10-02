@@ -1,0 +1,70 @@
+name: Vercel Frontend Platform Check
+
+# KOMAA-499: platform validation lives on main, never on a branch push.
+# The production frontend deploys from `main` through the Vercel <-> GitHub
+# integration, so the Vercel link and VERCEL_* secrets belong to this main-only
+# path. Branch/PR validation stays link-free (`npm run validate:vercel`).
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "app/web/**"
+      - "app/plugin/**"
+      - "vercel.json"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+# Serialize main runs so two deploys never validate out of order. The production
+# mutation itself is the Vercel Git integration, which is already serialized per
+# project; this group only serializes the platform validation.
+concurrency:
+  group: vercel-frontend-production
+  cancel-in-progress: false
+
+jobs:
+  verify-platform:
+    if: github.event_name != 'pull_request' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    environment: production
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.sha }}
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+      - run: npm ci
+      - name: Assert exact-SHA production provenance
+        env:
+          GITHUB_REF: ${{ github.ref }}
+          GITHUB_SHA: ${{ github.sha }}
+          GITHUB_EVENT_NAME: ${{ github.event_name }}
+        run: node scripts/assert-release-provenance.mjs
+      # Fail closed on missing platform secrets instead of letting vercel pull
+      # auto-create or guess a project (KOMAA-499).
+      - name: Verify required Vercel production secrets
+        env:
+          VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
+          VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
+          VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+        run: |
+          missing=0
+          for name in VERCEL_ORG_ID VERCEL_PROJECT_ID VERCEL_TOKEN; do
+            if [ -z "${!name:-}" ]; then
+              echo "::error::Missing production secret ${name}"
+              missing=1
+            fi
+          done
+          test "${missing}" -eq 0
+      # `vercel pull` creates .vercel/project.json from these env vars, so no
+      # checkout is ever pre-linked.
+      - name: Verify Vercel platform build
+        env:
+          VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
+          VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
+          VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+        run: npm run validate:vercel:platform

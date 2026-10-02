@@ -231,6 +231,69 @@ test("pre-push classifies release targets instead of aliasing validate:vercel", 
   assert.doesNotMatch(packageJson.scripts["validate:release"], /validate:vercel/);
 });
 
+// --- KOMAA-499: Vercel candidate validation needs no platform link --------
+
+test("validate:vercel default path needs no Vercel link/API; --platform keeps full validation", () => {
+  const gate = readFileSync(`${root}/scripts/validate-vercel.mjs`, "utf8");
+
+  // The --platform variant exists and is discoverable via npm.
+  assert.match(gate, /--platform/);
+  assert.match(packageJson.scripts["validate:vercel:platform"] ?? "", /--platform/);
+  // The default npm path takes no platform flag.
+  assert.doesNotMatch(packageJson.scripts["validate:vercel"], /--platform/);
+
+  // Ordering contract: the --platform flag parse is the first platform-only
+  // concept in the file, so everything before it is the link-free default
+  // path. None of the platform-only strings may appear there.
+  const head = gate.slice(0, gate.indexOf("--platform"));
+  for (const banned of ["vercel@", "VERCEL_", "vercel pull", "vercel build", ".vercel"]) {
+    assert.ok(!head.includes(banned), `default path must not reference ${banned}`);
+  }
+
+  // The full platform validation still exists behind --platform.
+  assert.match(gate, /VERCEL_ORG_ID/);
+  assert.match(gate, /VERCEL_PROJECT_ID/);
+  assert.match(gate, /vercel pull/);
+  assert.match(gate, /vercel build/);
+
+  // The default path builds the candidate and statically validates the
+  // deploy contract instead of calling the Vercel API.
+  assert.match(gate, /npm.*run.*build/);
+  assert.match(gate, /app\/web\/dist\/index\.html/);
+  assert.match(gate, /outputDirectory/);
+
+  // Cloudflare-only changes still never touch the Vercel gate.
+  assert.deepEqual(classifyTargets(["app/cloudflare-worker/src/mcp.ts"]).scripts, ["validate:worker"]);
+  // Mixed changes still run both gates.
+  assert.deepEqual(
+    classifyTargets(["app/cloudflare-worker/src/oauth.ts", "app/web/src/static-app-v2.js"]).scripts,
+    ["validate:vercel", "validate:worker"],
+  );
+});
+
+// The decoupling is only real while the platform check still has an explicit
+// main/deploy home. If that workflow is dropped, the full Vercel validation
+// would exist only as a manual local command and the coupling would return.
+test("Vercel platform validation is wired into the main path, not the branch push path", () => {
+  const platformWorkflowPath = `${root}/.github/workflows/vercel-frontend-platform.yml`;
+  assert.ok(existsSync(platformWorkflowPath), "missing Vercel main-path platform check");
+
+  const platformWorkflow = readFileSync(platformWorkflowPath, "utf8");
+  assert.match(platformWorkflow, /branches: \[main\]/);
+  assert.match(platformWorkflow, /refs\/heads\/main/);
+  assert.match(platformWorkflow, /assert-release-provenance\.mjs/);
+  assert.match(platformWorkflow, /validate:vercel:platform/);
+  for (const secret of ["VERCEL_ORG_ID", "VERCEL_PROJECT_ID", "VERCEL_TOKEN"]) {
+    assert.match(platformWorkflow, new RegExp(`secrets\\.${secret}`));
+  }
+
+  // CI and the pre-push gate stay free of platform auth; only the main-path
+  // workflow may carry VERCEL_*.
+  assert.doesNotMatch(ci, /VERCEL_/);
+  const prePush = readFileSync(`${root}/.githooks/pre-push`, "utf8");
+  assert.doesNotMatch(prePush, /VERCEL_|--platform/);
+});
+
 // --- requirement 5/6/8: production provenance ------------------------------
 
 test("a non-main ref cannot enter production deploy", () => {
