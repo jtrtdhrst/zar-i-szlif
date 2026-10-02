@@ -47,9 +47,11 @@ Poniższy zestaw to kontrakt **wdrożony na produkcji** 2026-10-01 (worker
 - **Custom domain:** `mcp-kompas.kompaszbiorek.pl` jako `custom_domain` tego samego Workera co `panel.kompaszbiorek.pl` (oba w `routes`). `panel.kompaszbiorek.pl` nadal obsługuje `/mcp` dla istniejących klientów, ale w metadanych OAuth reklamowany jest wyłącznie `https://mcp-kompas.kompaszbiorek.pl/mcp`. Rekord DNS dla `custom_domain` tworzy samo `wrangler deploy` — nie ma osobnego kroku DNS.
 - Workers.dev jest wyłącznie smoke/preview i nie jest adresem produkcyjnym.
 
-Zweryfikowane na żywo 2026-10-01 (`scripts/mcp-oauth-smoke.mjs`, 6/6 PASS):
-`/health` 200, `/mcp` bez tokenu 401 + `WWW-Authenticate`, metadane RFC 9728/8414
-spójne, DCR fail-closed dla `redirect_uri` spoza allowlisty oraz 302 na
+Zweryfikowane na żywo 2026-10-01 i ponownie 2026-10-02 — skrypt poniżej jest
+reprodukowalnym dowodem (`node scripts/mcp-oauth-smoke.mjs`, 6/6 PASS; `/health`
+200 sprawdzany osobno): `/mcp` bez tokenu 401 + `WWW-Authenticate`, metadane
+RFC 9728/8414 spójne, DCR loopback ściśle wiąże `resource` (obcy `resource`
+-> 400), DCR fail-closed dla `redirect_uri` spoza allowlisty oraz 302 na
 `accounts.google.com` z `redirect_uri=https://mcp-kompas.kompaszbiorek.pl/callback`
 — czyli `OAUTH_KV`, `COOKIE_ENCRYPTION_KEY`, `GOOGLE_CLIENT_ID` i
 `GOOGLE_CLIENT_SECRET` są realnie ustawione w produkcyjnym Workerze. **Nie
