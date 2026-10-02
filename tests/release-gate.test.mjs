@@ -310,6 +310,24 @@ test("production deploy consumes the artifact built from the verified SHA", () =
   assert.doesNotMatch(workerRelease, /- run: npm run build\s*\n\s*\n\s*- name: Deploy/);
 });
 
+test("downloaded artifact keeps the repo-relative layout the deploy resolves", () => {
+  // upload-artifact v4 archiwizuje najblizszy wspolny katalog sciezek
+  // (`app/cloudflare-worker/worker.js` + `app/plugin/dist/**` -> `app/` jest
+  // pomijane). Rozwiazanie do `path: .` dalo `test -d app/plugin/dist` = false
+  // na czystym runnerze i zabilo release (KOMAA-447, run 36944261990).
+  const upload = workerRelease.slice(
+    workerRelease.indexOf("actions/upload-artifact@v4"),
+    workerRelease.indexOf("production-preflight:"),
+  );
+  assert.match(upload, /app\/plugin\/dist\/\*\*/, "artifact musi zawierac app/plugin/dist");
+
+  const download = workerRelease.slice(
+    workerRelease.indexOf("actions/download-artifact@v4"),
+    workerRelease.indexOf("- name: Deploy Cloudflare Worker"),
+  );
+  assert.match(download, /path: app\b/, "download musi odtworzyc prefiks `app/`");
+});
+
 // --- KOMAA-466: zone route permission is proven before any mutation ---------
 
 test("production preflight proves zone route access, not just secret presence", async () => {
