@@ -194,7 +194,9 @@ SHA zamiast przebudowywać z późniejszego stanu workspace.
 
 ## Frontend / Vercel
 
-Frontend jest publikowany przez podpiętą integrację Vercel ↔ GitHub.
+Frontend jest publikowany przez podpiętą integrację Vercel ↔ GitHub **z `main`**.
+Lokalny checkout nigdy nie deployuje produkcji; deploy platformy dzieje się
+po merge do `main` w integracji Vercel, nie z worktree dewelopera.
 
 `vercel.json` definiuje:
 
@@ -204,8 +206,22 @@ Frontend jest publikowany przez podpiętą integrację Vercel ↔ GitHub.
 - output `app/web/dist`;
 - framework = brak / Other.
 
-Gate frontendu (`validate:vercel`) sprawdza kod i Vercel-equivalent build; nie
-wymaga Cloudflare auth.
+Gate frontendu ma dwie rozdzielne ścieżki (KOMAA-499):
+
+- **Candidate validation (domyślna, `npm run validate:vercel`)** — sprawdza kod
+  (`validate:code`), wykonuje `npm run build`, asertuje niepusty
+  `app/web/dist/index.html` i statycznie waliduje kluczowe pola `vercel.json`
+  (`buildCommand`, `installCommand`, `outputDirectory`). **Zero `vercel pull` /
+  `vercel build`, zero `VERCEL_*`, zero `.vercel/project.json`.** To jest
+  ścieżka brancha/PR i hooka pre-push; zwykły push nigdy nie wymaga lokalnego
+  linku Vercel ani Vercel API.
+- **Platform deploy validation (`npm run validate:vercel:platform`, czyli
+  `node scripts/validate-vercel.mjs --platform`)** — pełna walidacja Vercel
+  (`vercel pull` + `vercel build`) z linkiem projektu i `VERCEL_*`; tylko do
+  jawnych sprawdzeń platformy, nigdy jako wymóg pushowania brancha.
+
+`--no-verify` nie jest normalną ścieżką żadnego targetu; zielony push
+przechodzi hooka bez niego.
 
 Po pushu/merge status deploymentu Vercel jest zewnętrznym sygnałem powodzenia wdrożenia frontendu. Jeśli do jednego SHA raportuje kilka projektów Vercel, trzeba ustalić który projekt jest związany z właściwą domeną produkcyjną; nie należy traktować wszystkich jako równoważnych bez potwierdzenia.
 
@@ -243,8 +259,9 @@ npm run validate:release
 Ręcznie, jeden target:
 
 ```bash
-npm run validate:vercel   # frontend / Vercel
-npm run validate:worker   # Cloudflare Worker
+npm run validate:vercel            # frontend / Vercel (candidate, bez Vercel API)
+npm run validate:vercel:platform   # frontend / Vercel (platforma, wymaga linku + VERCEL_*)
+npm run validate:worker            # Cloudflare Worker
 ```
 
 Sekretów produkcyjnych nie zapisujemy w repo, issue ani logach.
