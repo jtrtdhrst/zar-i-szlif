@@ -108,7 +108,7 @@ przykładami w komunikatach błędów i komentarzach — nie są źródłem praw
 o hoście; host pochodzi wyłącznie z `vars.MCP_PUBLIC_ORIGIN` i zmiennych
 środowiskowych.
 
-**Vercel nie jest bramką tego MCP.** Brak `VERCEL_ORG_ID` / `VERCEL_PROJECT_ID` blokuje `validate:vercel` (frontend), ale nie blokuje wdrożenia ani akceptacji MCP — to celowy podział targetów opisany wyżej.
+**Vercel nie jest bramką tego MCP.** Brak `VERCEL_ORG_ID` / `VERCEL_PROJECT_ID` blokuje `validate:vercel:platform` (platform check frontendu na `main`), ale nie blokuje candidate gate'u brancha ani wdrożenia ani akceptacji MCP — to celowy podział targetów opisany wyżej.
 
 Wymagane sekrety Workera (nazwy bez wartości): `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET`, `COOKIE_ENCRYPTION_KEY`, `QDRANT_URL`, `QDRANT_API_KEY`; opcjonalnie `GOOGLE_PICKER_API_KEY`. Bindingi: `OAUTH_KV` (KV dla `workers-oauth-provider`), `AI` (Workers AI `bge-m3`).
 
@@ -183,7 +183,7 @@ niemożliwa: brak SHA == brak refu.
 4. PR + `CI` PASS na tym samym SHA;
 5. merge do `main`;
 6. target-specific release: `Cloudflare Worker Release` dla Workera,
-   integracja Vercel dla frontendu.
+   `Vercel Frontend Platform Check` + integracja Vercel dla frontendu.
 
 `Cloudflare Worker Release` jest zserializowany per repo
 (`concurrency: cloudflare-worker-production`, `cancel-in-progress: false`), więc
@@ -217,8 +217,12 @@ Gate frontendu ma dwie rozdzielne ścieżki (KOMAA-499):
   linku Vercel ani Vercel API.
 - **Platform deploy validation (`npm run validate:vercel:platform`, czyli
   `node scripts/validate-vercel.mjs --platform`)** — pełna walidacja Vercel
-  (`vercel pull` + `vercel build`) z linkiem projektu i `VERCEL_*`; tylko do
-  jawnych sprawdzeń platformy, nigdy jako wymóg pushowania brancha.
+  (`vercel pull` + `vercel build`) z `VERCEL_ORG_ID` / `VERCEL_PROJECT_ID` /
+  `VERCEL_TOKEN`; działa w jawnej ścieżce `main`: workflow
+  `.github/workflows/vercel-frontend-platform.yml` (push na `main` dla
+  `app/web/**`, `app/plugin/**`, `vercel.json` + `workflow_dispatch`, środowisko
+  `production`, fail-closed na brakujących sekretach, `concurrency:
+  vercel-frontend-production`). Nigdy jako wymóg pushowania brancha.
 
 `--no-verify` nie jest normalną ścieżką żadnego targetu; zielony push
 przechodzi hooka bez niego.

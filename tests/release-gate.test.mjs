@@ -271,6 +271,29 @@ test("validate:vercel default path needs no Vercel link/API; --platform keeps fu
   );
 });
 
+// The decoupling is only real while the platform check still has an explicit
+// main/deploy home. If that workflow is dropped, the full Vercel validation
+// would exist only as a manual local command and the coupling would return.
+test("Vercel platform validation is wired into the main path, not the branch push path", () => {
+  const platformWorkflowPath = `${root}/.github/workflows/vercel-frontend-platform.yml`;
+  assert.ok(existsSync(platformWorkflowPath), "missing Vercel main-path platform check");
+
+  const platformWorkflow = readFileSync(platformWorkflowPath, "utf8");
+  assert.match(platformWorkflow, /branches: \[main\]/);
+  assert.match(platformWorkflow, /refs\/heads\/main/);
+  assert.match(platformWorkflow, /assert-release-provenance\.mjs/);
+  assert.match(platformWorkflow, /validate:vercel:platform/);
+  for (const secret of ["VERCEL_ORG_ID", "VERCEL_PROJECT_ID", "VERCEL_TOKEN"]) {
+    assert.match(platformWorkflow, new RegExp(`secrets\\.${secret}`));
+  }
+
+  // CI and the pre-push gate stay free of platform auth; only the main-path
+  // workflow may carry VERCEL_*.
+  assert.doesNotMatch(ci, /VERCEL_/);
+  const prePush = readFileSync(`${root}/.githooks/pre-push`, "utf8");
+  assert.doesNotMatch(prePush, /VERCEL_|--platform/);
+});
+
 // --- requirement 5/6/8: production provenance ------------------------------
 
 test("a non-main ref cannot enter production deploy", () => {
