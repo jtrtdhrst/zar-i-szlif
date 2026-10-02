@@ -108,7 +108,12 @@ jobs:
       - uses: actions/download-artifact@v4
         with:
           name: cloudflare-worker-${{ github.sha }}
-          path: .
+          # `app`, nie `.`: upload-artifact v4 trzyma w archiwum tylko
+          # najblizszy wspolny katalog sciezek (`app/`), wiec bez tego
+          # `plugin/dist/**` wyladowalby jako `./plugin/dist` i bramka
+          # provenance (`test -d app/plugin/dist`) padalaby na czystym
+          # runnerze, a esbuild nie znalazlby `../../plugin/dist`.
+          path: app
       - name: Assert exact-SHA production provenance
         env:
           GITHUB_REF: ${{ github.ref }}
