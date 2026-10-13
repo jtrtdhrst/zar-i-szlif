@@ -21,7 +21,7 @@ Konsekwencja UI: działanie główne ma być widoczne, data/godzina nie konkuruj
 
 ## Pozycjonowanie produktu — TARGET / MUST-HAVE
 
-Kompas nie jest przede wszystkim generatorem planów ani narzędziem do problem solvingu. Główna wartość docelowego produktu to obniżenie progu wejścia do dobrego, powtarzalnego planowania i połączenie kolejnych aktywności w jeden proces.
+Żar i Szlif nie jest przede wszystkim generatorem planów ani narzędziem do problem solvingu. Główna wartość docelowego produktu to obniżenie progu wejścia do dobrego, powtarzalnego planowania i połączenie kolejnych aktywności w jeden proces.
 
 Hierarchia przekazu wizji:
 1. prostsze planowanie i brak pustej kartki;
