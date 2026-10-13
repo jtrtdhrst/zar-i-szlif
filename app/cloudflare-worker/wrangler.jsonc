@@ -20,8 +20,12 @@
     "MAUTIC_ONBOARDING_ENABLED": "false",
     "MAUTIC_BASE_URL": "",
     "MAUTIC_TEST_TAG": "welcome-test-only",
-    // KOMAA-785: welcome enrollment defaults OFF. Enable only with CMO/CTO
-    // acceptance + REGISTRATION_CUTOVER_ISO set + D1/Supabase claim store.
+    // KOMAA-790: welcome enrollment defaults OFF. Enable only with CMO/CTO
+    // acceptance + REGISTRATION_CUTOVER_ISO set + D1 `DB` binding provisioned
+    // (see migrations/0001_accounts.sql; CTO must create DB, add binding,
+    // apply migration, backfill pre-cutover accounts). Without `DB` the
+    // worker fail-closes to zero enrollments; KV is transport outbox only,
+    // never the registration claim.
     "WELCOME_ENROLLMENT_ENABLED": "false",
     "REGISTRATION_CUTOVER_ISO": "",
     "MCP_PUBLIC_ORIGIN": "https://mcp-kompas.kompaszbiorek.pl",

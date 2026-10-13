@@ -1,26 +1,27 @@
 // registration.ts
 // Authoritative `registration_created` event + durable exactly-once welcome enrollment.
-// (KOMAA-785: app-first registration logic. No mail copy, no production send here.)
+// (KOMAA-790: transactional first-registration proof. No mail copy, no production send here.)
 //
 // Model:
-// - The ONLY creation proof is a first-seen claim in the account store, keyed by
-//   verified Google `sub`, at/after REGISTRATION_CUTOVER_ISO. OAuth login, Mautic
-//   segment joins and KV reads elsewhere are NEVER creation proof.
-// - Decision is exactly-once per sub (one immutable eventId `reg:{sub}`); transport
-//   is at-least-once with an idempotent effect (same eventId -> same outbox key,
-//   same Idempotency-Key header, Sender email upsert).
+// - The ONLY creation proof is an atomic insert into the account store, keyed by
+//   verified Google `sub` with a UNIQUE constraint. The insert winner (isNew)
+//   with createdAt at/after REGISTRATION_CUTOVER_ISO emits ONE immutable
+//   registration_created event (`reg:{sub}`). Losers enroll nothing.
+// - OAuth login, segment joins and KV reads are NEVER creation proof. KV holds
+//   only the transport outbox (keyed by immutable eventId), never the claim.
+// - Transport is at-least-once with an idempotent effect (same eventId ->
+//   same outbox key, same Idempotency-Key header at the provider adapter).
 // - Failure never rolls back registration: outbox stays `queued`, the next login
 //   retries with the SAME eventId (no double enrollment).
+// - Pre-cutover accounts (seeded/imported with createdAt < cutover) that log in
+//   for the first time since cutover are NOT new: the insert loses (row exists)
+//   and the existing createdAt < cutover -> skip `existing-account`.
 //
-// Production defaults: WELCOME_ENROLLMENT_ENABLED != "true" -> zero KV writes,
+// Production defaults: WELCOME_ENROLLMENT_ENABLED != "true" -> zero store writes,
 // zero requests. REGISTRATION_CUTOVER_ISO unset -> zero enrollments (fail-closed).
-//
-// ponytail: KV has no CAS/transaction, so concurrent first logins share one
-// eventId/outbox key instead of a true atomic claim. True exactly-once needs D1
-// (or Supabase auth table) with a UNIQUE(sub) insert as the claim — see BLOCKER
-// note in maybeEnqueueWelcomeEnrollment. Consent capture UI does not exist yet:
-// absent consent record = deny, so enrollment stays at zero until Lifecycle Ops
-// ships it.
+// No account store binding (D1 `DB`) -> zero enrollments (fail-closed, `no-account-store`).
+// Provider transport lives in the Mautic adapter (KOMAA-786); this module never
+// calls Sender.net or any mail API directly.
 
 export interface RegistrationCreatedEvent {
   v: 1;
@@ -37,11 +38,10 @@ export interface RegistrationCreatedEvent {
 
 export interface RegistrationEnv {
   OAUTH_KV: KVNamespace;
+  /** Optional D1 binding. Absent -> enrollment fail-closed, login unaffected. */
+  DB?: D1Database;
   WELCOME_ENROLLMENT_ENABLED?: string;
   REGISTRATION_CUTOVER_ISO?: string;
-  SENDER_API_TOKEN?: string;
-  SENDER_ONBOARDING_ENABLED?: string;
-  SENDER_ONBOARDING_GROUP?: string;
 }
 
 export interface RegistrationProps {
@@ -53,11 +53,6 @@ export interface RegistrationProps {
 export type EnrollmentDecision =
   | { kind: "enqueue"; event: RegistrationCreatedEvent; retry: boolean }
   | { kind: "skip"; reason: string };
-
-interface ClaimRecord {
-  eventId: string;
-  createdAt: number;
-}
 
 interface OutboxRecord {
   eventId: string;
@@ -78,19 +73,61 @@ function maskEmail(email: string): string {
   return `${masked}@${domain}`;
 }
 
-/** Minimal key-value store surface. Cloudflare KV satisfies it; tests use a Map. */
-export interface ClaimStore {
+/**
+ * Authoritative account store. The ONLY creation proof.
+ * Implementations MUST make `claimNewAccount` atomic: exactly one concurrent
+ * caller per sub observes `isNew: true` (SQL UNIQUE(sub) insert, D1 batch
+ * transaction, or equivalent). Callers must never implement get-then-put.
+ */
+export interface AccountStore {
+  claimNewAccount(sub: string, createdAt: number): Promise<{ isNew: boolean; createdAt: number }>;
+}
+
+/** Minimal key-value surface for the transport outbox only. Cloudflare KV satisfies it. */
+export interface OutboxStore {
   get(key: string): Promise<string | null>;
   put(key: string, value: string): Promise<void>;
 }
 
-const claimKey = (sub: string) => `welcome:claim:${sub}`;
+/** Minimal eligibility reads (consent + suppression). Absent record = deny. */
+export interface EligibilityStore {
+  consentGranted(sub: string): Promise<boolean>;
+  suppressed(sub: string): Promise<boolean>;
+}
+
 const outboxKey = (eventId: string) => `welcome:outbox:${eventId}`;
 const consentKey = (sub: string) => `welcome:consent:${sub}`;
 const suppressKey = (sub: string) => `welcome:suppress:${sub}`;
 
+/** D1-backed account store. Requires migration `migrations/0001_accounts.sql`. */
+export function makeD1AccountStore(db: D1Database): AccountStore {
+  return {
+    async claimNewAccount(sub: string, createdAt: number) {
+      const existing = await db
+        .prepare("SELECT created_at FROM accounts WHERE sub = ?1")
+        .bind(sub)
+        .first<{ created_at: number }>();
+      if (existing) return { isNew: false, createdAt: existing.created_at };
+      // Atomic claim: UNIQUE(sub) insert wins exactly once under concurrency.
+      // INSERT OR IGNORE + affected-rows check keeps this a single statement.
+      const res = await db
+        .prepare("INSERT OR IGNORE INTO accounts (sub, created_at) VALUES (?1, ?2)")
+        .bind(sub, createdAt)
+        .run();
+      if ((res.meta.changes ?? 0) === 1) return { isNew: true, createdAt };
+      const winner = await db
+        .prepare("SELECT created_at FROM accounts WHERE sub = ?1")
+        .bind(sub)
+        .first<{ created_at: number }>();
+      return { isNew: false, createdAt: winner?.created_at ?? createdAt };
+    },
+  };
+}
+
 export async function attemptEnrollment(
-  store: ClaimStore,
+  accounts: AccountStore | null,
+  outbox: OutboxStore,
+  eligibility: EligibilityStore,
   now: number,
   input: {
     sub: string;
@@ -98,6 +135,8 @@ export async function attemptEnrollment(
     emailVerified: boolean;
     enabled: boolean;
     cutoverMs: number | null;
+    /** Onboarding-segment eligibility. False (wrong segment) -> skip, no claim. */
+    segmentEligible: boolean;
   },
 ): Promise<EnrollmentDecision> {
   const logId = maskEmail(input.email);
@@ -112,63 +151,67 @@ export async function attemptEnrollment(
     return { kind: "skip", reason: "no-cutover" };
   }
   if (now < input.cutoverMs) return { kind: "skip", reason: "pre-cutover" };
+  if (!input.segmentEligible) return { kind: "skip", reason: "wrong-segment" };
+  if (!accounts) {
+    console.error("registration: no account store binding, skipping (fail-closed)");
+    return { kind: "skip", reason: "no-account-store" };
+  }
 
   const sub = input.sub.trim();
-  const [consent, suppressed, claimRaw] = await Promise.all([
-    store.get(consentKey(sub)),
-    store.get(suppressKey(sub)),
-    store.get(claimKey(sub)),
+  // Consent/suppression gate runs BEFORE the claim so an ineligible login
+  // never creates an account row; absent consent record = deny.
+  const [granted, isSuppressed] = await Promise.all([
+    eligibility.consentGranted(sub),
+    eligibility.suppressed(sub),
   ]);
-  if (suppressed) return { kind: "skip", reason: "suppressed" };
-  if (consent !== "granted") return { kind: "skip", reason: "no-consent" };
+  if (isSuppressed) return { kind: "skip", reason: "suppressed" };
+  if (!granted) return { kind: "skip", reason: "no-consent" };
 
-  const eventId = registrationEventId(sub);
-  if (claimRaw) {
-    const claim = JSON.parse(claimRaw) as ClaimRecord;
+  // Atomic claim: exactly one concurrent first login per sub wins.
+  const claim = await accounts.claimNewAccount(sub, now);
+  if (!claim.isNew) {
     if (claim.createdAt < input.cutoverMs) return { kind: "skip", reason: "existing-account" };
-    const outboxRaw = await store.get(outboxKey(eventId));
-    const outbox = outboxRaw ? (JSON.parse(outboxRaw) as OutboxRecord) : null;
-    if (outbox?.status === "acked") return { kind: "skip", reason: "already-enrolled" };
-    // Claim exists but transport never acked (failure, replay, concurrent first
-    // login): retry with the SAME eventId — no second enrollment.
+    const outboxRaw = await outbox.get(outboxKey(registrationEventId(sub)));
+    const prev = outboxRaw ? (JSON.parse(outboxRaw) as OutboxRecord) : null;
+    if (prev?.status === "acked") return { kind: "skip", reason: "already-enrolled" };
+    // Post-cutover claim exists but transport never acked (failure, replay,
+    // concurrent first login): retry with the SAME eventId — no second enrollment.
     return {
       kind: "enqueue",
       retry: true,
       event: {
         v: 1,
-        eventId,
+        eventId: registrationEventId(sub),
         userId: sub,
         createdAt: claim.createdAt,
         emailVerified: true,
-        consent: { marketing: true, source: "kv-consent-record" },
+        consent: { marketing: true, source: "consent-record" },
         suppressed: false,
       },
     };
   }
 
-  // First-seen after cutover with verified email + explicit consent = creation proof.
   const event: RegistrationCreatedEvent = {
     v: 1,
-    eventId,
+    eventId: registrationEventId(sub),
     userId: sub,
-    createdAt: now,
+    createdAt: claim.createdAt,
     emailVerified: true,
-    consent: { marketing: true, source: "kv-consent-record" },
+    consent: { marketing: true, source: "consent-record" },
     suppressed: false,
   };
-  await store.put(claimKey(sub), JSON.stringify({ eventId, createdAt: now } satisfies ClaimRecord));
-  console.log(`registration: created ${eventId} for ${logId}`);
+  console.log(`registration: created ${event.eventId} for ${logId}`);
   return { kind: "enqueue", retry: false, event };
 }
 
 export async function flushOutboxAttempt(
-  store: ClaimStore,
+  outbox: OutboxStore,
   now: number,
   event: RegistrationCreatedEvent,
   deliver: (event: RegistrationCreatedEvent) => Promise<boolean>,
 ): Promise<"acked" | "queued"> {
   const key = outboxKey(event.eventId);
-  const raw = await store.get(key);
+  const raw = await outbox.get(key);
   const prev = raw ? (JSON.parse(raw) as OutboxRecord) : null;
   const attempts = (prev?.attempts ?? 0) + 1;
   let ok = false;
@@ -177,7 +220,7 @@ export async function flushOutboxAttempt(
   } catch (err) {
     console.error(`registration: transport failed for ${event.eventId}: ${err instanceof Error ? err.message : String(err)}`);
   }
-  await store.put(
+  await outbox.put(
     key,
     JSON.stringify({ eventId: event.eventId, userId: event.userId, status: ok ? "acked" : "queued", attempts, updatedAt: now } satisfies OutboxRecord),
   );
@@ -192,70 +235,57 @@ function parseCutover(iso: string | undefined): number | null {
   return Number.isNaN(ms) ? null : ms;
 }
 
+function kvEligibility(kv: KVNamespace): EligibilityStore {
+  return {
+    consentGranted: async (sub) => (await kv.get(consentKey(sub))) === "granted",
+    suppressed: async (sub) => (await kv.get(suppressKey(sub))) !== null,
+  };
+}
+
 /**
  * Worker entry point: call from the OAuth callback AFTER completeAuthorization.
  * Never rejects, never blocks login, never logs email/tokens.
- *
- * BLOCKER (KOMAA-785.5): without a transactional account store this claim is
- * KV read-then-write (eventual consistency, no CAS). Minimal platform change
- * for true exactly-once: add a D1 binding (or Supabase auth table) and make
- * the claim a UNIQUE(sub) insert; keep this KV outbox for transport. Until
- * then WELCOME_ENROLLMENT_ENABLED stays "false" in production.
+ * Transport (`deliver`) is injected by the caller (Mautic adapter, KOMAA-786);
+ * this module performs zero provider API calls itself.
  */
 export async function maybeEnqueueWelcomeEnrollment(
   user: RegistrationProps,
   env: RegistrationEnv,
   ctx: ExecutionContext,
+  opts?: {
+    accounts?: AccountStore;
+    segmentEligible?: boolean;
+    deliver?: (event: RegistrationCreatedEvent) => Promise<boolean>;
+  },
 ): Promise<void> {
   try {
-    const store: ClaimStore = {
+    const outbox: OutboxStore = {
       get: (k) => env.OAUTH_KV.get(k),
       put: (k, v) => env.OAUTH_KV.put(k, v),
     };
-    const decision = await attemptEnrollment(store, Date.now(), {
-      sub: user.googleSub,
-      email: user.email,
-      emailVerified: user.emailVerified,
-      enabled: env.WELCOME_ENROLLMENT_ENABLED === "true",
-      cutoverMs: parseCutover(env.REGISTRATION_CUTOVER_ISO),
-    });
+    const decision = await attemptEnrollment(
+      opts?.accounts ?? (env.DB ? makeD1AccountStore(env.DB) : null),
+      outbox,
+      kvEligibility(env.OAUTH_KV),
+      Date.now(),
+      {
+        sub: user.googleSub,
+        email: user.email,
+        emailVerified: user.emailVerified,
+        enabled: env.WELCOME_ENROLLMENT_ENABLED === "true",
+        cutoverMs: parseCutover(env.REGISTRATION_CUTOVER_ISO),
+        segmentEligible: opts?.segmentEligible ?? false,
+      },
+    );
     if (decision.kind === "skip") return;
     const { event } = decision;
+    const deliver = opts?.deliver ?? (async (e) => {
+      console.log(`registration: no transport adapter, outbox ${e.eventId} stays queued`);
+      return false;
+    });
     ctx.waitUntil(
       (async () => {
-        await flushOutboxAttempt(store, Date.now(), event, async (e) => {
-          if (env.SENDER_ONBOARDING_ENABLED !== "true" || !env.SENDER_API_TOKEN) {
-            console.log(`registration: transport disabled, outbox ${e.eventId} stays queued`);
-            return false;
-          }
-          const controller = new AbortController();
-          const timeout = setTimeout(() => controller.abort(), 4000);
-          try {
-            const resp = await fetch("https://api.sender.net/v2/subscribers", {
-              method: "POST",
-              headers: {
-                "content-type": "application/json",
-                authorization: `Bearer ${env.SENDER_API_TOKEN}`,
-                "idempotency-key": e.eventId,
-              },
-              body: JSON.stringify({
-                email: user.email,
-                fields: { registered: new Date(e.createdAt).toISOString(), registration_event_id: e.eventId },
-                groups: [env.SENDER_ONBOARDING_GROUP || "onboarding-sekwencja"],
-              }),
-              signal: controller.signal,
-            });
-            if (!resp.ok) {
-              console.error(`registration: sender API ${resp.status} for ${e.eventId}`);
-              return false;
-            }
-            return true;
-          } catch {
-            return false;
-          } finally {
-            clearTimeout(timeout);
-          }
-        });
+        await flushOutboxAttempt(outbox, Date.now(), event, deliver);
       })(),
     );
   } catch (err) {

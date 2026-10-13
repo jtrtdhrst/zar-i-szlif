@@ -42,6 +42,7 @@ export interface AuthProps {
 export interface GoogleAuthHandlerEnv {
   OAUTH_KV: KVNamespace;
   OAUTH_PROVIDER: OAuthHelpers;
+  DB?: D1Database;
   GOOGLE_CLIENT_ID?: string;
   GOOGLE_CLIENT_SECRET?: string;
   COOKIE_ENCRYPTION_KEY?: string;
@@ -543,11 +544,12 @@ async function handleCallback(request: Request, env: GoogleAuthHandlerEnv, ctx: 
       userId: props.googleSub,
     });
 
-    // KOMAA-785: login is NOT a registration signal. The old unconditional
-    // syncContactToSender() here enrolled every login as onboarding — removed.
-    // First-seen registration (gated, default off) is handled by the
-    // registration_created outbox; login itself has zero onboarding side effects.
-    void maybeEnqueueWelcomeEnrollment(props, env, ctx);
+    // KOMAA-790: login is NOT a registration signal. First-registration proof
+    // is the atomic account-store claim (UNIQUE sub); login itself has zero
+    // onboarding side effects. segmentEligible stays false until Lifecycle Ops
+    // (KOMAA-786) wires the onboarding segment + Mautic transport adapter;
+    // until then every login is a skip and production sends zero emails.
+    void maybeEnqueueWelcomeEnrollment(props, env, ctx, { segmentEligible: false });
 
     const headers = new Headers({ location: redirectTo });
     if (clearSessionCookie) {
