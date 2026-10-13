@@ -1,5 +1,5 @@
 ---
-title: PRD Kompas Zbiórek v1.7 — zakres produktu
+title: PRD Żar i Szlif v1.7 — zakres produktu
 type: source
 tags: [prd, produkt, wymagania]
 sources: [raw/PRD-KOMPAS-ZBIOREK.md]
@@ -7,7 +7,7 @@ created: 2026-08-20
 updated: 2026-08-27
 ---
 
-# PRD Kompas Zbiórek v1.7
+# PRD Żar i Szlif v1.7
 
 Ta strona zachowuje traceability do `raw/PRD-KOMPAS-ZBIOREK.md` i opisuje wymagania produktu. **Nie jest raportem wykonania i nie może być używana jako dowód, że dana funkcja została już wdrożona.**
 
