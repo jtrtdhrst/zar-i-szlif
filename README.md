@@ -1,4 +1,6 @@
-# Kompas Zbiórek
+# Żar i Szlif
+
+**Oficjalna marka od 2026-10-13: Żar i Szlif** (wcześniej „Kompas Zbiórek”). Dotychczasowe domeny, repozytorium i identyfikatory techniczne pozostają bez zmian.
 
 Aplikacja dla instruktorów Royal Rangers wspierająca cykl **Planowanie → Realizacja → Refleksja → Doskonalenie**. Główna wartość produktu to prostsze planowanie, brak pustej kartki i ciągłość pracy między aktywnościami. AI jest opcjonalnym interfejsem, nie źródłem decyzji domenowych.
 
@@ -7,7 +9,7 @@ Aplikacja dla instruktorów Royal Rangers wspierająca cykl **Planowanie → Rea
 ```text
 app/                       # jedyny katalog runtime aplikacji
 ├── web/                   # UI
-├── plugin/                # Wtyczka / MCP Kompasu Zbiórek
+├── plugin/                # Wtyczka / MCP Żar i Szlif
 └── cloudflare-worker/     # API/integracje/Cloudflare
 
 branding/                  # kanoniczny folder brandingu produktu; obecnie pusty
