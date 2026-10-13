@@ -1,4 +1,4 @@
-﻿# Kompas Zbiórek — Wiki Index
+﻿# Żar i Szlif — Wiki Index
 
 ## Sources (znormalizowane źródła z raw/)
 
