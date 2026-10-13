@@ -1,7 +1,9 @@
-# BRAND + PRODUCT — Kompas Zbiórek (KANON wiki 2026-09-05)
+# BRAND + PRODUCT — Żar i Szlif (KANON wiki 2026-09-05)
 
 Źródła kanoniczne: `wiki/synthesis/invarianty-i-brand.md`, `wiki/projects/kompas-zbiorek/decisions.md`, `wiki/sources/prd-kompas.md` v1.7, `wiki/sources/wspolny-kontekst.md`, `wiki/concepts/brand-dna.md`.
 Starszy snapshot `OBIETNICA: Od problemu w drużynie do sprawdzonej zmiany` + cykl `problem → przyczyna → eksperyment → wnioski` = SUPERSEDED, materiał metodologiczny, nie główny przekaz.
+
+**Nazwa publiczna: Żar i Szlif** (decyzja 2026-10-13). „Kompas Zbiórek” to poprzednia nazwa, używana wyłącznie historycznie lub jako element identyfikatorów technicznych. Nie utożsamiaj zmiany dokumentacyjnej z wdrożeniem na produkcji.
 
 ## Kim jesteśmy
 Dla każdego czynnego instruktora Royal Rangers planującego i prowadzącego aktywności. Młodsi / mniej doświadczeni ważniejsi komunikacyjnie, ale marka nie zawężona do nich. Realny konkurent to często brak procesu i improwizacja.
