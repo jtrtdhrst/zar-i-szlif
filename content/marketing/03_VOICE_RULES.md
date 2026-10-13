@@ -2,6 +2,8 @@
 
 Źródła: `wiki/synthesis/invarianty-i-brand.md` (Głos / Język / Proof / Status), `wiki/concepts/brand-dna.md`.
 
+**Nazwa publiczna produktu: Żar i Szlif**. Zachowaj domeny i identyfikatory techniczne. „Kompas Zbiórek” to poprzednia nazwa, nie obecna marka.
+
 ## Zasady (obowiązkowe)
 1. Polski, konkretnie, do jednej osoby — jak doświadczony instruktor do instruktora, bez zadęcia i bez udawania kumpla na siłę.
 2. Zaczynaj od rozpoznawalnej sytuacji, potem funkcja. Pokazuj proces, nie magię.
@@ -27,7 +29,7 @@
 `aktywność`, `element aktywności`, `cel główny aktywności`, `plan roczny`, `cel średnioterminowy`, `sprawność`, `wymaganie sprawności`, `aspekt fizyczny / społeczny / duchowy / intelektualny`, `materiały`, `zadania przygotowawcze`, `eksperyment`, `podsumowanie`, `refleksja`, `Kontekst`, `Archiwum`, `Baza Aktywności RR`, `asystent w ChatGPT`.
 
 ## CTA (kanoniczne)
-- Główne (jedno na treść): `Dodaj do ChatGPT` / `Dodaj Kompas Zbiórek do ChatGPT`.
+- Główne (jedno na treść): `Dodaj do ChatGPT` / `Dodaj Żar i Szlif do ChatGPT`.
 - Pomocnicze: `Zobacz poradnik`.
 - Edukacyjne: `Opisz aktywność. Kompas pomoże ułożyć plan krok po kroku z Twojego kontekstu.`
 - Onboardingowe: NIE UŻYWAĆ do nowej decyzji produktowej (UNAPPROVED).
