@@ -31,7 +31,7 @@
 ## CTA (kanoniczne)
 - Główne (jedno na treść): `Dodaj do ChatGPT` / `Dodaj Żar i Szlif do ChatGPT`.
 - Pomocnicze: `Zobacz poradnik`.
-- Edukacyjne: `Opisz aktywność. Kompas pomoże ułożyć plan krok po kroku z Twojego kontekstu.`
+- Edukacyjne: `Opisz aktywność. Żar i Szlif pomoże ułożyć plan krok po kroku z Twojego kontekstu.`
 - Onboardingowe: NIE UŻYWAĆ do nowej decyzji produktowej (UNAPPROVED).
 
 ## Formaty
