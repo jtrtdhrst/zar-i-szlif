@@ -4,7 +4,7 @@ type: concept
 tags: [brand, design, ui]
 sources: [raw/WSPOLNY_KONTEKST.md, raw/documentation.md]
 created: 2026-08-20
-updated: 2026-09-28
+updated: 2026-10-13
 ---
 
 # Brand DNA
