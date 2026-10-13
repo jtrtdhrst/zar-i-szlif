@@ -4,7 +4,7 @@ type: project
 tags: [decyzje, adr]
 sources: [raw/WSPOLNY_KONTEKST.md, raw/AGENTS.md]
 created: 2026-08-20
-updated: 2026-08-27
+updated: 2026-10-13
 ---
 
 # Żar i Szlif — decyzje
