@@ -39,7 +39,7 @@ Dlaczego dobre: pokazuje mechanizm krok po kroku, realny ekran > opis, brak wymy
 
 ## 6. Domknięcie — krótkie, jedno CTA
 
-> Gotowy na prostszy plan? Dodaj Kompas Zbiórek do ChatGPT.
+> Gotowy na prostszy plan? Dodaj Żar i Szlif do ChatGPT.
 
 Dlaczego dobre: jedno CTA, bez presji, bez FOMO.
 
