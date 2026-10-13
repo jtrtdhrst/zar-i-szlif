@@ -1,4 +1,6 @@
-# Produkt — Kompas Zbiórek (TARGET / MUST-HAVE)
+# Produkt — Żar i Szlif (TARGET / MUST-HAVE)
+
+> Oficjalna nazwa marki od 2026-10-13: **Żar i Szlif** (dawniej „Kompas Zbiórek”). Domeny, repo i identyfikatory techniczne nie są zmieniane.
 
 > Cel / wymagania produktu (TARGET). Stan zweryfikowany: `shared/STATE.md` (CURRENT). Kanon statusów: `shared/CONTEXT.md`. Architektura/integracje: `shared/DELIVERY.md`.
 
