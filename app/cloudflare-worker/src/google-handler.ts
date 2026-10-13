@@ -28,7 +28,7 @@ import {
 } from "./workers-oauth-utils";
 import { getGoogleAppId, injectWidgetAuth } from "./widget-auth";
 import { createPanelHandler, resolvePanelSession } from "./panel-handler";
-import { syncContactToSender, type SenderEnv } from "./sender";
+import { maybeEnqueueWelcomeEnrollment } from "./registration";
 
 export interface AuthProps {
   googleSub: string;
@@ -52,6 +52,8 @@ export interface GoogleAuthHandlerEnv {
   SENDER_API_TOKEN?: string;
   SENDER_ONBOARDING_ENABLED?: string;
   SENDER_ONBOARDING_GROUP?: string;
+  WELCOME_ENROLLMENT_ENABLED?: string;
+  REGISTRATION_CUTOVER_ISO?: string;
 }
 
 const GOOGLE_SCOPES = ["openid", "email", "profile", "https://www.googleapis.com/auth/drive.file"];
@@ -541,7 +543,11 @@ async function handleCallback(request: Request, env: GoogleAuthHandlerEnv, ctx: 
       userId: props.googleSub,
     });
 
-    syncContactToSender(props, env, ctx);
+    // KOMAA-785: login is NOT a registration signal. The old unconditional
+    // syncContactToSender() here enrolled every login as onboarding — removed.
+    // First-seen registration (gated, default off) is handled by the
+    // registration_created outbox; login itself has zero onboarding side effects.
+    void maybeEnqueueWelcomeEnrollment(props, env, ctx);
 
     const headers = new Headers({ location: redirectTo });
     if (clearSessionCookie) {

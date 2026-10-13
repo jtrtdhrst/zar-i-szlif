@@ -18,6 +18,12 @@
     "GOOGLE_CLOUD_PROJECT_NUMBER": "450955230972",
     "SENDER_ONBOARDING_ENABLED": "false",
     "SENDER_ONBOARDING_GROUP": "onboarding-sekwencja",
+    "MAUTIC_ONBOARDING_ENABLED": "false",
+    "MAUTIC_BASE_URL": "",
+    "MAUTIC_TEST_TAG": "welcome-test-only",
+    // KOMAA-785: welcome enrollment defaults OFF (patrz wrangler.jsonc).
+    "WELCOME_ENROLLMENT_ENABLED": "false",
+    "REGISTRATION_CUTOVER_ISO": "",
     "MCP_PUBLIC_ORIGIN": "https://mcp-kompas.kompaszbiorek.pl",
     // Allowlist redirect_uri dla DCR (RFC 7591) — fail-closed. Wpisy bez
     // ukośnika na końcu = exact match ścieżki, z ukośnikiem = prefiks.
