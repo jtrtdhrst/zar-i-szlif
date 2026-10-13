@@ -1,5 +1,5 @@
 ---
-title: Kompas Zbiórek — standup (executive)
+title: Żar i Szlif — standup (executive)
 type: project
 tags: [standup, status, kompas-zbiorek]
 sources: [raw/WSPOLNY_KONTEKST.md, raw/documentation.md]
@@ -7,7 +7,7 @@ created: 2026-08-20
 updated: 2026-08-20
 ---
 
-# Kompas Zbiórek — standup
+# Żar i Szlif — standup
 
 ## Executive readout
 
