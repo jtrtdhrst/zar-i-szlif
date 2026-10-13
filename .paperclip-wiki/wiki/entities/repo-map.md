@@ -15,7 +15,7 @@ updated: 2026-09-28
 
 | Warstwa | Przeznaczenie | Reguła dla agenta |
 |---|---|---|
-| `app/` | Runtime produktu | UI, Wtyczka / MCP Kompasu Zbiórek, API, auth i integracje runtime. |
+| `app/` | Runtime produktu | UI, Wtyczka / MCP Żar i Szlif, API, auth i integracje runtime. |
 | `branding/` | Branding produktu | Jedyne kanoniczne miejsce na przyszłe źródła brandingu. Obecnie celowo puste. |
 | `dev/` | Development/tooling | Techniczny design system, quality pipeline i integracje developerskie. |
 | `content/` | Treści biznesowe | Maile onboardingowe, marketing i inne treści poza runtime. |
@@ -31,7 +31,7 @@ Nie dodawaj równoległych top-level folderów `brand/`, `brand-assets/` ani alt
 | Render statyczny | `app/web/src/static-app-v2.js` |
 | Style web | `app/web/src/styles.css`, `app/web/src/extended.css` |
 | Build web | `app/web/scripts/build-static.mjs` |
-| **Wtyczka / MCP Kompasu Zbiórek** | `app/plugin/` |
+| **Wtyczka / MCP Żar i Szlif** | `app/plugin/` |
 | Entrypoint Wtyczki / MCP | `app/plugin/index.ts` |
 | Endpoint MCP | `/mcp` |
 | Cloudflare API/OAuth/integracje | `app/cloudflare-worker/` |
@@ -48,11 +48,11 @@ Nie dodawaj równoległych top-level folderów `brand/`, `brand-assets/` ani alt
 | Marketing | `content/marketing/` |
 | Archiwum | `archive/` |
 
-`plugin`, „wtyczka” i „MCP Kompasu Zbiórek” oznaczają ten sam element produktu. Nie twórz `app/server/` ani równoległego `app/mcp/`.
+`plugin`, „wtyczka” i „MCP Żar i Szlif” oznaczają ten sam element produktu. Nie twórz `app/server/` ani równoległego `app/mcp/`.
 
 ## 3. Routing zmian dla agentów
 
-1. Zmiana Wtyczki / MCP Kompasu Zbiórek → `app/plugin/`.
+1. Zmiana Wtyczki / MCP Żar i Szlif → `app/plugin/`.
 2. Zmiana UI produktu → `app/web/`.
 3. API/OAuth/integracje produkcyjne → `app/cloudflare-worker/`.
 4. Źródła brandingu → wyłącznie `branding/`. Jeśli folder jest pusty, nie wymyślaj brakujących reguł.
