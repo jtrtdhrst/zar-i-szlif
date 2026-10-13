@@ -1,10 +1,12 @@
-﻿# Kompas Zbiórek — Wiki Index
+﻿# Żar i Szlif — Wiki Index
+
+Kanon publicznej nazwy od 2026-10-13: **Żar i Szlif**. „Kompas Zbiórek” występuje wyłącznie jako alias historyczny lub niezmieniany identyfikator techniczny (ścieżki `wiki/projects/kompas-zbiorek`, repozytorium, domeny, API). Snapshot repo nie dowodzi aktualizacji live Wiki ani produkcji.
 
 ## Sources (znormalizowane źródła z raw/)
 
 - [[wiki/sources/wspolny-kontekst]] — kanon WSPÓLNEGO KONTEKSTU (Project context, REPO MAP, kontrakty)
 - [[wiki/sources/agents-operacyjny]] — AGENTS.md + MAPA SYSTEMU (zasady wykonawcze)
-- [[wiki/sources/prd-kompas]] — PRD Kompas Zbiórek v1.7 (zakres i karta zbiórki)
+- [[wiki/sources/prd-kompas]] — PRD Żar i Szlif (historyczne źródło v1.7) (zakres i karta zbiórki)
 - [[wiki/sources/baza-aktywnosci]] — Baza aktywności RR + API sprawności + data/godzina
 - [[wiki/sources/integracje-mcp]] — Integracje, MCP, OAuth, produkcja Worker
 - [[wiki/sources/cykl-doskonalenia]] — Cykl 00–06 → 4 etapy
@@ -37,7 +39,7 @@
 
 ## Projects
 
-- [[wiki/projects/kompas-zbiorek/index]] — Kompas Zbiórek (durable knowledge)
+- [[wiki/projects/kompas-zbiorek/index]] — Żar i Szlif (durable knowledge)
 - [[wiki/projects/kompas-zbiorek/standup]] — Standup wykonawczy (link z index)
 - [[wiki/projects/kompas-zbiorek/decisions]] — Rejestr decyzji
 - [[wiki/projects/kompas-zbiorek/history]] — Historia projektowa (skrót)

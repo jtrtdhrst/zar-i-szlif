@@ -60,3 +60,17 @@ stron, wyszukiwanie, metadata, pełna treść, SHA-256 oraz blokada ścieżek
 chronionych. Skille `wiki-query`, `wiki-propose-change` i `wiki-apply-change`
 są zarejestrowane. Pełny write-path E2E z zapisem i przywróceniem oryginału nie
 jest częścią tej weryfikacji.
+
+## Plugin-tools execute: zweryfikowana korekta KOMAA-782 (2026-10-13)
+
+Dla narzędzia `paperclipai.plugin-llm-wiki:wiki_list_pages` wywoływanego przez `POST /api/plugins/tools/execute` **nie wystarcza** `runContext.companyId`: procesor Wiki czyta `companyId` także z `parameters`. Własny, autoryzowany run/agent używa:
+
+```json
+{
+  "tool": "paperclipai.plugin-llm-wiki:wiki_list_pages",
+  "parameters": {"companyId": "<companyId z własnego runContext>", "wikiId": "default"},
+  "runContext": {"agentId": "<własny agentId>", "runId": "<własny runId>", "companyId": "<ten sam companyId>", "projectId": "<własny projectId>"}
+}
+```
+
+Żądanie musi mieć własną autoryzację i nagłówek `X-Paperclip-Run-Id`; powyższe placeholdery nie są dosłownymi danymi do wysłania. Równoważność `parameters.companyId === runContext.companyId` jest obowiązkowa. `parameters={}` daje deterministyczny błąd `companyId is required` mimo poprawnego `runContext` (KOMAA-782). Nie próbuj ponownie tej samej błędnej postaci. Naprawa kształtu wywołania **nie oznacza** uaktualnienia treści. Po dostępie wykonaj pełny odczyt i edycję z `expectedHash`, następnie read-back każdej zmienionej strony i niezależny review. Jeśli uprawnienia odmówią (`403`), zatrzymaj zapis i eskaluj prawdziwą granicę uprawnień; nigdy nie obchodź ACL. Odrębnie raportuj: naprawiony kontrakt narzędzia, udane zapisy Wiki, faktyczne wdrożenie UI.

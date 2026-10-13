@@ -1,5 +1,5 @@
 ---
-title: Kompas Zbiórek — durable knowledge
+title: Żar i Szlif — durable knowledge
 type: project
 tags: [kompas-zbiorek, prd, architektura]
 sources: [raw/WSPOLNY_KONTEKST.md, raw/PRD-KOMPAS-ZBIOREK.md, raw/MAPA-SYSTEMU.md, raw/documentation.md]
@@ -7,7 +7,9 @@ created: 2026-08-20
 updated: 2026-08-27
 ---
 
-# Kompas Zbiórek — durable knowledge
+# Żar i Szlif — durable knowledge
+
+**Kanon nazwy od 2026-10-13:** Żar i Szlif. „Kompas Zbiórek” jest nazwą historyczną/techniczną. Ścieżka pliku nie podlega migracji. Repo kontrakt: `branding/BRAND.md`. Branding CURRENT ≠ runtime/deploy CURRENT.
 
 ## Jak czytać ten dokument
 
@@ -23,7 +25,7 @@ Agent nie może zmienić statusu TARGET na CURRENT tylko dlatego, że funkcja je
 
 ## Wizja produktu — TARGET / MUST-HAVE
 
-Kompas Zbiórek to system dla instruktorów Royal Rangers Polska, który obniża próg wejścia do dobrego, powtarzalnego planowania i spina kolejne aktywności w jeden proces. Docelowo łączy planowanie, sprawności, przygotowanie, Bazę Aktywności RR, pamięć drużyny, refleksję i małe eksperymenty doskonalące.
+Żar i Szlif to system dla instruktorów Royal Rangers Polska, który obniża próg wejścia do dobrego, powtarzalnego planowania i spina kolejne aktywności w jeden proces. Docelowo łączy planowanie, sprawności, przygotowanie, Bazę Aktywności RR, pamięć drużyny, refleksję i małe eksperymenty doskonalące.
 
 Docelowy proces można przejść ręcznie w panelu `https://panel.kompaszbiorek.pl` albo przez asystenta w ChatGPT. AI jest opcjonalnym sposobem obsługi tego samego procesu, nie warunkiem używania produktu i nie podejmuje decyzji za instruktora.
 

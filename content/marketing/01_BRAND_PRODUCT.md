@@ -1,4 +1,6 @@
-# BRAND + PRODUCT — Kompas Zbiórek (KANON wiki 2026-09-05)
+# BRAND + PRODUCT — Żar i Szlif (decyzja nazwy 2026-10-13)
+
+Nazwa publiczna **Żar i Szlif** jest zatwierdzona. „Kompas Zbiórek” to poprzednia marka i techniczny alias, nie równorzędna aktualna nazwa. Żar = energia, ognisko i zapał do działania; Szlif = praktyka, refleksja, próby i systematyczne doskonalenie. Nazwa wiąże się z wirtualnym obozowiskiem w grywalizacji, ale nie zmienia mechaniki ani targetu. Logo i slogan: **niezatwierdzone**. Kontrakt: `branding/BRAND.md`.
 
 Źródła kanoniczne: `wiki/synthesis/invarianty-i-brand.md`, `wiki/projects/kompas-zbiorek/decisions.md`, `wiki/sources/prd-kompas.md` v1.7, `wiki/sources/wspolny-kontekst.md`, `wiki/concepts/brand-dna.md`.
 Starszy snapshot `OBIETNICA: Od problemu w drużynie do sprawdzonej zmiany` + cykl `problem → przyczyna → eksperyment → wnioski` = SUPERSEDED, materiał metodologiczny, nie główny przekaz.

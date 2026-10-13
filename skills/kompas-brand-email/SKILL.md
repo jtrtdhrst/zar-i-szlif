@@ -1,9 +1,11 @@
 ---
 name: kompas-brand-email
-description: Stały kontekst e-mail marketingu Kompas Zbiórek — aktywa, voice, reguły techniczne email i preflight GitHub/Sender.net. Always-on dla CMO.
+description: Stały kontekst e-mail marketingu Żar i Szlif — aktywa, voice, reguły techniczne email i preflight GitHub/Sender.net. Always-on dla CMO.
 ---
 
-# Kompas Brand Email
+# Żar i Szlif — Brand Email
+
+Publiczna nazwa: **Żar i Szlif**. Nazwa skilla, URL i ścieżki mogą pozostać technicznym legacy. Nie emituj starej nazwy produktu jako aktualnej marki. Historyczne szablony onboardingu w `content/onboarding-emails/` mogą zawierać stary branding i nie są zatwierdzone do wysyłki; przed jakąkolwiek aktywacją wymagają osobnego audytu treści, zgód, linków i zatwierdzenia. Logo/slogan niezatwierdzone; zobacz `branding/BRAND.md`.
 
 ## Aktywa email
 

@@ -13,6 +13,10 @@ updated: 2026-08-27
 
 Nie zmieniać bez upoważnienia: publiczny system `https://panel.kompaszbiorek.pl`, UI `/ui`, MCP `/mcp`, OAuth `drive.file`, Cloudflare D1, domena `kompaszbiorek.pl`, Worker `panel-kompaszbiorek` jako cel deploya, brak write do `main` bez worktree, `isolated_workspace` tylko.
 
+## Zatwierdzona nazwa (2026-10-13)
+
+**Żar i Szlif** to jedyna publiczna nazwa aplikacji. „Kompas Zbiórek” to historyczny/techniczny alias; nie zmieniać domeny ani interfejsów danych. Żar = energia/ognisko, Szlif = próby/refleksja/doskonalenie. Bez automatycznego rebrandingu logo i sloganu.
+
 ## Brand DNA UI
 
 Mapa/topografia jako metafora; żółto-złoty akcent oszczędnie; serif display + sans geometryczny; hierarchia > dekoracja. Zakaz poziomic, koncentrycznych kół, gradientów i offsetowych cieni. Tokeny kanoniczne w `kompas-ui-design/opendesign`. Szczegóły: [[wiki/concepts/brand-dna]].
@@ -21,7 +25,7 @@ Konsekwencja UI: działanie główne ma być widoczne, data/godzina nie konkuruj
 
 ## Pozycjonowanie produktu — TARGET / MUST-HAVE
 
-Kompas nie jest przede wszystkim generatorem planów ani narzędziem do problem solvingu. Główna wartość docelowego produktu to obniżenie progu wejścia do dobrego, powtarzalnego planowania i połączenie kolejnych aktywności w jeden proces.
+Żar i Szlif nie jest przede wszystkim generatorem planów ani narzędziem do problem solvingu. Główna wartość docelowego produktu to obniżenie progu wejścia do dobrego, powtarzalnego planowania i połączenie kolejnych aktywności w jeden proces.
 
 Hierarchia przekazu wizji:
 1. prostsze planowanie i brak pustej kartki;

@@ -1,4 +1,6 @@
-# Kompas Zbiórek
+# Żar i Szlif
+
+**Żar i Szlif** to zatwierdzona publiczna nazwa aplikacji (decyzja 2026-10-13). „Kompas Zbiórek” pozostaje nazwą historyczną oraz technicznym identyfikatorem w istniejących repozytoriach, domenach, kluczach i ścieżkach. Nazwa nie oznacza zmiany URL ani automatycznie potwierdzonego deployu. Źródło decyzji dla repo: `branding/BRAND.md`.
 
 Aplikacja dla instruktorów Royal Rangers wspierająca cykl **Planowanie → Realizacja → Refleksja → Doskonalenie**. Główna wartość produktu to prostsze planowanie, brak pustej kartki i ciągłość pracy między aktywnościami. AI jest opcjonalnym interfejsem, nie źródłem decyzji domenowych.
 
@@ -10,7 +12,7 @@ app/                       # jedyny katalog runtime aplikacji
 ├── plugin/                # Wtyczka / MCP Kompasu Zbiórek
 └── cloudflare-worker/     # API/integracje/Cloudflare
 
-branding/                  # kanoniczny folder brandingu produktu; obecnie pusty
+branding/                  # zatwierdzona nazwa i kanon brandingu (BRAND.md)
 
 dev/                       # kod wspierający rozwój aplikacji
 ├── design-system/         # OpenDesign/design tokens
@@ -99,7 +101,7 @@ Obecny `app/npm run test:all` wykonuje build, typecheck i istniejący targeted t
 | Build Worker | `app/cloudflare-worker/build-worker.mjs` |
 | Wtyczka / MCP Kompasu Zbiórek | `app/plugin/index.ts` |
 | Dodatkowe testy/pipeline | `dev/quality/` |
-| Branding produktu | `branding/` (obecnie pusty; jedyne kanoniczne miejsce na przyszłe źródła brandingu) |
+| Branding produktu | `branding/BRAND.md` (kanoniczna decyzja o publicznej nazwie w repo) |
 | Techniczny design system / tokeny | `dev/design-system/opendesign/design-systems/kompas-rrp/tokens/colors_and_type.css` |
 | Maile onboardingowe | `content/onboarding-emails/` |
 | Marketing | `content/marketing/` |

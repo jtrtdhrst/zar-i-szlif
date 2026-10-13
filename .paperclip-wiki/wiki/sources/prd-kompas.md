@@ -1,5 +1,5 @@
 ---
-title: PRD Kompas Zbiórek v1.7 — zakres produktu
+title: PRD Żar i Szlif — zakres produktu (oryginalne źródło v1.7)
 type: source
 tags: [prd, produkt, wymagania]
 sources: [raw/PRD-KOMPAS-ZBIOREK.md]
@@ -7,7 +7,9 @@ created: 2026-08-20
 updated: 2026-08-27
 ---
 
-# PRD Kompas Zbiórek v1.7
+# PRD Żar i Szlif (historyczna wersja źródła v1.7)
+
+Od 2026-10-13 zatwierdzona publiczna nazwa aplikacji to **Żar i Szlif**. Nazwa pliku, odnośnik do oryginalnego PRD i historyczne identyfikatory pozostają bez zmian; źródłowe wymagania funkcjonalne nie zmieniają się wskutek rebrandingu.
 
 Ta strona zachowuje traceability do `raw/PRD-KOMPAS-ZBIOREK.md` i opisuje wymagania produktu. **Nie jest raportem wykonania i nie może być używana jako dowód, że dana funkcja została już wdrożona.**
 

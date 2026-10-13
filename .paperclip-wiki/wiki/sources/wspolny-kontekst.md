@@ -1,5 +1,5 @@
 ---
-title: WSPÓLNY KONTEKST — kanon wiedzy Kompas Zbiórek
+title: WSPÓLNY KONTEKST — kanon wiedzy Żar i Szlif
 type: source
 tags: [kontekst, kontrakt, governance]
 sources: [raw/WSPOLNY_KONTEKST.md]
@@ -8,6 +8,8 @@ updated: 2026-08-27
 ---
 
 # WSPÓLNY KONTEKST — streszczenie
+
+Od 2026-10-13 publiczna nazwa produktu to **Żar i Szlif**. „Kompas Zbiórek” pozostaje tylko legacy/technicznie; nie przestawiaj automatycznie URL, repozytorium, importów ani danych. Zmiana nazwy nie dowodzi aktualizacji działającej produkcji.
 
 Ta strona jest syntetycznym kanonem dla agentów. Łączy kontrakty techniczne z późniejszymi decyzjami produktowymi. Kluczowa zasada: **wizja docelowa i stan bieżący są osobnymi warstwami wiedzy**.
 
@@ -31,7 +33,7 @@ Pomysł lub flow bez zatwierdzenia produktowego. Nie może być traktowany jako 
 
 ## Wizja produktu — TARGET / MUST-HAVE
 
-- Produkt: Kompas Zbiórek — system dla instruktorów Royal Rangers Polska do prostszego, powtarzalnego planowania i łączenia kolejnych aktywności w jeden proces.
+- Produkt: Żar i Szlif (dawniej „Kompas Zbiórek”) — system dla instruktorów Royal Rangers Polska do prostszego, powtarzalnego planowania i łączenia kolejnych aktywności w jeden proces.
 - Główna wartość: obniżenie progu wejścia do dobrego planowania; problem solving i eksperymenty są warstwą pogłębiającą, nie głównym wejściem produktu.
 - Docelowo proces można przejść ręcznie w panelu `https://panel.kompaszbiorek.pl` albo przez asystenta w ChatGPT. AI jest opcjonalne i nie podejmuje decyzji za instruktora.
 - Docelowy cykl user-facing: **Planowanie → Realizacja → Refleksja → Doskonalenie**.

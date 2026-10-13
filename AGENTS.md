@@ -1,5 +1,9 @@
 # Instrukcje dla agentów
 
+## Obowiązująca nazwa marki (decyzja właściciela 2026-10-13)
+
+Publiczna nazwa aplikacji: **Żar i Szlif**. „Kompas Zbiórek” = tylko nazwa historyczna lub techniczny identyfikator; nie stosuj jej jako bieżącej marki w nowej treści, UI, mailach czy materiałach marketingowych. Nie przemianowuj przez find/replace domen, URL, repo, importów, kluczy, baz danych, trwałych identyfikatorów, ścieżek Wiki ani zapisów historycznych. Nazwa nie zatwierdza jeszcze logo ani sloganu. Przed wdrożeniem sprawdź faktyczny runtime; zmiana dokumentacji ≠ deploy ani udana synchronizacja live Paperclip Wiki. Kontrakt repo: `branding/BRAND.md`. Test `tests/brand-contract.test.mjs` zabezpiecza kluczowe publiczne napisy.
+
 ## Zasada nadrzędna
 
 Ten plik zawiera tylko reguły wspólne dla repo. Szczegóły roli, domeny i workflow utrzymują skille. **Nie kopiuj REPO MAP, design rules ani test contract do wielu promptów.**
@@ -16,7 +20,7 @@ Najważniejsze skille kontekstowe:
 ## Repo layout
 
 - `app/` — jedyny runtime aplikacji; `app/plugin/` to Wtyczka / MCP Kompasu Zbiórek.
-- `branding/` — jedyne kanoniczne miejsce na źródła brandingu produktu; obecnie celowo puste.
+- `branding/` — kanoniczny kontrakt marki produktu (`branding/BRAND.md`).
 - `dev/` — techniczny design system, integracje developerskie i quality tooling.
 - `content/` — marketing i onboarding emails.
 - `archive/` — materiały historyczne; nie są CURRENT.
@@ -90,7 +94,7 @@ Nie wykonuj opportunistic refactoru i nie twórz meta/recovery tasków bez nieza
 Przy UI:
 
 - runtime = `app/web/`;
-- branding source = `branding/` (obecnie brak artefaktów; nie wymyślaj reguł marki);
+- branding source = `branding/BRAND.md`; nie wymyślaj logotypu ani sloganu;
 - design system / implementacja tokenów = `dev/design-system/`;
 - przed nowym reusable UI sprawdź `@kompas` registry;
 - zachowaj responsywność, hierarchię informacji i minimum touch target 44×44 px;

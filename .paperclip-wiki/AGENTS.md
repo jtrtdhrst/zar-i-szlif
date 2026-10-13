@@ -1,8 +1,12 @@
-﻿# Kompas Zbiórek — LLM Wiki
+﻿# Żar i Szlif — LLM Wiki
 
 ## Purpose
 
-This wiki is the durable knowledge layer for the Kompas Zbiórek product and its Paperclip agents.
+This wiki is the durable knowledge layer for the Żar i Szlif product and its Paperclip agents.
+
+## Binding naming decision (2026-10-13)
+
+Current public product name: **Żar i Szlif**. „Kompas Zbiórek” is a historical brand / technical alias. Do not change repository IDs, URL, database keys, wiki paths or historical decisions. No approved logo/slogan. A Git mirror edit is **not** proof that live Paperclip Wiki was updated. Wiki editors must use authorized live read → propose → apply(expectedHash) → read-back and report the modified page paths. Source: `branding/BRAND.md` in the repository.
 
 ## Source hierarchy
 
