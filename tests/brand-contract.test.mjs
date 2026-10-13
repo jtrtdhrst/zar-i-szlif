@@ -28,5 +28,13 @@ test('domeny, endpointy i techniczne identyfikatory pozostają niezmienione', ()
   const app = read('app/web/src/static-app-v2.js');
   assert.match(app, /https:\/\/panel\.kompaszbiorek\.pl/u);
   assert.match(app, /kompas-zbiorek-draft-v1/u);
-  assert.match(read('README.md'), /miloszspyrka-code\/kompas-zbiorek/u);
+  assert.match(read('README.md'), /https:\/\/panel\.kompaszbiorek\.pl/u);
+});
+
+test('obowiązujący marketing, Wiki snapshot i instrukcje agentów wskazują nową nazwę', () => {
+  assert.match(read('content/marketing/01_BRAND_PRODUCT.md'), /^# BRAND \+ PRODUCT — Żar i Szlif/mu);
+  assert.match(read('skills/kompas-brand-email/SKILL.md'), /^# Żar i Szlif — Brand Email/mu);
+  assert.match(read('.paperclip-wiki/wiki/index.md'), /^\uFEFF?# Żar i Szlif — Wiki Index/mu);
+  assert.match(read('.paperclip-wiki/wiki/projects/kompas-zbiorek/decisions.md'), /2026-10-13[^\n]*Żar i Szlif/u);
+  assert.match(read('.paperclip-wiki/wiki/concepts/paperclip-wiki-mcp.md'), /parameters\.companyId/u);
 });
