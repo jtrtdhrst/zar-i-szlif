@@ -4,7 +4,7 @@ type: source
 tags: [prd, produkt, wymagania]
 sources: [raw/PRD-KOMPAS-ZBIOREK.md]
 created: 2026-08-20
-updated: 2026-08-27
+updated: 2026-10-13
 ---
 
 # PRD Żar i Szlif v1.7
