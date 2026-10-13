@@ -1,5 +1,5 @@
 ---
-title: Kompas Zbiórek — durable knowledge
+title: Żar i Szlif — durable knowledge
 type: project
 tags: [kompas-zbiorek, prd, architektura]
 sources: [raw/WSPOLNY_KONTEKST.md, raw/PRD-KOMPAS-ZBIOREK.md, raw/MAPA-SYSTEMU.md, raw/documentation.md]
@@ -7,7 +7,7 @@ created: 2026-08-20
 updated: 2026-08-27
 ---
 
-# Kompas Zbiórek — durable knowledge
+# Żar i Szlif — durable knowledge
 
 ## Jak czytać ten dokument
 
@@ -23,7 +23,7 @@ Agent nie może zmienić statusu TARGET na CURRENT tylko dlatego, że funkcja je
 
 ## Wizja produktu — TARGET / MUST-HAVE
 
-Kompas Zbiórek to system dla instruktorów Royal Rangers Polska, który obniża próg wejścia do dobrego, powtarzalnego planowania i spina kolejne aktywności w jeden proces. Docelowo łączy planowanie, sprawności, przygotowanie, Bazę Aktywności RR, pamięć drużyny, refleksję i małe eksperymenty doskonalące.
+Żar i Szlif to system dla instruktorów Royal Rangers Polska, który obniża próg wejścia do dobrego, powtarzalnego planowania i spina kolejne aktywności w jeden proces. Docelowo łączy planowanie, sprawności, przygotowanie, Bazę Aktywności RR, pamięć drużyny, refleksję i małe eksperymenty doskonalące.
 
 Docelowy proces można przejść ręcznie w panelu `https://panel.kompaszbiorek.pl` albo przez asystenta w ChatGPT. AI jest opcjonalnym sposobem obsługi tego samego procesu, nie warunkiem używania produktu i nie podejmuje decyzji za instruktora.
 
@@ -33,7 +33,7 @@ Repo: `https://github.com/miloszspyrka-code/kompas-zbiorek`. Stan bieżący nale
 
 ## Najważniejsza prawda o produkcie
 
-Kompas nie jest przede wszystkim generatorem planów ani narzędziem do problem solvingu. Główna wartość to prostsze, bardziej konsekwentne planowanie i ciągłość między kolejnymi aktywnościami. Doskonalenie przez refleksję i małe eksperymenty jest drugą warstwą wartości.
+Żar i Szlif nie jest przede wszystkim generatorem planów ani narzędziem do problem solvingu. Główna wartość to prostsze, bardziej konsekwentne planowanie i ciągłość między kolejnymi aktywnościami. Doskonalenie przez refleksję i małe eksperymenty jest drugą warstwą wartości.
 
 Realnym konkurentem produktu jest często improwizacja: jedna główna rzecz na zbiórkę, reszta dobierana na szybko, przypadkowy progres sprawności, późne przygotowanie i brak regularnego podsumowania po aktywności.
 
