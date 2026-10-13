@@ -28,7 +28,7 @@ import {
 } from "./workers-oauth-utils";
 import { getGoogleAppId, injectWidgetAuth } from "./widget-auth";
 import { createPanelHandler, resolvePanelSession } from "./panel-handler";
-import { maybeEnqueueWelcomeEnrollment } from "./registration";
+import { queueVerifiedAccountSync } from "./supabase-accounts";
 
 export interface AuthProps {
   googleSub: string;
@@ -42,7 +42,9 @@ export interface AuthProps {
 export interface GoogleAuthHandlerEnv {
   OAUTH_KV: KVNamespace;
   OAUTH_PROVIDER: OAuthHelpers;
-  DB?: D1Database;
+  SUPABASE_URL?: string;
+  SUPABASE_SECRET_KEY?: string;
+  SUPABASE_USER_SYNC_ENABLED?: string;
   GOOGLE_CLIENT_ID?: string;
   GOOGLE_CLIENT_SECRET?: string;
   COOKIE_ENCRYPTION_KEY?: string;
@@ -53,8 +55,6 @@ export interface GoogleAuthHandlerEnv {
   SENDER_API_TOKEN?: string;
   SENDER_ONBOARDING_ENABLED?: string;
   SENDER_ONBOARDING_GROUP?: string;
-  WELCOME_ENROLLMENT_ENABLED?: string;
-  REGISTRATION_CUTOVER_ISO?: string;
 }
 
 const GOOGLE_SCOPES = ["openid", "email", "profile", "https://www.googleapis.com/auth/drive.file"];
@@ -544,12 +544,10 @@ async function handleCallback(request: Request, env: GoogleAuthHandlerEnv, ctx: 
       userId: props.googleSub,
     });
 
-    // KOMAA-790: login is NOT a registration signal. First-registration proof
-    // is the atomic account-store claim (UNIQUE sub); login itself has zero
-    // onboarding side effects. segmentEligible stays false until Lifecycle Ops
-    // (KOMAA-786) wires the onboarding segment + Mautic transport adapter;
-    // until then every login is a skip and production sends zero emails.
-    void maybeEnqueueWelcomeEnrollment(props, env, ctx, { segmentEligible: false });
+    // Non-blocking account synchronization. This is NOT an account-created signal:
+    // historical users logging into OAuth do not enter Mautic welcome campaigns.
+    // Supabase migration must be applied and user sync explicitly enabled.
+    queueVerifiedAccountSync(props, env, ctx);
 
     const headers = new Headers({ location: redirectTo });
     if (clearSessionCookie) {
