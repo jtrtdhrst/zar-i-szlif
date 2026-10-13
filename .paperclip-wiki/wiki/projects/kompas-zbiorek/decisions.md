@@ -1,5 +1,5 @@
 ---
-title: Kompas Zbiórek — decyzje
+title: Żar i Szlif — decyzje
 type: project
 tags: [decyzje, adr]
 sources: [raw/WSPOLNY_KONTEKST.md, raw/AGENTS.md]
@@ -7,10 +7,11 @@ created: 2026-08-20
 updated: 2026-08-27
 ---
 
-# Kompas Zbiórek — decyzje
+# Żar i Szlif — decyzje
 
 | Data | Decyzja | Uzasadnienie | Źródło |
 |---|---|---|---|
+| 2026-10-13 | Oficjalna nazwa publiczna produktu: **Żar i Szlif** (poprzednio „Kompas Zbiórek”) | Żar = ognisko i zaangażowanie; szlif = ciągłe doskonalenie; zachowano techniczne identyfikatory i historyczne źródła | [[wiki/concepts/brand-dna]] |
 | 2026-08-20 | Single source of truth = WSPOLNY_KONTEKST.md | rozproszenie między repo/AGENTS/global | [[wiki/synthesis/single-source-of-truth]] |
 | 2026-08-20 | Wiki `C:\Kompas Zbiórek\.paperclip-wiki` jako durable layer | ujednolicenie external agents knowledge source | [[wiki/entities/external-agent-knowledge]] |
 | 2026-08-20 | `isolated_workspace` + `git_worktree` tylko | uniknięcie write do `main` | [[wiki/sources/wspolny-kontekst]] |
