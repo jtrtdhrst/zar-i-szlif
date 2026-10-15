@@ -24,6 +24,19 @@ test("one root issue cannot own two remote branches", () => {
 });
 test("one branch can receive meaningful new commits without branching", () => {
   assert.deepEqual(valid("KOMAA-879", "existing", { subjects: [] }), []);
+  assert.deepEqual(valid("KOMAA-879", "existing"), []);
+});
+test("existing canonical branches reject all newly pushed wrongly owned commits", () => {
+  assert.match(evaluateBranch({ branch:"KOMAA-879", mode:"existing",
+    subjects:["fix(KOMAA-777): wrong issue identity"] })[0], /commit subject/);
+  assert.match(evaluateBranch({ branch:"KOMAA-879", mode:"existing",
+    subjects:["generic invalid commit"] })[0], /commit subject/);
+  assert.deepEqual(evaluateBranch({ branch:"KOMAA-879", mode:"existing",
+    subjects:["fix(KOMAA-879): correct issue ownership"] }), []);
+});
+test("historical noncanonical existing branches remain available", () => {
+  assert.deepEqual(evaluateBranch({ branch:"brand/zar-i-szlif-direct-20261013", mode:"existing",
+    subjects:["old historical commit"] }), []);
 });
 test("new PRs enforce canonical identity and commit subject", () => {
   const createdAt = "2026-10-16T01:00:00Z";
