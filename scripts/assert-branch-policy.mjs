@@ -12,6 +12,12 @@ export function issueFromBranch(branch) {
   return m ? "KOMAA-" + m[1] : null;
 }
 
+export function candidateRef(mode, headSha) {
+  if (mode !== "pr") return "HEAD";
+  if (!/^[0-9a-f]{40}$/.test(String(headSha ?? ""))) throw new Error("PR head SHA missing or invalid");
+  return headSha;
+}
+
 export function issueFromAnyBranch(branch) {
   const m = String(branch ?? "").match(/(?:^|\/)KOMAA-([1-9]\d*)(?:$|[-/])/i);
   return m ? "KOMAA-" + m[1] : null;
@@ -62,6 +68,7 @@ function main() {
   const mode = get("--mode=");
   const branch = get("--branch=");
   const createdAt = get("--created-at=");
+  const headSha = get("--head-sha=");
   try {
     const oldPR = mode === "pr" && createdAt && Number.isFinite(Date.parse(createdAt)) &&
       Date.parse(createdAt) < Date.parse(ADOPTION);
@@ -73,8 +80,12 @@ function main() {
       remoteBranches = git(["ls-remote", "--heads", "origin"]).split("\n")
         .filter(Boolean).map((line) => line.split("\t")[1]?.replace(/^refs\/heads\//, "")).filter(Boolean);
       const mainRef = git(["rev-parse", "--verify", "origin/main"]);
-      const mergeBase = git(["merge-base", mainRef, "HEAD"]);
-      subjects = git(["log", "--format=%s", mergeBase + "..HEAD"]).split("\n").filter(Boolean);
+      // Pull request checkout points at a SYNTHETIC GitHub merge commit.
+      // Check only real PR head commits for conventional issue ownership.
+      const realCandidate = candidateRef(mode, headSha);
+      git(["cat-file", "-e", realCandidate + "^{commit}"]);
+      const mergeBase = git(["merge-base", mainRef, realCandidate]);
+      subjects = git(["log", "--format=%s", mergeBase + ".." + realCandidate]).split("\n").filter(Boolean);
     }
     const violations = evaluateBranch({ branch, mode, createdAt, remoteBranches, subjects });
     if (violations.length) {

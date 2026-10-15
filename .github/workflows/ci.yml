@@ -41,7 +41,8 @@ jobs:
         env:
           PR_BRANCH: ${{ github.head_ref }}
           PR_CREATED_AT: ${{ github.event.pull_request.created_at }}
-        run: node scripts/assert-branch-policy.mjs --mode=pr --branch="$PR_BRANCH" --created-at="$PR_CREATED_AT"
+          PR_HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+        run: node scripts/assert-branch-policy.mjs --mode=pr --branch="$PR_BRANCH" --created-at="$PR_CREATED_AT" --head-sha="$PR_HEAD_SHA"
       - run: npm run validate:code
       - run: npm run build
       - name: Check target-aware candidate release gates

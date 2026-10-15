@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { ADOPTION, issueFromBranch, issueFromAnyBranch, conflictingBranches, evaluateBranch } from "../scripts/assert-branch-policy.mjs";
+import { ADOPTION, issueFromBranch, issueFromAnyBranch, conflictingBranches, candidateRef, evaluateBranch } from "../scripts/assert-branch-policy.mjs";
 
 const valid = (branch, mode = "new", extra = {}) => evaluateBranch({
   branch, mode, remoteBranches: [branch], subjects: ["fix(" + issueFromBranch(branch) + "): repair an actual defect"], ...extra,
@@ -41,4 +41,11 @@ test("missing PR timestamp and protected branch fail closed", () => {
   assert.ok(evaluateBranch({ branch:"KOMAA-879", mode:"pr" }).length);
   assert.ok(evaluateBranch({ branch:"main", mode:"existing" }).length);
   assert.ok(evaluateBranch({ branch:"master", mode:"new" }).length);
+});
+
+test("PR candidate is exact event head, not GitHub synthetic test-merge HEAD", () => {
+  const sha = "f".repeat(40);
+  assert.equal(candidateRef("pr", sha), sha);
+  assert.equal(candidateRef("new"), "HEAD");
+  assert.throws(() => candidateRef("pr", null), /PR head SHA/);
 });
