@@ -174,3 +174,7 @@ Ta sama mutacja failuje dwa razy → STOP retry i raport:
 `BLOCKER / OWNER / EXACT ACTION`.
 
 Nie obchodź security, credential boundary ani workspace policy ręcznymi workaroundami.
+
+## Agent Git Delivery (canonical policy, 2026-10-15)
+
+For REPO_WRITE, Git review/integration and worktree cleanup, load the company `agent-git-delivery` skill and canonical Paperclip Wiki `wiki/concepts/agent-git-delivery-policy.md`. ONE independently accepted canonical issue outcome has ONE reusable branch/worktree and normally ONE PR, not one per run/retry/reviewer. First push only after candidate and target verification; additional pushes only after real changed candidate. New remote branches must be exactly `KOMAA-N` or incident-only `hotfix/KOMAA-N`; existing legacy PRs pre-adoption must be migrated with evidence, never bulk-deleted. All new branch naming, duplicate issue branch detection, canonical commit subjects and PR candidate gates are enforced by `scripts/assert-branch-policy.mjs`, pre-push and CI. Server-side GitHub branch protection remains a separate required control. Never delete dirty/unmerged worktrees.

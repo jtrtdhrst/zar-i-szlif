@@ -36,8 +36,17 @@ jobs:
             esac
           fi
           node scripts/assert-git-identity.mjs --base="$base" --head=HEAD
+      - name: Enforce issue-owned branches and commit messages on new PRs
+        if: github.event_name == 'pull_request'
+        env:
+          PR_BRANCH: ${{ github.head_ref }}
+          PR_CREATED_AT: ${{ github.event.pull_request.created_at }}
+        run: node scripts/assert-branch-policy.mjs --mode=pr --branch="$PR_BRANCH" --created-at="$PR_CREATED_AT"
       - run: npm run validate:code
       - run: npm run build
+      - name: Check target-aware candidate release gates
+        if: github.event_name == 'pull_request'
+        run: npm run validate:release
       - name: Verify generated artifacts
         run: |
           test -s app/web/dist/index.html

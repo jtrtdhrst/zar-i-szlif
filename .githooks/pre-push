@@ -11,6 +11,14 @@ do
     echo "[pre-push] Push a branch and merge through a PR after CI passes."
     exit 1
   fi
+  # Verify a new canonical issue branch before any objects reach the remote.
+  case "$remote_ref:$local_sha" in
+    refs/heads/*:0*|refs/tags/*) ;;
+    refs/heads/*:*)
+      case "$remote_sha" in ""|0*) branch_mode=new ;; *) branch_mode=existing ;; esac
+      node scripts/assert-branch-policy.mjs --mode="$branch_mode" --branch="${remote_ref#refs/heads/}" || exit 1
+      ;;
+  esac
   case "$local_sha" in
     ""|0*) ;;  # ref deletion — nothing to validate
     *) shas="$shas $local_sha" ;;
