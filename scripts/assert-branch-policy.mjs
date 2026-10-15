@@ -37,7 +37,9 @@ export function evaluateBranch({ branch, mode, createdAt, remoteBranches = [], s
   if (!name || name === "main" || name === "master" || name.startsWith("refs/")) {
     return ["protected, missing, or invalid branch name"];
   }
-  if (mode === "existing") return errors; // grandfather an already existing remote branch.
+  // Historical branches remain valid, but a canonical existing issue branch
+  // must validate the issue ownership of every newly pushed commit.
+  if (mode === "existing" && !issueFromBranch(name)) return errors;
   if (mode === "pr" && (!createdAt || !Number.isFinite(Date.parse(createdAt)))) {
     return ["PR created_at evidence missing or invalid"];
   }
@@ -45,7 +47,7 @@ export function evaluateBranch({ branch, mode, createdAt, remoteBranches = [], s
 
   const issue = issueFromBranch(name);
   if (!issue) return ["new branch must be exactly KOMAA-N or hotfix/KOMAA-N"];
-  const duplicates = conflictingBranches(name, remoteBranches);
+  const duplicates = mode === "existing" ? [] : conflictingBranches(name, remoteBranches);
   if (duplicates.length) errors.push("another branch already owns " + issue + ": " + duplicates.join(", "));
   for (const subject of subjects) {
     const m = String(subject).match(SUBJECT);
@@ -69,13 +71,23 @@ function main() {
   const branch = get("--branch=");
   const createdAt = get("--created-at=");
   const headSha = get("--head-sha=");
+  const oldSha = get("--old-sha=");
   try {
     const oldPR = mode === "pr" && createdAt && Number.isFinite(Date.parse(createdAt)) &&
       Date.parse(createdAt) < Date.parse(ADOPTION);
     const mustCheck = mode === "new" || (mode === "pr" && !oldPR);
     let remoteBranches = [];
     let subjects = [];
-    if (mustCheck && issueFromBranch(branch)) {
+    if (mode === "existing" && issueFromBranch(branch)) {
+      if (![oldSha, headSha].every((sha) => /^[0-9a-f]{40}$/.test(String(sha ?? "")))) {
+        throw new Error("existing branch requires old and new 40-character commit SHAs");
+      }
+      git(["cat-file", "-e", oldSha + "^{commit}"]);
+      git(["cat-file", "-e", headSha + "^{commit}"]);
+      const ff = spawnSync("git", ["merge-base", "--is-ancestor", oldSha, headSha]);
+      if (ff.status !== 0) throw new Error("non-fast-forward update of canonical issue branch is forbidden");
+      subjects = git(["log", "--format=%s", oldSha + ".." + headSha]).split("\n").filter(Boolean);
+    } else if (mustCheck && issueFromBranch(branch)) {
       // Remote read is authoritative for other branch names owning the same issue.
       remoteBranches = git(["ls-remote", "--heads", "origin"]).split("\n")
         .filter(Boolean).map((line) => line.split("\t")[1]?.replace(/^refs\/heads\//, "")).filter(Boolean);
