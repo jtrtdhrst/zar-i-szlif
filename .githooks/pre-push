@@ -16,7 +16,7 @@ do
     refs/heads/*:0*|refs/tags/*) ;;
     refs/heads/*:*)
       case "$remote_sha" in ""|0*) branch_mode=new ;; *) branch_mode=existing ;; esac
-      node scripts/assert-branch-policy.mjs --mode="$branch_mode" --branch="${remote_ref#refs/heads/}" || exit 1
+      node scripts/assert-branch-policy.mjs --mode="$branch_mode" --branch="${remote_ref#refs/heads/}" --old-sha="$remote_sha" --head-sha="$local_sha" || exit 1
       ;;
   esac
   case "$local_sha" in
