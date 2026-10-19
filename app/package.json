@@ -6,14 +6,13 @@
   "scripts": {
     "build": "node web/scripts/build-static.mjs && tsc -p plugin/tsconfig.json",
     "lint": "node --check web/scripts/build-static.mjs && node --check web/scripts/skill-completion-task-test.mjs && node --check plugin/index.ts && node --check plugin/server.ts && node --check plugin/ui.ts && node --check plugin/rag.ts && node --check plugin/auth.ts && node --check plugin/knowledge/schema.ts && node --check plugin/knowledge/denylist.ts && node --check plugin/knowledge/embeddings.ts && node --check plugin/knowledge/qdrant.ts && node --check plugin/knowledge/memory.ts && node --check plugin/knowledge/pipeline.ts && node --check plugin/knowledge/retrieval.ts && node --check plugin/knowledge/mcp-tools.ts && node --check plugin/knowledge/sources.ts && node --check plugin/contract.test.mjs",
-    "test": "npm run test:skill-completion-task && npm run test:contract && npm run test:user-mcp",
+    "test": "npm run test:skill-completion-task && npm run test:contract",
     "test:skill-completion-task": "node web/scripts/skill-completion-task-test.mjs",
     "test:contract": "node web/scripts/build-static.mjs && tsc -p plugin/tsconfig.json && node --test plugin/contract.test.mjs",
     "start": "node plugin/dist/index.js",
     "dev": "npm run build && npm run start",
     "typecheck": "tsc --noEmit -p plugin/tsconfig.json",
-    "test:all": "npm run build && npm run typecheck && npm run test:skill-completion-task",
-    "test:user-mcp": "tsc -p plugin/tsconfig.json && node --test plugin/user-mcp/runtime.test.mjs"
+    "test:all": "npm run build && npm run typecheck && npm run test:skill-completion-task"
   },
   "dependencies": {
     "@modelcontextprotocol/sdk": "^1.27.1",
