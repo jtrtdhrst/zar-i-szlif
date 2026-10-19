@@ -1,10 +1,11 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
 <title>Szlif silhouette A — perched sentinel, beak right</title>
+<desc>Pure-black silhouette sketch of the selected Szlif-A pose: upright body, three-quarter head with the beak projecting to viewer-right, fanned tail feathers.</desc>
 <g fill="#111111">
 <ellipse cx="256" cy="300" rx="95" ry="118"/>
-<ellipse cx="256" cy="160" rx="82" ry="75"/>
-<polygon points="208,105 218,58 234,100 250,52 266,100 282,58 292,105 270,118 230,118"/>
-<polygon points="306,168 388,192 308,216"/>
+<ellipse cx="276" cy="160" rx="82" ry="75"/>
+<polygon points="218,100 228,52 244,96 260,48 276,96 292,54 302,102 280,116 240,116"/>
+<polygon points="330,168 404,192 332,216"/>
 <rect x="238" y="395" width="36" height="100" rx="18" transform="rotate(-16 256 395)"/>
 <rect x="238" y="395" width="36" height="108" rx="18"/>
 <rect x="238" y="395" width="36" height="100" rx="18" transform="rotate(16 256 395)"/>

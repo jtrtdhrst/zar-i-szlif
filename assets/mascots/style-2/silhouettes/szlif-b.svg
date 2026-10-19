@@ -1,7 +1,8 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
 <title>Szlif silhouette B — lecturer, wings spread, notebook</title>
+<desc>Pure-black silhouette sketch: spread wings, notebook held at the side, beak to viewer-right.</desc>
 <g fill="#111111">
-<polygon points="170,280 40,180 90,330"/>
+<polygon points="186,272 40,180 96,330"/>
 <polygon points="342,280 472,180 422,330"/>
 <ellipse cx="256" cy="320" rx="85" ry="105"/>
 <ellipse cx="256" cy="170" rx="75" ry="68"/>

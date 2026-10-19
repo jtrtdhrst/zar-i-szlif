@@ -1,1 +1,30 @@
-{"exportManifest": "../manifest.json", "expressions": ["baseline-calm"], "id": "iskra", "palette": ["#E2702D", "#B94F1D", "#F7E8D3", "#2BB8A6", "#1E8A7D", "#2B2A33", "#FFFFFF"], "poses": ["upright-herald-baseline"], "proportions": {"body": "ellipse cx280 cy355 rx82 ry105", "feetY": 460, "head": "ellipse cx276 cy178 rx88 ry80", "totalBounds": "x140-395 y12-480"}, "qaVerdict": "designer-pass-pending-uiqa", "role": "npc", "signatureFeatures": ["asymmetric-fringe-left-deeper", "large-integrated-tail-cream-tip", "tilted-turquoise-scarf-knot-right", "raised-right-arm-cream-hand"], "sourceId": "assets/mascots/style-2/iskra/source.svg", "species": "fox", "styleVersion": "style-2-v0"}
+{
+  "id": "iskra",
+  "species": "fox",
+  "role": "npc",
+  "styleVersion": "style-2-v0",
+  "sourceId": "assets/mascots/style-2/iskra/source.svg",
+  "exportManifest": "../manifest.json",
+  "poses": ["upright-herald-baseline"],
+  "expressions": ["baseline-calm"],
+  "signatureFeatures": [
+    "asymmetric-fringe-left-deeper",
+    "large-integrated-tail-cream-tip",
+    "tilted-turquoise-scarf-knot-right",
+    "raised-right-arm-cream-hand"
+  ],
+  "proportions": {
+    "head": "ellipse cx276 cy178 rx88 ry80",
+    "body": "ellipse cx280 cy355 rx82 ry105",
+    "feetY": 460,
+    "totalBounds": "x123-403 y18-479"
+  },
+  "geometry": {
+    "earL": "polygon 200,148 150,18 250,116 - base vertices inside the head ellipse",
+    "earR": "polygon 315,116 352,32 340,128 - base vertices inside the head ellipse",
+    "armR": "ellipse cx370 cy280 rx15 ry54 rotate(22 370 280) - root overlaps the torso",
+    "paw": "circle cx390 cy230 r14 - centred on the arm tip, clear of the muzzle and head"
+  },
+  "palette": ["#E2702D", "#B94F1D", "#F7E8D3", "#2BB8A6", "#1E8A7D", "#2B2A33", "#FFFFFF"],
+  "qaVerdict": "designer-pass-pending-uiqa"
+}

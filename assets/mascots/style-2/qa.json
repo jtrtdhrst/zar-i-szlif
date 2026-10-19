@@ -1,1 +1,70 @@
-{"checks": [{"id": "silhouette-64", "note": "tail curl, ears, beak all separable at 64", "result": "pass"}, {"id": "no-clipping", "note": "all signature features inside viewBox at every size", "result": "pass"}, {"id": "alpha", "note": "manifest: transparent corners, opaqueFraction in range", "result": "pass"}, {"id": "family-coherence", "note": "shared turquoise accent, eye scale, geometry language", "result": "pass"}, {"id": "no-stock", "note": "all paths hand-authored, grouped semantic ids", "result": "pass"}], "independentReview": "pending-ui-qa", "reviewer": "designer-self", "scope": "pair-contact-sheet", "verdict": "designer-pass"}
+{
+  "styleVersion": "style-2-v0",
+  "scope": "pair-contact-sheet",
+  "verdict": "designer-pass",
+  "reviewer": "designer-self",
+  "independentReview": "pending-ui-qa",
+  "candidateRef": "branch KOMAA-1010 HEAD (exact SHA in the issue thread)",
+  "checks": [
+    {
+      "id": "ear-attached",
+      "note": "Iskra earL/earR base vertices lie inside the head ellipse (normalized radius < 1); left ear is the larger one",
+      "result": "pass"
+    },
+    {
+      "id": "paw-connected",
+      "note": "raised right arm overlaps the torso at its root; cream paw (r=14) is centred on the arm tip, clear of muzzle and head outline",
+      "result": "pass"
+    },
+    {
+      "id": "single-piece",
+      "note": "512px exports of both masters render as exactly 1 connected component (renderer fails otherwise); silhouette sketches checked at 256px",
+      "result": "pass"
+    },
+    {
+      "id": "szlif-three-quarter",
+      "note": "head centre cx276 (+20 right of torso cx256), single visible eye cx288, beak tip x404 projecting past the head edge",
+      "result": "pass"
+    },
+    {
+      "id": "silhouette-32",
+      "note": "silhouettes export at 256/128/64/32, so the 32px black-read rule is testable",
+      "result": "pass"
+    },
+    {
+      "id": "svg-desc",
+      "note": "all 8 delivered SVGs carry <title> and <desc> (2 masters + 6 silhouettes)",
+      "result": "pass"
+    },
+    {
+      "id": "manifest-sources",
+      "note": "manifest hashes 46 files: 36 PNG exports/sheets + 8 editable SVG sources + 2 character.json contracts",
+      "result": "pass"
+    },
+    {
+      "id": "alpha",
+      "note": "manifest: transparent corners, opaqueFraction in range, threshold recorded as opaqueAlphaThreshold",
+      "result": "pass"
+    },
+    {
+      "id": "no-clipping",
+      "note": "all signature features inside viewBox at every size",
+      "result": "pass"
+    },
+    {
+      "id": "family-coherence",
+      "note": "shared turquoise accent, eye scale, geometry language",
+      "result": "pass"
+    },
+    {
+      "id": "no-stock",
+      "note": "all paths hand-authored, grouped semantic ids, no rasters/base64/<image>",
+      "result": "pass"
+    }
+  ],
+  "notClaimed": [
+    "independent UI QA verdict (owned by the reviewer)",
+    "owner approval of the STYLE_2 / 'Soft Geometry V2' label",
+    "public URL for the assets (transport release gate still open, Harness root KOMAA-797)"
+  ]
+}

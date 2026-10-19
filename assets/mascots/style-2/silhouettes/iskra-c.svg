@@ -1,11 +1,12 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
 <title>Iskra silhouette C — seated sage, tail wrapped front</title>
+<desc>Pure-black silhouette sketch: seated body, tall ears, tail wrapped across the front.</desc>
 <g fill="#111111">
 <path d="M150 420 C140 320 180 250 256 245 C332 250 372 320 362 420 C340 455 300 468 256 468 C212 468 172 455 150 420 Z"/>
 <path d="M170 430 C190 380 240 360 300 365 C260 385 230 410 225 445 Z"/>
 <ellipse cx="256" cy="165" rx="85" ry="78" transform="rotate(8 256 165)"/>
 <polygon points="195,115 160,30 240,75"/>
-<polygon points="320,110 350,35 355,115"/>
+<polygon points="318,118 352,34 344,126"/>
 <ellipse cx="200" cy="455" rx="42" ry="22"/>
 <ellipse cx="312" cy="455" rx="42" ry="22"/>
 </g>

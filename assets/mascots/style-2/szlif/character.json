@@ -1,1 +1,30 @@
-{"exportManifest": "../manifest.json", "expressions": ["baseline-calm"], "id": "szlif", "palette": ["#3A4668", "#2C3550", "#8FA3C4", "#D99A2B", "#A96F1D", "#2BB8A6", "#1E8A7D", "#F4EFE3", "#23262E", "#FFFFFF"], "poses": ["perched-sentinel-baseline"], "proportions": {"body": "ellipse cx256 cy300 rx95 ry118", "feetY": 438, "head": "ellipse cx256 cy160 rx82 ry75", "totalBounds": "x146-444 y52-503"}, "qaVerdict": "designer-pass-pending-uiqa", "role": "npc", "signatureFeatures": ["ochre-wedge-beak-ridge", "three-spike-head-tuft", "heavy-lidded-eye-ironic-brow", "fanned-triple-tail", "turquoise-notebook-plan-check"], "sourceId": "assets/mascots/style-2/szlif/source.svg", "species": "raven", "styleVersion": "style-2-v0"}
+{
+  "id": "szlif",
+  "species": "raven",
+  "role": "npc",
+  "styleVersion": "style-2-v0",
+  "sourceId": "assets/mascots/style-2/szlif/source.svg",
+  "exportManifest": "../manifest.json",
+  "poses": ["perched-sentinel-baseline"],
+  "expressions": ["baseline-calm"],
+  "signatureFeatures": [
+    "ochre-wedge-beak-ridge",
+    "three-spike-head-tuft",
+    "heavy-lidded-eye-ironic-brow",
+    "fanned-triple-tail",
+    "turquoise-notebook-plan-check"
+  ],
+  "proportions": {
+    "head": "ellipse cx276 cy160 rx82 ry75 - offset +20 right of the torso centre (three-quarter turn)",
+    "body": "ellipse cx256 cy300 rx95 ry118",
+    "feetY": 438,
+    "totalBounds": "x155-450 y52-502"
+  },
+  "geometry": {
+    "eye": "single visible eye ellipse cx288 cy158 rx17 ry13 - right of the head centre",
+    "beak": "polygon 330,168 404,192 332,216 - rooted in the head, tip x404 past the head edge",
+    "tuft": "polygon 218,100 228,52 244,96 260,48 276,96 292,54 302,102 280,116 240,116 - swept back-left"
+  },
+  "palette": ["#3A4668", "#2C3550", "#8FA3C4", "#D99A2B", "#A96F1D", "#2BB8A6", "#1E8A7D", "#F4EFE3", "#23262E", "#FFFFFF"],
+  "qaVerdict": "designer-pass-pending-uiqa"
+}
