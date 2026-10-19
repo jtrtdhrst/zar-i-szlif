@@ -1,0 +1,27 @@
+<!doctype html>
+<html lang="pl"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="robots" content="noindex,nofollow"><meta name="description" content="Żar i Szlif — demonstracyjny ekran logowania."><title>Witaj ponownie! — Żar i Szlif</title>
+<style>
+:root{color-scheme:light;font-family:Inter,system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;color:#153a2b;background:#f8f5ee}
+*{box-sizing:border-box}body{margin:0}main{min-height:100svh;display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,380px),1fr))}
+.scene{background:linear-gradient(145deg,#173e32,#235a43 58%,#337a56);color:#fff9ed;padding:clamp(28px,5vw,76px);min-height:430px;display:flex;flex-direction:column;justify-content:space-between;overflow:hidden}
+.brand{font-size:22px;font-weight:850;letter-spacing:-.025em;margin:0 0 24px}.scene h1{font-size:clamp(42px,5vw,70px);line-height:1.03;font-weight:850;letter-spacing:-.045em;max-width:520px;margin:36px 0 18px}.scene p{font-size:17px;line-height:1.65;color:#dcebdc;max-width:480px;margin:0}.tent{width:190px;height:150px;margin:20px auto 0;background:#efaf68;clip-path:polygon(50% 0,99% 100%,1% 100%);filter:drop-shadow(0 12px 12px #0003)}
+.card{background:#fffdf8;min-height:100svh;padding:clamp(34px,6vw,96px);display:flex;flex-direction:column;justify-content:center}.eyebrow{font-size:12px;font-weight:800;letter-spacing:.16em;color:#44836b;margin:0 0 14px}.card h2{font-size:clamp(32px,4vw,46px);font-weight:850;line-height:1.1;letter-spacing:-.035em;margin:0 0 14px}.desc{font-size:15px;line-height:1.65;color:#607169;margin:0 0 31px;max-width:435px}.form{width:100%;max-width:480px}
+label{display:block;font-size:13px;font-weight:750;color:#264a3b;margin:0 0 8px}
+input{font:inherit;font-size:16px;width:100%;height:54px;padding:0 16px;border:1px solid #dce5dc;border-radius:13px;background:#f8faf7;color:#455a50;margin:0 0 20px}input:disabled{opacity:1;cursor:not-allowed}input::placeholder{color:#8c9f92}
+.remember{font-size:13px;color:#607169;display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;margin:0 0 23px}.remember a{color:#2e7758;text-decoration:none}.remember a:focus-visible,.footer a:focus-visible{outline:2px solid #e9a160}
+button{font:inherit;display:block;width:100%;max-width:480px;background:#2e7758;color:#fff;border:0;border-radius:14px;padding:17px 24px;font-size:16px;font-weight:800;opacity:.78;cursor:not-allowed;margin:0 0 24px}
+.footer{font-size:13px;line-height:1.6;color:#637268;margin:0}.footer a{color:#2e7758;font-weight:750;text-decoration:none}
+.notice{max-width:480px;padding:12px 14px;margin:24px 0 0;background:#f7f1e3;border:1px solid #e9d8b2;border-radius:11px;color:#6b583a;font-size:12px;line-height:1.55}
+@media(max-width:800px){main{grid-template-columns:1fr}.scene{min-height:300px;padding:25px 28px}.scene h1{font-size:38px;margin:14px 0}.scene p{font-size:14px;line-height:1.5}.tent{display:none}.card{min-height:auto;padding:40px 28px 64px}}@media(prefers-reduced-motion:reduce){*,*::before,*::after{scroll-behavior:auto!important}}
+</style></head>
+<body><main data-plasmic-project="ew9Zg1DsRBmoU5D99kLXHZ" data-plasmic-page="mcpmvfk4pspr05tqexp" data-plasmic-revision="91">
+<aside class="scene" aria-label="Obozowisko Żar i Szlif"><div><p class="brand">✦ Żar i Szlif</p><h1>Wróć do obozowiska.</h1><p>Małe kroki zmieniają wielkie wyprawy. Twoja drużyna już czeka na kolejny rozdział.</p></div><div class="tent" role="img" aria-label="Stylizowany namiot obozowy"></div></aside>
+<section class="card" aria-labelledby="welcome"><p class="eyebrow">TWOJA PRZYGODA TRWA</p><h2 id="welcome">Witaj ponownie!</h2><p class="desc">Zaloguj się, aby wrócić do swojej drużyny i wspólnego obozowiska.</p>
+<div class="form" role="group" aria-label="Podgląd formularza logowania">
+<label for="smoke-email">Adres e-mail</label><input id="smoke-email" type="email" placeholder="twoj@email.pl" autocomplete="off" disabled aria-disabled="true">
+<label for="smoke-password">Hasło</label><input id="smoke-password" type="password" placeholder="••••••••" autocomplete="off" disabled aria-disabled="true">
+<p class="remember"><span>☐ Zapamiętaj mnie</span><a href="#demo-info">Nie pamiętasz hasła?</a></p>
+<button type="button" disabled aria-disabled="true">Zaloguj się</button>
+<p class="footer">Nie masz konta? <a href="#demo-info">Rozpocznij przygodę</a></p>
+<p id="demo-info" class="notice" role="status">To demonstracyjny ekran przygotowany do testu Plasmic MCP. Logowanie nie jest podłączone — strona nie przyjmuje ani nie wysyła danych.</p>
+</div></section></main></body></html>
