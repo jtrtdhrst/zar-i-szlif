@@ -2,7 +2,7 @@
   "styleVersion": "style-2-v0",
   "renderer": "sharp/0.35.5",
   "opaqueAlphaThreshold": 16,
-  "generatedAt": "2026-10-19T21:49:46.205Z",
+  "generatedAt": "2026-10-19T22:28:57.544Z",
   "files": [
     {
       "path": "assets/mascots/style-2/iskra/exports/export-512.png",
@@ -196,45 +196,45 @@
     },
     {
       "path": "assets/mascots/style-2/silhouettes/png/iskra-c-256.png",
-      "sha256": "2d14f41ea40b1e204477289465af8900f9abd8b8b2ec7f77389934dd2db59c78",
+      "sha256": "f01f688ed0bf15b828f8dbfb4589855aa0a7c493d0fd0cadcb37d55e8b9890fe",
       "width": 256,
       "height": 256,
       "channels": 4,
       "transparentCorners": true,
-      "opaqueFraction": 0.257,
+      "opaqueFraction": 0.2613,
       "expectTransparentCorners": true,
       "connectedComponents": 1
     },
     {
       "path": "assets/mascots/style-2/silhouettes/png/iskra-c-128.png",
-      "sha256": "b323a6db3de8135f244a709b2d02b03bf11983b58d1cdbf71f1ce554348912b1",
+      "sha256": "a9c753f15516e4ff12d4c239faf8833edf384a48fd5ab0a3dddf644b806ca77f",
       "width": 128,
       "height": 128,
       "channels": 4,
       "transparentCorners": true,
-      "opaqueFraction": 0.2618,
+      "opaqueFraction": 0.2662,
       "expectTransparentCorners": true,
       "connectedComponents": 1
     },
     {
       "path": "assets/mascots/style-2/silhouettes/png/iskra-c-64.png",
-      "sha256": "b536a08a603dbad5db2054d0bd129d622c8a6560da756941c838a678c9c762ff",
+      "sha256": "d16b80c42426903754e566b64c97515117ac59eeedb104b033bd1e01937f90e2",
       "width": 64,
       "height": 64,
       "channels": 4,
       "transparentCorners": true,
-      "opaqueFraction": 0.2729,
+      "opaqueFraction": 0.2776,
       "expectTransparentCorners": true,
       "connectedComponents": 1
     },
     {
       "path": "assets/mascots/style-2/silhouettes/png/iskra-c-32.png",
-      "sha256": "79a13890bbabfaa837ea7214b2a964108fca48897c7e8a3ca50b2cfe320225da",
+      "sha256": "da4be79b808d4f369d9967200fb126394e86af004dc0b27dd227f8000e021986",
       "width": 32,
       "height": 32,
       "channels": 4,
       "transparentCorners": true,
-      "opaqueFraction": 0.29,
+      "opaqueFraction": 0.2939,
       "expectTransparentCorners": true,
       "connectedComponents": 1
     },
@@ -382,12 +382,12 @@
     },
     {
       "path": "assets/mascots/style-2/silhouettes/sheet.png",
-      "sha256": "4e7d5627b8764b3dd75378207765595b022eac9a0c8ddef21e7a4aee9c93eea2",
+      "sha256": "c5f224871d5713e929bbcafd8bf3fd8a825b8c11d8f4d5c442d27701e0b24d3d",
       "width": 848,
       "height": 572,
       "channels": 4,
       "transparentCorners": true,
-      "opaqueFraction": 0.1928,
+      "opaqueFraction": 0.1934,
       "expectTransparentCorners": true
     },
     {
@@ -421,44 +421,44 @@
     {
       "path": "assets/mascots/style-2/silhouettes/iskra-a.svg",
       "type": "source-svg",
-      "bytes": 912,
+      "bytes": 922,
       "viewBox": "0 0 512 512",
-      "sha256": "0215a66ff0d6cd2f84c718b6cea6fa1b48a8a783355de936974c669ac3e0cb3b"
+      "sha256": "729e7266d1412608bd0a591a1d2b25c5fa1cdf9b943d5a603b2209016d0b10e9"
     },
     {
       "path": "assets/mascots/style-2/silhouettes/iskra-b.svg",
       "type": "source-svg",
-      "bytes": 690,
+      "bytes": 700,
       "viewBox": "0 0 512 512",
-      "sha256": "5ef4f7c8414057f11ebd5a59352b7e23ff8e4029d62da96bef09e4a87b14c826"
+      "sha256": "72f0493a517962f6b0c7b650517339da5541d1c1362c98ca6a7c90cbe6115439"
     },
     {
       "path": "assets/mascots/style-2/silhouettes/iskra-c.svg",
       "type": "source-svg",
-      "bytes": 708,
+      "bytes": 718,
       "viewBox": "0 0 512 512",
-      "sha256": "caf2f44bd51143cac7ffc9217c40cf11ea01e25e27d8a9f7efab3b5d1d3ed940"
+      "sha256": "cfe2cf36ab8d94a37b7ff108093635cc3ba755668a3c786944291a3a569d0f21"
     },
     {
       "path": "assets/mascots/style-2/silhouettes/szlif-a.svg",
       "type": "source-svg",
-      "bytes": 891,
+      "bytes": 901,
       "viewBox": "0 0 512 512",
-      "sha256": "5b5536dfb6f72a451a6f1b3b3ffc2127c83e776167e470a5d24f87c67936e5a4"
+      "sha256": "174cb6f75f4356cb4e0560ee85d26a47bc8c16e844e074f09f6a7175e0b2a1b7"
     },
     {
       "path": "assets/mascots/style-2/silhouettes/szlif-b.svg",
       "type": "source-svg",
-      "bytes": 770,
+      "bytes": 780,
       "viewBox": "0 0 512 512",
-      "sha256": "919cc6cc9ab836cc27d6e6aff1fc3b31fcbcbfefdec76266998cb0de9a83b805"
+      "sha256": "5a9d7d36191bbc1a4a92c8d4b21def4ed34631a031e793b79bb2f9fcb1999b10"
     },
     {
       "path": "assets/mascots/style-2/silhouettes/szlif-c.svg",
       "type": "source-svg",
-      "bytes": 871,
+      "bytes": 881,
       "viewBox": "0 0 512 512",
-      "sha256": "360d4f7aed1bfd49b3cc6b9ed635314994e8301e8524c4dd738ba64c14128621"
+      "sha256": "1cf5d493fb73215930f57da0eea85014fcc3c01c49fd0d9fe77b186a4c65320e"
     }
   ]
 }

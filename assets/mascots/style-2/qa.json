@@ -18,7 +18,12 @@
     },
     {
       "id": "single-piece",
-      "note": "512px exports of both masters render as exactly 1 connected component (renderer fails otherwise); silhouette sketches checked at 256px",
+      "note": "512px exports of both masters render as exactly 1 connected component (renderer fails otherwise); all 6 silhouette sketches render as 1 connected component at every exported size (512/256/128/64/32), with and without the 4% safe margin, under the canonical resvg renderer",
+      "result": "pass"
+    },
+    {
+      "id": "head-body-join",
+      "note": "iskra-c head ellipse (cx256 cy165 rx85 ry78 rotate 8, lowest point y=243.142) overlaps the body path top (y=236) by ~7 units; previously y=245 left a 1.858-unit gap that split the render into 2 components at 512 and 256",
       "result": "pass"
     },
     {
