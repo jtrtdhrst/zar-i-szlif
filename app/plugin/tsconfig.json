@@ -10,7 +10,6 @@
   },
   "include": [
     "*.ts",
-    "knowledge/*.ts",
-    "user-mcp/*.ts"
+    "knowledge/*.ts"
   ]
 }
