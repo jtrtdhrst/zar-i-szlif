@@ -57,7 +57,7 @@ function validateQdrantUrl(raw: string, allowInsecureLoopback = false): string {
 }
 
 function readBearer(header: string | null | undefined): string {
-  const match = /^Bearer\\s+([^\\s]+)$/i.exec((header ?? "").trim());
+  const match = /^Bearer\s+([^\s]+)$/i.exec((header ?? "").trim());
   if (!match) throw new UserMcpUnauthorized();
   return match[1];
 }
