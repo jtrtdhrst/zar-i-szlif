@@ -209,4 +209,12 @@ test("docs: the mascot docs reference only scripts that exist and a runnable npm
   const pkg = JSON.parse(readFileSync(join(root, "package.json"), "utf8"));
   assert.equal(pkg.scripts.mascots, "node scripts/mascots/export.mjs");
   assert.ok(existsSync(join(root, "scripts", "mascots", "export.mjs")), "npm run mascots target is missing");
+  // The pipeline must be exercised by CI, otherwise "repeatable" is a claim
+  // with nothing behind it (the defect UI QA raised as F3).
+  const ci = readFileSync(join(root, ".github", "workflows", "ci.yml"), "utf8");
+  assert.ok(ci.includes("npm run mascots"), "CI does not run the mascot pipeline");
+  assert.ok(
+    ci.includes("git status --porcelain -- assets/mascots/style-2"),
+    "CI does not check that committed mascot assets match the pipeline output",
+  );
 });

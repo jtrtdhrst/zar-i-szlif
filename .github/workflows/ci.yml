@@ -23,7 +23,7 @@ jobs:
         with:
           node-version: 24
           cache: npm
-      - run: npm ci
+      - run: npm ci --include=dev
       - run: npm ci --prefix app/cloudflare-worker
       - name: Reject synthetic Git identities
         run: |
@@ -37,6 +37,17 @@ jobs:
           fi
           node scripts/assert-git-identity.mjs --base="$base" --head=HEAD
       - run: npm run validate:code
+      - name: Verify committed mascot assets are reproducible from source
+        run: |
+          # The committed PNGs must be exactly what the committed pipeline
+          # produces; a hand-edited or stale export fails here.
+          npm run mascots
+          if [ -n "$(git status --porcelain -- assets/mascots/style-2)" ]; then
+            echo "Committed mascot assets differ from pipeline output:"
+            git status --porcelain -- assets/mascots/style-2
+            git diff -- assets/mascots/style-2 | head -40
+            exit 1
+          fi
       - run: npm run build
       - name: Verify generated artifacts
         run: |
