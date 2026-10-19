@@ -1,0 +1,72 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
+<title>Szlif — raven NPC, STYLE_2_V0 editable master</title>
+<desc>Original Soft Geometry V2 master. Groups: tail, feet, body, grooves, wingL, notebook, wingR, head, tuft, beak, eye. Transparent background.</desc>
+<!-- fanned tail feathers -->
+<g id="tail" fill="#2C3550">
+<rect x="238" y="395" width="36" height="100" rx="18" transform="rotate(-16 256 395)"/>
+<rect x="238" y="395" width="36" height="108" rx="18"/>
+<rect x="238" y="395" width="36" height="100" rx="18" transform="rotate(16 256 395)"/>
+</g>
+<!-- feet -->
+<g id="feet" fill="#23262E">
+<rect x="205" y="438" width="44" height="16" rx="8"/>
+<rect x="263" y="438" width="44" height="16" rx="8"/>
+</g>
+<!-- torso -->
+<g id="body">
+<ellipse cx="256" cy="300" rx="95" ry="118" fill="#3A4668"/>
+</g>
+<!-- belly feather grooves -->
+<g id="grooves" stroke="#8FA3C4" stroke-width="6" fill="none" stroke-linecap="round">
+<path d="M205 335 q22 20 44 0"/>
+<path d="M263 335 q22 20 44 0"/>
+<path d="M228 365 q22 20 44 0"/>
+</g>
+<!-- folded left wing -->
+<g id="wingL">
+<path d="M168 260 C146 320 152 385 188 415 C205 395 200 300 190 258 Z" fill="#8FA3C4"/>
+<path d="M170 300 C165 340 170 375 185 395" fill="none" stroke="#2C3550" stroke-width="5" stroke-linecap="round"/>
+</g>
+<!-- notebook held at right side -->
+<g id="notebook" transform="rotate(-8 396 355)">
+<rect x="348" y="295" width="96" height="120" rx="10" fill="#2BB8A6"/>
+<rect x="356" y="303" width="80" height="104" rx="6" fill="#F4EFE3"/>
+<rect x="348" y="340" width="96" height="10" fill="#1E8A7D"/>
+<g stroke="#23262E" stroke-width="5" stroke-linecap="round">
+<path d="M366 317 h40"/>
+<path d="M366 357 h40"/>
+<path d="M366 371 h25"/>
+</g>
+<path d="M366 331 l8 8 l14 -16" fill="none" stroke="#23262E" stroke-width="5" stroke-linecap="round" stroke-linejoin="round"/>
+</g>
+<!-- right wing stub overlapping notebook edge -->
+<g id="wingR">
+<ellipse cx="352" cy="330" rx="20" ry="48" fill="#3A4668" transform="rotate(10 352 330)"/>
+</g>
+<!-- head -->
+<g id="head">
+<ellipse cx="256" cy="160" rx="82" ry="75" fill="#3A4668"/>
+</g>
+<!-- head-feather tuft -->
+<g id="tuft">
+<polygon points="208,105 218,58 234,100 250,52 266,100 282,58 292,105 270,118 230,118" fill="#2C3550"/>
+</g>
+<!-- distinct wedge beak -->
+<g id="beak">
+<polygon points="306,168 388,192 308,216" fill="#D99A2B"/>
+<path d="M316 182 L366 193" stroke="#A96F1D" stroke-width="5" stroke-linecap="round"/>
+<circle cx="330" cy="188" r="3" fill="#A96F1D"/>
+</g>
+<!-- calm heavy-lidded eye + ironic brow -->
+<g id="eye">
+<ellipse cx="252" cy="158" rx="17" ry="13" fill="#FFFFFF"/>
+<circle cx="258" cy="160" r="6.5" fill="#23262E"/>
+<path d="M233 150 q19 -12 38 0" fill="none" stroke="#23262E" stroke-width="6" stroke-linecap="round"/>
+<path d="M236 128 l28 -7" fill="none" stroke="#23262E" stroke-width="6" stroke-linecap="round"/>
+</g>
+<!-- cheek feather ticks -->
+<g id="cheek" stroke="#8FA3C4" stroke-width="5" stroke-linecap="round">
+<path d="M185 190 l18 6"/>
+<path d="M185 205 l18 6"/>
+</g>
+</svg>

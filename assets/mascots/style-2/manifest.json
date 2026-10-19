@@ -1,0 +1,247 @@
+{
+  "styleVersion": "style-2-v0",
+  "renderer": "sharp/0.35.5",
+  "generatedAt": "2026-10-19T20:12:14.941Z",
+  "files": [
+    {
+      "path": "assets/mascots/style-2/iskra/exports/export-512.png",
+      "sha256": "6d70968b9578522c14e29d0e76babfc4a8a4ba8db4a0361cf0fc731349eb6f05",
+      "width": 512,
+      "height": 512,
+      "channels": 4,
+      "transparentCorners": true,
+      "opaqueFraction": 0.3031,
+      "expectTransparentCorners": true
+    },
+    {
+      "path": "assets/mascots/style-2/iskra/exports/export-256.png",
+      "sha256": "2a54cb489f61e7769d66e93920c74745e43060bfd02366025f93a3f174f15b4c",
+      "width": 256,
+      "height": 256,
+      "channels": 4,
+      "transparentCorners": true,
+      "opaqueFraction": 0.3065,
+      "expectTransparentCorners": true
+    },
+    {
+      "path": "assets/mascots/style-2/iskra/exports/export-128.png",
+      "sha256": "8d47080b92056cb75acdaf19327fa2345965ac91480bdb4fcfffdf13527803a3",
+      "width": 128,
+      "height": 128,
+      "channels": 4,
+      "transparentCorners": true,
+      "opaqueFraction": 0.3129,
+      "expectTransparentCorners": true
+    },
+    {
+      "path": "assets/mascots/style-2/iskra/exports/export-64.png",
+      "sha256": "6db201f36a4c162d1dd6ce090497950d69f427e68640f3d63ad20e7847648f42",
+      "width": 64,
+      "height": 64,
+      "channels": 4,
+      "transparentCorners": true,
+      "opaqueFraction": 0.3254,
+      "expectTransparentCorners": true
+    },
+    {
+      "path": "assets/mascots/style-2/iskra/exports/export-32.png",
+      "sha256": "de7d1f8dc0fc33c2670692e08eb1033a02839b33f1b9d357e71d960ab828ec02",
+      "width": 32,
+      "height": 32,
+      "channels": 4,
+      "transparentCorners": true,
+      "opaqueFraction": 0.3486,
+      "expectTransparentCorners": true
+    },
+    {
+      "path": "assets/mascots/style-2/szlif/exports/export-512.png",
+      "sha256": "00f9290679f5981a8277f8ba01c161873e037505fcd2159a80afcb5e1adcf154",
+      "width": 512,
+      "height": 512,
+      "channels": 4,
+      "transparentCorners": true,
+      "opaqueFraction": 0.2755,
+      "expectTransparentCorners": true
+    },
+    {
+      "path": "assets/mascots/style-2/szlif/exports/export-256.png",
+      "sha256": "4d341a7db568a6444e4063d248a5c5e52db6459e4c7efc18a5221936355374ed",
+      "width": 256,
+      "height": 256,
+      "channels": 4,
+      "transparentCorners": true,
+      "opaqueFraction": 0.2783,
+      "expectTransparentCorners": true
+    },
+    {
+      "path": "assets/mascots/style-2/szlif/exports/export-128.png",
+      "sha256": "dfe087c437f196acd5c5e6b5e82d125f9cc6565f3f6b35d83f9e71faf56d9a46",
+      "width": 128,
+      "height": 128,
+      "channels": 4,
+      "transparentCorners": true,
+      "opaqueFraction": 0.2842,
+      "expectTransparentCorners": true
+    },
+    {
+      "path": "assets/mascots/style-2/szlif/exports/export-64.png",
+      "sha256": "e4ed4b7f36ccd58fbefb38ebd1cb6f45e22887481adaf3449cfdcd01efd2b953",
+      "width": 64,
+      "height": 64,
+      "channels": 4,
+      "transparentCorners": true,
+      "opaqueFraction": 0.2949,
+      "expectTransparentCorners": true
+    },
+    {
+      "path": "assets/mascots/style-2/szlif/exports/export-32.png",
+      "sha256": "76c924811e83b96cc8f20453266a6ca51d2e9d9ad03139e614e9a10638abe5bf",
+      "width": 32,
+      "height": 32,
+      "channels": 4,
+      "transparentCorners": true,
+      "opaqueFraction": 0.3135,
+      "expectTransparentCorners": true
+    },
+    {
+      "path": "assets/mascots/style-2/silhouettes/png/iskra-a-256.png",
+      "sha256": "aeff74ac638b7b47b113100a0ddd8c2c378931bc2412ccba86b6c55841f40ca4",
+      "width": 256,
+      "height": 256,
+      "channels": 4,
+      "transparentCorners": true,
+      "opaqueFraction": 0.2337,
+      "expectTransparentCorners": true
+    },
+    {
+      "path": "assets/mascots/style-2/silhouettes/png/iskra-a-64.png",
+      "sha256": "705f332dd2e0559996f842b8e9e2b5611bf46d31e7a55d1f8b038f11bb18fe08",
+      "width": 64,
+      "height": 64,
+      "channels": 4,
+      "transparentCorners": true,
+      "opaqueFraction": 0.25,
+      "expectTransparentCorners": true
+    },
+    {
+      "path": "assets/mascots/style-2/silhouettes/png/iskra-b-256.png",
+      "sha256": "6e42d7a950719f4413b3b6094c5143894de89d28f9d5c682e8d65f4928a37dc7",
+      "width": 256,
+      "height": 256,
+      "channels": 4,
+      "transparentCorners": true,
+      "opaqueFraction": 0.1968,
+      "expectTransparentCorners": true
+    },
+    {
+      "path": "assets/mascots/style-2/silhouettes/png/iskra-b-64.png",
+      "sha256": "ee852cdd1de76a42423f6303c598720d99080e8292881509b997d8bd1a92319f",
+      "width": 64,
+      "height": 64,
+      "channels": 4,
+      "transparentCorners": true,
+      "opaqueFraction": 0.2126,
+      "expectTransparentCorners": true
+    },
+    {
+      "path": "assets/mascots/style-2/silhouettes/png/iskra-c-256.png",
+      "sha256": "822dbf3bc139da677d7bde42e0045bb843a41a7e6ca02699d985902be5946d1f",
+      "width": 256,
+      "height": 256,
+      "channels": 4,
+      "transparentCorners": true,
+      "opaqueFraction": 0.2577,
+      "expectTransparentCorners": true
+    },
+    {
+      "path": "assets/mascots/style-2/silhouettes/png/iskra-c-64.png",
+      "sha256": "d6969cd2bc99ae24809b76f47400c0ed0a36c921ea3d18dd28440e373e5a58f7",
+      "width": 64,
+      "height": 64,
+      "channels": 4,
+      "transparentCorners": true,
+      "opaqueFraction": 0.2742,
+      "expectTransparentCorners": true
+    },
+    {
+      "path": "assets/mascots/style-2/silhouettes/png/szlif-a-256.png",
+      "sha256": "b0088306ea7ed50304abd826073a05163266fd015d8d63dddd8ad5b8fe1b7271",
+      "width": 256,
+      "height": 256,
+      "channels": 4,
+      "transparentCorners": true,
+      "opaqueFraction": 0.2258,
+      "expectTransparentCorners": true
+    },
+    {
+      "path": "assets/mascots/style-2/silhouettes/png/szlif-a-64.png",
+      "sha256": "eb725b9b212e46f884da9ede6ead189ee1ad50a10c3d38e90b8d44a8b1dc522f",
+      "width": 64,
+      "height": 64,
+      "channels": 4,
+      "transparentCorners": true,
+      "opaqueFraction": 0.238,
+      "expectTransparentCorners": true
+    },
+    {
+      "path": "assets/mascots/style-2/silhouettes/png/szlif-b-256.png",
+      "sha256": "42668ed0e84259c29c6dc364bffa606858119c9abf02913536b8b0f71d3dfe0c",
+      "width": 256,
+      "height": 256,
+      "channels": 4,
+      "transparentCorners": true,
+      "opaqueFraction": 0.2827,
+      "expectTransparentCorners": true
+    },
+    {
+      "path": "assets/mascots/style-2/silhouettes/png/szlif-b-64.png",
+      "sha256": "678c60c278fb75abdc903755da39dfd449aa7108c437c3a9c3446668adb2223e",
+      "width": 64,
+      "height": 64,
+      "channels": 4,
+      "transparentCorners": true,
+      "opaqueFraction": 0.3027,
+      "expectTransparentCorners": true
+    },
+    {
+      "path": "assets/mascots/style-2/silhouettes/png/szlif-c-256.png",
+      "sha256": "143097a08f484a8f520467f5337ce75f29425b8d09a0f7838737cf756526196f",
+      "width": 256,
+      "height": 256,
+      "channels": 4,
+      "transparentCorners": true,
+      "opaqueFraction": 0.2245,
+      "expectTransparentCorners": true
+    },
+    {
+      "path": "assets/mascots/style-2/silhouettes/png/szlif-c-64.png",
+      "sha256": "30c1214be33fd0e2cf29dadc6113f17b53e0e1561b96dda1eb83779e225f5262",
+      "width": 64,
+      "height": 64,
+      "channels": 4,
+      "transparentCorners": true,
+      "opaqueFraction": 0.2432,
+      "expectTransparentCorners": true
+    },
+    {
+      "path": "assets/mascots/style-2/contact-sheet.png",
+      "sha256": "70f02599faa6024914da94a7c20b49ca9f969c82c75e424f36d494f93b1b9aa9",
+      "width": 584,
+      "height": 600,
+      "channels": 4,
+      "transparentCorners": true,
+      "opaqueFraction": 0.1465,
+      "expectTransparentCorners": true
+    },
+    {
+      "path": "assets/mascots/style-2/silhouettes/sheet.png",
+      "sha256": "d2bdf76d15c25f0dd98019f53c185bf266531f9ee4f2300c0730b50bd24fd62d",
+      "width": 848,
+      "height": 572,
+      "channels": 4,
+      "transparentCorners": true,
+      "opaqueFraction": 0.192,
+      "expectTransparentCorners": true
+    }
+  ]
+}
