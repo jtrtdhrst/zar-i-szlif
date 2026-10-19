@@ -125,7 +125,9 @@ describe("ChatGPT MCP product knowledge on the canonical Worker transport", () =
     const fakeScope = await callMcp("tools/call", {
       name: "search_knowledge", arguments: { query: "zbiórka", userId: "verified-google-sub-b" },
     }, "verified-google-sub-a");
-    expect(fakeScope.body.result.isError ?? !!fakeScope.body.error).toBeTruthy();
+    // The MCP SDK schema strips unrecognized client-provided scope fields
+    // before the handler; the result must still use only verified ctx.props.
+    expect(fakeScope.body.result.structuredContent.results.some((h: any) => h.document_id === "bob")).toBe(false);
   });
 
   it("rejects missing verified OAuth grant before reaching Qdrant", async () => {
