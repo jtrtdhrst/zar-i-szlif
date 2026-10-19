@@ -1,5 +1,6 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
 <title>Szlif silhouette C — hunched inspector, loupe ring</title>
+<desc>Pure-black silhouette sketch: hunched body, loupe ring held forward, head-feather tuft.</desc>
 <g fill="#111111">
 <ellipse cx="270" cy="330" rx="110" ry="95" transform="rotate(-12 270 330)"/>
 <ellipse cx="170" cy="250" rx="68" ry="62"/>

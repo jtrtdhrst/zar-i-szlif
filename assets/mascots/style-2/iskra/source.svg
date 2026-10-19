@@ -1,6 +1,6 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
 <title>Iskra — fox NPC, STYLE_2_V0 editable master</title>
-<desc>Original Soft Geometry V2 master. Groups: tail, feet, body, belly, armL, armR, earL, earR, head, fringe, eyeL, eyeR, muzzle, scarf. Transparent background.</desc>
+<desc>Original Soft Geometry V2 master. Groups: tail, feet, body, belly, armL, armR, earL, earR, head, fringe, eyeL, eyeR, muzzle, scarf. Left ear is the larger asymmetric ear and is rooted inside the head ellipse; the raised right arm ends in a cream paw that overlaps the arm tip. Transparent background.</desc>
 <!-- tail (behind body): stroked curl + cream tip -->
 <g id="tail">
 <path d="M340 385 C230 425 150 380 160 290 C164 256 178 230 202 226" fill="none" stroke="#E2702D" stroke-width="72" stroke-linecap="round"/>
@@ -23,17 +23,17 @@
 <ellipse cx="192" cy="355" rx="17" ry="42" fill="#E2702D" transform="rotate(12 192 355)"/>
 </g>
 <g id="armR">
-<ellipse cx="370" cy="292" rx="17" ry="48" fill="#E2702D" transform="rotate(-28 370 292)"/>
-<circle cx="392" cy="250" r="13" fill="#F7E8D3"/>
+<ellipse cx="370" cy="280" rx="15" ry="54" fill="#E2702D" transform="rotate(22 370 280)"/>
+<circle cx="390" cy="230" r="14" fill="#F7E8D3"/>
 </g>
-<!-- ears (behind head; left larger = asymmetric signature) -->
+<!-- ears (behind head; left larger = asymmetric signature; bases inside head ellipse) -->
 <g id="earL">
-<polygon points="205,105 158,12 248,68" fill="#E2702D"/>
-<polygon points="203,88 180,38 226,68" fill="#F7E8D3"/>
+<polygon points="200,148 150,18 250,116" fill="#E2702D"/>
+<polygon points="200,121 175,56 225,105" fill="#F7E8D3"/>
 </g>
 <g id="earR">
-<polygon points="315,110 352,32 348,118" fill="#E2702D"/>
-<polygon points="322,96 340,50 340,100" fill="#F7E8D3"/>
+<polygon points="315,116 352,32 340,128" fill="#E2702D"/>
+<polygon points="325,104 344,62 338,110" fill="#F7E8D3"/>
 </g>
 <!-- head -->
 <g id="head">

@@ -192,6 +192,40 @@ test("silhouettes: every sketch is rendered at all sizes, hashed in the set mani
   }
 });
 
+test("negative: a detached part fails the single-piece gate (UI QA F1/F2 class)", () => {
+  // The F1/F2 class: a floating ear or paw renders as a second connected
+  // component. The canonical renderer must reject it, not ship it.
+  const dir = stageCharacter("iskra", (d) => {
+    const p = join(d, "source.svg");
+    writeFileSync(p, readFileSync(p, "utf8").replace("</svg>", '<circle cx="30" cy="30" r="8" fill="#E2702D"/></svg>'));
+  });
+  try {
+    const r = exportCharacter(join(dir, "iskra"), "iskra");
+    assert.equal(r.ok, false, "accepted a detached part");
+    assert.ok(
+      r.errors.some((e) => e.includes("disconnected pieces")),
+      `no single-piece failure reported: ${JSON.stringify(r.errors)}`,
+    );
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
+});
+
+test("manifest: every export records its connected-component count", () => {
+  const dir = stageCharacter("szlif");
+  try {
+    const r = exportCharacter(join(dir, "szlif"), "szlif");
+    assert.equal(r.ok, true, JSON.stringify(r.errors));
+    const manifest = JSON.parse(readFileSync(join(dir, "szlif", "exports", "manifest.json"), "utf8"));
+    for (const s of manifest.sizes) {
+      assert.equal(typeof s.connectedComponents, "number", `no component count for ${s.file}`);
+    }
+    assert.equal(manifest.sizes.find((s) => s.size === 512).connectedComponents, 1, "master is not one piece");
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
+});
+
 test("docs: the mascot docs reference only scripts that exist and a runnable npm command", () => {
   const docs = [
     join(canonical, "README.md"),

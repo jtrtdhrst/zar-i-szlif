@@ -1,343 +1,464 @@
 {
-  "generator": "scripts/mascots/export.mjs",
-  "renderer": {
-    "resvgJs": "2.6.2",
-    "pngjs": "7.0.0"
-  },
-  "characters": [
+  "styleVersion": "style-2-v0",
+  "renderer": "sharp/0.35.5",
+  "opaqueAlphaThreshold": 16,
+  "generatedAt": "2026-10-19T21:49:46.205Z",
+  "files": [
     {
-      "id": "iskra",
-      "styleVersion": "style-2-v0",
-      "source": {
-        "file": "source.svg",
-        "sha256": "340ec7813ade6f3027e944c760140501a07330ecfbd97b4da1f0ea8522d09afd",
-        "bytes": 2854
-      },
-      "manifest": {
-        "file": "iskra/exports/manifest.json",
-        "sha256": "116187ea79cbe107c17d57673e0bbe3f0abc9195afc69794d025a3c94af186bf"
-      },
-      "exports": [
-        {
-          "size": 512,
-          "file": "iskra/exports/export-512.png",
-          "sha256": "a15a117359a664eca6ff73645b91161abae844096a27f23a4d8418d625c10f6c"
-        },
-        {
-          "size": 256,
-          "file": "iskra/exports/export-256.png",
-          "sha256": "663d1b2fe67b2cd095acfbb04a224b39703994368d82fb8f9aca6baa5262b380"
-        },
-        {
-          "size": 128,
-          "file": "iskra/exports/export-128.png",
-          "sha256": "470a1d12757c2357f00b3fd6d6ca8688a8a53dbf2f2a2d132ca6da39724e602d"
-        },
-        {
-          "size": 64,
-          "file": "iskra/exports/export-64.png",
-          "sha256": "4c4372ee72462d812783fe6acd0163c93e5fa646aa39c24d66be660fa9c12fd8"
-        },
-        {
-          "size": 32,
-          "file": "iskra/exports/export-32.png",
-          "sha256": "0233e07231d14dba89aa2e706bbc81f71b2a4d3b5249b49e93332d5942e46498"
-        }
-      ]
+      "path": "assets/mascots/style-2/iskra/exports/export-512.png",
+      "sha256": "3853c9b474ae06691046e86c2677b528af55caf2545671a17037fa6ae7eda7f6",
+      "width": 512,
+      "height": 512,
+      "channels": 4,
+      "transparentCorners": true,
+      "opaqueFraction": 0.2999,
+      "expectTransparentCorners": true,
+      "connectedComponents": 1
     },
     {
-      "id": "szlif",
-      "styleVersion": "style-2-v0",
-      "source": {
-        "file": "source.svg",
-        "sha256": "17aaddb01c0e8d98f77cc2af1e0f97d26e866e02f50c1b96c032dbfef5c7b09c",
-        "bytes": 3046
-      },
-      "manifest": {
-        "file": "szlif/exports/manifest.json",
-        "sha256": "cac10ea8646fb8721ee67ef678e0fea8812eb053360fdc76979aef9216b3c356"
-      },
-      "exports": [
-        {
-          "size": 512,
-          "file": "szlif/exports/export-512.png",
-          "sha256": "806aa681f2a00441288137f947ff3bc145125493c66d0094c85ed588cd41218f"
-        },
-        {
-          "size": 256,
-          "file": "szlif/exports/export-256.png",
-          "sha256": "30d6a6d035e70f88faff3312a243d8b994b5c21c81ddbb25440819161ec5da6e"
-        },
-        {
-          "size": 128,
-          "file": "szlif/exports/export-128.png",
-          "sha256": "e79d3d440e8c0c6fc81f01ec43d4198464d0ff2e9c798027c468620f2e48b2ad"
-        },
-        {
-          "size": 64,
-          "file": "szlif/exports/export-64.png",
-          "sha256": "5f59d2afdaf215426697217ca95758c1721b729af11b433b69a33678e9deabe9"
-        },
-        {
-          "size": 32,
-          "file": "szlif/exports/export-32.png",
-          "sha256": "cab28dfabbcc4cf478670842bb96409ae6f9205d2574c6e8b168290952585963"
-        }
-      ]
+      "path": "assets/mascots/style-2/iskra/exports/export-256.png",
+      "sha256": "c34d93e0e65945b854a996d6669ce673901137942fe3530658c3e69e67b26ead",
+      "width": 256,
+      "height": 256,
+      "channels": 4,
+      "transparentCorners": true,
+      "opaqueFraction": 0.3027,
+      "expectTransparentCorners": true
+    },
+    {
+      "path": "assets/mascots/style-2/iskra/exports/export-128.png",
+      "sha256": "d508fc8d5b204222fb0f8e1533fb64a858e2f1c0b647e8c45d87cc8badee6dfb",
+      "width": 128,
+      "height": 128,
+      "channels": 4,
+      "transparentCorners": true,
+      "opaqueFraction": 0.3085,
+      "expectTransparentCorners": true
+    },
+    {
+      "path": "assets/mascots/style-2/iskra/exports/export-64.png",
+      "sha256": "c91f082856f2a1522f3fae9d6e67d69005bcd53af2f4561c0b18c1c6243b6361",
+      "width": 64,
+      "height": 64,
+      "channels": 4,
+      "transparentCorners": true,
+      "opaqueFraction": 0.3206,
+      "expectTransparentCorners": true
+    },
+    {
+      "path": "assets/mascots/style-2/iskra/exports/export-32.png",
+      "sha256": "e9eb9dc0ca27d9f4042a33976dfdae5b5cafed0c1f83f34583737969b56263ff",
+      "width": 32,
+      "height": 32,
+      "channels": 4,
+      "transparentCorners": true,
+      "opaqueFraction": 0.3428,
+      "expectTransparentCorners": true
+    },
+    {
+      "path": "assets/mascots/style-2/szlif/exports/export-512.png",
+      "sha256": "f5aa206f07c8e61e12a50326cdbeb91e08dd821c0c5f8db43fefc893b956135a",
+      "width": 512,
+      "height": 512,
+      "channels": 4,
+      "transparentCorners": true,
+      "opaqueFraction": 0.2775,
+      "expectTransparentCorners": true,
+      "connectedComponents": 1
+    },
+    {
+      "path": "assets/mascots/style-2/szlif/exports/export-256.png",
+      "sha256": "3bf8fe803925b80f4e06db7a2f3f9819e91f626b61eb0314bf39c2e1069241bb",
+      "width": 256,
+      "height": 256,
+      "channels": 4,
+      "transparentCorners": true,
+      "opaqueFraction": 0.2805,
+      "expectTransparentCorners": true
+    },
+    {
+      "path": "assets/mascots/style-2/szlif/exports/export-128.png",
+      "sha256": "7d3f66f34b0bd5f5f27b8cf61293247f19485de504962c2cb9c8e143a088b064",
+      "width": 128,
+      "height": 128,
+      "channels": 4,
+      "transparentCorners": true,
+      "opaqueFraction": 0.2869,
+      "expectTransparentCorners": true
+    },
+    {
+      "path": "assets/mascots/style-2/szlif/exports/export-64.png",
+      "sha256": "30a596c43870e8b5010068b7943f47bbc880d6a7ff77217613b551644b14eed0",
+      "width": 64,
+      "height": 64,
+      "channels": 4,
+      "transparentCorners": true,
+      "opaqueFraction": 0.2952,
+      "expectTransparentCorners": true
+    },
+    {
+      "path": "assets/mascots/style-2/szlif/exports/export-32.png",
+      "sha256": "2ebfb957e440fc17fb4335a3a25afd8452d4a3f00cd5139d56f060309b3a65da",
+      "width": 32,
+      "height": 32,
+      "channels": 4,
+      "transparentCorners": true,
+      "opaqueFraction": 0.3174,
+      "expectTransparentCorners": true
+    },
+    {
+      "path": "assets/mascots/style-2/silhouettes/png/iskra-a-256.png",
+      "sha256": "a401f2342b2f2dec481a652f19ff0c809df6a463b55fb1a907fa74ae878c41f3",
+      "width": 256,
+      "height": 256,
+      "channels": 4,
+      "transparentCorners": true,
+      "opaqueFraction": 0.2335,
+      "expectTransparentCorners": true,
+      "connectedComponents": 1
+    },
+    {
+      "path": "assets/mascots/style-2/silhouettes/png/iskra-a-128.png",
+      "sha256": "94c505dce4872d6a261b5d038148054e8b695687be848b1698f2b83544cf2f77",
+      "width": 128,
+      "height": 128,
+      "channels": 4,
+      "transparentCorners": true,
+      "opaqueFraction": 0.2385,
+      "expectTransparentCorners": true,
+      "connectedComponents": 1
+    },
+    {
+      "path": "assets/mascots/style-2/silhouettes/png/iskra-a-64.png",
+      "sha256": "3e7493d85be4c5016ee756635070a61a1d285d7038cabc9315fdffb6a8459672",
+      "width": 64,
+      "height": 64,
+      "channels": 4,
+      "transparentCorners": true,
+      "opaqueFraction": 0.248,
+      "expectTransparentCorners": true,
+      "connectedComponents": 1
+    },
+    {
+      "path": "assets/mascots/style-2/silhouettes/png/iskra-a-32.png",
+      "sha256": "2704de83438eec98ee0e2a866ca1a06f17ea5f6af74e1716fa4cbac0e73f4ac3",
+      "width": 32,
+      "height": 32,
+      "channels": 4,
+      "transparentCorners": true,
+      "opaqueFraction": 0.2656,
+      "expectTransparentCorners": true,
+      "connectedComponents": 1
+    },
+    {
+      "path": "assets/mascots/style-2/silhouettes/png/iskra-b-256.png",
+      "sha256": "6e42d7a950719f4413b3b6094c5143894de89d28f9d5c682e8d65f4928a37dc7",
+      "width": 256,
+      "height": 256,
+      "channels": 4,
+      "transparentCorners": true,
+      "opaqueFraction": 0.1968,
+      "expectTransparentCorners": true,
+      "connectedComponents": 1
+    },
+    {
+      "path": "assets/mascots/style-2/silhouettes/png/iskra-b-128.png",
+      "sha256": "c378626d03a72ff62e2077aacced2bd64fe20c2dff589a0b8523067dc4a69138",
+      "width": 128,
+      "height": 128,
+      "channels": 4,
+      "transparentCorners": true,
+      "opaqueFraction": 0.2023,
+      "expectTransparentCorners": true,
+      "connectedComponents": 1
+    },
+    {
+      "path": "assets/mascots/style-2/silhouettes/png/iskra-b-64.png",
+      "sha256": "ee852cdd1de76a42423f6303c598720d99080e8292881509b997d8bd1a92319f",
+      "width": 64,
+      "height": 64,
+      "channels": 4,
+      "transparentCorners": true,
+      "opaqueFraction": 0.2126,
+      "expectTransparentCorners": true,
+      "connectedComponents": 1
+    },
+    {
+      "path": "assets/mascots/style-2/silhouettes/png/iskra-b-32.png",
+      "sha256": "ab40abddecbfe085c0742879be0ee0f35885545dfd62bba834fbabaa77d35a92",
+      "width": 32,
+      "height": 32,
+      "channels": 4,
+      "transparentCorners": true,
+      "opaqueFraction": 0.2324,
+      "expectTransparentCorners": true,
+      "connectedComponents": 1
+    },
+    {
+      "path": "assets/mascots/style-2/silhouettes/png/iskra-c-256.png",
+      "sha256": "2d14f41ea40b1e204477289465af8900f9abd8b8b2ec7f77389934dd2db59c78",
+      "width": 256,
+      "height": 256,
+      "channels": 4,
+      "transparentCorners": true,
+      "opaqueFraction": 0.257,
+      "expectTransparentCorners": true,
+      "connectedComponents": 1
+    },
+    {
+      "path": "assets/mascots/style-2/silhouettes/png/iskra-c-128.png",
+      "sha256": "b323a6db3de8135f244a709b2d02b03bf11983b58d1cdbf71f1ce554348912b1",
+      "width": 128,
+      "height": 128,
+      "channels": 4,
+      "transparentCorners": true,
+      "opaqueFraction": 0.2618,
+      "expectTransparentCorners": true,
+      "connectedComponents": 1
+    },
+    {
+      "path": "assets/mascots/style-2/silhouettes/png/iskra-c-64.png",
+      "sha256": "b536a08a603dbad5db2054d0bd129d622c8a6560da756941c838a678c9c762ff",
+      "width": 64,
+      "height": 64,
+      "channels": 4,
+      "transparentCorners": true,
+      "opaqueFraction": 0.2729,
+      "expectTransparentCorners": true,
+      "connectedComponents": 1
+    },
+    {
+      "path": "assets/mascots/style-2/silhouettes/png/iskra-c-32.png",
+      "sha256": "79a13890bbabfaa837ea7214b2a964108fca48897c7e8a3ca50b2cfe320225da",
+      "width": 32,
+      "height": 32,
+      "channels": 4,
+      "transparentCorners": true,
+      "opaqueFraction": 0.29,
+      "expectTransparentCorners": true,
+      "connectedComponents": 1
+    },
+    {
+      "path": "assets/mascots/style-2/silhouettes/png/szlif-a-256.png",
+      "sha256": "66f3df3a81296a9cc7fa9386c79f2692ba3165bd80ddfa93c859bc5e50206ce0",
+      "width": 256,
+      "height": 256,
+      "channels": 4,
+      "transparentCorners": true,
+      "opaqueFraction": 0.2281,
+      "expectTransparentCorners": true,
+      "connectedComponents": 1
+    },
+    {
+      "path": "assets/mascots/style-2/silhouettes/png/szlif-a-128.png",
+      "sha256": "70b90be4f35b2e4cba96465715a15747c26459613e20241e4a59dafc659998a5",
+      "width": 128,
+      "height": 128,
+      "channels": 4,
+      "transparentCorners": true,
+      "opaqueFraction": 0.2333,
+      "expectTransparentCorners": true,
+      "connectedComponents": 1
+    },
+    {
+      "path": "assets/mascots/style-2/silhouettes/png/szlif-a-64.png",
+      "sha256": "7b62b9bde138c8a15945a7b2979dd8e42364cafa15eccc124902ae1dec506cae",
+      "width": 64,
+      "height": 64,
+      "channels": 4,
+      "transparentCorners": true,
+      "opaqueFraction": 0.2388,
+      "expectTransparentCorners": true,
+      "connectedComponents": 1
+    },
+    {
+      "path": "assets/mascots/style-2/silhouettes/png/szlif-a-32.png",
+      "sha256": "77500262973a08116f8722fe367cf85d15b809165c96671f1f8561a86c0c00c0",
+      "width": 32,
+      "height": 32,
+      "channels": 4,
+      "transparentCorners": true,
+      "opaqueFraction": 0.2568,
+      "expectTransparentCorners": true,
+      "connectedComponents": 1
+    },
+    {
+      "path": "assets/mascots/style-2/silhouettes/png/szlif-b-256.png",
+      "sha256": "cd23d4e88f7b204fa799c80c97ea64389b2a6e8b3b75db9b462f74ece5f728ad",
+      "width": 256,
+      "height": 256,
+      "channels": 4,
+      "transparentCorners": true,
+      "opaqueFraction": 0.2868,
+      "expectTransparentCorners": true,
+      "connectedComponents": 1
+    },
+    {
+      "path": "assets/mascots/style-2/silhouettes/png/szlif-b-128.png",
+      "sha256": "ed619928f49389fc5021a4d9c9abef998b694b1d80584aaaf2d7613e28c0fd35",
+      "width": 128,
+      "height": 128,
+      "channels": 4,
+      "transparentCorners": true,
+      "opaqueFraction": 0.2939,
+      "expectTransparentCorners": true,
+      "connectedComponents": 1
+    },
+    {
+      "path": "assets/mascots/style-2/silhouettes/png/szlif-b-64.png",
+      "sha256": "57364c75d6504cd44059948618c26d31d8bff72f56b1d7a4855dcde09477552d",
+      "width": 64,
+      "height": 64,
+      "channels": 4,
+      "transparentCorners": true,
+      "opaqueFraction": 0.3074,
+      "expectTransparentCorners": true,
+      "connectedComponents": 1
+    },
+    {
+      "path": "assets/mascots/style-2/silhouettes/png/szlif-b-32.png",
+      "sha256": "6da93f35a8e58b071cb62421a822fdb23b0e218a1c1fa02eba82090f13f2de63",
+      "width": 32,
+      "height": 32,
+      "channels": 4,
+      "transparentCorners": true,
+      "opaqueFraction": 0.3418,
+      "expectTransparentCorners": true,
+      "connectedComponents": 1
+    },
+    {
+      "path": "assets/mascots/style-2/silhouettes/png/szlif-c-256.png",
+      "sha256": "143097a08f484a8f520467f5337ce75f29425b8d09a0f7838737cf756526196f",
+      "width": 256,
+      "height": 256,
+      "channels": 4,
+      "transparentCorners": true,
+      "opaqueFraction": 0.2245,
+      "expectTransparentCorners": true,
+      "connectedComponents": 1
+    },
+    {
+      "path": "assets/mascots/style-2/silhouettes/png/szlif-c-128.png",
+      "sha256": "6954fc37e24a67e06a38e1c8f1ee5ab424e8c7b1a51c61c358568066ca799230",
+      "width": 128,
+      "height": 128,
+      "channels": 4,
+      "transparentCorners": true,
+      "opaqueFraction": 0.2302,
+      "expectTransparentCorners": true,
+      "connectedComponents": 1
+    },
+    {
+      "path": "assets/mascots/style-2/silhouettes/png/szlif-c-64.png",
+      "sha256": "30c1214be33fd0e2cf29dadc6113f17b53e0e1561b96dda1eb83779e225f5262",
+      "width": 64,
+      "height": 64,
+      "channels": 4,
+      "transparentCorners": true,
+      "opaqueFraction": 0.2432,
+      "expectTransparentCorners": true,
+      "connectedComponents": 1
+    },
+    {
+      "path": "assets/mascots/style-2/silhouettes/png/szlif-c-32.png",
+      "sha256": "10a2d3135ce4f636c04f1c71194d35b5a550381f4bca9e399692854cbbd15546",
+      "width": 32,
+      "height": 32,
+      "channels": 4,
+      "transparentCorners": true,
+      "opaqueFraction": 0.2607,
+      "expectTransparentCorners": true,
+      "connectedComponents": 1
+    },
+    {
+      "path": "assets/mascots/style-2/contact-sheet.png",
+      "sha256": "af50b0347c9f06d5b52161f05a24d1417bd50e33e88f822bc1774ac87be8345b",
+      "width": 584,
+      "height": 600,
+      "channels": 4,
+      "transparentCorners": true,
+      "opaqueFraction": 0.146,
+      "expectTransparentCorners": true
+    },
+    {
+      "path": "assets/mascots/style-2/silhouettes/sheet.png",
+      "sha256": "4e7d5627b8764b3dd75378207765595b022eac9a0c8ddef21e7a4aee9c93eea2",
+      "width": 848,
+      "height": 572,
+      "channels": 4,
+      "transparentCorners": true,
+      "opaqueFraction": 0.1928,
+      "expectTransparentCorners": true
+    },
+    {
+      "path": "assets/mascots/style-2/iskra/source.svg",
+      "type": "source-svg",
+      "bytes": 3029,
+      "viewBox": "0 0 512 512",
+      "sha256": "92c6f801710acc2402d436fb606e12aa27161bae86f85dfb866c058d1af7ece0"
+    },
+    {
+      "path": "assets/mascots/style-2/iskra/character.json",
+      "type": "source-json",
+      "bytes": 1125,
+      "viewBox": null,
+      "sha256": "4eeb02d42a73794e8cac218c250671cb17212bd85096b4882a85149073c47f3b"
+    },
+    {
+      "path": "assets/mascots/style-2/szlif/source.svg",
+      "type": "source-svg",
+      "bytes": 3366,
+      "viewBox": "0 0 512 512",
+      "sha256": "ece647de7c7c6e58f4a3db82b95f6ba1144d61561660f00a743513c4aa061b97"
+    },
+    {
+      "path": "assets/mascots/style-2/szlif/character.json",
+      "type": "source-json",
+      "bytes": 1169,
+      "viewBox": null,
+      "sha256": "ae6de52ca4cc0d21d77a841e911b728e41f10ea395d9f9c4598baa730c30f2ee"
+    },
+    {
+      "path": "assets/mascots/style-2/silhouettes/iskra-a.svg",
+      "type": "source-svg",
+      "bytes": 912,
+      "viewBox": "0 0 512 512",
+      "sha256": "0215a66ff0d6cd2f84c718b6cea6fa1b48a8a783355de936974c669ac3e0cb3b"
+    },
+    {
+      "path": "assets/mascots/style-2/silhouettes/iskra-b.svg",
+      "type": "source-svg",
+      "bytes": 690,
+      "viewBox": "0 0 512 512",
+      "sha256": "5ef4f7c8414057f11ebd5a59352b7e23ff8e4029d62da96bef09e4a87b14c826"
+    },
+    {
+      "path": "assets/mascots/style-2/silhouettes/iskra-c.svg",
+      "type": "source-svg",
+      "bytes": 708,
+      "viewBox": "0 0 512 512",
+      "sha256": "caf2f44bd51143cac7ffc9217c40cf11ea01e25e27d8a9f7efab3b5d1d3ed940"
+    },
+    {
+      "path": "assets/mascots/style-2/silhouettes/szlif-a.svg",
+      "type": "source-svg",
+      "bytes": 891,
+      "viewBox": "0 0 512 512",
+      "sha256": "5b5536dfb6f72a451a6f1b3b3ffc2127c83e776167e470a5d24f87c67936e5a4"
+    },
+    {
+      "path": "assets/mascots/style-2/silhouettes/szlif-b.svg",
+      "type": "source-svg",
+      "bytes": 770,
+      "viewBox": "0 0 512 512",
+      "sha256": "919cc6cc9ab836cc27d6e6aff1fc3b31fcbcbfefdec76266998cb0de9a83b805"
+    },
+    {
+      "path": "assets/mascots/style-2/silhouettes/szlif-c.svg",
+      "type": "source-svg",
+      "bytes": 871,
+      "viewBox": "0 0 512 512",
+      "sha256": "360d4f7aed1bfd49b3cc6b9ed635314994e8301e8524c4dd738ba64c14128621"
     }
-  ],
-  "contactSheet": {
-    "file": "contact-sheet.png",
-    "sha256": "325ead021d42160a59892b05c9709280a410986cbc61f3987518825d7a04fc5c",
-    "bytes": 41115
-  },
-  "silhouettes": [
-    {
-      "name": "iskra-a",
-      "source": {
-        "file": "silhouettes/iskra-a.svg",
-        "sha256": "1afd03e4a5be556dec3177affb41811cf3eaa9743feef3aaf24e6b4e19bc5dd4",
-        "bytes": 741
-      },
-      "exports": [
-        {
-          "size": 512,
-          "file": "silhouettes/png/iskra-a-512.png",
-          "sha256": "39c295b89b61193c20c9b7b34b6e59cd29dcc0fef540f1cfedea11c628c4bcbf",
-          "bytes": 10322
-        },
-        {
-          "size": 256,
-          "file": "silhouettes/png/iskra-a-256.png",
-          "sha256": "923a70401fc545d2b3bd8ab3e126d0faf78bdb9dd527c51034457e120a3c261e",
-          "bytes": 4784
-        },
-        {
-          "size": 128,
-          "file": "silhouettes/png/iskra-a-128.png",
-          "sha256": "3649dd09d397bdf46a387a4706806891ee1f6c39c8376e7d4170fa0748e60b99",
-          "bytes": 2262
-        },
-        {
-          "size": 64,
-          "file": "silhouettes/png/iskra-a-64.png",
-          "sha256": "7c2915d660ea4bf7d46269b8b3688b54de2c206ad73a7c770b6ed0c52a0b6a98",
-          "bytes": 1153
-        },
-        {
-          "size": 32,
-          "file": "silhouettes/png/iskra-a-32.png",
-          "sha256": "2b1ebe284a2c67e1611169aebdc403645c1a08d8904632a40ab985c4ad9dae93",
-          "bytes": 655
-        }
-      ]
-    },
-    {
-      "name": "iskra-b",
-      "source": {
-        "file": "silhouettes/iskra-b.svg",
-        "sha256": "377272b86c77c9a9a4ea4b4924b415e243a62dc2eafe86500850905b4d1744a3",
-        "bytes": 580
-      },
-      "exports": [
-        {
-          "size": 512,
-          "file": "silhouettes/png/iskra-b-512.png",
-          "sha256": "9a6d2c8f9edf4e32a62dfbff0007a3bc4bae10882b6643a6d01b88d9206bb657",
-          "bytes": 8830
-        },
-        {
-          "size": 256,
-          "file": "silhouettes/png/iskra-b-256.png",
-          "sha256": "a9b3545a8035294f19654a1ffc4adbd8c8800f097ab9c9e48f9bfcfb3fe70e3b",
-          "bytes": 4186
-        },
-        {
-          "size": 128,
-          "file": "silhouettes/png/iskra-b-128.png",
-          "sha256": "e174bf1b3ab903ea255fc981eca83a86dd1bfd1c57c6a499b2660ac5abdfe24d",
-          "bytes": 2053
-        },
-        {
-          "size": 64,
-          "file": "silhouettes/png/iskra-b-64.png",
-          "sha256": "25c5b2fad1a0fd5bc1707937b349d8723ddc55f4f0688beaf45e40bd019439fb",
-          "bytes": 1097
-        },
-        {
-          "size": 32,
-          "file": "silhouettes/png/iskra-b-32.png",
-          "sha256": "ab7256ff084bd5ffa0d9c9100aeb8b408bdbd4d5b538f795479773cd88c6bb11",
-          "bytes": 592
-        }
-      ]
-    },
-    {
-      "name": "iskra-c",
-      "source": {
-        "file": "silhouettes/iskra-c.svg",
-        "sha256": "94930523759c5b4fcb67a5eb9f2f754db8bb56360d1239f7d43ca48e59b8b587",
-        "bytes": 610
-      },
-      "exports": [
-        {
-          "size": 512,
-          "file": "silhouettes/png/iskra-c-512.png",
-          "sha256": "6c44449057e0d0da4e40c70636409f3f6d153b99c1d506de64c22f491c8ba431",
-          "bytes": 9520
-        },
-        {
-          "size": 256,
-          "file": "silhouettes/png/iskra-c-256.png",
-          "sha256": "22c09aee9aeae6b28c3744b0ba4f2643d6aed463dbb891e9e856ef72fbf68406",
-          "bytes": 4511
-        },
-        {
-          "size": 128,
-          "file": "silhouettes/png/iskra-c-128.png",
-          "sha256": "a613bdaa5c2e92d3d6f8f21a254e77f6238dd0d1398ba5afd38ea57cc7b70fe1",
-          "bytes": 2131
-        },
-        {
-          "size": 64,
-          "file": "silhouettes/png/iskra-c-64.png",
-          "sha256": "4d7667bb9d569e94fcda07b422e68dbf3dddda12c8e596609007fd9c93eb7d1d",
-          "bytes": 1104
-        },
-        {
-          "size": 32,
-          "file": "silhouettes/png/iskra-c-32.png",
-          "sha256": "702bea8e5526a0f6ec1e71addd12b882cb7204c13a01aec63cf04fcd881b08e2",
-          "bytes": 622
-        }
-      ]
-    },
-    {
-      "name": "szlif-a",
-      "source": {
-        "file": "silhouettes/szlif-a.svg",
-        "sha256": "d4019d7253526363b0622fa85db0e2f2b5338d699ba82f510c8799975cb6c79e",
-        "bytes": 724
-      },
-      "exports": [
-        {
-          "size": 512,
-          "file": "silhouettes/png/szlif-a-512.png",
-          "sha256": "64dbca3328c08d41dadfe33c94792a3b8c22e9d786bc5174cf8f9365bec968f7",
-          "bytes": 8817
-        },
-        {
-          "size": 256,
-          "file": "silhouettes/png/szlif-a-256.png",
-          "sha256": "783ea9ee54927d20f73f47c5fccedbf1bc4b30a2180099fdcd8717dfa09c6754",
-          "bytes": 4207
-        },
-        {
-          "size": 128,
-          "file": "silhouettes/png/szlif-a-128.png",
-          "sha256": "cabd1695bf087e4efe321d1ccd12a8365e210f687ce46c1a5c01fbb67a353eb9",
-          "bytes": 1956
-        },
-        {
-          "size": 64,
-          "file": "silhouettes/png/szlif-a-64.png",
-          "sha256": "3ae3df790e4613f8c607d56eca5e12e1942b8b8a4e0474ef2d2987f3bb08d505",
-          "bytes": 1049
-        },
-        {
-          "size": 32,
-          "file": "silhouettes/png/szlif-a-32.png",
-          "sha256": "dea20e0cb560aa6cca0b1576a811997e1c2412e911b656c8c0548688d43d0a37",
-          "bytes": 566
-        }
-      ]
-    },
-    {
-      "name": "szlif-b",
-      "source": {
-        "file": "silhouettes/szlif-b.svg",
-        "sha256": "9d6f76912a198d91ab08c157de186efcd6eb18ac9b883ed72303a1b26b61986e",
-        "bytes": 664
-      },
-      "exports": [
-        {
-          "size": 512,
-          "file": "silhouettes/png/szlif-b-512.png",
-          "sha256": "4036feb367a5e888abcdad315b198d0cc0a7719c34ce1d0f7ecc485d160e4deb",
-          "bytes": 11965
-        },
-        {
-          "size": 256,
-          "file": "silhouettes/png/szlif-b-256.png",
-          "sha256": "a50279230852019d92606a41b7b1020fb46d0162c44d189e78f8af3fbc797b16",
-          "bytes": 5607
-        },
-        {
-          "size": 128,
-          "file": "silhouettes/png/szlif-b-128.png",
-          "sha256": "0df5dfd22e8a13a539a78e1c0db5f13b36bce6cba7ea6f84237151dff959c826",
-          "bytes": 2800
-        },
-        {
-          "size": 64,
-          "file": "silhouettes/png/szlif-b-64.png",
-          "sha256": "4c4d8e5c72002f68b4f718aa001a9a00bae9da01ff82e2be79e9f1a4a379c53e",
-          "bytes": 1431
-        },
-        {
-          "size": 32,
-          "file": "silhouettes/png/szlif-b-32.png",
-          "sha256": "8af15211fe285c1111ea2ad8b8d65180951c7560dddb3623ca399e287bd0ad8b",
-          "bytes": 751
-        }
-      ]
-    },
-    {
-      "name": "szlif-c",
-      "source": {
-        "file": "silhouettes/szlif-c.svg",
-        "sha256": "5db24fbd73c2e71e788c781a4f49edd93ef2e70d8a63bfee5c39de56ab8f75d4",
-        "bytes": 770
-      },
-      "exports": [
-        {
-          "size": 512,
-          "file": "silhouettes/png/szlif-c-512.png",
-          "sha256": "78195ff36463855445e1ffebd70e74e871ec6fb41310b2265ceec50f437d070e",
-          "bytes": 10269
-        },
-        {
-          "size": 256,
-          "file": "silhouettes/png/szlif-c-256.png",
-          "sha256": "6981ab35336e75d08534f30631bb8f869a81272e22d4d23c1c49fb215eaa099e",
-          "bytes": 4861
-        },
-        {
-          "size": 128,
-          "file": "silhouettes/png/szlif-c-128.png",
-          "sha256": "ebe25d3a1eb63afe9d0c21c5240f0b95eac1a081c31c9b2e163aa53fc43de540",
-          "bytes": 2424
-        },
-        {
-          "size": 64,
-          "file": "silhouettes/png/szlif-c-64.png",
-          "sha256": "7e35c1b15e9366f5d1e34d94a21e9a0a6867e3a2b157109013339fa500e082b0",
-          "bytes": 1261
-        },
-        {
-          "size": 32,
-          "file": "silhouettes/png/szlif-c-32.png",
-          "sha256": "12e1a775a052b3a2950106faedb16583b508a01b5bd5660c3cd06a202b4209c0",
-          "bytes": 657
-        }
-      ]
-    }
-  ],
-  "silhouetteSheet": {
-    "file": "silhouettes/sheet.png",
-    "sha256": "88bb829555ee1bfbc07176da29377b671b4d457dfd26b34b3c9e12663611bc46",
-    "bytes": 30158,
-    "width": 800,
-    "height": 528
-  }
+  ]
 }

@@ -4,8 +4,8 @@
   "safeMargin": 0.04,
   "source": {
     "file": "source.svg",
-    "sha256": "340ec7813ade6f3027e944c760140501a07330ecfbd97b4da1f0ea8522d09afd",
-    "bytes": 2854
+    "sha256": "92c6f801710acc2402d436fb606e12aa27161bae86f85dfb866c058d1af7ece0",
+    "bytes": 3029
   },
   "renderer": {
     "resvgJs": "2.6.2",
@@ -15,78 +15,83 @@
     {
       "size": 512,
       "file": "export-512.png",
-      "sha256": "a15a117359a664eca6ff73645b91161abae844096a27f23a4d8418d625c10f6c",
-      "bytes": 22495,
-      "opaquePixels": 68300,
-      "opaqueRatio": 0.2605438232421875,
+      "sha256": "4061ec9982f057c368d1ee835b7be5ed31a70cf5ecdff1e64e57fbdd68076fa2",
+      "bytes": 21964,
+      "opaquePixels": 67543,
+      "opaqueRatio": 0.2576560974121094,
       "bbox": {
         "minX": 133,
-        "minY": 30,
-        "maxX": 393,
+        "minY": 36,
+        "maxX": 392,
         "maxY": 463
-      }
+      },
+      "connectedComponents": 1
     },
     {
       "size": 256,
       "file": "export-256.png",
-      "sha256": "663d1b2fe67b2cd095acfbb04a224b39703994368d82fb8f9aca6baa5262b380",
-      "bytes": 11139,
-      "opaquePixels": 17296,
-      "opaqueRatio": 0.263916015625,
+      "sha256": "a0d5b7ed032744d2fa6b53d233c23aa1babfe593c10728c4844eb8a05d9f21cd",
+      "bytes": 10918,
+      "opaquePixels": 17089,
+      "opaqueRatio": 0.2607574462890625,
       "bbox": {
         "minX": 66,
-        "minY": 15,
+        "minY": 18,
         "maxX": 196,
         "maxY": 231
-      }
+      },
+      "connectedComponents": 1
     },
     {
       "size": 128,
       "file": "export-128.png",
-      "sha256": "470a1d12757c2357f00b3fd6d6ca8688a8a53dbf2f2a2d132ca6da39724e602d",
-      "bytes": 5560,
-      "opaquePixels": 4437,
-      "opaqueRatio": 0.27081298828125,
+      "sha256": "74d3f7c19d6520b6fea23c505cccfdb5bd1aa1f5f38478d5f75c0b3193242f4a",
+      "bytes": 5353,
+      "opaquePixels": 4374,
+      "opaqueRatio": 0.2669677734375,
       "bbox": {
         "minX": 33,
-        "minY": 7,
+        "minY": 9,
         "maxX": 98,
         "maxY": 115
-      }
+      },
+      "connectedComponents": 2
     },
     {
       "size": 64,
       "file": "export-64.png",
-      "sha256": "4c4372ee72462d812783fe6acd0163c93e5fa646aa39c24d66be660fa9c12fd8",
-      "bytes": 2764,
-      "opaquePixels": 1162,
-      "opaqueRatio": 0.28369140625,
+      "sha256": "928a9158d2ce65dc5ea1d75fda42fc5b291f9924ea0897e993026af18f9170a8",
+      "bytes": 2623,
+      "opaquePixels": 1146,
+      "opaqueRatio": 0.27978515625,
       "bbox": {
         "minX": 16,
         "minY": 4,
-        "maxX": 49,
+        "maxX": 48,
         "maxY": 57
-      }
+      },
+      "connectedComponents": 1
     },
     {
       "size": 32,
       "file": "export-32.png",
-      "sha256": "0233e07231d14dba89aa2e706bbc81f71b2a4d3b5249b49e93332d5942e46498",
-      "bytes": 1290,
-      "opaquePixels": 314,
-      "opaqueRatio": 0.306640625,
+      "sha256": "4bcec4d33910b2b7d83a1ba23c0f4a8e0bde20b2b1758833d405f327a6b6ceb0",
+      "bytes": 1262,
+      "opaquePixels": 309,
+      "opaqueRatio": 0.3017578125,
       "bbox": {
         "minX": 8,
         "minY": 2,
         "maxX": 24,
         "maxY": 28
-      }
+      },
+      "connectedComponents": 1
     }
   ],
   "contactSheet": {
     "file": "contact-sheet.png",
-    "sha256": "09f1963f45e9141541828cc72c9bb482741328e37ceb4ad2507776a0954d9457",
-    "bytes": 50103,
+    "sha256": "83e04983c5a690f47f952cc2f26fbbba505e01d7a259821ba27991d2693920c9",
+    "bytes": 48673,
     "width": 1056,
     "height": 512
   }

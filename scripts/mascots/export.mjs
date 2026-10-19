@@ -20,6 +20,7 @@ export const SHEET_SIZES = [256, 128, 64, 32];
 export const SAFE_MARGIN = 0.04;
 export const MAX_SVG_BYTES = 1024 * 1024;
 export const MIN_OPAQUE_RATIO = 0.01;
+export const ALPHA_THRESHOLD = 16;
 const GAP = 16;
 
 const here = dirname(fileURLToPath(import.meta.url));
@@ -85,6 +86,39 @@ export function withSafeMargin(svg) {
   return svg.replace(m[0], `viewBox="${x - dx} ${y - dy} ${w + 2 * dx} ${h + 2 * dy}"`);
 }
 
+// 4-connected components of the opaque mask, as pixel counts (largest first).
+// A shipped character must be one piece: a detached ear/hand/limb shows up
+// here as extra components. Ported from the Designer's sharp renderer
+// (KOMAA-1010), which is not in this tree, so the canonical renderer owns the
+// gate too.
+export function countComponents(img, threshold = ALPHA_THRESHOLD) {
+  const { width: w, height: h } = img;
+  const on = new Uint8Array(w * h);
+  for (let i = 0; i < w * h; i++) on[i] = img.data[i * 4 + 3] > threshold ? 1 : 0;
+  const seen = new Uint8Array(w * h);
+  const stack = [];
+  const sizes = [];
+  for (let s = 0; s < w * h; s++) {
+    if (!on[s] || seen[s]) continue;
+    seen[s] = 1;
+    stack.length = 0;
+    stack.push(s);
+    let n = 0;
+    while (stack.length) {
+      const p = stack.pop();
+      n++;
+      const x = p % w;
+      const y = (p / w) | 0;
+      if (x > 0 && on[p - 1] && !seen[p - 1]) { seen[p - 1] = 1; stack.push(p - 1); }
+      if (x < w - 1 && on[p + 1] && !seen[p + 1]) { seen[p + 1] = 1; stack.push(p + 1); }
+      if (y > 0 && on[p - w] && !seen[p - w]) { seen[p - w] = 1; stack.push(p - w); }
+      if (y < h - 1 && on[p + w] && !seen[p + w]) { seen[p + w] = 1; stack.push(p + w); }
+    }
+    sizes.push(n);
+  }
+  return sizes.sort((a, b) => b - a);
+}
+
 // ---- pixel analysis -------------------------------------------------------
 export function analyzePng(buf, expectedSize) {
   const errors = [];
@@ -125,7 +159,8 @@ export function analyzePng(buf, expectedSize) {
   if (bbox && (minX <= 0 || minY <= 0 || maxX >= img.width - 1 || maxY >= img.height - 1)) {
     fail(errors, `content touches canvas edge (bbox ${JSON.stringify(bbox)}): clipped art?`);
   }
-  return { errors, img, opaque, opaqueRatio: ratio, bbox };
+  const components = countComponents(img);
+  return { errors, img, opaque, opaqueRatio: ratio, bbox, components };
 }
 
 // ---- per-character pipeline -----------------------------------------------
@@ -157,12 +192,27 @@ export function exportCharacter(charDir, characterId) {
       fail(errors, `${characterId}@${size}: render failed: ${err.message}`);
       continue;
     }
-    const { errors: pxErrors, opaque, opaqueRatio, bbox } = analyzePng(png, size);
+    const { errors: pxErrors, opaque, opaqueRatio, bbox, components } = analyzePng(png, size);
     for (const e of pxErrors) fail(errors, `${characterId}@${size}: ${e}`);
+    if (size === 512 && components.length !== 1) {
+      fail(
+        errors,
+        `${characterId}@${size}: renders as ${components.length} disconnected pieces (sizes ${components.join(",")}): a detached part (ear/hand/limb) is not shippable`,
+      );
+    }
     const file = `export-${size}.png`;
     writeFileSync(join(outDir, file), png);
     rendered.push({ size, file, png });
-    sizes.push({ size, file, sha256: sha256(png), bytes: png.length, opaquePixels: opaque, opaqueRatio, bbox });
+    sizes.push({
+      size,
+      file,
+      sha256: sha256(png),
+      bytes: png.length,
+      opaquePixels: opaque,
+      opaqueRatio,
+      bbox,
+      connectedComponents: components.length,
+    });
   }
   if (errors.length > 0) return { ok: false, errors };
 
@@ -252,11 +302,23 @@ export function exportSilhouettes(root) {
         fail(errors, `silhouettes/${file}@${size}: render failed: ${err.message}`);
         continue;
       }
-      const { errors: pxErrors } = analyzePng(png, size);
+      const { errors: pxErrors, components } = analyzePng(png, size);
       for (const e of pxErrors) fail(errors, `silhouettes/${file}@${size}: ${e}`);
+      if (size === 256 && components.length !== 1) {
+        fail(
+          errors,
+          `silhouettes/${file}@${size}: renders as ${components.length} disconnected pieces (sizes ${components.join(",")}): a detached part (ear/wing/limb) is not shippable`,
+        );
+      }
       const outFile = `${name}-${size}.png`;
       writeFileSync(join(outDir, outFile), png);
-      exports.push({ size, file: `silhouettes/png/${outFile}`, sha256: sha256(png), bytes: png.length });
+      exports.push({
+        size,
+        file: `silhouettes/png/${outFile}`,
+        sha256: sha256(png),
+        bytes: png.length,
+        connectedComponents: components.length,
+      });
     }
     entries.push({
       name,

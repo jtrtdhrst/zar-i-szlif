@@ -1,6 +1,6 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
 <title>Szlif — raven NPC, STYLE_2_V0 editable master</title>
-<desc>Original Soft Geometry V2 master. Groups: tail, feet, body, grooves, wingL, notebook, wingR, head, tuft, beak, eye. Transparent background.</desc>
+<desc>Original Soft Geometry V2 master. Groups: tail, feet, body, grooves, wingL, notebook, wingR, head, tuft, beak, eye, cheek. Three-quarter head turn: head centre offset right of the torso, single visible eye right of centre, ochre wedge beak projecting viewer-right. Transparent background.</desc>
 <!-- fanned tail feathers -->
 <g id="tail" fill="#2C3550">
 <rect x="238" y="395" width="36" height="100" rx="18" transform="rotate(-16 256 395)"/>
@@ -43,30 +43,30 @@
 <g id="wingR">
 <ellipse cx="352" cy="330" rx="20" ry="48" fill="#3A4668" transform="rotate(10 352 330)"/>
 </g>
-<!-- head -->
+<!-- head (offset right of torso centre + single visible eye right of centre = three-quarter turn) -->
 <g id="head">
-<ellipse cx="256" cy="160" rx="82" ry="75" fill="#3A4668"/>
+<ellipse cx="276" cy="160" rx="82" ry="75" fill="#3A4668"/>
 </g>
-<!-- head-feather tuft -->
+<!-- head-feather tuft (swept back-left) -->
 <g id="tuft">
-<polygon points="208,105 218,58 234,100 250,52 266,100 282,58 292,105 270,118 230,118" fill="#2C3550"/>
+<polygon points="218,100 228,52 244,96 260,48 276,96 292,54 302,102 280,116 240,116" fill="#2C3550"/>
 </g>
-<!-- distinct wedge beak -->
+<!-- distinct wedge beak (projects right of the turned head) -->
 <g id="beak">
-<polygon points="306,168 388,192 308,216" fill="#D99A2B"/>
-<path d="M316 182 L366 193" stroke="#A96F1D" stroke-width="5" stroke-linecap="round"/>
-<circle cx="330" cy="188" r="3" fill="#A96F1D"/>
+<polygon points="330,168 404,192 332,216" fill="#D99A2B"/>
+<path d="M340 182 L382 193" stroke="#A96F1D" stroke-width="5" stroke-linecap="round"/>
+<circle cx="350" cy="188" r="3" fill="#A96F1D"/>
 </g>
-<!-- calm heavy-lidded eye + ironic brow -->
+<!-- calm heavy-lidded eye + ironic brow (single eye, right of centre) -->
 <g id="eye">
-<ellipse cx="252" cy="158" rx="17" ry="13" fill="#FFFFFF"/>
-<circle cx="258" cy="160" r="6.5" fill="#23262E"/>
-<path d="M233 150 q19 -12 38 0" fill="none" stroke="#23262E" stroke-width="6" stroke-linecap="round"/>
-<path d="M236 128 l28 -7" fill="none" stroke="#23262E" stroke-width="6" stroke-linecap="round"/>
+<ellipse cx="288" cy="158" rx="17" ry="13" fill="#FFFFFF"/>
+<circle cx="294" cy="160" r="6.5" fill="#23262E"/>
+<path d="M269 150 q19 -12 38 0" fill="none" stroke="#23262E" stroke-width="6" stroke-linecap="round"/>
+<path d="M272 128 l28 -7" fill="none" stroke="#23262E" stroke-width="6" stroke-linecap="round"/>
 </g>
 <!-- cheek feather ticks -->
 <g id="cheek" stroke="#8FA3C4" stroke-width="5" stroke-linecap="round">
-<path d="M185 190 l18 6"/>
-<path d="M185 205 l18 6"/>
+<path d="M216 186 l16 5"/>
+<path d="M220 202 l14 4"/>
 </g>
 </svg>
