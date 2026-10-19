@@ -173,6 +173,20 @@ async function writeOp<T extends Record<string, unknown>>(
 const idKey = { idempotencyKey: z.string().optional().describe("Powtórka runa nie tworzy kopii") };
 const dry = { dryRun: z.boolean().optional().describe("true = tylko diff, bez zapisu") };
 
+// KOMAA-1001: dryRun i live są semantycznie rozłączne. dryRun nigdy nie
+// czyta ani nie zapełnia cache idempotencji — inaczej dryRun pod tym samym
+// kluczem tłumiłby późniejszy live (replay bez zapisu). Live dostaje własną
+// przestrzeń `live:` (unieważnia też zatrute wpisy sprzed fixa).
+function idempotentLive<T>(
+  dir: string,
+  baseKey: string,
+  dryRun: boolean | undefined,
+  fn: () => Promise<T>,
+): Promise<{ result: T; deduped: boolean }> {
+  if (dryRun) return fn().then((result) => ({ result, deduped: false }));
+  return idempotent(dir, `live:${baseKey}`, fn);
+}
+
 export function plasmicTools(ctx: PlasmicCtx): ToolDef[] {
   const c = ctx.client;
   return [
@@ -288,7 +302,7 @@ export function plasmicTools(ctx: PlasmicCtx): ToolDef[] {
       },
       handler: async (a) => {
         const key = `create_page:${a.projectId}:${(a.idempotencyKey as string | undefined) ?? `${a.name}:${a.path}`}`;
-        const { result } = await idempotent(ctx.stateDir + "/idempotency", key, () =>
+        const { result } = await idempotentLive(ctx.stateDir + "/idempotency", key, a.dryRun as boolean | undefined, () =>
           writeOp(ctx, "plasmic_create_page", a.projectId as string, a.name as string,
             key,
             async () => {
@@ -339,7 +353,7 @@ export function plasmicTools(ctx: PlasmicCtx): ToolDef[] {
       },
       handler: async (a) => {
         const key = `create_component:${a.projectId}:${(a.idempotencyKey as string | undefined) ?? (a.name as string)}`;
-        const { result } = await idempotent(ctx.stateDir + "/idempotency", key, () =>
+        const { result } = await idempotentLive(ctx.stateDir + "/idempotency", key, a.dryRun as boolean | undefined, () =>
           writeOp(ctx, "plasmic_create_component", a.projectId as string, a.name as string,
             key,
             async () => {
@@ -399,7 +413,7 @@ export function plasmicTools(ctx: PlasmicCtx): ToolDef[] {
         if (!entry.__type) throw new Error("entry wymaga pola __type");
         const iid = (a.elementId as string | undefined) ?? (entry.uuid as string) ?? newIid();
         const key = `insert:${a.projectId}:${(a.idempotencyKey as string | undefined) ?? iid}`;
-        const { result } = await idempotent(ctx.stateDir + "/idempotency", key, () =>
+        const { result } = await idempotentLive(ctx.stateDir + "/idempotency", key, a.dryRun as boolean | undefined, () =>
           writeOp(ctx, "plasmic_insert", a.projectId as string, iid, key, () =>
             c.mutate(a.projectId as string, a.branchId as string | undefined, () => ({
               map: { [iid]: { ...entry } },
@@ -574,7 +588,7 @@ export function plasmicTools(ctx: PlasmicCtx): ToolDef[] {
       },
       handler: async (a) => {
         const key = `use:${a.projectId}:${(a.idempotencyKey as string | undefined) ?? (a.componentId as string)}`;
-        const { result } = await idempotent(ctx.stateDir + "/idempotency", key, () =>
+        const { result } = await idempotentLive(ctx.stateDir + "/idempotency", key, a.dryRun as boolean | undefined, () =>
           writeOp(ctx, "plasmic_use_component", a.projectId as string, a.componentId as string,
             key,
             async () => {
