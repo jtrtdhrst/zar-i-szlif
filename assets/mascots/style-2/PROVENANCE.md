@@ -37,12 +37,15 @@
   `Cannot find module 'sharp'`) is superseded by the command above, which is the
   only renderer in the tree.
 - The canonical renderer also enforces the **single-piece rule** from the
-  Character Bible: a master must render as one connected component at 512 px
-  and a silhouette sketch as one at 256 px. The check was ported from the
-  Designer's sharp renderer (not in this tree) into `scripts/mascots/export.mjs`
-  so the detached-ear / isolated-paw class (UI QA F1/F2) cannot recur in the
-  PNGs that are actually shipped. Every export records its
-  `connectedComponents` count in the manifest.
+  Character Bible: a master and a silhouette sketch must each render as one
+  connected component at **every exported size** (512/256/128/64/32). The check
+  was ported from the Designer's sharp renderer (not in this tree) into
+  `scripts/mascots/export.mjs` so the detached-ear / isolated-paw class
+  (UI QA F1/F2) cannot recur in the PNGs that are actually shipped. Every export
+  records its `connectedComponents` count and its `detachedParts` count in the
+  manifest. A component smaller than 1 % of the largest one is treated as
+  anti-aliasing noise, not a part (measured on the accepted art: real detached
+  parts are ~60 % of the body, stray alpha islands are ~0.03 %).
 - Branch: `KOMAA-1010` delivered the masters; this branch (`KOMAA-1011`) is the
   generator branch that renders them, and the accepted `KOMAA-1010` art
   (candidate `a9299fb`) is merged in here as the single source of truth.
@@ -60,5 +63,7 @@
   renders as a second connected component at 256 px and 512 px. The gap is
   pre-existing (identical in `fc241a6` and `a9299fb`); the Designer's own
   renderer bridged it by anti-aliasing at 256 px. The art is the Designer's
-  artifact and was not edited here.
+  artifact and was not edited here. The Designer's in-flight correction (body
+  top raised to `236`) was re-verified against this pipeline in an isolated
+  copy: the whole set then passes the single-piece gate at every size.
 - Polish strings untouched: "Iskra", "Szlif", "Żar i Szlif" preserved.

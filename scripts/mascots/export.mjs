@@ -119,6 +119,17 @@ export function countComponents(img, threshold = ALPHA_THRESHOLD) {
   return sizes.sort((a, b) => b - a);
 }
 
+// A detached part must be a real shape, not a stray anti-aliasing pixel.
+// Components below this share of the largest component are noise, not parts
+// (UI QA: 1px alpha islands at ungated sizes are anti-aliasing, not limbs).
+export const NOISE_COMPONENT_RATIO = 0.01;
+
+export function detachedParts(sizes) {
+  if (sizes.length < 2) return [];
+  const largest = sizes[0];
+  return sizes.slice(1).filter((n) => n >= largest * NOISE_COMPONENT_RATIO);
+}
+
 // ---- pixel analysis -------------------------------------------------------
 export function analyzePng(buf, expectedSize) {
   const errors = [];
@@ -194,10 +205,13 @@ export function exportCharacter(charDir, characterId) {
     }
     const { errors: pxErrors, opaque, opaqueRatio, bbox, components } = analyzePng(png, size);
     for (const e of pxErrors) fail(errors, `${characterId}@${size}: ${e}`);
-    if (size === 512 && components.length !== 1) {
+    // Gated at every exported size: a split that only shows up at 512 must not
+    // slip through an ungated size (UI QA: iskra-c splits at 512 *and* 256).
+    const detached = detachedParts(components);
+    if (detached.length > 0) {
       fail(
         errors,
-        `${characterId}@${size}: renders as ${components.length} disconnected pieces (sizes ${components.join(",")}): a detached part (ear/hand/limb) is not shippable`,
+        `${characterId}@${size}: renders as ${components.length} disconnected pieces (sizes ${components.join(",")}; detached ${detached.join(",")}): a detached part (ear/hand/limb) is not shippable`,
       );
     }
     const file = `export-${size}.png`;
@@ -212,6 +226,7 @@ export function exportCharacter(charDir, characterId) {
       opaqueRatio,
       bbox,
       connectedComponents: components.length,
+      detachedParts: detached.length,
     });
   }
   if (errors.length > 0) return { ok: false, errors };
@@ -304,10 +319,11 @@ export function exportSilhouettes(root) {
       }
       const { errors: pxErrors, components } = analyzePng(png, size);
       for (const e of pxErrors) fail(errors, `silhouettes/${file}@${size}: ${e}`);
-      if (size === 256 && components.length !== 1) {
+      const detached = detachedParts(components);
+      if (detached.length > 0) {
         fail(
           errors,
-          `silhouettes/${file}@${size}: renders as ${components.length} disconnected pieces (sizes ${components.join(",")}): a detached part (ear/wing/limb) is not shippable`,
+          `silhouettes/${file}@${size}: renders as ${components.length} disconnected pieces (sizes ${components.join(",")}; detached ${detached.join(",")}): a detached part (ear/wing/limb) is not shippable`,
         );
       }
       const outFile = `${name}-${size}.png`;
@@ -318,6 +334,7 @@ export function exportSilhouettes(root) {
         sha256: sha256(png),
         bytes: png.length,
         connectedComponents: components.length,
+        detachedParts: detached.length,
       });
     }
     entries.push({

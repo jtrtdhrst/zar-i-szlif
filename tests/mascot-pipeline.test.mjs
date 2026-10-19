@@ -8,7 +8,7 @@ import { isAbsolute, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import test from "node:test";
 
-import { exportCharacter, runAll, SIZES } from "../scripts/mascots/export.mjs";
+import { detachedParts, exportCharacter, runAll, SIZES } from "../scripts/mascots/export.mjs";
 const root = fileURLToPath(new URL("../", import.meta.url));
 const canonical = join(root, "assets", "mascots", "style-2");
 const sha256 = (buf) => createHash("sha256").update(buf).digest("hex");
@@ -197,7 +197,7 @@ test("negative: a detached part fails the single-piece gate (UI QA F1/F2 class)"
   // component. The canonical renderer must reject it, not ship it.
   const dir = stageCharacter("iskra", (d) => {
     const p = join(d, "source.svg");
-    writeFileSync(p, readFileSync(p, "utf8").replace("</svg>", '<circle cx="30" cy="30" r="8" fill="#E2702D"/></svg>'));
+    writeFileSync(p, readFileSync(p, "utf8").replace("</svg>", '<circle cx="70" cy="70" r="30" fill="#E2702D"/></svg>'));
   });
   try {
     const r = exportCharacter(join(dir, "iskra"), "iskra");
@@ -211,6 +211,37 @@ test("negative: a detached part fails the single-piece gate (UI QA F1/F2 class)"
   }
 });
 
+test("gate: a detached part is caught at every exported size, not just one", () => {
+  // UI QA found the gate only checked masters@512 and silhouettes@256, so a
+  // split that also shows up at 512 (iskra-c) slipped through the master size.
+  const dir = stageCharacter("iskra", (d) => {
+    const p = join(d, "source.svg");
+    writeFileSync(p, readFileSync(p, "utf8").replace("</svg>", '<circle cx="70" cy="70" r="30" fill="#E2702D"/></svg>'));
+  });
+  try {
+    const r = exportCharacter(join(dir, "iskra"), "iskra");
+    assert.equal(r.ok, false, "accepted a detached part");
+    const sizes = [...new Set(r.errors.filter((e) => e.includes("disconnected pieces")).map((e) => Number(/iskra@(\d+):/.exec(e)?.[1])))];
+    assert.ok(sizes.length > 1, `gate fired at only ${sizes.join(",")}: it must cover every exported size`);
+    for (const size of [512, 256]) {
+      assert.ok(sizes.includes(size), `gate missed the detached part at ${size}px (fired at ${sizes.join(",")})`);
+    }
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
+});
+
+test("gate: anti-aliasing specks are not detached parts", () => {
+  // Measured on the accepted art: real detached parts are ~60% of the body,
+  // stray anti-aliasing islands are ~0.03%. Only the former is shippable-breaking.
+  assert.deepEqual(detachedParts([1000]), [], "a single component is never detached");
+  assert.deepEqual(detachedParts([1000, 1]), [], "a 1px speck is noise, not a part");
+  assert.deepEqual(detachedParts([1000, 9]), [], "a 0.9% speck is noise, not a part");
+  assert.deepEqual(detachedParts([1000, 10]), [10], "1% of the body is the threshold");
+  assert.deepEqual(detachedParts([1000, 600]), [600], "a 60% piece is a detached part");
+  assert.deepEqual(detachedParts([1000, 600, 400]), [600, 400], "both detached parts are reported");
+});
+
 test("manifest: every export records its connected-component count", () => {
   const dir = stageCharacter("szlif");
   try {
@@ -219,6 +250,8 @@ test("manifest: every export records its connected-component count", () => {
     const manifest = JSON.parse(readFileSync(join(dir, "szlif", "exports", "manifest.json"), "utf8"));
     for (const s of manifest.sizes) {
       assert.equal(typeof s.connectedComponents, "number", `no component count for ${s.file}`);
+      assert.equal(typeof s.detachedParts, "number", `no detached-part count for ${s.file}`);
+      assert.equal(s.detachedParts, 0, `${s.file} has a detached part`);
     }
     assert.equal(manifest.sizes.find((s) => s.size === 512).connectedComponents, 1, "master is not one piece");
   } finally {

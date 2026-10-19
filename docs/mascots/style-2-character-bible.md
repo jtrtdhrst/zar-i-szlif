@@ -46,7 +46,8 @@ Geometry rules (enforced by the renderer, not just by eye):
   in a cream paw (`r=14`) centred on the arm tip, clear of the muzzle and head
   outline so the paw never merges with the face.
 - The rendered character must be **one connected piece**: the renderer fails the
-  build if a 512 px export splits into more than one connected component.
+  build if an export splits into more than one connected component at any
+  exported size.
 Forbidden: symmetric fringe, detached/blob tail, straight scarf, infantile
 oversized eyes (eye ry <= 14 at 512), floating ear or floating paw.
 
@@ -99,7 +100,9 @@ they consume against the manifest. The Engineer consumes `export-512.png` +
 `character.json`; `source.svg` stays the editable source of truth.
 
 The renderer fails (exit non-zero) on: transparent-corner violations, a master
-that renders as more than one connected piece at 512 px, a silhouette that
-renders as more than one connected piece at 256 px, and any missing output.
-Every export also records its `connectedComponents` count in the manifest, so
-a detached part is visible as data even where it is not a hard failure.
+or a silhouette that renders as more than one connected piece at any exported
+size, and any missing output. Every export also records its
+`connectedComponents` count and its `detachedParts` count in the manifest, so
+a detached part is visible as data even where it is not a hard failure. A
+component below 1 % of the largest one counts as anti-aliasing noise, not a
+part.
