@@ -215,6 +215,91 @@ export function discoverCharacters(root) {
     .sort();
 }
 
+// ---- silhouettes -----------------------------------------------------------
+// The silhouette sketches are design artifacts, but their PNG renders are
+// renderer output: they must come from this pipeline too, otherwise the tree
+// ships PNGs that no committed command can reproduce (UI QA F3/C1, KOMAA-1010).
+export const SILHOUETTE_SHEET_SIZE = 256;
+
+export function discoverSilhouettes(root) {
+  const dir = join(root, "silhouettes");
+  if (!existsSync(dir)) return [];
+  return readdirSync(dir).filter((f) => f.endsWith(".svg")).sort();
+}
+
+export function exportSilhouettes(root) {
+  const errors = [];
+  const dir = join(root, "silhouettes");
+  const files = discoverSilhouettes(root);
+  if (files.length === 0) {
+    fail(errors, "no silhouette SVGs found in silhouettes/");
+    return { ok: false, errors };
+  }
+  const outDir = join(dir, "png");
+  mkdirSync(outDir, { recursive: true });
+  const entries = [];
+  for (const file of files) {
+    const svg = readFileSync(join(dir, file), "utf8");
+    for (const e of validateSvg(svg)) fail(errors, `silhouettes/${file}: ${e}`);
+    const name = file.replace(/\.svg$/, "");
+    const renderSvg = withSafeMargin(svg);
+    const exports = [];
+    for (const size of SIZES) {
+      let png;
+      try {
+        png = Buffer.from(new Resvg(renderSvg, { fitTo: { mode: "width", value: size } }).render().asPng());
+      } catch (err) {
+        fail(errors, `silhouettes/${file}@${size}: render failed: ${err.message}`);
+        continue;
+      }
+      const { errors: pxErrors } = analyzePng(png, size);
+      for (const e of pxErrors) fail(errors, `silhouettes/${file}@${size}: ${e}`);
+      const outFile = `${name}-${size}.png`;
+      writeFileSync(join(outDir, outFile), png);
+      exports.push({ size, file: `silhouettes/png/${outFile}`, sha256: sha256(png), bytes: png.length });
+    }
+    entries.push({
+      name,
+      source: { file: `silhouettes/${file}`, sha256: sha256(Buffer.from(svg)), bytes: Buffer.byteLength(svg) },
+      exports,
+    });
+  }
+  if (errors.length > 0) return { ok: false, errors };
+
+  // Grid sheet: silhouettes in name order (iskra row, then szlif row).
+  const cols = Math.min(3, entries.length);
+  const rows = Math.ceil(entries.length / cols);
+  const cell = SILHOUETTE_SHEET_SIZE;
+  const sheet = new PNG({ width: cols * cell + (cols - 1) * GAP, height: rows * cell + (rows - 1) * GAP });
+  entries.forEach((entry, i) => {
+    const src = PNG.sync.read(readFileSync(join(outDir, `${entry.name}-${cell}.png`)));
+    PNG.bitblt(src, sheet, 0, 0, cell, cell, (i % cols) * (cell + GAP), Math.floor(i / cols) * (cell + GAP));
+  });
+  const sheetBuf = PNG.sync.write(sheet);
+  writeFileSync(join(dir, "sheet.png"), sheetBuf);
+
+  // Fail on missing outputs: re-read every expected file from disk.
+  for (const entry of entries) {
+    for (const e of entry.exports) {
+      if (!existsSync(join(root, e.file))) fail(errors, `missing output ${e.file}`);
+    }
+  }
+  if (!existsSync(join(dir, "sheet.png"))) fail(errors, "missing output silhouettes/sheet.png");
+  if (errors.length > 0) return { ok: false, errors };
+  return {
+    ok: true,
+    errors: [],
+    silhouettes: entries,
+    sheet: {
+      file: "silhouettes/sheet.png",
+      sha256: sha256(sheetBuf),
+      bytes: sheetBuf.length,
+      width: sheet.width,
+      height: sheet.height,
+    },
+  };
+}
+
 // Pair sheet: one row per size, every character side by side on transparency.
 export function buildSetContactSheet(root, ids) {
   const width = ids.length * SHEET_SIZES[0] + GAP * (ids.length - 1);
@@ -234,7 +319,7 @@ export function buildSetContactSheet(root, ids) {
 }
 
 // Set-level outputs: manifest index + pair contact sheet (one renderer, one SSOT).
-export function writeSetOutputs(root, ids) {
+export function writeSetOutputs(root, ids, silhouettes = null) {
   const errors = [];
   const sheetBuf = buildSetContactSheet(root, ids);
   writeFileSync(join(root, "contact-sheet.png"), sheetBuf);
@@ -258,6 +343,10 @@ export function writeSetOutputs(root, ids) {
     characters,
     contactSheet: { file: "contact-sheet.png", sha256: sha256(sheetBuf), bytes: sheetBuf.length },
   };
+  if (silhouettes) {
+    setManifest.silhouettes = silhouettes.silhouettes;
+    setManifest.silhouetteSheet = silhouettes.sheet;
+  }
   writeFileSync(join(root, "manifest.json"), `${JSON.stringify(setManifest, null, 2)}\n`);
   for (const f of ["manifest.json", "contact-sheet.png"]) {
     if (!existsSync(join(root, f))) fail(errors, `set output missing ${f}`);
@@ -277,8 +366,13 @@ export function runAll(root = DEFAULT_ROOT, only = null) {
   }
   if (errors.length > 0) return { ok: false, errors };
   if (!only) {
-    const set = writeSetOutputs(root, ids);
-    if (set.errors.length > 0) errors.push(...set.errors);
+    const sil = exportSilhouettes(root);
+    if (!sil.ok) {
+      errors.push(...sil.errors);
+    } else {
+      const set = writeSetOutputs(root, ids, sil);
+      if (set.errors.length > 0) errors.push(...set.errors);
+    }
   }
   return errors.length > 0 ? { ok: false, errors } : { ok: true, errors: [] };
 }
@@ -302,6 +396,7 @@ if (import.meta.url === `file://${process.argv[1]}`) {
     console.log(`mascot export PASS (${Date.now() - t0}ms) root=${root}`);
     for (const size of SIZES) console.log(`  verified PNG size ${size}x${size}`);
     console.log("  manifest.json + contact-sheet.png written per character");
+    console.log("  silhouette exports + silhouettes/sheet.png written");
     console.log("  set manifest.json + pair contact-sheet.png written at root");
   } else {
     console.error("mascot export FAIL:");

@@ -68,6 +68,7 @@ and lecturer (B) poses reserved for pose-library iteration.
 ## Export profile
 
 `source.svg` -> transparent PNG 512/256/128/64/32 via
-`scripts/mascots/render-style-2.mjs` (sharp). Manifest validates dimensions,
-RGBA alpha, transparent corners, SHA256. Contact sheet pairs both characters
-at 256/128/64/32.
+`npm run mascots` (`scripts/mascots/export.mjs`, resvg). Manifest validates
+dimensions, RGBA alpha, transparent corners, SHA256. Contact sheet pairs both
+characters at 256/128/64/32. The silhouette sketches are rendered by the same
+command into `silhouettes/png/*-{512,256,128,64,32}.png`.

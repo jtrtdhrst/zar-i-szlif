@@ -22,16 +22,29 @@
 
 ## Renderer (repeatable invocation)
 
-- `node scripts/mascots/render-style-2.mjs` with sharp 0.35.5
-  (installed in ephemeral tool dir, not committed to the repo).
-- Outputs: `exports/export-{512,256,128,64,32}.png` per character,
-  `contact-sheet.png` (rows 256/128/64/32), `silhouettes/sheet.png` (3x2),
-  `silhouettes/png/*-{256,64}.png`, `manifest.json` (SHA256, dimensions,
-  RGBA alpha, transparent-corner + opaque-fraction checks; script exits
-  non-zero on alpha failure).
-- Branch: `KOMAA-1010`. Delivered commit SHA is posted on the issue thread.
+- Canonical committed renderer: `npm run mascots` -> `scripts/mascots/export.mjs`
+  (`@resvg/resvg-js` + `pngjs`, both committed devDependencies — no ephemeral
+  tool dir, no host-specific path, nothing to install by hand).
+- It produces **every** PNG in this tree, so nothing shipped here is an
+  unverifiable copy: character exports, character contact sheets, the set pair
+  sheet, the silhouette exports and the silhouette sheet.
+- Outputs: `<character>/exports/export-{512,256,128,64,32}.png`,
+  `<character>/exports/contact-sheet.png`, `<character>/exports/manifest.json`,
+  `manifest.json` (set index: character + silhouette source hashes, export
+  hashes, per-character manifest hash), `contact-sheet.png` (pair sheet),
+  `silhouettes/png/*-{512,256,128,64,32}.png`, `silhouettes/sheet.png`.
+- The original sharp-based renderer (KOMAA-1010 branch only, never committed,
+  `Cannot find module 'sharp'`) is superseded by the command above, which is the
+  only renderer in the tree.
+- Branch: `KOMAA-1010` delivered the masters; this branch (`KOMAA-1011`) is the
+  generator branch that renders them.
 
 ## Review state
 
-- Designer self-QA: PASS (`qa.json`); independent UI QA review: PENDING.
+- Designer self-QA: PASS (`qa.json`); independent UI QA on the art: **CHANGES**
+  (KOMAA-1010, candidate `fc241a6`) — art items F1/F2/C3/C4 are the Designer's.
+  The pipeline item F3 (a renderer that could not run) is fixed on this branch:
+  the committed command above renders every PNG. C1/C2 (32px silhouette exports,
+  source SVGs hashed in the manifest) are satisfied here by the pipeline; the
+  Designer's own manifest/script remain theirs on KOMAA-1010.
 - Polish strings untouched: "Iskra", "Szlif", "Żar i Szlif" preserved.

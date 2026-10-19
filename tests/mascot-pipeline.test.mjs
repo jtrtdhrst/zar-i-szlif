@@ -9,7 +9,6 @@ import { fileURLToPath } from "node:url";
 import test from "node:test";
 
 import { exportCharacter, runAll, SIZES } from "../scripts/mascots/export.mjs";
-
 const root = fileURLToPath(new URL("../", import.meta.url));
 const canonical = join(root, "assets", "mascots", "style-2");
 const sha256 = (buf) => createHash("sha256").update(buf).digest("hex");
@@ -149,4 +148,65 @@ test("reproducibility: two runs produce byte-identical PNGs", () => {
     rmSync(a, { recursive: true, force: true });
     rmSync(b, { recursive: true, force: true });
   }
+});
+
+test("silhouettes: every sketch is rendered at all sizes, hashed in the set manifest and reproducible", () => {
+  const a = isolatedTmp();
+  const b = isolatedTmp();
+  try {
+    cpSync(canonical, a, { recursive: true });
+    cpSync(canonical, b, { recursive: true });
+    assert.equal(runAll(a).ok, true);
+    assert.equal(runAll(b).ok, true);
+    const ma = JSON.parse(readFileSync(join(a, "manifest.json"), "utf8"));
+    assert.ok(ma.silhouettes, "set manifest has no silhouette entries");
+    assert.equal(ma.silhouettes.length, 6);
+    for (const s of ma.silhouettes) {
+      assert.ok(existsSync(join(a, s.source.file)), `missing silhouette source ${s.source.file}`);
+      assert.equal(
+        sha256(readFileSync(join(a, s.source.file))),
+        s.source.sha256,
+        `source hash drift: ${s.source.file}`,
+      );
+      assert.deepEqual(s.exports.map((e) => e.size), SIZES, `silhouette ${s.name} misses an export size`);
+      for (const e of s.exports) {
+        assert.ok(existsSync(join(a, e.file)), `missing ${e.file}`);
+        assert.equal(sha256(readFileSync(join(a, e.file))), e.sha256, `hash drift: ${e.file}`);
+      }
+      // 32px silhouette exports were the UI QA C1 gap on the Designer branch.
+      assert.ok(
+        existsSync(join(a, "silhouettes", "png", `${s.name}-32.png`)),
+        `missing 32px silhouette export: ${s.name}`,
+      );
+    }
+    assert.ok(ma.silhouetteSheet, "set manifest has no silhouette sheet");
+    assert.equal(sha256(readFileSync(join(a, ma.silhouetteSheet.file))), ma.silhouetteSheet.sha256);
+    assert.equal(
+      sha256(readFileSync(join(b, "manifest.json"))),
+      sha256(readFileSync(join(a, "manifest.json"))),
+      "set manifest with silhouettes is not reproducible",
+    );
+  } finally {
+    rmSync(a, { recursive: true, force: true });
+    rmSync(b, { recursive: true, force: true });
+  }
+});
+
+test("docs: the mascot docs reference only scripts that exist and a runnable npm command", () => {
+  const docs = [
+    join(canonical, "README.md"),
+    join(canonical, "PROVENANCE.md"),
+    join(root, "docs", "mascots", "style-2-character-bible.md"),
+  ];
+  const referenced = new Set();
+  for (const doc of docs) {
+    for (const m of readFileSync(doc, "utf8").matchAll(/scripts\/mascots\/[\w.-]+\.mjs/g)) referenced.add(m[0]);
+  }
+  assert.ok(referenced.size > 0, "no renderer script referenced in the mascot docs");
+  for (const ref of referenced) {
+    assert.ok(existsSync(join(root, ref)), `doc references a missing script: ${ref}`);
+  }
+  const pkg = JSON.parse(readFileSync(join(root, "package.json"), "utf8"));
+  assert.equal(pkg.scripts.mascots, "node scripts/mascots/export.mjs");
+  assert.ok(existsSync(join(root, "scripts", "mascots", "export.mjs")), "npm run mascots target is missing");
 });
