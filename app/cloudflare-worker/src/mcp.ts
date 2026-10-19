@@ -243,13 +243,57 @@ export function createKompasMcpHandler(options: KompasMcpOptions): ExportedHandl
       });
       registerWorkerTools(server);
 
-      // Bezstanowy Streamable HTTP: nowy serwer per request, zero sesji.
+      // Stateless Streamable HTTP: one transport for this request, same MCP app.
+      // IMPORTANT: POST tools/call uses SSE. Closing the transport immediately
+      // after handleRequest() returns terminates the response before ChatGPT can
+      // consume the JSON-RPC frame. Close only after the response body is read
+      // or abandoned (same lifecycle as the SDK's stateless handler).
       const transport = new WebStandardStreamableHTTPServerTransport({ sessionIdGenerator: undefined });
       await server.connect(transport);
+      let finished = false;
+      const finish = () => {
+        if (finished) return;
+        finished = true;
+        request.signal.removeEventListener("abort", finish);
+        void transport.close().catch(() => {});
+        void server.close().catch(() => {});
+      };
+      request.signal.addEventListener("abort", finish, { once: true });
       try {
-        return await transport.handleRequest(request);
-      } finally {
-        await transport.close();
+        const response = await transport.handleRequest(request);
+        if (!response.body || !response.headers.get("content-type")?.includes("text/event-stream")) {
+          finish();
+          return response;
+        }
+        const reader = response.body.getReader();
+        const monitoredBody = new ReadableStream<Uint8Array>({
+          async pull(controller) {
+            try {
+              const { done, value } = await reader.read();
+              if (done) {
+                controller.close();
+                finish();
+              } else if (value !== undefined) {
+                controller.enqueue(value);
+              }
+            } catch (error) {
+              finish();
+              controller.error(error);
+            }
+          },
+          async cancel(reason) {
+            finish();
+            await reader.cancel(reason).catch(() => {});
+          },
+        });
+        return new Response(monitoredBody, {
+          status: response.status,
+          statusText: response.statusText,
+          headers: response.headers,
+        });
+      } catch (error) {
+        finish();
+        throw error;
       }
     },
   };
