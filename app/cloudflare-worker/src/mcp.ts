@@ -24,7 +24,7 @@ import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { z } from "zod";
 import { createPluginServer } from "../../plugin/server.js";
 import { QdrantClient } from "../../plugin/knowledge/qdrant.js";
-import { deterministicEmbed, workersAiEmbed, type EmbedFn } from "../../plugin/knowledge/embeddings.js";
+import { workersAiEmbed, type EmbedFn } from "../../plugin/knowledge/embeddings.js";
 import { COLLECTION_NAME } from "../../plugin/knowledge/schema.js";
 import { resolveCanonicalScope, type VerifiedGrant } from "./identity";
 import { getGoogleAppId, injectWidgetAuth, type WidgetAuthConfig } from "./widget-auth";
@@ -53,21 +53,38 @@ export interface KompasMcpEnv {
 }
 
 /**
- * Backend wiedzy wg tych samych reguł co lokalny serwer (fail-closed B1):
- * prawdziwy `QDRANT_URL` wymaga bindingu Workers AI bge-m3; leksykalny fallback
- * tylko za jawnym `EMBEDDING_ALLOW_LEXICAL=1`, żeby nie zatruć kolekcji bge-m3.
- * Bez `QDRANT_URL` = brak backendu (narzędzia wiedzy zwracają błąd), zero sekretów.
+ * Qdrant provider FOR THE EXISTING ChatGPT MCP server. This is not a second
+ * server, a second OAuth provider, or the Paperclip agent-memory collection.
  *
- * ponytail: brak cache procesowego — Worker jest bezstanowy, a `QdrantClient`
- * to cienki REST wrapper; upgrade = cache w KV, jeśli latency zwyrośnie.
+ * No URL -> MCP knowledge tools remain present but fail closed on call.
+ * With a URL, require an authenticated HTTPS product-collection connection and
+ * matching Workers AI bge-m3 embeddings (1024 dimensions). Never silently
+ * send locally synthesized lexical vectors into the production collection.
  */
-function knowledgeBackend(env: KompasMcpEnv): { client: QdrantClient; embed: EmbedFn } | null {
-  const url = (env.QDRANT_URL ?? "").trim().replace(/\/+$/, "");
-  if (!url) return null;
-  const client = new QdrantClient({ baseUrl: url, apiKey: env.QDRANT_API_KEY || undefined, collection: COLLECTION_NAME });
-  if (env.AI?.run) return { client, embed: workersAiEmbed(env.AI) };
-  if (env.EMBEDDING_ALLOW_LEXICAL === "1") return { client, embed: deterministicEmbed() };
-  throw new Error("QDRANT_URL set but no Workers AI binding and EMBEDDING_ALLOW_LEXICAL!=1: refusing to write lexical vectors into bge-m3 collection");
+export function knowledgeBackend(env: KompasMcpEnv): { client: QdrantClient; embed: EmbedFn } | null {
+  const rawUrl = (env.QDRANT_URL ?? "").trim();
+  if (!rawUrl) return null;
+
+  let url: URL;
+  try { url = new URL(rawUrl); }
+  catch { throw new Error("Invalid product QDRANT_URL"); }
+  if (url.protocol !== "https:" || !url.hostname || url.username || url.password ||
+      url.pathname !== "/" || url.search || url.hash) {
+    throw new Error("Product QDRANT_URL must be an HTTPS origin without credentials, path, or query");
+  }
+  if (!(env.QDRANT_API_KEY ?? "").trim()) {
+    throw new Error("Product QDRANT_API_KEY is required for MCP knowledge retrieval");
+  }
+  if (!env.AI?.run) {
+    throw new Error("Workers AI binding is required for product Qdrant bge-m3 retrieval");
+  }
+
+  const client = new QdrantClient({
+    baseUrl: url.origin,
+    apiKey: env.QDRANT_API_KEY,
+    collection: COLLECTION_NAME,
+  });
+  return { client, embed: workersAiEmbed(env.AI) };
 }
 
 /** Kanoniczny host AS z konfiguracji; błędna wartość to błąd konfiguracji (głośno). */
