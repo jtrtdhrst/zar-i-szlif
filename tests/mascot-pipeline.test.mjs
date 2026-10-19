@@ -1,0 +1,121 @@
+// Mascot STYLE_2 pipeline tests (KOMAA-1011). Fixtures are copied to isolated
+// tmp dirs outside the repo; the repo's canonical sources are inputs only.
+import assert from "node:assert/strict";
+import { createHash } from "node:crypto";
+import { cpSync, existsSync, mkdtempSync, readFileSync, realpathSync, rmSync, writeFileSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { isAbsolute, join } from "node:path";
+import { fileURLToPath } from "node:url";
+import test from "node:test";
+
+import { exportCharacter, runAll, SIZES } from "../scripts/mascots/export.mjs";
+
+const root = fileURLToPath(new URL("../", import.meta.url));
+const canonical = join(root, "assets", "mascots", "style-2");
+const sha256 = (buf) => createHash("sha256").update(buf).digest("hex");
+
+function isolatedTmp() {
+  const dir = mkdtempSync(join(tmpdir(), "mascot-"));
+  assert.ok(isAbsolute(dir));
+  const realDir = realpathSync(dir);
+  const realRoot = realpathSync(root);
+  assert.ok(!realDir.startsWith(`${realRoot}/`), `fixture dir inside repo: ${realDir}`);
+  return dir;
+}
+
+function stageCharacter(id, mutate = null) {
+  const dir = isolatedTmp();
+  cpSync(join(canonical, id), join(dir, id), { recursive: true });
+  if (mutate) mutate(join(dir, id));
+  return dir;
+}
+
+const EXPECTED_FILES = [...SIZES.map((s) => `export-${s}.png`), "contact-sheet.png", "manifest.json"];
+
+test("positive: iskra and szlif export, verify and manifest", () => {
+  const dir = stageCharacter("iskra");
+  try {
+    const r = exportCharacter(join(dir, "iskra"), "iskra");
+    assert.equal(r.ok, true, JSON.stringify(r.errors));
+    for (const f of EXPECTED_FILES) assert.ok(existsSync(join(dir, "iskra", "exports", f)), `missing ${f}`);
+    const manifest = JSON.parse(readFileSync(join(dir, "iskra", "exports", "manifest.json"), "utf8"));
+    assert.equal(manifest.character, "iskra");
+    assert.equal(manifest.sizes.length, 5);
+    for (const s of manifest.sizes) {
+      const buf = readFileSync(join(dir, "iskra", "exports", s.file));
+      assert.equal(sha256(buf), s.sha256, `hash drift in ${s.file}`);
+    }
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
+});
+
+test("positive: runAll covers every character in root", () => {
+  const dir = isolatedTmp();
+  try {
+    cpSync(canonical, dir, { recursive: true });
+    const r = runAll(dir);
+    assert.equal(r.ok, true, JSON.stringify(r.errors));
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
+});
+
+test("negative: corrupted SVG fails validation", () => {
+  for (const bad of [
+    "<svg><g><unclosed>",
+    '<svg viewBox="0 0 1 1"><script>alert(1)</script></svg>',
+    '<!DOCTYPE foo [<!ENTITY x "y">]><svg viewBox="0 0 1 1"></svg>',
+    '<svg viewBox="0 0 1 1"><rect onclick="x()"/></svg>',
+    '<svg viewBox="0 0 1 1"><image href="https://example.com/x.png"/></svg>',
+  ]) {
+    const dir = stageCharacter("szlif", (d) => writeFileSync(join(d, "source.svg"), bad));
+    try {
+      const r = exportCharacter(join(dir, "szlif"), "szlif");
+      assert.equal(r.ok, false, `accepted bad SVG: ${bad.slice(0, 40)}`);
+      assert.ok(r.errors.length > 0);
+    } finally {
+      rmSync(dir, { recursive: true, force: true });
+    }
+  }
+});
+
+test("negative: missing assets and invalid character.json fail", () => {
+  const missing = stageCharacter("iskra", (d) => rmSync(join(d, "source.svg")));
+  try {
+    assert.equal(exportCharacter(join(missing, "iskra"), "iskra").ok, false);
+  } finally {
+    rmSync(missing, { recursive: true, force: true });
+  }
+  for (const badJson of [
+    "{not json",
+    JSON.stringify({ id: "iskra" }),
+    JSON.stringify({ id: "iskra", species: "fox", role: "npc", styleVersion: "v", palette: ["red"] }),
+    JSON.stringify({ id: "iskra", species: "fox", role: "enemy", styleVersion: "v", palette: ["#E07B39"] }),
+  ]) {
+    const dir = stageCharacter("iskra", (d) => writeFileSync(join(d, "character.json"), badJson));
+    try {
+      const r = exportCharacter(join(dir, "iskra"), "iskra");
+      assert.equal(r.ok, false, `accepted bad character.json: ${badJson.slice(0, 40)}`);
+    } finally {
+      rmSync(dir, { recursive: true, force: true });
+    }
+  }
+});
+
+test("reproducibility: two runs produce byte-identical PNGs", () => {
+  const a = stageCharacter("szlif");
+  const b = stageCharacter("szlif");
+  try {
+    assert.equal(exportCharacter(join(a, "szlif"), "szlif").ok, true);
+    assert.equal(exportCharacter(join(b, "szlif"), "szlif").ok, true);
+    for (const f of EXPECTED_FILES.filter((f) => f.endsWith(".png"))) {
+      const ha = sha256(readFileSync(join(a, "szlif", "exports", f)));
+      const hb = sha256(readFileSync(join(b, "szlif", "exports", f)));
+      assert.equal(ha, hb, `non-reproducible output: ${f}`);
+    }
+  } finally {
+    rmSync(a, { recursive: true, force: true });
+    rmSync(b, { recursive: true, force: true });
+  }
+});

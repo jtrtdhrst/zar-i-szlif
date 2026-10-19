@@ -18,13 +18,16 @@
     "validate:vercel:platform": "npm run validate:code && node scripts/validate-vercel.mjs --platform",
     "validate:cloudflare": "npm run build && cd app/cloudflare-worker && npx wrangler deploy --dry-run --config wrangler.panel.jsonc",
     "validate:worker": "npm run validate:code && npm run validate:cloudflare",
-    "validate:release": "node scripts/release-targets.mjs"
+    "validate:release": "node scripts/release-targets.mjs",
+    "mascots": "node scripts/mascots/export.mjs"
   },
   "dependencies": {
     "@cloudflare/workers-oauth-provider": "^0.10.3"
   },
   "devDependencies": {
     "@cloudflare/workers-types": "^5.20260730.1",
+    "@resvg/resvg-js": "^2.6.2",
+    "pngjs": "^7.0.0",
     "typescript": "^5.8.3",
     "vitest": "^4.1.11"
   }

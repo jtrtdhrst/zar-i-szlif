@@ -1,0 +1,40 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="512" height="512" viewBox="0 0 512 512" role="img" aria-label="Iskra, fox NPC mascot, front three-quarter pose">
+  <title>Iskra — provisional STYLE_2_V0 master (Engineer fixture, designer review pending)</title>
+  <!-- palette: fox-orange #E07B39, cream #F6E7CE, dark-brown #4A2E1B, turquoise #2EC4B6 -->
+  <g id="tail">
+    <path d="M356 400 C 440 390 470 300 430 220 C 420 200 400 195 390 210 C 420 260 410 340 340 355 Z" fill="#E07B39"/>
+    <path d="M430 220 C 420 200 400 195 390 210 C 395 232 396 252 392 272 C 408 262 424 244 430 220 Z" fill="#F6E7CE"/>
+  </g>
+  <g id="body">
+    <ellipse cx="240" cy="360" rx="95" ry="105" fill="#E07B39"/>
+    <ellipse cx="240" cy="390" rx="52" ry="62" fill="#F6E7CE"/>
+  </g>
+  <g id="head">
+    <!-- asymmetric ears: left tall, right short fringe -->
+    <polygon points="150,190 165,90 210,170" fill="#E07B39"/>
+    <polygon points="150,190 165,90 210,170" fill="none"/>
+    <polygon points="330,180 350,110 375,185" fill="#E07B39"/>
+    <polygon points="162,170 170,118 196,162" fill="#4A2E1B"/>
+    <ellipse cx="242" cy="230" rx="105" ry="92" fill="#E07B39"/>
+    <!-- asymmetric fringe tuft -->
+    <polygon points="190,150 225,120 215,165 250,135 240,175 200,175" fill="#E07B39"/>
+    <polygon points="215,165 250,135 240,175" fill="#4A2E1B"/>
+    <ellipse cx="242" cy="268" rx="58" ry="44" fill="#F6E7CE"/>
+  </g>
+  <g id="facial-features">
+    <ellipse cx="205" cy="228" rx="10" ry="13" fill="#4A2E1B"/>
+    <ellipse cx="280" cy="228" rx="10" ry="13" fill="#4A2E1B"/>
+    <circle cx="208" cy="224" r="3" fill="#F6E7CE"/>
+    <circle cx="283" cy="224" r="3" fill="#F6E7CE"/>
+    <polygon points="242,258 230,272 254,272" fill="#4A2E1B"/>
+    <path d="M242 272 q 0 10 -12 12 M242 272 q 0 10 12 12" stroke="#4A2E1B" stroke-width="5" fill="none" stroke-linecap="round"/>
+  </g>
+  <g id="accessories">
+    <!-- tilted turquoise scarf -->
+    <g transform="rotate(-12 240 330)">
+      <rect x="150" y="308" width="180" height="40" rx="20" fill="#2EC4B6"/>
+      <polygon points="320,310 368,318 356,352 320,348" fill="#2EC4B6"/>
+      <rect x="300" y="308" width="12" height="40" fill="#4A2E1B" opacity="0.25"/>
+    </g>
+  </g>
+</svg>

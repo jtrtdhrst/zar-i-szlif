@@ -1,0 +1,92 @@
+{
+  "character": "iskra",
+  "styleVersion": "style-2-v0",
+  "source": {
+    "file": "source.svg",
+    "sha256": "5c8caf5da137d623c8fd4e8470e3e3ac885c47767eae6e45d5bdebf42c070ff3",
+    "bytes": 2230
+  },
+  "renderer": {
+    "resvgJs": "2.6.2",
+    "pngjs": "7.0.0"
+  },
+  "sizes": [
+    {
+      "size": 512,
+      "file": "export-512.png",
+      "sha256": "c45ee29b1a39fd4656dffe5aadaa55c21e0dddcd71f9af22b20a4d5b1b67247f",
+      "bytes": 19102,
+      "opaquePixels": 70483,
+      "opaqueRatio": 0.2688713073730469,
+      "bbox": {
+        "minX": 137,
+        "minY": 90,
+        "maxX": 447,
+        "maxY": 464
+      }
+    },
+    {
+      "size": 256,
+      "file": "export-256.png",
+      "sha256": "cc9f72e8aef72cf7983c966437fa9be1da09dde9c345d467b02e9418769bb9f7",
+      "bytes": 9289,
+      "opaquePixels": 17838,
+      "opaqueRatio": 0.272186279296875,
+      "bbox": {
+        "minX": 68,
+        "minY": 45,
+        "maxX": 223,
+        "maxY": 232
+      }
+    },
+    {
+      "size": 128,
+      "file": "export-128.png",
+      "sha256": "634cd91501037afd2b630f3e7fc3d24f14957617047700447ce201dcd50be402",
+      "bytes": 4645,
+      "opaquePixels": 4563,
+      "opaqueRatio": 0.27850341796875,
+      "bbox": {
+        "minX": 34,
+        "minY": 22,
+        "maxX": 111,
+        "maxY": 116
+      }
+    },
+    {
+      "size": 64,
+      "file": "export-64.png",
+      "sha256": "72b9f5717e71ff225769ff1e20698a44bdb28003532a0cf5af3b78c633b252c5",
+      "bytes": 2366,
+      "opaquePixels": 1181,
+      "opaqueRatio": 0.288330078125,
+      "bbox": {
+        "minX": 17,
+        "minY": 11,
+        "maxX": 55,
+        "maxY": 57
+      }
+    },
+    {
+      "size": 32,
+      "file": "export-32.png",
+      "sha256": "7d1abb84420354d9e45ef55079a6071058a6c91cf1dc72bd0320f1bd1a4b48bf",
+      "bytes": 1206,
+      "opaquePixels": 321,
+      "opaqueRatio": 0.3134765625,
+      "bbox": {
+        "minX": 8,
+        "minY": 5,
+        "maxX": 27,
+        "maxY": 28
+      }
+    }
+  ],
+  "contactSheet": {
+    "file": "contact-sheet.png",
+    "sha256": "03959510d9b4b18dbdbddffad6b77b65a5ca56d9252c6587037da23a2e993265",
+    "bytes": 39282,
+    "width": 1056,
+    "height": 512
+  }
+}
