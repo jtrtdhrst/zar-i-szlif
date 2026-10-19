@@ -1,0 +1,14 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
+<title>Szlif silhouette B — lecturer, wings spread, notebook</title>
+<g fill="#111111">
+<polygon points="170,280 40,180 90,330"/>
+<polygon points="342,280 472,180 422,330"/>
+<ellipse cx="256" cy="320" rx="85" ry="105"/>
+<ellipse cx="256" cy="170" rx="75" ry="68"/>
+<polygon points="310,175 375,195 312,215"/>
+<polygon points="215,115 225,70 240,112 255,68 270,112 285,70 295,115 255,128"/>
+<rect x="330" y="300" width="92" height="116" rx="10" transform="rotate(-8 376 358)"/>
+<rect x="228" y="408" width="36" height="80" rx="18"/>
+<rect x="252" y="408" width="36" height="80" rx="18"/>
+</g>
+</svg>

@@ -1,0 +1,13 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
+<title>Iskra silhouette B — low pounce, tail sweeping right</title>
+<g fill="#111111">
+<ellipse cx="270" cy="360" rx="130" ry="70"/>
+<path d="M380 350 C440 340 470 300 462 250 C458 228 446 214 432 210 L420 250 C424 280 410 310 380 322 Z"/>
+<ellipse cx="140" cy="320" rx="70" ry="62"/>
+<polygon points="100,280 70,200 150,250"/>
+<polygon points="170,265 175,185 220,250"/>
+<polygon points="90,330 40,350 85,365"/>
+<ellipse cx="330" cy="425" rx="26" ry="18"/>
+<ellipse cx="220" cy="428" rx="26" ry="18"/>
+</g>
+</svg>

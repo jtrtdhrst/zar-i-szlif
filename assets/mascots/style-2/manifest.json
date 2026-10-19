@@ -1,0 +1,94 @@
+{
+  "generator": "scripts/mascots/export.mjs",
+  "renderer": {
+    "resvgJs": "2.6.2",
+    "pngjs": "7.0.0"
+  },
+  "characters": [
+    {
+      "id": "iskra",
+      "styleVersion": "style-2-v0",
+      "source": {
+        "file": "source.svg",
+        "sha256": "340ec7813ade6f3027e944c760140501a07330ecfbd97b4da1f0ea8522d09afd",
+        "bytes": 2854
+      },
+      "manifest": {
+        "file": "iskra/exports/manifest.json",
+        "sha256": "116187ea79cbe107c17d57673e0bbe3f0abc9195afc69794d025a3c94af186bf"
+      },
+      "exports": [
+        {
+          "size": 512,
+          "file": "iskra/exports/export-512.png",
+          "sha256": "a15a117359a664eca6ff73645b91161abae844096a27f23a4d8418d625c10f6c"
+        },
+        {
+          "size": 256,
+          "file": "iskra/exports/export-256.png",
+          "sha256": "663d1b2fe67b2cd095acfbb04a224b39703994368d82fb8f9aca6baa5262b380"
+        },
+        {
+          "size": 128,
+          "file": "iskra/exports/export-128.png",
+          "sha256": "470a1d12757c2357f00b3fd6d6ca8688a8a53dbf2f2a2d132ca6da39724e602d"
+        },
+        {
+          "size": 64,
+          "file": "iskra/exports/export-64.png",
+          "sha256": "4c4372ee72462d812783fe6acd0163c93e5fa646aa39c24d66be660fa9c12fd8"
+        },
+        {
+          "size": 32,
+          "file": "iskra/exports/export-32.png",
+          "sha256": "0233e07231d14dba89aa2e706bbc81f71b2a4d3b5249b49e93332d5942e46498"
+        }
+      ]
+    },
+    {
+      "id": "szlif",
+      "styleVersion": "style-2-v0",
+      "source": {
+        "file": "source.svg",
+        "sha256": "17aaddb01c0e8d98f77cc2af1e0f97d26e866e02f50c1b96c032dbfef5c7b09c",
+        "bytes": 3046
+      },
+      "manifest": {
+        "file": "szlif/exports/manifest.json",
+        "sha256": "cac10ea8646fb8721ee67ef678e0fea8812eb053360fdc76979aef9216b3c356"
+      },
+      "exports": [
+        {
+          "size": 512,
+          "file": "szlif/exports/export-512.png",
+          "sha256": "806aa681f2a00441288137f947ff3bc145125493c66d0094c85ed588cd41218f"
+        },
+        {
+          "size": 256,
+          "file": "szlif/exports/export-256.png",
+          "sha256": "30d6a6d035e70f88faff3312a243d8b994b5c21c81ddbb25440819161ec5da6e"
+        },
+        {
+          "size": 128,
+          "file": "szlif/exports/export-128.png",
+          "sha256": "e79d3d440e8c0c6fc81f01ec43d4198464d0ff2e9c798027c468620f2e48b2ad"
+        },
+        {
+          "size": 64,
+          "file": "szlif/exports/export-64.png",
+          "sha256": "5f59d2afdaf215426697217ca95758c1721b729af11b433b69a33678e9deabe9"
+        },
+        {
+          "size": 32,
+          "file": "szlif/exports/export-32.png",
+          "sha256": "cab28dfabbcc4cf478670842bb96409ae6f9205d2574c6e8b168290952585963"
+        }
+      ]
+    }
+  ],
+  "contactSheet": {
+    "file": "contact-sheet.png",
+    "sha256": "325ead021d42160a59892b05c9709280a410986cbc61f3987518825d7a04fc5c",
+    "bytes": 41115
+  }
+}

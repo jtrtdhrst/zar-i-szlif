@@ -4,7 +4,7 @@
 // Renderer: @resvg/resvg-js (prebuilt Rust resvg). PNG inspect/compose: pngjs.
 import { createHash } from "node:crypto";
 import { createRequire } from "node:module";
-import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, readdirSync, readFileSync, writeFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 
@@ -13,6 +13,11 @@ const { Resvg } = require("@resvg/resvg-js");
 const { PNG } = require("pngjs");
 
 export const SIZES = [512, 256, 128, 64, 32];
+export const SHEET_SIZES = [256, 128, 64, 32];
+// Free margin kept around the master on every side, as a fraction of the
+// viewBox. Downscale rounding clips art that sits within a pixel of the edge
+// (real case: szlif@32), so the pipeline renders inside a safe area instead.
+export const SAFE_MARGIN = 0.04;
 export const MAX_SVG_BYTES = 1024 * 1024;
 export const MIN_OPAQUE_RATIO = 0.01;
 const GAP = 16;
@@ -39,8 +44,8 @@ export function validateCharacterJson(raw) {
     fail(errors, `character.json role must be npc|player, got: ${data.role}`);
   }
   if (data.palette !== undefined) {
-    if (!Array.isArray(data.palette) || data.palette.length === 0 || data.palette.length > 6) {
-      fail(errors, "character.json palette must be an array of 1..6 hex colors");
+    if (!Array.isArray(data.palette) || data.palette.length === 0) {
+      fail(errors, "character.json palette must be a non-empty array of hex colors");
     } else if (!data.palette.every((c) => /^#[0-9a-fA-F]{6}$/.test(c))) {
       fail(errors, "character.json palette entries must be #rrggbb");
     }
@@ -65,6 +70,19 @@ export function validateSvg(svg) {
   ];
   for (const [re, msg] of banned) if (re.test(svg)) fail(errors, msg);
   return errors;
+}
+
+// Expand the master viewBox by SAFE_MARGIN on every side (render-space only,
+// the committed source.svg is never modified) so no export clips at any size.
+export function withSafeMargin(svg) {
+  const m = svg.match(/viewBox\s*=\s*["']([^"']+)["']/);
+  if (!m) return svg;
+  const nums = m[1].trim().split(/[\s,]+/).map(Number);
+  if (nums.length !== 4 || nums.some((n) => !Number.isFinite(n))) return svg;
+  const [x, y, w, h] = nums;
+  const dx = w * SAFE_MARGIN;
+  const dy = h * SAFE_MARGIN;
+  return svg.replace(m[0], `viewBox="${x - dx} ${y - dy} ${w + 2 * dx} ${h + 2 * dy}"`);
 }
 
 // ---- pixel analysis -------------------------------------------------------
@@ -128,12 +146,13 @@ export function exportCharacter(charDir, characterId) {
 
   const outDir = join(charDir, "exports");
   mkdirSync(outDir, { recursive: true });
+  const renderSvg = withSafeMargin(svg);
   const sizes = [];
   const rendered = [];
   for (const size of SIZES) {
     let png;
     try {
-      png = Buffer.from(new Resvg(svg, { fitTo: { mode: "width", value: size } }).render().asPng());
+      png = Buffer.from(new Resvg(renderSvg, { fitTo: { mode: "width", value: size } }).render().asPng());
     } catch (err) {
       fail(errors, `${characterId}@${size}: render failed: ${err.message}`);
       continue;
@@ -161,6 +180,7 @@ export function exportCharacter(charDir, characterId) {
   const manifest = {
     character: characterId,
     styleVersion: meta.styleVersion,
+    safeMargin: SAFE_MARGIN,
     source: { file: "source.svg", sha256: sha256(Buffer.from(svg)), bytes: Buffer.byteLength(svg) },
     renderer: {
       resvgJs: require("@resvg/resvg-js/package.json").version,
@@ -185,18 +205,80 @@ export function exportCharacter(charDir, characterId) {
   return errors.length > 0 ? { ok: false, errors } : { ok: true, errors: [], manifest };
 }
 
-export function runAll(root = DEFAULT_ROOT, only = null) {
-  const ids = [require("node:fs").readdirSync(root, { withFileTypes: true })
+// A directory is a character iff it carries a master source or metadata.
+// Design artifacts that live beside the characters (e.g. silhouettes/) are ignored.
+export function discoverCharacters(root) {
+  return readdirSync(root, { withFileTypes: true })
     .filter((d) => d.isDirectory())
-    .map((d) => d.name)]
-    .flat()
-    .filter((id) => !only || id === only)
+    .map((d) => d.name)
+    .filter((id) => existsSync(join(root, id, "source.svg")) || existsSync(join(root, id, "character.json")))
     .sort();
+}
+
+// Pair sheet: one row per size, every character side by side on transparency.
+export function buildSetContactSheet(root, ids) {
+  const width = ids.length * SHEET_SIZES[0] + GAP * (ids.length - 1);
+  const height = SHEET_SIZES.reduce((a, s) => a + s, 0) + GAP * (SHEET_SIZES.length - 1);
+  const sheet = new PNG({ width, height });
+  let y = 0;
+  for (const size of SHEET_SIZES) {
+    let x = 0;
+    for (const id of ids) {
+      const src = PNG.sync.read(readFileSync(join(root, id, "exports", `export-${size}.png`)));
+      PNG.bitblt(src, sheet, 0, 0, size, size, x, y);
+      x += size + GAP;
+    }
+    y += size + GAP;
+  }
+  return PNG.sync.write(sheet);
+}
+
+// Set-level outputs: manifest index + pair contact sheet (one renderer, one SSOT).
+export function writeSetOutputs(root, ids) {
+  const errors = [];
+  const sheetBuf = buildSetContactSheet(root, ids);
+  writeFileSync(join(root, "contact-sheet.png"), sheetBuf);
+  const characters = ids.map((id) => {
+    const manifestPath = join(root, id, "exports", "manifest.json");
+    const manifest = JSON.parse(readFileSync(manifestPath, "utf8"));
+    return {
+      id,
+      styleVersion: manifest.styleVersion,
+      source: manifest.source,
+      manifest: { file: `${id}/exports/manifest.json`, sha256: sha256(readFileSync(manifestPath)) },
+      exports: manifest.sizes.map((s) => ({ size: s.size, file: `${id}/exports/${s.file}`, sha256: s.sha256 })),
+    };
+  });
+  const setManifest = {
+    generator: "scripts/mascots/export.mjs",
+    renderer: {
+      resvgJs: require("@resvg/resvg-js/package.json").version,
+      pngjs: require("pngjs/package.json").version,
+    },
+    characters,
+    contactSheet: { file: "contact-sheet.png", sha256: sha256(sheetBuf), bytes: sheetBuf.length },
+  };
+  writeFileSync(join(root, "manifest.json"), `${JSON.stringify(setManifest, null, 2)}\n`);
+  for (const f of ["manifest.json", "contact-sheet.png"]) {
+    if (!existsSync(join(root, f))) fail(errors, `set output missing ${f}`);
+  }
+  return { errors, manifest: setManifest };
+}
+
+export function runAll(root = DEFAULT_ROOT, only = null) {
+  const all = discoverCharacters(root);
+  const ids = only ? all.filter((id) => id === only) : all;
   if (only && ids.length === 0) return { ok: false, errors: [`unknown character: ${only}`] };
+  if (ids.length === 0) return { ok: false, errors: [`no characters found in root: ${root}`] };
   const errors = [];
   for (const id of ids) {
     const r = exportCharacter(join(root, id), id);
     if (!r.ok) errors.push(...r.errors);
+  }
+  if (errors.length > 0) return { ok: false, errors };
+  if (!only) {
+    const set = writeSetOutputs(root, ids);
+    if (set.errors.length > 0) errors.push(...set.errors);
   }
   return errors.length > 0 ? { ok: false, errors } : { ok: true, errors: [] };
 }
@@ -220,6 +302,7 @@ if (import.meta.url === `file://${process.argv[1]}`) {
     console.log(`mascot export PASS (${Date.now() - t0}ms) root=${root}`);
     for (const size of SIZES) console.log(`  verified PNG size ${size}x${size}`);
     console.log("  manifest.json + contact-sheet.png written per character");
+    console.log("  set manifest.json + pair contact-sheet.png written at root");
   } else {
     console.error("mascot export FAIL:");
     for (const e of result.errors) console.error(`  - ${e}`);

@@ -1,40 +1,68 @@
-<svg xmlns="http://www.w3.org/2000/svg" width="512" height="512" viewBox="0 0 512 512" role="img" aria-label="Iskra, fox NPC mascot, front three-quarter pose">
-  <title>Iskra — provisional STYLE_2_V0 master (Engineer fixture, designer review pending)</title>
-  <!-- palette: fox-orange #E07B39, cream #F6E7CE, dark-brown #4A2E1B, turquoise #2EC4B6 -->
-  <g id="tail">
-    <path d="M356 400 C 440 390 470 300 430 220 C 420 200 400 195 390 210 C 420 260 410 340 340 355 Z" fill="#E07B39"/>
-    <path d="M430 220 C 420 200 400 195 390 210 C 395 232 396 252 392 272 C 408 262 424 244 430 220 Z" fill="#F6E7CE"/>
-  </g>
-  <g id="body">
-    <ellipse cx="240" cy="360" rx="95" ry="105" fill="#E07B39"/>
-    <ellipse cx="240" cy="390" rx="52" ry="62" fill="#F6E7CE"/>
-  </g>
-  <g id="head">
-    <!-- asymmetric ears: left tall, right short fringe -->
-    <polygon points="150,190 165,90 210,170" fill="#E07B39"/>
-    <polygon points="150,190 165,90 210,170" fill="none"/>
-    <polygon points="330,180 350,110 375,185" fill="#E07B39"/>
-    <polygon points="162,170 170,118 196,162" fill="#4A2E1B"/>
-    <ellipse cx="242" cy="230" rx="105" ry="92" fill="#E07B39"/>
-    <!-- asymmetric fringe tuft -->
-    <polygon points="190,150 225,120 215,165 250,135 240,175 200,175" fill="#E07B39"/>
-    <polygon points="215,165 250,135 240,175" fill="#4A2E1B"/>
-    <ellipse cx="242" cy="268" rx="58" ry="44" fill="#F6E7CE"/>
-  </g>
-  <g id="facial-features">
-    <ellipse cx="205" cy="228" rx="10" ry="13" fill="#4A2E1B"/>
-    <ellipse cx="280" cy="228" rx="10" ry="13" fill="#4A2E1B"/>
-    <circle cx="208" cy="224" r="3" fill="#F6E7CE"/>
-    <circle cx="283" cy="224" r="3" fill="#F6E7CE"/>
-    <polygon points="242,258 230,272 254,272" fill="#4A2E1B"/>
-    <path d="M242 272 q 0 10 -12 12 M242 272 q 0 10 12 12" stroke="#4A2E1B" stroke-width="5" fill="none" stroke-linecap="round"/>
-  </g>
-  <g id="accessories">
-    <!-- tilted turquoise scarf -->
-    <g transform="rotate(-12 240 330)">
-      <rect x="150" y="308" width="180" height="40" rx="20" fill="#2EC4B6"/>
-      <polygon points="320,310 368,318 356,352 320,348" fill="#2EC4B6"/>
-      <rect x="300" y="308" width="12" height="40" fill="#4A2E1B" opacity="0.25"/>
-    </g>
-  </g>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
+<title>Iskra — fox NPC, STYLE_2_V0 editable master</title>
+<desc>Original Soft Geometry V2 master. Groups: tail, feet, body, belly, armL, armR, earL, earR, head, fringe, eyeL, eyeR, muzzle, scarf. Transparent background.</desc>
+<!-- tail (behind body): stroked curl + cream tip -->
+<g id="tail">
+<path d="M340 385 C230 425 150 380 160 290 C164 256 178 230 202 226" fill="none" stroke="#E2702D" stroke-width="72" stroke-linecap="round"/>
+<path d="M194 248 C196 240 199 232 202 226" fill="none" stroke="#F7E8D3" stroke-width="72" stroke-linecap="round"/>
+</g>
+<!-- feet -->
+<g id="feet" fill="#B94F1D">
+<ellipse cx="238" cy="460" rx="30" ry="20"/>
+<ellipse cx="322" cy="460" rx="30" ry="20"/>
+</g>
+<!-- torso -->
+<g id="body">
+<ellipse cx="280" cy="355" rx="82" ry="105" fill="#E2702D"/>
+</g>
+<g id="belly">
+<ellipse cx="280" cy="370" rx="46" ry="72" fill="#F7E8D3"/>
+</g>
+<!-- arms -->
+<g id="armL">
+<ellipse cx="192" cy="355" rx="17" ry="42" fill="#E2702D" transform="rotate(12 192 355)"/>
+</g>
+<g id="armR">
+<ellipse cx="370" cy="292" rx="17" ry="48" fill="#E2702D" transform="rotate(-28 370 292)"/>
+<circle cx="392" cy="250" r="13" fill="#F7E8D3"/>
+</g>
+<!-- ears (behind head; left larger = asymmetric signature) -->
+<g id="earL">
+<polygon points="205,105 158,12 248,68" fill="#E2702D"/>
+<polygon points="203,88 180,38 226,68" fill="#F7E8D3"/>
+</g>
+<g id="earR">
+<polygon points="315,110 352,32 348,118" fill="#E2702D"/>
+<polygon points="322,96 340,50 340,100" fill="#F7E8D3"/>
+</g>
+<!-- head -->
+<g id="head">
+<ellipse cx="276" cy="178" rx="88" ry="80" fill="#E2702D"/>
+</g>
+<!-- asymmetric fringe: left spikes deeper -->
+<g id="fringe">
+<polygon fill="#B94F1D" points="188,152 202,104 220,140 236,100 254,138 270,100 288,136 304,102 320,134 336,106 350,134 346,158 328,144 310,160 290,144 270,162 250,144 230,162 210,146 194,162"/>
+</g>
+<!-- eyes -->
+<g id="eyeL">
+<ellipse cx="244" cy="196" rx="11" ry="14" fill="#2B2A33"/>
+<circle cx="248" cy="191" r="3.5" fill="#FFFFFF"/>
+</g>
+<g id="eyeR">
+<ellipse cx="309" cy="196" rx="11" ry="14" fill="#2B2A33"/>
+<circle cx="313" cy="191" r="3.5" fill="#FFFFFF"/>
+</g>
+<!-- muzzle -->
+<g id="muzzle">
+<ellipse cx="277" cy="248" rx="44" ry="30" fill="#F7E8D3"/>
+<polygon points="264,236 290,236 277,250" fill="#2B2A33" stroke="#2B2A33" stroke-width="4" stroke-linejoin="round"/>
+<path d="M277 250 C277 258 270 261 263 259 M277 250 C277 258 284 261 291 259" fill="none" stroke="#2B2A33" stroke-width="4" stroke-linecap="round"/>
+</g>
+<!-- tilted scarf -->
+<g id="scarf">
+<polygon points="182,282 376,312 369,352 175,322" fill="#2BB8A6"/>
+<polygon points="360,362 392,358 384,432 350,430" fill="#2BB8A6"/>
+<polygon points="356,398 388,394 386,408 354,412" fill="#F7E8D3"/>
+<ellipse cx="356" cy="340" rx="22" ry="26" fill="#1E8A7D"/>
+</g>
 </svg>

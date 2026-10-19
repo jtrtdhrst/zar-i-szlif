@@ -61,6 +61,37 @@ test("positive: runAll covers every character in root", () => {
   }
 });
 
+test("set outputs: root manifest index and pair contact sheet are generated and reproducible", () => {
+  const a = isolatedTmp();
+  const b = isolatedTmp();
+  try {
+    cpSync(canonical, a, { recursive: true });
+    cpSync(canonical, b, { recursive: true });
+    assert.equal(runAll(a).ok, true);
+    assert.equal(runAll(b).ok, true);
+    const ma = JSON.parse(readFileSync(join(a, "manifest.json"), "utf8"));
+    const mb = JSON.parse(readFileSync(join(b, "manifest.json"), "utf8"));
+    assert.deepEqual(ma, mb, "set manifest is not reproducible");
+    assert.deepEqual(ma.characters.map((c) => c.id), ["iskra", "szlif"]);
+    for (const c of ma.characters) {
+      const perCharacter = JSON.parse(readFileSync(join(a, c.manifest.file), "utf8"));
+      assert.equal(perCharacter.character, c.id);
+      for (const e of c.exports) {
+        assert.equal(sha256(readFileSync(join(a, e.file))), e.sha256, `hash drift: ${e.file}`);
+      }
+    }
+    assert.ok(existsSync(join(a, "contact-sheet.png")), "missing pair contact sheet");
+    assert.equal(
+      sha256(readFileSync(join(a, "contact-sheet.png"))),
+      sha256(readFileSync(join(b, "contact-sheet.png"))),
+      "pair contact sheet is not reproducible",
+    );
+  } finally {
+    rmSync(a, { recursive: true, force: true });
+    rmSync(b, { recursive: true, force: true });
+  }
+});
+
 test("negative: corrupted SVG fails validation", () => {
   for (const bad of [
     "<svg><g><unclosed>",
