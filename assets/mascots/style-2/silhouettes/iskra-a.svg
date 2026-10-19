@@ -1,6 +1,6 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
 <title>Iskra silhouette A — upright herald, tail curl left</title>
-<desc>Pure-black silhouette sketch of the selected Iskra-A pose: upright body, large left ear rooted in the head, tail curling to viewer-left, feet on the ground.</desc>
+<desc>Near-black (#111111) silhouette sketch of the selected Iskra-A pose: upright body, large left ear rooted in the head, tail curling to viewer-left, feet on the ground.</desc>
 <g fill="#111111">
 <path d="M340 385 C250 420 175 375 182 290 C184 258 198 236 218 226 L252 262 C240 280 236 320 258 348 C282 372 312 376 332 366 Z"/>
 <ellipse cx="280" cy="355" rx="82" ry="105"/>

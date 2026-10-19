@@ -1,6 +1,6 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
 <title>Iskra silhouette B — low pounce, tail sweeping right</title>
-<desc>Pure-black silhouette sketch: crouched pounce body, ears forward, tail sweeping to viewer-right.</desc>
+<desc>Near-black (#111111) silhouette sketch: crouched pounce body, ears forward, tail sweeping to viewer-right.</desc>
 <g fill="#111111">
 <ellipse cx="270" cy="360" rx="130" ry="70"/>
 <path d="M380 350 C440 340 470 300 462 250 C458 228 446 214 432 210 L420 250 C424 280 410 310 380 322 Z"/>

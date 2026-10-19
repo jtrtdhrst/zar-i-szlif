@@ -48,22 +48,24 @@
   parts are ~60 % of the body, stray alpha islands are ~0.03 %).
 - Branch: `KOMAA-1010` delivered the masters; this branch (`KOMAA-1011`) is the
   generator branch that renders them, and the accepted `KOMAA-1010` art
-  (candidate `a9299fb`) is merged in here as the single source of truth.
+  (candidate `c411faa`, independently approved by UI QA) is merged in here as
+  the single source of truth. The art sources are byte-identical to that
+  candidate; every PNG in this tree is re-rendered from them by the command
+  above.
 
 ## Review state
 
 - Designer self-QA: PASS (`qa.json`); independent UI QA on the art: **PASS**
-  (KOMAA-1010, candidate `a9299fb`, 2026-10-19) — F1, F2, C1, C2, C3 and C4
-  independently closed.
+  (KOMAA-1010, candidate `c411faa`, 2026-10-19) — F1, F2, C1, C2, C3 and C4
+  independently closed, and F4 (the `iskra-c` head/body join) fixed and
+  re-verified at every exported size.
 - The pipeline item F3 (a renderer that could not run) is fixed on this
   branch: the committed command above renders every PNG, and CI fails the build
   if a committed asset differs from the pipeline output.
-- Open art finding routed to the Designer: the `Iskra silhouette C` sketch
-  leaves a ~2 unit gap between the head ellipse and the body, so the head
-  renders as a second connected component at 256 px and 512 px. The gap is
-  pre-existing (identical in `fc241a6` and `a9299fb`); the Designer's own
-  renderer bridged it by anti-aliasing at 256 px. The art is the Designer's
-  artifact and was not edited here. The Designer's in-flight correction (body
-  top raised to `236`) was re-verified against this pipeline in an isolated
-  copy: the whole set then passes the single-piece gate at every size.
+- The `Iskra silhouette C` head/body gap (F4) is **closed**: the Designer's
+  correction raised the body top to `236`, so the head ellipse (lowest point
+  `243.142`) overlaps the body by ~7 units instead of leaving a ~1.9 unit gap,
+  and the sketch renders as one connected component at 512/256/128/64/32. The
+  art is the Designer's artifact and was not edited here; the fix arrives
+  merged as `c411faa` and is rendered byte-reproducibly.
 - Polish strings untouched: "Iskra", "Szlif", "Żar i Szlif" preserved.

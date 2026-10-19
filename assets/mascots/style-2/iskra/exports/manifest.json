@@ -25,7 +25,8 @@
         "maxX": 392,
         "maxY": 463
       },
-      "connectedComponents": 1
+      "connectedComponents": 1,
+      "detachedParts": 0
     },
     {
       "size": 256,
@@ -40,7 +41,8 @@
         "maxX": 196,
         "maxY": 231
       },
-      "connectedComponents": 1
+      "connectedComponents": 1,
+      "detachedParts": 0
     },
     {
       "size": 128,
@@ -55,7 +57,8 @@
         "maxX": 98,
         "maxY": 115
       },
-      "connectedComponents": 2
+      "connectedComponents": 2,
+      "detachedParts": 0
     },
     {
       "size": 64,
@@ -70,7 +73,8 @@
         "maxX": 48,
         "maxY": 57
       },
-      "connectedComponents": 1
+      "connectedComponents": 1,
+      "detachedParts": 0
     },
     {
       "size": 32,
@@ -85,7 +89,8 @@
         "maxX": 24,
         "maxY": 28
       },
-      "connectedComponents": 1
+      "connectedComponents": 1,
+      "detachedParts": 0
     }
   ],
   "contactSheet": {
