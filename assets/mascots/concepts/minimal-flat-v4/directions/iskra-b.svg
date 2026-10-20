@@ -29,7 +29,7 @@
   <!-- ISKRA / B / PAW / hind foot -->
   <path id="iskra-b-paw-hind" fill="#B94F1D" d="M302,404L344,400L350,424L300,428Z"/>
   <!-- ISKRA / B / HEAD / faceted wedge with a planar snout -->
-  <path id="iskra-b-head" fill="#E2702D" d="M170,76C196,84 216,98 226,116L230,152C224,174 212,190 196,198L156,206C132,202 108,196 92,188L78,180L100,150C114,140 128,132 140,124L152,88Z"/>
+  <path id="iskra-b-head" fill="#E2702D" d="M170,76C196,84 216,98 226,116L230,152C224,174 214,192 204,206L156,210C132,202 108,196 92,188L78,180L100,150C114,140 128,132 140,124L152,88Z"/>
   <!-- ISKRA / B / FRINGE / hard diagonal slab across the brow -->
   <path id="iskra-b-fringe" fill="#B94F1D" d="M126,122L152,86L180,98L150,146L130,154Z"/>
   <!-- ISKRA / B / MUZZLE / angular cream jaw -->
@@ -43,7 +43,7 @@
   <!-- ISKRA / B / EYE / near eye, angular slit -->
   <path id="iskra-b-eye-near" fill="#2B2A33" d="M180,140L206,134L208,143L182,148Z"/>
   <!-- ISKRA / B / SCARF / hard-cornered banner, tilted -->
-  <path id="iskra-b-scarf" fill="#2BB8A6" d="M186,204L238,190L248,218L196,234L190,218Z"/>
+  <path id="iskra-b-scarf" fill="#2BB8A6" d="M186,204L238,190L248,218L196,246L190,230Z"/>
   <!-- ISKRA / B / SCARF / sharp flying flag -->
   <path id="iskra-b-scarf-end" fill="#2BB8A6" d="M240,192L272,170L266,200L246,216Z"/>
 </svg>

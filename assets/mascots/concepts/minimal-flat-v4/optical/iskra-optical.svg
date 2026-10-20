@@ -1,0 +1,56 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="72.33 -0.33 266.34 244" width="266.34" height="244" role="img" aria-labelledby="title desc">
+  <title id="title">Iskra — optical view (head and shoulders)</title>
+  <desc id="desc">Derived from masters/iskra-master.svg: the head, ears, ink fringe lock, cowlick, tilted turquoise scarf and the cream mitten, cropped tight so the asymmetric fringe and the scarf survive at 32 px.</desc>
+
+  <title id="title">Iskra — master fox vector (direction A refined)</title>
+  <desc id="desc">Iskra the fox proposes, Szlif the raven evaluates with a plan notebook. Composed from the master pair with deterministic transforms.</desc>
+
+  <title id="title">Iskra — design direction A, soft-round three-quarter sitter</title>
+  <desc id="desc">Iskra the fox: soft-round construction, projecting snout, small almond eyes, an ink lock of hair rooted above the crown and crossing the far eye with a cowlick tuft breaking the crown line, a tilted turquoise scarf passing under the chin with a bulky knot and an end over the shoulder, one raised foreleg with a cream mitten holding a turquoise plan card, broad plume tail with a cream tip. Flat vector, five colours.</desc>
+  <!-- TAIL / broad plume sweeping up-right from the haunch -->
+  />
+  <!-- TAIL / cream tip -->
+  />
+  <!-- EAR / far ear, pointed -->
+  <path id="iskra-ear-far" fill="#E2702D" d="M 140 106 C 136 96.33 141.33 70.67 146 56 C 150.67 41.33 161.33 18 168 18 C 174.67 18 181 42.67 186 56 C 191 69.33 200.67 88.33 198 98 C 195.33 107.67 179.67 112.67 170 114 C 160.33 115.33 144 115.67 140 106 Z"/>
+  <!-- EAR / far ear inner -->
+  <path id="iskra-ear-far-inner" fill="#B94F1D" d="M 152 100 C 150.33 93.33 153.33 74 156 64 C 158.67 54 164.33 40 168 40 C 171.67 40 175.33 54.67 178 64 C 180.67 73.33 186 89.33 184 96 C 182 102.67 171.33 103.33 166 104 C 160.67 104.67 153.67 106.67 152 100 Z"/>
+  <!-- EAR / near ear, pointed -->
+  <path id="iskra-ear-near" fill="#E2702D" d="M 250 104 C 247.67 93.67 254.33 67.67 262 52 C 269.67 36.33 286.67 9.67 296 10 C 305.33 10.33 315.33 40.33 318 54 C 320.67 67.67 319 82 312 92 C 305 102 286.33 112 276 114 C 265.67 116 252.33 114.33 250 104 Z"/>
+  <!-- EAR / near ear inner -->
+  <path id="iskra-ear-near-inner" fill="#B94F1D" d="M 266 102 C 265 94.67 271 73 276 62 C 281 51 291 35.67 296 36 C 301 36.33 304.67 54.67 306 64 C 307.33 73.33 308 85 304 92 C 300 99 288.33 104.33 282 106 C 275.67 107.67 267 109.33 266 102 Z"/>
+  <!-- BODY / sitting fox, chest forward, haunch at the base -->
+  />
+  <!-- FORELEG / raised foreleg rooted in the chest -->
+  />
+  <!-- PROPOSAL / turquoise plan card, crisp tilted sheet -->
+  />
+  <!-- PROPOSAL / plan card spine, gives the sheet thickness -->
+  />
+  <!-- PAW / cream mitten on the raised paw -->
+  />
+  <!-- HEAD / skull tapering into a projecting snout -->
+  <path id="iskra-head" fill="#E2702D" d="M 230 48 C 243.33 48.67 258.33 55.33 268 64 C 277.67 72.67 284 87.33 288 100 C 292 112.67 292.33 128 292 140 C 291.67 152 291 162.67 286 172 C 281 181.33 271.33 190 262 196 C 252.67 202 241 206 230 208 C 219 210 206.33 209.67 196 208 C 185.67 206.33 177.33 202 168 198 C 158.67 194 148.67 189 140 184 C 131.33 179 122.67 172.67 116 168 C 109.33 163.33 104 160.33 100 156 C 96 151.67 91.33 146 92 142 C 92.67 138 98 134.67 104 132 C 110 129.33 120 128.67 128 126 C 136 123.33 145.33 121.67 152 116 C 158.67 110.33 162 101.33 168 92 C 174 82.67 177.67 67.33 188 60 C 198.33 52.67 216.67 47.33 230 48 Z"/>
+  <!-- FRINGE / ink lock rooted above the crown, crossing the far eye, tapering below it -->
+  <path id="iskra-fringe-lock" fill="#2B2A33" d="M 212 44 C 213.95 45.05 222.65 64.25 224 68 C 225.35 71.75 229.55 90.1 230 94 C 230.45 97.9 230.3 116.55 230 120 C 229.7 123.45 226.9 137.15 226 140 C 225.1 142.85 219.2 157.4 218 158 C 216.8 158.6 210.3 150.25 210 148 C 209.7 145.75 213.4 131 214 128 C 214.6 125 218.15 111.3 218 108 C 217.85 104.7 213.5 88.05 212 84 C 210.5 79.95 198 57 198 54 C 198 51 210.05 42.95 212 44 Z"/>
+  <!-- FRINGE / cowlick tuft breaking the crown line -->
+  <path id="iskra-fringe-tuft" fill="#2B2A33" d="M 222 62 C 221.2 58.4 224.2 32.2 226 28 C 227.8 23.8 238.3 18.8 240 20 C 241.7 21.2 243.6 35.6 243 40 C 242.4 44.4 236.1 61.8 234 64 C 231.9 66.2 222.8 65.6 222 62 Z"/>
+  <!-- MUZZLE / rounded cream jaw under the snout tip -->
+  <path id="iskra-muzzle" fill="#F7E8D3" d="M 98 146 C 102.67 145.67 110.67 152.33 116 156 C 121.33 159.67 126 164 130 168 C 134 172 140 176 140 180 C 140 184 134.67 191 130 192 C 125.33 193 117.33 189 112 186 C 106.67 183 102 178.67 98 174 C 94 169.33 88 162.67 88 158 C 88 153.33 93.33 146.33 98 146 Z"/>
+  <!-- NOSE -->
+  <path id="iskra-nose" fill="#2B2A33" d="M 84 138 C 85.67 135.33 89.67 129 94 128 C 98.33 127 107.67 129.33 110 132 C 112.33 134.67 110.67 141.33 108 144 C 105.33 146.67 98 148 94 148 C 90 148 85.67 145.67 84 144 C 82.33 142.33 82.33 140.67 84 138 Z"/>
+  <!-- EYE / far eye, small almond -->
+  <path id="iskra-eye-far" fill="#2B2A33" d="M 216 134 C 216 131 219.67 126.5 224 125 C 228.33 123.5 237.67 123.5 242 125 C 246.33 126.5 250 131 250 134 C 250 137 246.33 141.5 242 143 C 237.67 144.5 228.33 144.5 224 143 C 219.67 141.5 216 137 216 134 Z"/>
+  <!-- EYE / near eye, small almond -->
+  <path id="iskra-eye-near" fill="#2B2A33" d="M 254 122 C 254 119 257.67 114.5 262 113 C 266.33 111.5 275.67 111.5 280 113 C 284.33 114.5 288 119 288 122 C 288 125 284.33 129.5 280 131 C 275.67 132.5 266.33 132.5 262 131 C 257.67 129.5 254 125 254 122 Z"/>
+  <!-- BROW / tilted wedge over the near eye -->
+  <path id="iskra-brow" fill="#B94F1D" d="M 252 104 C 255.67 101.33 272.67 97.33 278 98 C 283.33 98.67 287.67 105.33 284 108 C 280.33 110.67 261.33 114.67 256 114 C 250.67 113.33 248.33 106.67 252 104 Z"/>
+  <!-- SCARF / crescent band passing under the chin and round the neck -->
+  <path id="iskra-scarf" fill="#2BB8A6" d="M 182 204 C 186.67 201.67 204.33 211.33 216 212 C 227.67 212.67 240 212.67 252 208 C 264 203.33 279.67 189.67 288 184 C 296.33 178.33 298.33 171.33 302 174 C 305.67 176.67 312.33 196 310 200 C 307.67 204 297.67 193.33 288 198 C 278.33 202.67 264 222.33 252 228 C 240 233.67 226.67 232.33 216 232 C 205.33 231.67 193.67 230.67 188 226 C 182.33 221.33 177.33 206.33 182 204 Z"/>
+  <!-- SCARF / bulky knot where the band turns -->
+  <path id="iskra-scarf-knot" fill="#2BB8A6" d="M 284 168 C 290.33 163.33 304.67 159.33 312 162 C 319.33 164.67 327.33 176 328 184 C 328.67 192 322.67 205.33 316 210 C 309.33 214.67 295 215.33 288 212 C 281 208.67 274.67 197.33 274 190 C 273.33 182.67 277.67 172.67 284 168 Z"/>
+  <!-- SCARF / wide end falling over the shoulder -->
+  />
+
+
+</svg>
