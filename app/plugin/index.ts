@@ -29,7 +29,7 @@ const bundlePath = join(here, "../../web/dist/index.html");
 
 // Singleton backendu wiedzy (serwer jest bezstanowy per request MCP,
 // ale store w procesie musi przetrwać między requestami).
-// Secret flow: QDRANT_URL + QDRANT_API_KEY z env (Vercel env w prod);
+// Secret flow: QDRANT_URL + QDRANT_API_KEY z env (env w prod);
 // brak QDRANT_URL = in-memory (dev/test, bez sekretów).
 // Fail-closed B1: prawdziwy QDRANT_URL + leksykalne wektory FNV to ciche
 // zatrucie kolekcji bge-m3 — bez bindingu Workers AI wymagany jawny

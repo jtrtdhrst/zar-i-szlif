@@ -66,23 +66,22 @@ Root udostępnia jeden kontrakt npm dla panelu: `npm run lint`, `npm run typeche
 Cloudflare panelu w `app/cloudflare-worker/`.
 
 Kanoniczny release produkcyjny opisuje `docs/production-release.md`. Frontend
-`app/web/dist` jest publikowany przez integrację Vercel ↔ GitHub. Cloudflare Worker
-ma osobny workflow i jest wdrażany tylko przy zmianach w `app/cloudflare-worker/**`;
-brak Cloudflare credentials nie blokuje frontendowego release Vercel.
+`app/web/dist` jest hostowany self-hosted przez Coolify (`ops/coolify/Dockerfile`,
+deploy z `main` przez GitHub App). Cloudflare Worker ma osobny workflow i jest
+wdrażany tylko przy zmianach w `app/cloudflare-worker/**`; brak Cloudflare
+credentials nie blokuje release frontendu.
 
-## Vercel i v0
+## Frontend self-hosted (Coolify)
 
-Projekt Vercel musi wskazywać **root repozytorium**, nie katalog `app/`.
-Konfiguracja w `vercel.json` ustawia:
+Target frontendu to self-hosted Coolify, nie platforma SaaS:
 
-- install command: `npm ci`;
-- build command: `npm run build`;
-- output directory: `app/web/dist`;
-- framework: `Other` / brak frameworka.
+- build: `npm --prefix app run build` w `ops/coolify/Dockerfile` (Node 24) — kontekst
+  to **root repozytorium**;
+- publish directory: `app/web/dist` — runtime to nginx (`ops/coolify/nginx.conf`);
+- deploy: `main` + webhook push (źródło: GitHub App zainstalowana tylko na tym repo).
 
-Vercel publikuje statyczny interfejs i preview dla v0. Ścieżka `/panel` przekierowuje
-do kanonicznego Workera Cloudflare pod `panel.kompaszbiorek.pl`, który obsługuje
-OAuth, API i zapis do Google. Nie ustawiaj katalogu `app/` jako Root Directory.
+Ścieżka `/panel` przekierowuje do kanonicznego Workera Cloudflare pod
+`panel.kompaszbiorek.pl`, który obsługuje OAuth, API i zapis do Google.
 
 Obecny `app/npm run test:all` wykonuje build, typecheck i istniejący targeted test logiki. Repo **nie zawiera obecnie tracked `app/e2e/`, `playwright.config.ts` ani `lighthouserc.json`**; browser acceptance jest osobną warstwą QA i nie należy udawać historycznego Playwright/Lighthouse gate jako bieżącego stanu.
 

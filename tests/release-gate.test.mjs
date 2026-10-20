@@ -66,25 +66,25 @@ const CANDIDATE_8526D68 = [
 
 // --- requirement 2/9: target classification -------------------------------
 
-test("Cloudflare-only changes run the Worker gate and never the Vercel gate", () => {
+test("Cloudflare-only changes run the Worker gate and never the frontend gate", () => {
   const plan = classifyTargets(["app/cloudflare-worker/src/mcp.ts"]);
 
   assert.deepEqual(plan.scripts, ["validate:worker"]);
   assert.equal(plan.unclassified.length, 0);
 
-  // No VERCEL_* requirement on the Cloudflare-only path.
-  assert.doesNotMatch(packageJson.scripts["validate:worker"], /vercel/i);
-  assert.doesNotMatch(workerRelease, /VERCEL_/);
+  // No frontend-build requirement on the Cloudflare-only path.
+  assert.doesNotMatch(packageJson.scripts["validate:worker"], /frontend/i);
+  assert.doesNotMatch(workerRelease, /validate:frontend/);
 });
 
-test("Vercel-only changes run the Vercel gate and never the Worker gate", () => {
-  const plan = classifyTargets(["app/web/src/styles.css", "vercel.json"]);
+test("frontend-only changes run the frontend gate and never the Worker gate", () => {
+  const plan = classifyTargets(["app/web/src/styles.css"]);
 
-  assert.deepEqual(plan.scripts, ["validate:vercel"]);
+  assert.deepEqual(plan.scripts, ["validate:frontend"]);
   assert.equal(plan.unclassified.length, 0);
 
-  // No CLOUDFLARE_* requirement on the Vercel-only path.
-  assert.doesNotMatch(packageJson.scripts["validate:vercel"], /cloudflare/i);
+  // No CLOUDFLARE_* requirement on the frontend-only path.
+  assert.doesNotMatch(packageJson.scripts["validate:frontend"], /cloudflare/i);
   assert.doesNotMatch(ci, /CLOUDFLARE_/);
 });
 
@@ -94,13 +94,13 @@ test("mixed changes touching both release targets run both gates", () => {
     "app/web/src/static-app-v2.js",
   ]);
 
-  assert.deepEqual(plan.scripts, ["validate:vercel", "validate:worker"]);
+  assert.deepEqual(plan.scripts, ["validate:frontend", "validate:worker"]);
   assert.equal(plan.unclassified.length, 0);
 });
 
 test("app/plugin is genuinely shared and runs both gates", () => {
   assert.deepEqual(classifyTargets(["app/plugin/auth.ts"]).scripts, [
-    "validate:vercel",
+    "validate:frontend",
     "validate:worker",
   ]);
 });
@@ -108,7 +108,7 @@ test("app/plugin is genuinely shared and runs both gates", () => {
 test("self-hosted Coolify deployment files run the frontend gate, never the Worker gate", () => {
   const plan = classifyTargets(["ops/coolify/Dockerfile", "ops/coolify/nginx.conf"]);
 
-  assert.deepEqual(plan.scripts, ["validate:vercel"]);
+  assert.deepEqual(plan.scripts, ["validate:frontend"]);
   assert.equal(plan.unclassified.length, 0);
 });
 
@@ -167,7 +167,7 @@ test("ambiguous classification fails closed instead of skipping validation", () 
     assert.equal(classified.status, 0);
     assert.match(classified.out, /targets: cloudflare/);
     assert.match(classified.out, /PLAN npm run validate:worker/);
-    assert.doesNotMatch(classified.out, /validate:vercel/);
+    assert.doesNotMatch(classified.out, /validate:frontend/);
 
     // A missing base ref is itself a fail-closed condition, not a silent pass.
     const noBase = run(git("rev-parse", "HEAD").stdout.trim(), "refs/heads/does-not-exist");
@@ -217,7 +217,7 @@ test("regression fixture: candidate 8526d68 keeps the Worker gate", () => {
   const plan = classifyTargets(CANDIDATE_8526D68);
 
   // worker validation passed at this exact SHA, so the Worker gate must be
-  // present; app/plugin/auth.ts makes it mixed, not Vercel-only.
+  // present; app/plugin/auth.ts makes it mixed, not frontend-only.
   assert.ok(plan.scripts.includes("validate:worker"), "8526d68 must keep the Worker gate");
   assert.deepEqual(plan.unclassified, []);
   assert.deepEqual(classifyTargets(CANDIDATE_8526D68.filter((p) => p.startsWith("app/cloudflare-worker/"))).scripts, [
@@ -227,78 +227,42 @@ test("regression fixture: candidate 8526d68 keeps the Worker gate", () => {
 
 // --- requirement 2: the hook dispatches per target ------------------------
 
-test("pre-push classifies release targets instead of aliasing validate:vercel", () => {
+test("pre-push classifies release targets instead of aliasing validate:frontend", () => {
   const prePush = readFileSync(`${root}/.githooks/pre-push`, "utf8");
 
   assert.match(prePush, /refs\/heads\/main/);
   assert.doesNotMatch(prePush, /validate:release\s*$/m);
 
-  // validate:release is now the target-aware dispatcher, not a Vercel alias.
+  // validate:release is now the target-aware dispatcher, not a frontend alias.
   assert.equal(packageJson.scripts["validate:release"], "node scripts/release-targets.mjs");
-  assert.doesNotMatch(packageJson.scripts["validate:release"], /validate:vercel/);
+  assert.doesNotMatch(packageJson.scripts["validate:release"], /validate:frontend/);
 });
 
-// --- KOMAA-499: Vercel candidate validation needs no platform link --------
+// --- frontend gate: candidate validation, no platform link -----------------
 
-test("validate:vercel default path needs no Vercel link/API; --platform keeps full validation", () => {
-  const gate = readFileSync(`${root}/scripts/validate-vercel.mjs`, "utf8");
+test("the frontend gate validates the static artifact without any platform link", () => {
+  const gate = readFileSync(`${root}/scripts/validate-frontend.mjs`, "utf8");
 
-  // The --platform variant exists and is discoverable via npm.
-  assert.match(gate, /--platform/);
-  assert.match(packageJson.scripts["validate:vercel:platform"] ?? "", /--platform/);
-  // The default npm path takes no platform flag.
-  assert.doesNotMatch(packageJson.scripts["validate:vercel"], /--platform/);
-
-  // Ordering contract: the --platform flag parse is the first platform-only
-  // concept in the file, so everything before it is the link-free default
-  // path. None of the platform-only strings may appear there.
-  const head = gate.slice(0, gate.indexOf("--platform"));
-  for (const banned of ["vercel@", "VERCEL_", "vercel pull", "vercel build", ".vercel"]) {
-    assert.ok(!head.includes(banned), `default path must not reference ${banned}`);
+  // The gate is wired into npm and needs no platform project, token or CLI.
+  assert.match(packageJson.scripts["validate:frontend"] ?? "", /validate-frontend\.mjs/);
+  for (const banned of ["vercel", "VERCEL_", ".vercel"]) {
+    assert.ok(!gate.toLowerCase().includes(banned.toLowerCase()), `frontend gate must not reference ${banned}`);
   }
 
-  // The full platform validation still exists behind --platform.
-  assert.match(gate, /VERCEL_ORG_ID/);
-  assert.match(gate, /VERCEL_PROJECT_ID/);
-  assert.match(gate, /vercel pull/);
-  assert.match(gate, /vercel build/);
-
-  // The default path builds the candidate and statically validates the
-  // deploy contract instead of calling the Vercel API.
-  assert.match(gate, /npm.*run.*build/);
+  // It builds the candidate and asserts the artifacts the target ships.
+  assert.match(gate, /--prefix/);
+  assert.match(gate, /run/);
+  assert.match(gate, /build/);
   assert.match(gate, /app\/web\/dist\/index\.html/);
-  assert.match(gate, /outputDirectory/);
+  assert.match(gate, /kompas-logo\.png/);
 
-  // Cloudflare-only changes still never touch the Vercel gate.
+  // Cloudflare-only changes still never touch the frontend gate.
   assert.deepEqual(classifyTargets(["app/cloudflare-worker/src/mcp.ts"]).scripts, ["validate:worker"]);
   // Mixed changes still run both gates.
   assert.deepEqual(
     classifyTargets(["app/cloudflare-worker/src/oauth.ts", "app/web/src/static-app-v2.js"]).scripts,
-    ["validate:vercel", "validate:worker"],
+    ["validate:frontend", "validate:worker"],
   );
-});
-
-// The decoupling is only real while the platform check still has an explicit
-// main/deploy home. If that workflow is dropped, the full Vercel validation
-// would exist only as a manual local command and the coupling would return.
-test("Vercel platform validation is wired into the main path, not the branch push path", () => {
-  const platformWorkflowPath = `${root}/.github/workflows/vercel-frontend-platform.yml`;
-  assert.ok(existsSync(platformWorkflowPath), "missing Vercel main-path platform check");
-
-  const platformWorkflow = readFileSync(platformWorkflowPath, "utf8");
-  assert.match(platformWorkflow, /branches: \[main\]/);
-  assert.match(platformWorkflow, /refs\/heads\/main/);
-  assert.match(platformWorkflow, /assert-release-provenance\.mjs/);
-  assert.match(platformWorkflow, /validate:vercel:platform/);
-  for (const secret of ["VERCEL_ORG_ID", "VERCEL_PROJECT_ID", "VERCEL_TOKEN"]) {
-    assert.match(platformWorkflow, new RegExp(`secrets\\.${secret}`));
-  }
-
-  // CI and the pre-push gate stay free of platform auth; only the main-path
-  // workflow may carry VERCEL_*.
-  assert.doesNotMatch(ci, /VERCEL_/);
-  const prePush = readFileSync(`${root}/.githooks/pre-push`, "utf8");
-  assert.doesNotMatch(prePush, /VERCEL_|--platform/);
 });
 
 // --- requirement 5/6/8: production provenance ------------------------------

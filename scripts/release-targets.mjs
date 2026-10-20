@@ -1,7 +1,7 @@
 // Target-aware release gate (KOMAA-457).
 //
-// Root cause: `validate:release` aliased `validate:vercel`, so a Cloudflare-only
-// branch had to pass the Vercel gate or push with --no-verify. This module
+// Root cause: `validate:release` aliased one provider gate, so a Cloudflare-only
+// branch had to pass the frontend gate or push with --no-verify. This module
 // classifies changed paths against the release targets and runs only the
 // canonical gate(s) those targets own. Unclassified paths fail closed.
 
@@ -13,23 +13,26 @@ const DEFAULT_BASE = "origin/main";
 // Ordered: first match wins. Order encodes specificity (exact files before
 // broad prefixes), so a path never lands in the wrong bucket.
 const RELEASE_RULES = [
-  { re: /^vercel\.json$/, targets: ["vercel"] },
-  { re: /^app\/web\//, targets: ["vercel"] },
+  // The Vercel config is gone, but the path stays classified: a deletion (or a
+  // future re-addition) of it must never land unclassified — the gate fails
+  // closed, and an unclassified path would block the push.
+  { re: /^vercel\.json$/, targets: ["frontend"] },
+  { re: /^app\/web\//, targets: ["frontend"] },
   { re: /^app\/cloudflare-worker\//, targets: ["cloudflare"] },
-  // app/plugin is compiled into the Vercel build (tsc -p plugin/tsconfig.json)
+  // app/plugin is compiled into the frontend build (tsc -p plugin/tsconfig.json)
   // and bundled into the Worker (src/mcp.ts -> ../../plugin/server.js), so it
   // is genuinely shared and both gates apply.
-  { re: /^app\/plugin\//, targets: ["vercel", "cloudflare"] },
-  { re: /^app\/package(-lock)?\.json$/, targets: ["vercel", "cloudflare"] },
-  { re: /^package(-lock)?\.json$/, targets: ["vercel", "cloudflare"] },
+  { re: /^app\/plugin\//, targets: ["frontend", "cloudflare"] },
+  { re: /^app\/package(-lock)?\.json$/, targets: ["frontend", "cloudflare"] },
+  { re: /^package(-lock)?\.json$/, targets: ["frontend", "cloudflare"] },
   // Release infrastructure gates both delivery paths.
-  { re: /^\.github\/workflows\//, targets: ["vercel", "cloudflare"] },
-  { re: /^\.githooks\//, targets: ["vercel", "cloudflare"] },
-  { re: /^(scripts|tests)\//, targets: ["vercel", "cloudflare"] },
+  { re: /^\.github\/workflows\//, targets: ["frontend", "cloudflare"] },
+  { re: /^\.githooks\//, targets: ["frontend", "cloudflare"] },
+  { re: /^(scripts|tests)\//, targets: ["frontend", "cloudflare"] },
   // Self-hosted deployment of the same static frontend artifact. `ops/` is
   // otherwise non-release, but these files are release infrastructure: the
   // frontend gate owns them, they must not be silently skipped.
-  { re: /^ops\/coolify\//, targets: ["vercel"] },
+  { re: /^ops\/coolify\//, targets: ["frontend"] },
 ];
 
 // Docs/non-release-only: minimum canonical repo validation, never provider auth.
@@ -69,7 +72,7 @@ export function classifyTargets(paths) {
   }
 
   const scripts = [];
-  if (targets.has("vercel")) scripts.push("validate:vercel");
+  if (targets.has("frontend")) scripts.push("validate:frontend");
   if (targets.has("cloudflare")) scripts.push("validate:worker");
   if (scripts.length === 0) {
     // Either docs-only or an empty diff. Minimum canonical repo validation,

@@ -1,7 +1,7 @@
 # Self-hosted deployment of the static frontend (Coolify).
 #
-# Stage 1 builds exactly what the Vercel target builds (`npm --prefix app run
-# build` -> `app/web/dist`), stage 2 serves that artifact with nginx. The
+# Stage 1 builds the static frontend artifact (`npm --prefix app run build` ->
+# `app/web/dist`), stage 2 serves that artifact with nginx. The
 # runtime container is a plain static site: no API, OAuth or MCP runtime lives
 # here — those stay on the Cloudflare Worker.
 #

@@ -41,7 +41,7 @@ done
 
 if [ -n "$commits" ]; then
   # Identity gate runs before the release gate: synthetic author/committer
-  # identities never reach push/Vercel. CI re-checks the same rule server-side,
+  # identities never reach push/production. CI re-checks the same rule server-side,
   # so --no-verify is never the normal path.
   # shellcheck disable=SC2086
   node scripts/assert-git-identity.mjs $commits || exit 1
