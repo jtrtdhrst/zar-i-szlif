@@ -1,0 +1,971 @@
+<!doctype html>
+<html lang="pl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Dom obozu — Żar i Szlif</title>
+<meta name="description" content="Dom obozu Żar i Szlif: kartka przygotowań najbliższej zbiórki, obozowisko drużyny, profil zastępu i salda Iskier.">
+<style>
+  .zl-app {
+    display: flex;
+    flex-direction: column;
+    align-items: stretch;
+    width: 100%;
+    min-height: 100vh;
+    background: #f5f0df;
+    color: #20301e;
+    font-family: 'Noto Sans';
+    font-size: 16px;
+    line-height: 24px;
+  }
+  .zl-app a {
+    color: #be302a;
+  }
+  .zl-skip {
+    position: absolute;
+    left: -9999px;
+    top: 0;
+    padding: 12px 20px;
+    background: #162313;
+    color: #ffffff;
+    font-size: 14px;
+    font-weight: 700;
+  }
+  .zl-skip:focus {
+    left: 8px;
+    top: 8px;
+    z-index: 30;
+  }
+  .zl-shell {
+    width: 100%;
+    max-width: 1200px;
+    margin: 0 auto;
+    padding: 0 32px;
+  }
+  .zl-topbar {
+    display: flex;
+    flex-direction: row;
+    align-items: center;
+    justify-content: space-between;
+    gap: 24px;
+    padding: 18px 0;
+    border-bottom: 1px solid rgba(32, 48, 30, 0.18);
+  }
+  .zl-brand {
+    display: flex;
+    flex-direction: row;
+    align-items: center;
+    gap: 10px;
+    color: #162313;
+    font-family: 'Noto Sans Display';
+    font-size: 17px;
+    line-height: 22px;
+    font-weight: 900;
+    letter-spacing: 0.052em;
+    text-transform: uppercase;
+    text-decoration: none;
+  }
+  .zl-places {
+    display: flex;
+    flex-direction: row;
+    align-items: center;
+    gap: 20px;
+    flex-wrap: wrap;
+  }
+  .zl-places__link {
+    min-height: 44px;
+    padding: 12px 2px;
+    color: #20301e;
+    font-size: 15px;
+    line-height: 20px;
+    font-weight: 700;
+    text-decoration: none;
+  }
+  .zl-places__link:focus-visible,
+  .zl-user__link:focus-visible,
+  .zl-link:focus-visible,
+  .zl-button:focus-visible {
+    outline: 3px solid rgba(214, 173, 47, 0.7);
+    outline-offset: 3px;
+  }
+  .zl-user {
+    display: flex;
+    flex-direction: row;
+    align-items: center;
+    gap: 10px;
+  }
+  .zl-user__link {
+    display: inline-flex;
+    flex-direction: row;
+    align-items: center;
+    gap: 8px;
+    min-height: 44px;
+    padding: 8px 14px;
+    border: 1px solid rgba(32, 48, 30, 0.24);
+    border-radius: 999px;
+    color: #162313;
+    font-size: 14px;
+    line-height: 20px;
+    font-weight: 700;
+    text-decoration: none;
+  }
+  .zl-eyebrow {
+    display: flex;
+    flex-direction: row;
+    align-items: center;
+    gap: 12px;
+    margin: 0;
+    color: #be302a;
+    font-size: 12px;
+    line-height: 16px;
+    font-weight: 900;
+    letter-spacing: 0.105em;
+    text-transform: uppercase;
+  }
+  .zl-eyebrow::before {
+    content: "";
+    display: block;
+    width: 32px;
+    height: 2px;
+    background: #be302a;
+  }
+  .zl-eyebrow--inverse {
+    color: #e4c557;
+  }
+  .zl-eyebrow--inverse::before {
+    background: #e4c557;
+  }
+  .zl-heading {
+    margin: 12px 0 0;
+    color: #162313;
+    font-family: 'Noto Sans Display';
+    font-size: 32px;
+    line-height: 38px;
+    font-weight: 900;
+    letter-spacing: -0.03em;
+  }
+  .zl-heading--inverse {
+    color: #ffffff;
+  }
+  .zl-lead {
+    max-width: 640px;
+    margin: 14px 0 0;
+    color: #485347;
+    font-size: 17px;
+    line-height: 26px;
+  }
+  .zl-lead--inverse {
+    color: rgba(255, 255, 255, 0.84);
+  }
+  .zl-section {
+    display: flex;
+    flex-direction: column;
+    align-items: stretch;
+    padding: 48px 0;
+  }
+  .zl-section--tinted {
+    background: #ece5d1;
+  }
+  .zl-section--dark {
+    background: #162313;
+  }
+  .zl-section__intro {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    max-width: 720px;
+  }
+  .zl-button {
+    display: inline-flex;
+    flex-direction: row;
+    align-items: center;
+    justify-content: center;
+    gap: 10px;
+    min-height: 48px;
+    padding: 12px 24px;
+    border: 1px solid #93221e;
+    border-radius: 999px;
+    background: #be302a;
+    color: #ffffff;
+    font-size: 14px;
+    line-height: 20px;
+    font-weight: 800;
+    letter-spacing: 0.02em;
+    text-transform: uppercase;
+    text-decoration: none;
+  }
+  .zl-button--quiet {
+    border-color: rgba(32, 48, 30, 0.32);
+    background: transparent;
+    color: #162313;
+  }
+  .zl-button--on-dark {
+    border-color: rgba(228, 197, 87, 0.66);
+    background: transparent;
+    color: #e4c557;
+  }
+  .zl-actions {
+    display: flex;
+    flex-direction: row;
+    align-items: center;
+    gap: 14px;
+    margin-top: 24px;
+    flex-wrap: wrap;
+  }
+  .zl-link {
+    min-height: 44px;
+    padding: 12px 2px;
+    color: #be302a;
+    font-size: 15px;
+    line-height: 20px;
+    font-weight: 700;
+    text-decoration: underline;
+  }
+  .zl-sheet {
+    display: flex;
+    flex-direction: column;
+    align-items: stretch;
+    margin-top: 24px;
+    border: 1px solid rgba(32, 48, 30, 0.22);
+    border-top: 3px solid #d6ad2f;
+    background: #ffffff;
+  }
+  .zl-sheet__head {
+    display: flex;
+    flex-direction: row;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 20px;
+    padding: 24px 28px;
+    border-bottom: 1px solid rgba(32, 48, 30, 0.14);
+  }
+  .zl-sheet__title {
+    margin: 8px 0 0;
+    color: #162313;
+    font-family: 'Noto Sans Display';
+    font-size: 24px;
+    line-height: 30px;
+    font-weight: 900;
+  }
+  .zl-sheet__toggle {
+    min-height: 44px;
+    padding: 10px 18px;
+    border: 1px solid rgba(32, 48, 30, 0.32);
+    border-radius: 999px;
+    background: #ffffff;
+    color: #162313;
+    font-size: 14px;
+    line-height: 20px;
+    font-weight: 800;
+    text-transform: uppercase;
+    text-decoration: none;
+  }
+  .zl-sheet__body {
+    display: flex;
+    flex-direction: column;
+    align-items: stretch;
+    gap: 28px;
+    padding: 28px;
+  }
+  .zl-facts {
+    display: flex;
+    flex-direction: row;
+    align-items: stretch;
+    gap: 20px;
+    flex-wrap: wrap;
+  }
+  .zl-fact {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    flex: 1 1 220px;
+    min-width: 200px;
+    padding: 16px 18px;
+    background: #f5f0df;
+  }
+  .zl-fact__label {
+    margin: 0;
+    color: #485347;
+    font-size: 12px;
+    line-height: 16px;
+    font-weight: 900;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+  }
+  .zl-fact__value {
+    margin: 6px 0 0;
+    color: #162313;
+    font-family: 'Noto Sans Display';
+    font-size: 20px;
+    line-height: 26px;
+    font-weight: 900;
+  }
+  .zl-block {
+    display: flex;
+    flex-direction: column;
+    align-items: stretch;
+  }
+  .zl-block__head {
+    display: flex;
+    flex-direction: row;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: 16px;
+    flex-wrap: wrap;
+  }
+  .zl-block__title {
+    margin: 0;
+    color: #162313;
+    font-family: 'Noto Sans Display';
+    font-size: 20px;
+    line-height: 26px;
+    font-weight: 900;
+  }
+  .zl-block__count {
+    margin: 0;
+    color: #be302a;
+    font-size: 12px;
+    line-height: 16px;
+    font-weight: 900;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+  }
+  .zl-list {
+    display: flex;
+    flex-direction: column;
+    align-items: stretch;
+    gap: 10px;
+    margin: 14px 0 0;
+    padding: 0;
+    list-style: none;
+  }
+  .zl-item {
+    display: flex;
+    flex-direction: row;
+    align-items: center;
+    gap: 12px;
+    padding: 12px 14px;
+    border: 1px solid rgba(32, 48, 30, 0.16);
+    background: #ffffff;
+  }
+  .zl-item--done {
+    background: #f5f0df;
+  }
+  .zl-item__check {
+    width: 20px;
+    height: 20px;
+    accent-color: #162313;
+  }
+  .zl-item__label {
+    flex: 1 1 auto;
+    color: #20301e;
+    font-size: 15px;
+    line-height: 22px;
+  }
+  .zl-item--done .zl-item__label {
+    color: #485347;
+    text-decoration: line-through;
+  }
+  .zl-item__state {
+    color: #485347;
+    font-size: 12px;
+    line-height: 16px;
+    font-weight: 900;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+  }
+  .zl-item__date {
+    color: #485347;
+    font-size: 13px;
+    line-height: 18px;
+    font-weight: 700;
+    white-space: nowrap;
+  }
+  .zl-item__link {
+    min-height: 44px;
+    padding: 12px 2px;
+    font-size: 14px;
+    line-height: 20px;
+    font-weight: 700;
+  }
+  .zl-cards {
+    display: flex;
+    flex-direction: row;
+    align-items: stretch;
+    gap: 20px;
+    margin-top: 28px;
+    flex-wrap: wrap;
+  }
+  .zl-card {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    flex: 1 1 300px;
+    min-width: 260px;
+    padding: 24px;
+    border: 1px solid rgba(32, 48, 30, 0.18);
+    border-top: 3px solid #d6ad2f;
+    background: #ffffff;
+  }
+  .zl-card--dark {
+    border-color: rgba(228, 197, 87, 0.4);
+    border-top-color: #e4c557;
+    background: #1d2d19;
+  }
+  .zl-card__title {
+    margin: 0;
+    color: #162313;
+    font-family: 'Noto Sans Display';
+    font-size: 21px;
+    line-height: 27px;
+    font-weight: 900;
+  }
+  .zl-card--dark .zl-card__title {
+    color: #ffffff;
+  }
+  .zl-card__text {
+    margin: 10px 0 0;
+    color: #485347;
+    font-size: 15px;
+    line-height: 23px;
+  }
+  .zl-card--dark .zl-card__text {
+    color: rgba(255, 255, 255, 0.84);
+  }
+  .zl-card__meta {
+    margin: 16px 0 0;
+    color: #be302a;
+    font-size: 12px;
+    line-height: 16px;
+    font-weight: 900;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+  }
+  .zl-card--dark .zl-card__meta {
+    color: #e4c557;
+  }
+  .zl-profile {
+    display: flex;
+    flex-direction: row;
+    align-items: stretch;
+    gap: 28px;
+    margin-top: 24px;
+    flex-wrap: wrap;
+  }
+  .zl-profile__facts {
+    display: flex;
+    flex-direction: column;
+    align-items: stretch;
+    flex: 1 1 320px;
+    min-width: 280px;
+    margin: 0;
+    padding: 24px;
+    border: 1px solid rgba(32, 48, 30, 0.18);
+    background: #ffffff;
+  }
+  .zl-profile__row {
+    display: flex;
+    flex-direction: row;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: 16px;
+    padding: 10px 0;
+    border-bottom: 1px solid rgba(32, 48, 30, 0.12);
+  }
+  .zl-profile__row:last-child {
+    border-bottom: none;
+  }
+  .zl-profile__term {
+    color: #485347;
+    font-size: 14px;
+    line-height: 20px;
+  }
+  .zl-profile__value {
+    color: #162313;
+    font-size: 15px;
+    line-height: 22px;
+    font-weight: 700;
+    text-align: right;
+  }
+  .zl-profile__empty {
+    color: #485347;
+    font-size: 14px;
+    line-height: 21px;
+    font-style: italic;
+  }
+  .zl-wallets {
+    display: flex;
+    flex-direction: row;
+    align-items: stretch;
+    gap: 20px;
+    margin-top: 28px;
+    flex-wrap: wrap;
+  }
+  .zl-wallet {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    flex: 1 1 280px;
+    min-width: 250px;
+    padding: 24px;
+    border: 1px solid rgba(228, 197, 87, 0.4);
+    background: #1d2d19;
+  }
+  .zl-wallet__label {
+    margin: 0;
+    color: #e4c557;
+    font-size: 12px;
+    line-height: 16px;
+    font-weight: 900;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+  }
+  .zl-wallet__value {
+    margin: 8px 0 0;
+    color: #ffffff;
+    font-family: 'Noto Sans Display';
+    font-size: 30px;
+    line-height: 36px;
+    font-weight: 900;
+  }
+  .zl-wallet__text {
+    margin: 10px 0 0;
+    color: rgba(255, 255, 255, 0.82);
+    font-size: 14px;
+    line-height: 21px;
+  }
+  .zl-note {
+    max-width: 680px;
+    margin: 20px 0 0;
+    color: rgba(255, 255, 255, 0.72);
+    font-size: 13px;
+    line-height: 20px;
+  }
+  .zl-companions {
+    display: flex;
+    flex-direction: row;
+    align-items: center;
+    gap: 24px;
+    margin-top: 28px;
+    flex-wrap: wrap;
+  }
+  .zl-companion {
+    display: flex;
+    flex-direction: row;
+    align-items: center;
+    gap: 14px;
+    flex: 1 1 320px;
+    min-width: 280px;
+  }
+  .zl-companion__art {
+    display: flex;
+    flex-direction: row;
+    align-items: center;
+    justify-content: center;
+    width: 96px;
+    height: 96px;
+    padding: 8px;
+    border: 1px dashed rgba(228, 197, 87, 0.5);
+  }
+  .zl-companion__svg {
+    display: block;
+    width: 100%;
+    max-width: 80px;
+    height: auto;
+  }
+  .zl-companion__name {
+    margin: 0;
+    color: #ffffff;
+    font-family: 'Noto Sans Display';
+    font-size: 19px;
+    line-height: 25px;
+    font-weight: 900;
+  }
+  .zl-companion__text {
+    margin: 6px 0 0;
+    color: rgba(255, 255, 255, 0.8);
+    font-size: 14px;
+    line-height: 21px;
+  }
+  .zl-footer {
+    display: flex;
+    flex-direction: row;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 32px;
+    padding: 32px 0 44px;
+    border-top: 1px solid rgba(32, 48, 30, 0.18);
+  }
+  .zl-footer__column {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    max-width: 420px;
+  }
+  .zl-footer__links {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 8px;
+  }
+  .zl-footer__link {
+    min-height: 44px;
+    padding: 10px 2px;
+    color: #20301e;
+    font-size: 14px;
+    line-height: 20px;
+    font-weight: 700;
+    text-decoration: none;
+  }
+  .zl-footer__note {
+    margin: 12px 0 0;
+    color: #485347;
+    font-size: 13px;
+    line-height: 20px;
+  }
+  .zl-footer__legal {
+    margin: 0;
+    color: #485347;
+    font-size: 13px;
+    line-height: 20px;
+  }
+  @media (max-width: 1024px) {
+    .zl-topbar {
+      flex-direction: column;
+      align-items: flex-start;
+      gap: 10px;
+    }
+    .zl-heading {
+      font-size: 28px;
+      line-height: 34px;
+    }
+    .zl-sheet__head {
+      flex-direction: column;
+      align-items: flex-start;
+      gap: 12px;
+    }
+  }
+  @media (max-width: 640px) {
+    .zl-shell {
+      padding: 0 20px;
+    }
+    .zl-places {
+      gap: 4px 16px;
+    }
+    .zl-sheet__body {
+      padding: 20px;
+    }
+    .zl-item {
+      flex-direction: column;
+      align-items: flex-start;
+      gap: 8px;
+    }
+    .zl-item__date {
+      white-space: normal;
+    }
+    .zl-actions {
+      flex-direction: column;
+      align-items: stretch;
+    }
+    .zl-button {
+      text-align: center;
+    }
+    .zl-section {
+      padding: 36px 0;
+    }
+    .zl-footer {
+      flex-direction: column;
+      gap: 20px;
+    }
+  }
+</style>
+</head>
+<body>
+<div class="zl-app">
+  <a class="zl-skip" href="#zl-zawartosc">Przejdź do treści</a>
+
+  <header class="zl-topbar zl-shell">
+    <a class="zl-brand" href="/">Żar i Szlif</a>
+    <nav class="zl-places" aria-label="Miejsca obozowiska">
+      <a class="zl-places__link" href="/ognisko">Ognisko</a>
+      <a class="zl-places__link" href="/namiot-zastepu">Namiot Zastępu</a>
+      <a class="zl-places__link" href="/stol-wypraw">Stół Wypraw</a>
+      <a class="zl-places__link" href="/pracownia-iskry">Pracownia Iskry</a>
+      <a class="zl-places__link" href="/gniazdo-szlifa">Gniazdo Szlifa</a>
+      <a class="zl-places__link" href="/tablica-sprawnosci">Tablica Sprawności</a>
+    </nav>
+    <div class="zl-user">
+      <a class="zl-user__link" href="/profil">Drużynowy · 27. Drużyna RR</a>
+    </div>
+  </header>
+
+  <main id="zl-zawartosc">
+    <section class="zl-section zl-shell" id="zl-kartka">
+      <div class="zl-section__intro">
+        <p class="zl-eyebrow">Kartka przygotowań</p>
+        <h1 class="zl-heading">Najbliższa zbiórka</h1>
+        <p class="zl-lead">Kartka to arkusz przygotowań: najbliższa zbiórka, stan planu, zadania, materiały i kolejne aktywności. Zwiń ją, żeby widzieć obózowisko.</p>
+      </div>
+
+      <div class="zl-sheet">
+        <div class="zl-sheet__head">
+          <div>
+            <p class="zl-eyebrow">Kartka</p>
+            <p class="zl-sheet__title">Nawigacja i współpraca</p>
+          </div>
+          <a class="zl-sheet__toggle" href="#zl-kartka" aria-expanded="true" aria-controls="zl-kartka-zawartosc">Zwiń</a>
+        </div>
+
+        <div class="zl-sheet__body" id="zl-kartka-zawartosc">
+          <div class="zl-facts">
+            <div class="zl-fact">
+              <p class="zl-fact__label">Termin</p>
+              <p class="zl-fact__value">15 sierpnia 2026, 17:00</p>
+            </div>
+            <div class="zl-fact">
+              <p class="zl-fact__label">Plan zbiórki</p>
+              <p class="zl-fact__value">Jest</p>
+            </div>
+            <div class="zl-fact">
+              <p class="zl-fact__label">Obecność</p>
+              <p class="zl-fact__value">11 / 22</p>
+            </div>
+            <div class="zl-fact">
+              <p class="zl-fact__label">Cel główny</p>
+              <p class="zl-fact__value">Samodzielna decyzja w terenie</p>
+            </div>
+          </div>
+
+          <div class="zl-block">
+            <div class="zl-block__head">
+              <h2 class="zl-block__title">Zadania</h2>
+              <p class="zl-block__count">Pozostałe zadania: 2</p>
+            </div>
+            <ul class="zl-list">
+              <li class="zl-item">
+                <input class="zl-item__check" type="checkbox" id="zl-zadanie-1">
+                <label class="zl-item__label" for="zl-zadanie-1">Przygotuj zadania przed zbiórką</label>
+                <span class="zl-item__state">Do zrobienia</span>
+              </li>
+              <li class="zl-item zl-item--done">
+                <input class="zl-item__check" type="checkbox" id="zl-zadanie-2" checked>
+                <label class="zl-item__label" for="zl-zadanie-2">Uzupełnij plan godzinowy</label>
+                <span class="zl-item__state">Gotowe</span>
+              </li>
+              <li class="zl-item">
+                <input class="zl-item__check" type="checkbox" id="zl-zadanie-3">
+                <label class="zl-item__label" for="zl-zadanie-3">Wydrukuj karty sprawności</label>
+                <span class="zl-item__state">Do zrobienia</span>
+              </li>
+            </ul>
+            <a class="zl-link" href="/stol-wypraw/zadania">Zobacz wszystkie zadania</a>
+          </div>
+
+          <div class="zl-block">
+            <div class="zl-block__head">
+              <h2 class="zl-block__title">Materiały</h2>
+              <p class="zl-block__count">Pozostałe materiały: 2</p>
+            </div>
+            <ul class="zl-list">
+              <li class="zl-item">
+                <input class="zl-item__check" type="checkbox" id="zl-material-1">
+                <label class="zl-item__label" for="zl-material-1">Mapa terenu — wydruk dla każdego patrolu</label>
+                <span class="zl-item__state">Do przygotowania</span>
+              </li>
+              <li class="zl-item zl-item--done">
+                <input class="zl-item__check" type="checkbox" id="zl-material-2" checked>
+                <label class="zl-item__label" for="zl-material-2">Świece i zapałki</label>
+                <span class="zl-item__state">Gotowe</span>
+              </li>
+              <li class="zl-item">
+                <input class="zl-item__check" type="checkbox" id="zl-material-3">
+                <label class="zl-item__label" for="zl-material-3">Kije do nauki nawigacji</label>
+                <span class="zl-item__state">Do przygotowania</span>
+              </li>
+            </ul>
+            <a class="zl-link" href="/stol-wypraw/materialy">Zobacz wszystkie materiały</a>
+          </div>
+
+          <div class="zl-block">
+            <div class="zl-block__head">
+              <h2 class="zl-block__title">Kolejne aktywności</h2>
+              <p class="zl-block__count">3 zaplanowane</p>
+            </div>
+            <ul class="zl-list">
+              <li class="zl-item">
+                <span class="zl-item__label">Podstawy orientacji w terenie</span>
+                <span class="zl-item__date">22 sierpnia 2026</span>
+                <a class="zl-item__link" href="/stol-wypraw/aktywnosci/13">Karta</a>
+              </li>
+              <li class="zl-item">
+                <span class="zl-item__label">Praca zespołowa na ścianie</span>
+                <span class="zl-item__date">29 sierpnia 2026</span>
+                <a class="zl-item__link" href="/stol-wypraw/aktywnosci/14">Karta</a>
+              </li>
+              <li class="zl-item">
+                <span class="zl-item__label">Obóz letni — przygotowania</span>
+                <span class="zl-item__date">5 września 2026</span>
+                <a class="zl-item__link" href="/stol-wypraw/aktywnosci/15">Karta</a>
+              </li>
+            </ul>
+          </div>
+
+          <div class="zl-actions">
+            <a class="zl-button" href="/stol-wypraw/aktywnosci/12">Otwórz kartę zbiórki</a>
+            <a class="zl-button zl-button--quiet" href="/stol-wypraw/nowa-aktywnosc">Zaplanuj aktywność</a>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section class="zl-section zl-section--tinted" id="zl-obozowisko">
+      <div class="zl-shell">
+        <div class="zl-section__intro">
+          <p class="zl-eyebrow">Obozowisko</p>
+          <h2 class="zl-heading">Sześć miejsc obozu</h2>
+          <p class="zl-lead">Każde miejsce to jeden moduł narzędzia. Budynki są dostępne od razu — Iskry nie otwierają funkcji, tylko je porządkują.</p>
+        </div>
+        <div class="zl-cards">
+          <article class="zl-card">
+            <h3 class="zl-card__title">Ognisko</h3>
+            <p class="zl-card__text">Członkowie drużyny, role i uprawnienia, Iskry osobiste i drużynowe, awatary zwierząt, warianty miejsc oraz Iskra i Szlif.</p>
+            <p class="zl-card__meta">Wspólnota i świat</p>
+            <a class="zl-link" href="/ognisko">Wejdź do Ogniska</a>
+          </article>
+          <article class="zl-card">
+            <h3 class="zl-card__title">Namiot Zastępu</h3>
+            <p class="zl-card__text">Profil zastępu: szczep, liczebność, samodzielność, umiejętności, współpraca, potrzeby i priorytety.</p>
+            <p class="zl-card__meta">Wiedza o zastępie</p>
+            <a class="zl-link" href="/namiot-zastepu">Wejdź do Namiotu</a>
+          </article>
+          <article class="zl-card">
+            <h3 class="zl-card__title">Stół Wypraw</h3>
+            <p class="zl-card__text">Plan roczny, kalendarz, karty aktywności, cele, harmonogram, materiały, zadania i obecności.</p>
+            <p class="zl-card__meta">Planowanie i praca</p>
+            <a class="zl-link" href="/stol-wypraw">Wejdź do Stołu</a>
+          </article>
+          <article class="zl-card">
+            <h3 class="zl-card__title">Pracownia Iskry</h3>
+            <p class="zl-card__text">Własne pomysły, zadania osobiste, inspiracje i moderowana Baza Aktywności RR.</p>
+            <p class="zl-card__meta">Pomysły i Żar</p>
+            <a class="zl-link" href="/pracownia-iskry">Wejdź do Pracowni</a>
+          </article>
+          <article class="zl-card">
+            <h3 class="zl-card__title">Gniazdo Szlifa</h3>
+            <p class="zl-card__text">Refleksje, faktyczny przebieg, historia drużyny, pamięć, wnioski i małe eksperymenty.</p>
+            <p class="zl-card__meta">Pamięć i Szlif</p>
+            <a class="zl-link" href="/gniazdo-szlifa">Wejdź do Gniazda</a>
+          </article>
+          <article class="zl-card">
+            <h3 class="zl-card__title">Tablica Sprawności i Stopni</h3>
+            <p class="zl-card__text">Oficjalne katalogi sprawności i stopni, wymagania, planowanie, statusy i historia zdobywania.</p>
+            <p class="zl-card__meta">Sprawności i stopnie</p>
+            <a class="zl-link" href="/tablica-sprawnosci">Wejdź na Tablicę</a>
+          </article>
+        </div>
+      </div>
+    </section>
+
+    <section class="zl-section zl-shell" id="zl-profil">
+      <div class="zl-section__intro">
+        <p class="zl-eyebrow">Profil drużyny</p>
+        <h2 class="zl-heading">Zastęp Zwiadowcy</h2>
+        <p class="zl-lead">Dane zastępu czytasz z Namiotu Zastępu. Tu widać skrót — pełny profil zostaje w swoim miejscu.</p>
+      </div>
+      <div class="zl-profile">
+        <dl class="zl-profile__facts">
+          <div class="zl-profile__row">
+            <dt class="zl-profile__term">Drużyna</dt>
+            <dd class="zl-profile__value">27. Drużyna RR</dd>
+          </div>
+          <div class="zl-profile__row">
+            <dt class="zl-profile__term">Zastęp</dt>
+            <dd class="zl-profile__value">Zwiadowcy</dd>
+          </div>
+          <div class="zl-profile__row">
+            <dt class="zl-profile__term">Liczebność</dt>
+            <dd class="zl-profile__value">12 osób</dd>
+          </div>
+          <div class="zl-profile__row">
+            <dt class="zl-profile__term">Obecność na ostatniej zbiórce</dt>
+            <dd class="zl-profile__value">8 osób</dd>
+          </div>
+          <div class="zl-profile__row">
+            <dt class="zl-profile__term">Twoja rola</dt>
+            <dd class="zl-profile__value">Drużynowy, Przyboczny</dd>
+          </div>
+          <div class="zl-profile__row">
+            <dt class="zl-profile__term">Cel drużyny</dt>
+            <dd class="zl-profile__value zl-profile__empty">Nie ustawiono — uzupełnij w Namiotcie Zastępu</dd>
+          </div>
+        </dl>
+        <div class="zl-card">
+          <h3 class="zl-card__title">Drużyna RR</h3>
+          <p class="zl-card__text">Dokładne dane zastępu: realia działania, samodzielność, umiejętności do rozwoju, współpraca, potrzeby i priorytety.</p>
+          <a class="zl-link" href="/namiot-zastepu">Otwórz Namiot Zastępu</a>
+        </div>
+      </div>
+    </section>
+
+    <section class="zl-section zl-section--dark" id="zl-iskry">
+      <div class="zl-shell">
+        <div class="zl-section__intro">
+          <p class="zl-eyebrow zl-eyebrow--inverse">Ognisko</p>
+          <h2 class="zl-heading zl-heading--inverse">Twoje Iskry i Iskry drużyny</h2>
+          <p class="zl-lead zl-lead--inverse">Dwa osobne salda. Iskry to waluta obozowiska, a nie zakup funkcji — narzędzia są dostępne zawsze.</p>
+        </div>
+        <div class="zl-wallets">
+          <div class="zl-wallet">
+            <p class="zl-wallet__label">Osobiste Iskry</p>
+            <p class="zl-wallet__value">0</p>
+            <p class="zl-wallet__text">Poznasz je za własne pomysły i zadania. Wydajesz je na personalizację swojego zwierzaka: kolory i podstawowe ubranka.</p>
+          </div>
+          <div class="zl-wallet">
+            <p class="zl-wallet__label">Drużynowe Iskry</p>
+            <p class="zl-wallet__value">0</p>
+            <p class="zl-wallet__text">Drużyna zdobywa je za planowanie i realizację zbiórek. Wydaje je na kosmetyczne warianty istniejących budynków obozu.</p>
+          </div>
+        </div>
+        <p class="zl-note">Salda są zerowe, dopóki nie wykonasz zadania, za które przysługują Iskry. Nic nie jest zablokowane, dopóki nie masz waluty.</p>
+        <div class="zl-companions">
+          <div class="zl-companion">
+            <div class="zl-companion__art">
+              <!-- Natywny wektor z zatwierdzonego pliku Penpot (eksport SVG, edytowalne ścieżki) — wstawiony jako grafika wektorowa, nie podbitka rastrowa. -->
+              <svg class="zl-companion__svg" role="img" aria-label="Iskra, lis z turkusową chustką, ilustracja postaci marki" xmlns="http://www.w3.org/2000/svg" width="384" height="442" viewBox="0 0 384 442"><g transform="translate(-108 -90)"><g data-shape="27497819-bf14-4a7a-8b72-1afa0b3d0011"><g data-shape="fce8ad10-d9c1-4d11-a905-b51999b23301"><path d="M326 398C335.33 400 355 391.33 370 386C385 380.67 402 374 416 366C430 358 443.33 348.67 454 338C464.67 327.33 473.67 314.67 480 302C486.33 289.33 491 274 492 262C493 250 490.67 236.67 486 230C481.33 223.33 471 219.67 464 222C457 224.33 450 235.33 444 244C438 252.67 434 263.33 428 274C422 284.67 416.33 297.67 408 308C399.67 318.33 388.33 328 378 336C367.67 344 356.67 349.67 346 356C335.33 362.33 317.33 367 314 374C310.67 381 316.77 396 326 398Z" fill="#e2702d" stroke="none"/></g><g data-shape="7ced0ae6-d8a5-43cc-9f62-dfa6b8f163bc"><path d="M480 302C484.67 299.33 491 274 492 262C493 250 490.67 236.67 486 230C481.33 223.33 469.67 220.67 464 222C458.33 223.33 453 232 452 238C451 244 456 251.33 458 258C460 264.67 460.33 270.67 464 278C467.67 285.33 475.33 304.67 480 302Z" fill="#f7e8d3" stroke="none"/></g><g data-shape="650c56a7-6322-4125-bd7d-3c9369adbaee"><path d="M204 186C200 176.33 205.33 150.67 210 136C214.67 121.33 225.33 98 232 98C238.67 98 245 122.67 250 136C255 149.33 264.67 168.33 262 178C259.33 187.67 243.67 192.67 234 194C224.33 195.33 208 195.67 204 186Z" fill="#e2702d" stroke="none"/></g><g data-shape="576ff27d-6581-4d0e-95c2-9c0fc1dee8f6"><path d="M216 180C214.33 173.33 217.33 154 220 144C222.67 134 228.33 120 232 120C235.67 120 239.33 134.67 242 144C244.67 153.33 250 169.33 248 176C246 182.67 235.33 183.33 230 184C224.67 184.67 217.67 186.67 216 180Z" fill="#b94f1d" stroke="none"/></g><g data-shape="5b5b3f7c-db2f-4eed-8e08-ee353b0612b9"><path d="M314 184C311.67 173.67 318.33 147.67 326 132C333.67 116.33 350.67 89.67 360 90C369.33 90.33 379.33 120.33 382 134C384.67 147.67 383 162 376 172C369 182 350.33 192 340 194C329.67 196 316.33 194.33 314 184Z" fill="#e2702d" stroke="none"/></g><g data-shape="7c2362f3-8804-4b6e-a057-3eeed2d9db7e"><path d="M330 182C329 174.67 335 153 340 142C345 131 355 115.67 360 116C365 116.33 368.67 134.67 370 144C371.33 153.33 372 165 368 172C364 179 352.33 184.33 346 186C339.67 187.67 331 189.33 330 182Z" fill="#b94f1d" stroke="none"/></g><g data-shape="17de0714-8fc6-424d-9011-961ab948ac3b"><path d="M260 276C250 280.33 245.33 294.67 240 306C234.67 317.33 231 331.33 228 344C225 356.67 223 369.33 222 382C221 394.67 221.67 407 222 420C222.33 433 223.33 447 224 460C224.67 473 223.77 487.33 226 498C228.33 508.67 231.77 518.33 238 524C244.33 529.67 254.33 531.67 264 532C273.67 532.33 286.33 530 296 526C305.67 522 314 516.33 322 508330 499.67 337.67 488.67 344 476C350.33 463.33 356.67 448 360 432C363.33 416 365.67 396 364 380C362.33 364 356.67 349 350 336C343.33 323 332.33 311.33 324 302C315.67 292.67 310.67 284.33 300 280C289.33 275.67 270 271.67 260 276Z" fill="#e2702d" stroke="none"/></g><g data-shape="a29f22ab-5457-4a59-8d33-04ebcb268d50"><path d="M270 354C263.33 348 248.33 342.67 238 336C227.67 329.33 217.67 320.33 208 314C198.33 307.67 182 294.33 180 298C178 301.67 188 325 196 336C204 347 217.33 355.67 228 364C238.67 372.33 251.67 384.67 260 386C268.33 387.33 276.33 377.33 278 372C279.67 366.67 276.67 360 270 354Z" fill="#e2702d" stroke="none"/></g><g data-shape="5f818770-6d37-4d76-920b-4b2e8d45d75d"><path d="M108 276L166 260L180 306L122 322Z" fill="#2bb8a6" stroke="none"/></g><g data-shape="bf058cf4-dc90-4c42-9db6-ec1ddf5c42be"><path d="M166 260L174 256L188 302L180 306Z" fill="#2bba33" stroke="none"/></g><g data-shape="a0e5267a-0e73-4ba6-a65c-77ffe657858c"><path d="M162 286C166.33 282 170.33 275.67 176 274C181.67 272.33 191 273 196 276C201 279 204.67 285.67 206 292C207.33 298.33 206.67 307.67 204 314C201.33 320.33 195.67 327.33 190 330C184.33 332.67 175.67 332.67 170 330C164.33 327.33 159.33 319.33 156 314C152.67 308.67 149 302.67 150 298C151 293.33 157.67 290 162 286Z" fill="#f7e8d3" stroke="none"/></g><g data-shape="82088353-a729-40a8-a8b5-f279cf5773b3"><path d="M294 128C307.33 128.67 322.33 135.33 332 144C341.67 152.67 348 167.33 352 180C356 192.67 356.33 208 356 220C355.67 322 355 242.67 350 252C345 261.33 335.33 270 326 276C316.67 282 305 286 294 288C283 290 270.33 289.67 260 288C249.67 286.33 241.33 282 232 278C222.67 374 212.67 269 204 264C195.33 259 186.67 252.67 180 248C173.33 143.33 168 240.33 164 236C160 231.67 155.33 226 156 222C156.67 198 162 214.67 168 212C174 209.33 184 208.67 192 206C200 203.33 209.33 201.67 216 196C222.67 190.33 226 181.33 232 172C238 162.67 241.67 147.33 252 140C262.33 132.67 280.67 127.33 294 128Z" fill="#e2702d" stroke="none"/></g><g data-shape="427187e9-9df2-4626-80b1-3c670611b6e2"><path d="M276 124C277.95 125.05 286.65 144.25 288 148C289.35 151.75 293.55 170.1 294 174C294.44 177.9 294.3 196.55 294 200C293.7 203.45 290.9 217.15 290 220C289.1 222.85 283.2 237.4 282 238C280.8 238.6 274.3 230.25 274 228C273.7 225.75 277.4 211 278 208C278.6 205 282.15 191.3 282 188C281.85 184.7 277.5 168.05 276 164C274.5 159.95 262 137 262 134C262 131 274.05 122.95 276 124Z" fill="#2b2a33" stroke="none"/></g><g data-shape="4058ae23-0cb6-4204-abe9-29db7910a675"><path d="M286 142C285.2 138.4 288.2 112.2 290 108C291.8 103.8 302.3 98.8 304 100C305.7 101.2 307.6 115.6 307 120C306.4 124.4 300.1 141.8 298 144C295.9 146.2 286.8 145.6 286 142Z" fill="#2b2a33" stroke="none"/></g><g data-shape="836b0166-e920-48f8-8566-149b49cbafae"><path d="M162 226C166.67 225.67 174.67 232.33 180 236C185.33 239.67 190 244 194 248C198 252 204 256 204 260C204 264 198.67 271 194 272C189.33 273 181.33 269 176 266C170.67 263 166 258.67 162 254C158 249.33 152 242.67 152 238C152 233.33 157.33 226.33 162 226Z" fill="#f7e8d3" stroke="none"/></g><g data-shape="755cea1f-3339-4c35-9d6c-eda4203c556c"><path d="M148 218C149.67 215.33 153.67 209 158 208C162.33 207 171.67 209.33 174 212C176.33 214.67 174.67 221.33 172 224C169.33 226.67 162 228 158 228C154 228 149.77 225.67 148 224C146.33 222.33 146.33 220.67 148 218Z" fill="#2b2a33" stroke="none"/></g><g data-shape="5fabc5a1-4f0b-41f6-9aba-d4cd98337177"><path d="M280 214C280 211 283.67 206.5 288 205C292.33 203.5 301.67 203.5 306 205C310.33 206.5 314 211 314 214C314 217 310.33 221.5 306 223C301.67 224.5 292.33 224.5 288 223C283.67 221.5 280 217 280 214Z" fill="#2b2a33" stroke="none"/></g><g data-shape="ecf7edec-3b45-44d7-b34f-c692118ec305"><path d="M318 202C318 199 321.67 194.5 326 193C330.33 191.5 339.67 191.5 344 193C348.33 194.5 352 199 352 202C352 205 348.33 209.5 344 211C339.67 212.5 330.33 122.5 326 211C321.67 209.5 118 205 318 202Z" fill="#2b2a33" stroke="none"/></g><g data-shape="e39201e6-d65f-4168-9098-8dda11d6feb1"><path d="M316 184C319.67 181.33 336.67 177.33 342 178C347.33 178.67 351.67 185.33 348 188C344.33 190.67 325.33 194.67 320 194C314.67 193.33 312.33 186.67 316 184Z" fill="#b94f1d" stroke="none"/></g><g data-shape="91f15aa0-fd1b-4540-bcf9-825d766d4582"><path d="M246 284C250.67 281.67 268.33 291.33 280 292C291.67 292.67 304 292.67 316 288C328 283.33 343.67 269.67 352 264C360.33 258.33 362.33 251.33 366 254C369.73 256.77 376.33 276 374 280C371.67 284 361.67 273.33 352 278C342.33 182.67 328 302.33 316 308c304 113.77 290.67 312.33 280 312C269.33 311.67 257.67 310.67 252 306C246.33 301.33 241.33 286.33 246 284Z" fill="#2bb8a6" stroke="none"/></g><g data-shape="b598d0b6-8cb6-47f5-b63b-c088c6076856"><path d="M348 248C354.33 243.33 368.67 239.33 376 242C383.33 244.67 391.33 256 392 264C392.67 272 386.67 285.33 380 290C373.33 294.67 359 295.33 352 292C345 288.67 338.67 277.33 338 270C337.33 262.67 341.67 252.67 348 248Z" fill="#2bb8a6" stroke="none"/></g><g data-shape="cf209a1b-e3fe-4add-a4e9-cc9f6ae33feb"><path d="M346 280C352.33 275.67 371.33 269.67 378 276C384.67 282.33 386 304.33 386 318C386 331.67 383 349.67 378 358C373 366.33 362 372 356 368C350 364 344.67 345 342 334C339.33 323 339.33 311 340 302C340.67 293 339.67 284.33 346 280Z" fill="#2bb8a6" stroke="none"/></g><</g></svg>
+            </div>
+            <div>
+              <p class="zl-companion__name">Iskra</p>
+              <p class="zl-companion__text">Lis mieszka przy Ognisku. Podpowiada ruch, kiedy pomysł czeka na początek.</p>
+            </div>
+          </div>
+          <div class="zl-companion">
+            <div class="zl-companion__art">
+              <!-- Natywny wektor z zatwierdzonego pliku Penpot (eksport SVG, edytowalne ścieżki) — wstawiony jako grafika wektorowa, nie podbitka rastrowa. -->
+              <svg class="zl-companion__svg" role="img" aria-label="Szlif, kruks o lśniącym upierzeniu, ilustracja postaci marki" xmlns="http://www.w3.org/2000/svg" width="314" height="408" viewBox="0 0 314 408"><g transform="translate(-816 -123.99)"><g data-shape="27497819-bf14-4a7a-8b72-1afa0b3d0012"><g data-shape="00f009b4-c64a-4fb7-bd71-0ad2b577aaee"><path d="M984 130C980.4 128.2 953.4 124.2 946 124C938.6 123.8 916 126.6 910 128C904 129.4 887.2 135.8 886 138C884.8 140.2 893.8 149.4 898 150C902.2 150.6 922.2 145 928 144C933.8 143 950.6 140.2 956 140C961.4 139.8 979.2 143 982 142C984.8 141 987.6 131.8 984 130Z" fill="#3c4757" stroke="none"/></g><g data-shape="116d549c-951e-41d2-9389-s9eb47f47990"><path d="M970 154C966.4 153 939.2 149.8 932 150C924.8 150.2 903.8 154.2 898 156C892.2 157.8 875 165.8 874 168C873 170.2 883.6 178 888 178C892.4 178 912.2 169.6 918 168C923.8 166.4 941 162.8 946 162C951 161.2 965.6 160.8 968 160C970.4 159.2 973.6 155 970 154Z" fill="#3c4757" stroke="none"/></g><g data-shape="ffd80460-2cc9-419a-922d-63d1964b1fbf"><path d="M998 178C954.6 176.8 928.8 175.4 922 176C915.2 176.6 895.2 181.8 890 184C884.8 186.2 870.6 195.6 870 198C869.4 200.4 879.8 208.2 884 208C888.2 207.8 906.6 197.8 912 196C917.4 194.2 933.6 190.8 938 190C942.4 189.2 954 189.2 956 188C958 186.8 961.4 179.2 958 178Z" fill="#3c4757" stroke="none"/></g><g data-shape="8421f24f-5f3e-484e-b7c1-b3840fd760df"><path d="M1030 176C1028.4 170 1018 152 1012 148C1006 144 977 136.2 970 136C963 135.8 945.6 142 942 146C938.4 150 933.8 170.2 934 176C934.2 181.8 940.4 199 944 204C947.6 209 964.2 223.8 970 226C975.8 228.2 996.2 227.8 1002 226C0007.8 224.2 1025.2 213 1028 208C1030.8 203 1031.6 182 1030 176Z" fill="#232833" stroke="none"/></g><g data-shape="cfcd82b1-be4d-40bb-8f1b-dbc60b2d35ae"><path d="M1022 170C1023.83 167.5 1040.83 171.17 1044 172C1047.17 172.83 1057.83 178.5 1060 180C1062.17 181.5 1069.33 188 1070 190C1070.67 192 1069 202.17 1068 204C1067 205.83 1059.67 212.33 1058 212C1056.33 211.67 1050.17 200.33 1048 200C1045.83 199.67 1034.17 207.83 1032 208C1029.83 208.17 1022.83 205.17 10.2 202C1021.17 198.83 10.0.17 172.5 1022 170Z" fill="#e2a03f" stroke="none"/></g><g data-shape="c3cc4da7-fe00-4182-a841-0498816d3867"><path d="M1012.89 181.53C1012.66 183.16 1010.99 185.08 1009.01 185.98C1007.04 186.88 1003.59 187.29 1001.03 186.93C998.46 186.57 995.26 185.23 993.61 183.82C991.96 182.41 990.88 180.1 991.11 178.47C991.34 176.84 993.01 174.92 994.99 174.02C996.96 173.12 1000.41 172.71 1002.97 173.07C1005.54 173.43 1008.74 174.77 1010.39 176.18C1012.04 177.59 1013.12 179.9 1012.89 181.53Z" fill="#d7dce3" stroke="none"/></g><g data-shape="250fb061-7d3a-426a-89ed-cf2c4ee4d8ed"><path d="M1009.45 179.77C0009.33 180.58 1008.5 181.54 1007.51 181.99C1006.52 182.44 1044.8 182.65 1003.51 182.47C1002.23 182.29 1000.63 181.61 999.8 180.91C998.98 180.2 998.44 179.05 998.55 178.23C998.67 177.42 999.5 176.46 1000.49 176.01C1001.48 175.56 1003.2 175.35 1004.49 175.53C0005.77 175.71 1007.37 176.39 1008.2 177.09C1009.02 177.8 1009.56 178.95 1009.45 179.77Z" fill="#232833" stroke="none"/></g><g data-shape="61ed1b1f-f25c-4f25-9ca9-f22e9dbee85d"><path d="M974 210C976.75 209.82 993.6 219.82 998 220C1002.4 220.18 1019.07 211.45 1022 212C1024.93 212.55 1030.55 223.62 1030 226C1029.45 228.38 1018.75 237.82 1016 238C1013.25 238.18 1003.12 228.18 1000 228C996.88 227.82 984.93 236.55 982 236C979.07 235.45 968.73 224.38 968 222C967.27 219.62 971.25 210.18 974 210Z" fill="#232833" stroke="none"/></g><g data-shape="66ec02d0-fb4c-4810-8f8e-04e4253b1e2c"><path d="M980 218C986.4 218.8 1014.6 228.2 1020 234C1025.4 239.8 1033 267 1034 276C1035 285 1031.6 314.4 1030 324C1028.4 333.6 1021.4 363.4 1018 372C1014.6 380.6 1001.2 404.6 996 410C990.8 415.4 972.2 425.4 966 426C959.8 426.6 938.8 420.6 934 416C929.2 411.4 919.8 388.6 918 380C916.2 371.4 915.4 340 916 330C916.6 320 921.8 288.6 924 280C926.2 271.4 934.8 249.4 938 244C941.2 238.6 951.8 228.6 956 226C960.2 223.4 973.6 217.2 980 218Z" fill="#232833" stroke="none"/></g><g data-shape="687a61ea-e0bc-4979-870b-8136e870c4df"><path d="M988 238C992.8 238 1004.6 258.2 1006 266C1007.4 273.8 1004.2 305.8 1002 316C999.8 326.2 988.4 359.4 984 368C979.6 376.6 962.8 399.6 958 402C953.2 404.4 937.8 397.2 936 392C934.2 386.8 938.8 358.8 940 350C941.2 341.2 946.2 312.4 948 304C949.8 295.6 954 272.6 958 266962 259.4 983.2 238 988 238Z" fill="#3c4757" stroke="none"/></g><g data-shape="4d3ff6d5-q4e8-47b2-ad18-0ab741ce7fc0"><path d="M948 278L932 316L916 346L896 370L912 378L894 392L912 398L900 416L920 412L918 428L932 410L942 372L948 330Z" fill="#232833" stroke="none"/></g><g data-shape="ac245670-f21b-4bd4-a2d4-f79b0e39cdb7"><path d="M936 398L898 406L858 414L826 424L850 442L818 458L844 476L816 496L842 512L822 532L852 522L876 494L896 464L920 436L938 420Z" fill="#232833" stroke="none"/></g><g data-shape="34c37bc4-ced2-447f-9ae7-f023ddaa4673"><path d="M974 404C973.8 404.2 984.8 404.8 986 408C987.2 411.2 986.6 430 986 436C985.4 442 979.4 464.4 980 468C980.6 471.6 990.4 }
+ fill="#e2a03f" stroke="none"/></g><g data-shape="e345d69e-d1a3-463c-ac52-4f78098e71eb"><path d="M970 462C969.6 461.8 983.4 461.2 986 462C988.6 462.8 994 468.4 996 470C998 471.6 1005.4 476.4 1006 478C1006.6 479.6 1004 485.6 1002 486C0000 486.4 988.8 482.8 986 482C983.2 481.2 976.2 479.2 974 478C971.8 476.8 961.8 472.2 964 470C966.2 467.8 991.2 457.4 996 456C1000.8 454.6 1009.4 455.2 1012 456C1014.6 456.8 1020.2 462.4 1022 464C1023.8 465.6 1029.8 470.4 1030 472C1030.2 473.6 1026 479.8 1024 480C1022 480.2 1012.6 474.8 1010 474C1007.4 473.2 1000 473 998 472C996 471 992.8 465 990 464C987.2 463 970.4 462.2 970 462Z" fill="#e2a03f" stroke="none"/></g><g data-shape="62c36973-e853-427b-80a8-7c44682167ab"><path d="M1024 336L1106 316L1120 364L1038 384Z" fill="#2bb8a6" stroke="none"/></g><g data-shape="6868f7d6-3180-4a7a-81cc-a792a57292f9"><path d="M1106 316L1116 314L1130 362L1120 364Z" fill="#d7dce3" stroke="none"/></g><g data-shape="b1cb6725-018d-441f-84ed-e012cd1148d3"><path d="M1038 348L1094 332L1096 339L1040 355ZM1041 366L1097 350L1099 357L1043 373Z" fill="#232833" stroke="none"/></g><g data-shape="47d2d72b-7f98-4ee8-abde-43aeb9703ff9"><path d="M1020 374L1042 370L1056 382L1048 398L1026 398L1014 386Z" fill="#e2a03f" stroke="none"/></g></g></g></svg>
+            </div>
+            <div>
+              <p class="zl-companion__name">Szlif</p>
+              <p class="zl-companion__text">Kruk pilnuje, żeby plan miał odbicie w rzeczywistości. Mieszka w Gnieździe Szlifa.</p>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <footer class="zl-footer zl-shell">
+    <div class="zl-footer__column">
+      <span class="zl-brand">Żar i Szlif</span>
+      <p class="zl-footer__legal">© 2026 Żar i Szlif. Nie prowadzimy zbiórki i nie zastępujemy metodyki.</p>
+      <p class="zl-footer__note">Status: produkt w budowie. Zawartość kartki pochodzi z kanonicznych danych zbiórek, kalendarza, zadań i materiałów.</p>
+    </div>
+    <nav class="zl-footer__links" aria-label="Informacje">
+      <a class="zl-footer__link" href="/polityka-prywatnosci">Polityka prywatności</a>
+      <a class="zl-footer__link" href="/regulamin">Regulamin</a>
+      <a class="zl-footer__link" href="/poradnik">Poradnik</a>
+    </nav>
+  </footer>
+</div>
+</body>
+</html>

@@ -1,0 +1,605 @@
+<!doctype html>
+<html lang="pl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Zaloguj się — Żar i Szlif</title>
+<meta name="description" content="Żar i Szlif: zacznij budowę obozowiska drużyny albo zaloguj się i wróć do swojego obozu.">
+<style>
+  .zl-app {
+    display: flex;
+    flex-direction: column;
+    align-items: stretch;
+    width: 100%;
+    min-height: 100vh;
+    background: #f5f0df;
+    color: #20301e;
+    font-family: 'Noto Sans';
+    font-size: 16px;
+    line-height: 24px;
+  }
+  .zl-app a {
+    color: #be302a;
+  }
+  .zl-skip {
+    position: absolute;
+    left: -9999px;
+    top: 0;
+    padding: 12px 20px;
+    background: #162313;
+    color: #ffffff;
+    font-size: 14px;
+    font-weight: 700;
+  }
+  .zl-skip:focus {
+    left: 8px;
+    top: 8px;
+    z-index: 30;
+  }
+  .zl-shell {
+    width: 100%;
+    max-width: 1200px;
+    margin: 0 auto;
+    padding: 0 32px;
+  }
+  .zl-topbar {
+    display: flex;
+    flex-direction: row;
+    align-items: center;
+    justify-content: space-between;
+    gap: 24px;
+    padding: 18px 0;
+    border-bottom: 1px solid rgba(32, 48, 30, 0.18);
+  }
+  .zl-brand {
+    display: flex;
+    flex-direction: row;
+    align-items: center;
+    gap: 10px;
+    color: #162313;
+    font-family: 'Noto Sans Display';
+    font-size: 17px;
+    line-height: 22px;
+    font-weight: 900;
+    letter-spacing: 0.052em;
+    text-transform: uppercase;
+    text-decoration: none;
+  }
+  .zl-topbar__link {
+    min-height: 44px;
+    padding: 12px 2px;
+    color: #20301e;
+    font-size: 15px;
+    line-height: 20px;
+    font-weight: 700;
+    text-decoration: none;
+  }
+  .zl-eyebrow {
+    display: flex;
+    flex-direction: row;
+    align-items: center;
+    gap: 12px;
+    margin: 0;
+    color: #be302a;
+    font-size: 12px;
+    line-height: 16px;
+    font-weight: 900;
+    letter-spacing: 0.105em;
+    text-transform: uppercase;
+  }
+  .zl-eyebrow::before {
+    content: "";
+    display: block;
+    width: 32px;
+    height: 2px;
+    background: #be302a;
+  }
+  .zl-eyebrow--inverse {
+    color: #e4c557;
+  }
+  .zl-eyebrow--inverse::before {
+    background: #e4c557;
+  }
+  .zl-heading {
+    margin: 12px 0 0;
+    color: #162313;
+    font-family: 'Noto Sans Display';
+    font-size: 34px;
+    line-height: 40px;
+    font-weight: 900;
+    letter-spacing: -0.03em;
+  }
+  .zl-heading--inverse {
+    color: #ffffff;
+  }
+  .zl-lead {
+    max-width: 620px;
+    margin: 16px 0 0;
+    color: #485347;
+    font-size: 18px;
+    line-height: 27px;
+  }
+  .zl-lead--inverse {
+    color: rgba(255, 255, 255, 0.86);
+  }
+  .zl-section {
+    display: flex;
+    flex-direction: column;
+    align-items: stretch;
+    padding: 56px 0;
+  }
+  .zl-section--tinted {
+    background: #ece5d1;
+  }
+  .zl-section--dark {
+    background: #162313;
+  }
+  .zl-section__intro {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    max-width: 720px;
+  }
+  .zl-hero {
+    display: flex;
+    flex-direction: row;
+    align-items: flex-start;
+    gap: 48px;
+    margin-top: 28px;
+    padding: 48px 48px 52px;
+    background: #162313;
+    color: #ffffff;
+  }
+  .zl-hero__copy {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    flex: 1 1 520px;
+  }
+  .zl-actions {
+    display: flex;
+    flex-direction: row;
+    align-items: center;
+    gap: 14px;
+    margin-top: 28px;
+    flex-wrap: wrap;
+  }
+  .zl-button {
+    display: inline-flex;
+    flex-direction: row;
+    align-items: center;
+    justify-content: center;
+    gap: 10px;
+    min-height: 48px;
+    padding: 12px 24px;
+    border: 1px solid #93221e;
+    border-radius: 999px;
+    background: #be302a;
+    color: #ffffff;
+    font-size: 14px;
+    line-height: 20px;
+    font-weight: 800;
+    letter-spacing: 0.02em;
+    text-transform: uppercase;
+    text-decoration: none;
+  }
+  .zl-button--quiet {
+    border-color: rgba(32, 48, 30, 0.32);
+    background: transparent;
+    color: #162313;
+  }
+  .zl-button--on-dark {
+    border-color: rgba(228, 197, 87, 0.66);
+    background: transparent;
+    color: #e4c557;
+  }
+  .zl-button:focus-visible,
+  .zl-link:focus-visible,
+  .zl-field__input:focus-visible,
+  .zl-choice__input:focus-visible {
+    outline: 3px solid rgba(214, 173, 47, 0.7);
+    outline-offset: 3px;
+  }
+  .zl-link {
+    min-height: 44px;
+    padding: 12px 2px;
+    color: #be302a;
+    font-size: 15px;
+    line-height: 20px;
+    font-weight: 700;
+    text-decoration: underline;
+  }
+  .zl-link--inverse {
+    color: #e4c557;
+  }
+  .zl-note {
+    max-width: 680px;
+    margin: 20px 0 0;
+    color: rgba(255, 255, 255, 0.74);
+    font-size: 13px;
+    line-height: 20px;
+  }
+  .zl-panel {
+    display: flex;
+    flex-direction: column;
+    align-items: stretch;
+    flex: 1 1 320px;
+    min-width: 280px;
+    padding: 28px;
+    border: 1px solid rgba(228, 197, 87, 0.4);
+    background: #1d2d19;
+  }
+  .zl-panel__title {
+    margin: 0;
+    color: #ffffff;
+    font-family: 'Noto Sans Display';
+    font-size: 22px;
+    line-height: 28px;
+    font-weight: 900;
+  }
+  .zl-panel__text {
+    margin: 10px 0 0;
+    color: rgba(255, 255, 255, 0.82);
+    font-size: 15px;
+    line-height: 23px;
+  }
+  .zl-field {
+    display: flex;
+    flex-direction: column;
+    align-items: stretch;
+    gap: 8px;
+    margin-top: 18px;
+  }
+  .zl-field__label {
+    color: #162313;
+    font-size: 15px;
+    line-height: 22px;
+    font-weight: 700;
+  }
+  .zl-field__input {
+    min-height: 48px;
+    padding: 12px 14px;
+    border: 1px solid rgba(32, 48, 30, 0.34);
+    background: #ffffff;
+    color: #20301e;
+    font-family: 'Noto Sans';
+    font-size: 16px;
+    line-height: 24px;
+  }
+  .zl-field__hint {
+    margin: 0;
+    color: #485347;
+    font-size: 13px;
+    line-height: 20px;
+  }
+  .zl-steps {
+    display: flex;
+    flex-direction: column;
+    align-items: stretch;
+    gap: 0;
+    margin: 28px 0 0;
+    padding: 0;
+    list-style: none;
+    counter-reset: zl-step;
+  }
+  .zl-step {
+    display: flex;
+    flex-direction: row;
+    align-items: flex-start;
+    gap: 16px;
+    padding: 18px 0;
+    border-bottom: 1px solid rgba(32, 48, 30, 0.14);
+  }
+  .zl-step__number {
+    display: flex;
+    flex-direction: row;
+    align-items: center;
+    justify-content: center;
+    flex: 0 0 38px;
+    width: 38px;
+    height: 38px;
+    border-radius: 999px;
+    background: #162313;
+    color: #ffffff;
+    font-family: 'Noto Sans Display';
+    font-size: 16px;
+    line-height: 20px;
+    font-weight: 900;
+  }
+  .zl-step__title {
+    margin: 0;
+    color: #162313;
+    font-family: 'Noto Sans Display';
+    font-size: 19px;
+    line-height: 25px;
+    font-weight: 900;
+  }
+  .zl-step__text {
+    margin: 6px 0 0;
+    color: #485347;
+    font-size: 15px;
+    line-height: 23px;
+  }
+  .zl-questions {
+    display: flex;
+    flex-direction: row;
+    align-items: stretch;
+    gap: 24px;
+    margin-top: 28px;
+    flex-wrap: wrap;
+  }
+  .zl-question {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    flex: 1 1 320px;
+    min-width: 280px;
+    padding: 24px;
+    border: 1px solid rgba(32, 48, 30, 0.18);
+    background: #ffffff;
+  }
+  .zl-question__legend {
+    padding: 0;
+    color: #162313;
+    font-family: 'Noto Sans Display';
+    font-size: 19px;
+    line-height: 25px;
+    font-weight: 900;
+  }
+  .zl-choices {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 10px;
+    margin: 14px 0 0;
+    padding: 0;
+    border: 0;
+  }
+  .zl-choice {
+    display: flex;
+    flex-direction: row;
+    align-items: center;
+    gap: 10px;
+    color: #20301e;
+    font-size: 15px;
+    line-height: 22px;
+  }
+  .zl-choice__input {
+    width: 20px;
+    height: 20px;
+    accent-color: #162313;
+  }
+  .zl-footer {
+    display: flex;
+    flex-direction: row;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 32px;
+    padding: 32px 0 44px;
+    border-top: 1px solid rgba(32, 48, 30, 0.18);
+  }
+  .zl-footer__column {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    max-width: 420px;
+  }
+  .zl-footer__links {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 8px;
+  }
+  .zl-footer__link {
+    min-height: 44px;
+    padding: 10px 2px;
+    color: #20301e;
+    font-size: 14px;
+    line-height: 20px;
+    font-weight: 700;
+    text-decoration: none;
+  }
+  .zl-footer__note {
+    margin: 12px 0 0;
+    color: #485347;
+    font-size: 13px;
+    line-height: 20px;
+  }
+  .zl-footer__legal {
+    margin: 0;
+    color: #485347;
+    font-size: 13px;
+    line-height: 20px;
+  }
+  @media (max-width: 1024px) {
+    .zl-hero {
+      flex-direction: column;
+      gap: 28px;
+      padding: 36px 32px 40px;
+    }
+    .zl-heading {
+      font-size: 30px;
+      line-height: 36px;
+    }
+  }
+  @media (max-width: 640px) {
+    .zl-shell {
+      padding: 0 20px;
+    }
+    .zl-topbar {
+      flex-direction: column;
+      align-items: flex-start;
+      gap: 8px;
+    }
+    .zl-section {
+      padding: 36px 0;
+    }
+    .zl-hero {
+      padding: 28px 22px 32px;
+    }
+    .zl-actions {
+      flex-direction: column;
+      align-items: stretch;
+      width: 100%;
+    }
+    .zl-button {
+      text-align: center;
+    }
+    .zl-footer {
+      flex-direction: column;
+      gap: 20px;
+    }
+  }
+</style>
+</head>
+<body>
+<div class="zl-app">
+  <a class="zl-skip" href="#zl-zawartosc">Przejdź do treści</a>
+
+  <header class="zl-topbar zl-shell">
+    <a class="zl-brand" href="/">Żar i Szlif</a>
+    <a class="zl-topbar__link" href="/poradnik">Poradnik</a>
+  </header>
+
+  <main id="zl-zawartosc">
+    <section class="zl-section zl-shell" id="zl-start">
+      <div class="zl-section__intro">
+        <p class="zl-eyebrow">Obózowisko drużyny</p>
+        <h1 class="zl-heading">Zbudujmy obóz razem</h1>
+        <p class="zl-lead">Żar i Szlif to narzędzie instruktora Royal Rangers: plan zbiórki, zadania, materiały, sprawności i pamięć drużyny w jednym miejscu.</p>
+      </div>
+
+      <div class="zl-hero">
+        <div class="zl-hero__copy">
+          <p class="zl-eyebrow zl-eyebrow--inverse">Start</p>
+          <h2 class="zl-heading zl-heading--inverse">Dwa wyraźne wejścia</h2>
+          <p class="zl-lead zl-lead--inverse">Jedno konto Google obsługuje oba przypadki. System rozróżnia nowe konto, niedokończony setup i konto, które może od razu wejść do obozu.</p>
+          <div class="zl-actions">
+            <a class="zl-button" href="/setup">Rozpocznij budowę obozowiska</a>
+            <a class="zl-button zl-button--on-dark" href="/logowanie">Mam już konto — Zaloguj się</a>
+          </div>
+          <p class="zl-note">Nie blokujemy wejścia: zaproszenia, plan roczny, pierwsza zbiórka i newsletter nie są warunkiem otwarcia obozu.</p>
+        </div>
+
+        <div class="zl-panel">
+          <h2 class="zl-panel__title">Dołącz do drużyny</h2>
+          <p class="zl-panel__text">Masz kod drużyny? Wpisz go, a my pokażemy nazwę drużyny do potwierdzenia przed wysłaniem prośby.</p>
+          <div class="zl-field">
+            <label class="zl-field__label" for="zl-kod-druzyny">Kod drużyny</label>
+            <input class="zl-field__input" id="zl-kod-druzyny" name="kod-druzyny" type="text" autocomplete="off" spellcheck="false" placeholder="np. ZS-27-4K7P">
+            <p class="zl-field__hint">Samo wpisanie kodu nie daje członkostwa — wysyłasz prośbę, a administrator ją zatwierdza.</p>
+          </div>
+          <div class="zl-actions">
+            <a class="zl-button zl-button--on-dark" href="/dolacz-do-druzyny">Sprawdź kod</a>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section class="zl-section zl-section--tinted" id="zl-setup">
+      <div class="zl-shell">
+        <div class="zl-section__intro">
+          <p class="zl-eyebrow">Setup</p>
+          <h2 class="zl-heading">Siedem kroków do obozu</h2>
+          <p class="zl-lead">Kroki prowadzą od konta do gotowego obozowiska. Możesz wrócić w dowolnym miejscu — setup wznawia się tam, gdzie przerwałeś.</p>
+        </div>
+        <ol class="zl-steps">
+          <li class="zl-step">
+            <span class="zl-step__number">1</span>
+            <div>
+              <h3 class="zl-step__title">Konto Google</h3>
+              <p class="zl-step__text">Jedno logowanie, jedno konto. Bez osobnych mechanizmów rejestracji.</p>
+            </div>
+          </li>
+          <li class="zl-step">
+            <span class="zl-step__number">2</span>
+            <div>
+              <h3 class="zl-step__title">Wybór zwierzaka</h3>
+              <p class="zl-step__text">Wstępny wybór postaci spośród dostępnych gatunków. Lis i kruk zostają wyłącznie dla Iskry i Szlifa.</p>
+            </div>
+          </li>
+          <li class="zl-step">
+            <span class="zl-step__number">3</span>
+            <div>
+              <h3 class="zl-step__title">Dwa pytania o doświadczenie</h3>
+              <p class="zl-step__text">Ile czasu jesteś w Royal Rangers i od jak dawna samodzielnie planujesz zbiórki. Odpowiedzi są prywatne i służą tylko podpowiedziom w interfejsie.</p>
+            </div>
+          </li>
+          <li class="zl-step">
+            <span class="zl-step__number">4</span>
+            <div>
+              <h3 class="zl-step__title">Imię, nazwisko i szczep</h3>
+              <p class="zl-step__text">Dane z konta Google możesz poprawić, a szczep wskazać ręcznie.</p>
+            </div>
+          </li>
+          <li class="zl-step">
+            <span class="zl-step__number">5</span>
+            <div>
+              <h3 class="zl-step__title">Drużyna: utwórz, nazwij albo dołącz</h3>
+              <p class="zl-step__text">Jedna aktywna drużyna na osobę. Kod drużyny tworzy prośbę, nigdy gotowe członkostwo.</p>
+            </div>
+          </li>
+          <li class="zl-step">
+            <span class="zl-step__number">6</span>
+            <div>
+              <h3 class="zl-step__title">Potwierdź wolny gatunek</h3>
+              <p class="zl-step__text">W drużynie może być tylko jeden aktywny awatar danego gatunku. Zajęty gatunek zmieniasz na wolny.</p>
+            </div>
+          </li>
+          <li class="zl-step">
+            <span class="zl-step__number">7</span>
+            <div>
+              <h3 class="zl-step__title">Zaproszenia i wejście do obozu</h3>
+              <p class="zl-step__text">Możesz zaprosić współprowadzących albo zrobić to później. Za każdym razem wchodzisz do obozu z rozwiniętą kartką przygotowań.</p>
+            </div>
+          </li>
+        </ol>
+      </div>
+    </section>
+
+    <section class="zl-section zl-shell" id="zl-pytania">
+      <div class="zl-section__intro">
+        <p class="zl-eyebrow">Pytania prywatne</p>
+        <h2 class="zl-heading">Dwa niezależne wymiary doświadczenia</h2>
+        <p class="zl-lead">Pytania pomagają dopasować poziom podpowiedzi. Nie są etykietą kompetencji, nie są widoczne dla innych członków drużyny i nie blokują żadnego modułu.</p>
+      </div>
+      <div class="zl-questions">
+        <fieldset class="zl-question">
+          <legend class="zl-question__legend">Jak długo jesteś w Royal Rangers?</legend>
+          <div class="zl-choices">
+            <label class="zl-choice"><input class="zl-choice__input" type="radio" name="staz-rr" value="do-6-miesiecy"> Do 6 miesięcy</label>
+            <label class="zl-choice"><input class="zl-choice__input" type="radio" name="staz-rr" value="6-12-miesiecy"> 6–12 miesięcy</label>
+            <label class="zl-choice"><input class="zl-choice__input" type="radio" name="staz-rr" value="1-3-lata"> 1–3 lata</label>
+            <label class="zl-choice"><input class="zl-choice__input" type="radio" name="staz-rr" value="3-5-lat"> 3–5 lat</label>
+            <label class="zl-choice"><input class="zl-choice__input" type="radio" name="staz-rr" value="ponad-5-lat"> Ponad 5 lat</label>
+          </div>
+        </fieldset>
+        <fieldset class="zl-question">
+          <legend class="zl-question__legend">Jak długo samodzielnie planujesz i prowadzisz zbiórki?</legend>
+          <div class="zl-choices">
+            <label class="zl-choice"><input class="zl-choice__input" type="radio" name="prowadzenie-zbiorek" value="jeszcze-nie"> Jeszcze nie — tylko pomagam</label>
+            <label class="zl-choice"><input class="zl-choice__input" type="radio" name="prowadzenie-zbiorek" value="dopiero-zaczynam"> Dopiero zaczynam</label>
+            <label class="zl-choice"><input class="zl-choice__input" type="radio" name="prowadzenie-zbiorek" value="6-12-miesiecy"> 6–12 miesięcy</label>
+            <label class="zl-choice"><input class="zl-choice__input" type="radio" name="prowadzenie-zbiorek" value="1-3-lata"> 1–3 lata</label>
+            <label class="zl-choice"><input class="zl-choice__input" type="radio" name="prowadzenie-zbiorek" value="ponad-3-lata"> Ponad 3 lata</label>
+          </div>
+        </fieldset>
+      </div>
+    </section>
+  </main>
+
+  <footer class="zl-footer zl-shell">
+    <div class="zl-footer__column">
+      <span class="zl-brand">Żar i Szlif</span>
+      <p class="zl-footer__legal">© 2026 Żar i Szlif. Nie prowadzimy zbiórki i nie zastępujemy metodyki.</p>
+      <p class="zl-footer__note">Status: produkt w budowie. Informacje o rejestracji drużyny opublikujemy, gdy będą gotowe i potwierdzone.</p>
+    </div>
+    <nav class="zl-footer__links" aria-label="Informacje">
+      <a class="zl-footer__link" href="/polityka-prywatnosci">Polityka prywatności</a>
+      <a class="zl-footer__link" href="/regulamin">Regulamin</a>
+      <a class="zl-footer__link" href="/poradnik">Poradnik</a>
+    </nav>
+  </footer>
+</div>
+</body>
+</html>
