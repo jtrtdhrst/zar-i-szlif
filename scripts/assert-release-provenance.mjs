@@ -1,6 +1,6 @@
 // Production provenance guard (KOMAA-457).
 //
-// Production Vercel/Cloudflare delivery must consume one exact verified GitHub
+// Production delivery must consume one exact verified GitHub
 // SHA on origin/main. This module is the single fail-closed assertion used by
 // the local release gate (scripts/release-targets.mjs) and by the production
 // deploy jobs, so both paths cannot drift apart.
