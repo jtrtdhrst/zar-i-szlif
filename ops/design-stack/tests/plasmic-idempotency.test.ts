@@ -124,41 +124,5 @@ describe("KOMAA-1001: dryRun nie tłumi live (create_component)", () => {
   });
 });
 
-describe("KOMAA-1001: katalog = dokładnie 17 narzędzi, brak import_html", () => {
-  const expected = [
-    "plasmic_get_project",
-    "plasmic_list_pages",
-    "plasmic_list_components",
-    "plasmic_list_tokens",
-    "plasmic_read_page",
-    "plasmic_read_component",
-    "plasmic_read_component_tree",
-    "plasmic_create_page",
-    "plasmic_create_component",
-    "plasmic_insert",
-    "plasmic_update",
-    "plasmic_delete",
-    "plasmic_set_props",
-    "plasmic_set_styles",
-    "plasmic_use_component",
-    "plasmic_validate",
-    "plasmic_get_changes",
-  ];
-  it("tools/list readback: 17 nazw, zgodne z allowlistą", async () => {
-    const { tools } = await makeCtx();
-    const names = tools.map((t) => t.name).sort();
-    assert.equal(names.length, 17);
-    assert.deepEqual(names, [...expected].sort());
-  });
-  it("negatyw: plasmic_import_html nie istnieje (live: 404 TOOL_NOT_FOUND)", async () => {
-    const { tools } = await makeCtx();
-    const missing = tools.find((t) => t.name === "plasmic_import_html");
-    assert.equal(missing, undefined);
-    assert.throws(
-      () => {
-        if (!missing) throw new Error("TOOL_NOT_FOUND plasmic_import_html");
-      },
-      /TOOL_NOT_FOUND/,
-    );
-  });
-});
+// Kontrakt katalogu (17 narzędzi == tools/list żywego serwera, negatyw
+// plasmic_import_html na poziomie protokołu) jest w tests/plasmic-mcp-catalog.test.ts.
