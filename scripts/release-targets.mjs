@@ -30,6 +30,10 @@ const RELEASE_RULES = [
 
 // Docs/non-release-only: minimum canonical repo validation, never provider auth.
 const NON_RELEASE_RULES = [
+  // Design-time, not-yet-promoted mascot sources/exports are not imported by the
+  // Vercel or Worker bundle. scripts/mascots changes are still release-gated.
+  // Promotion into app/web or app/plugin activates the existing release gates.
+  /^assets\/mascots\/style-2\//,
   /^docs\//,
   /^archive\//,
   /^content\//,
