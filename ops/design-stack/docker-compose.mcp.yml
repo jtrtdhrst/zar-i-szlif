@@ -1,10 +1,10 @@
 name: plasmic-mcp
 services:
   plasmic-mcp:
-    build:
-      context: /root/design-stack
-      dockerfile: Dockerfile.mcp
-    image: design-stack/plasmic-mcp:${IMAGE_TAG:-dev}
+    # Ten sam obraz co `opendesign-bridge-mcp`: `Dockerfile.mcp` zawiera oba serwery,
+    # a `command` wybiera serwer. Obraz buduje CI (push na `main`) i taguje SHA.
+    image: ghcr.io/miloszspyrka-code/kompas-zbiorek-opendesign-mcp:${IMAGE_TAG:-latest}
+    pull_policy: always
     command: ["node", "services/plasmic-mcp/server.ts"]
     environment:
       # Publiczny URL (nie wewnętrzny http): WAB stawia ciasteczko sesji
