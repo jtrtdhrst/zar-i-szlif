@@ -7,6 +7,8 @@ const dir = dirname(fileURLToPath(import.meta.url));
 const contracts = [
   { name: "iskra", expectedParts: 20 },
   { name: "szlif", expectedParts: 19 },
+  { name: "iskra-alternative-v4", expectedParts: 20 },
+  { name: "szlif-alternative-v4", expectedParts: 19 },
 ];
 let failures = 0;
 for (const contract of contracts) {
