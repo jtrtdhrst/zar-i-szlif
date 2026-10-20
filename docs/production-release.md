@@ -272,6 +272,9 @@ jako frontend (`vercel`).
   `vercel.json` (`/panel` → host panelu) i SPA fallback.
 - Deploy: `main` + webhook push; API/OAuth/MCP **pozostają** na Cloudflare
   Worker — ten target nie przenosi backendu.
+- Source: GitHub App (`coolify-zar-i-szlif`, zainstalowana **wyłącznie** na tym
+  repozytorium). Klon idzie tokenem instalacji, webhook zdarzeń `push`
+  zarejestrował App. Deploy key SSH nie jest używany.
 
 ## Cloudflare Worker
 
