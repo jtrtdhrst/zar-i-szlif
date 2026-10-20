@@ -16,6 +16,7 @@ import { COLLECTION_NAME } from "../../plugin/knowledge/schema.js";
 import { SEARCH_KNOWLEDGE_TOOL, GET_KNOWLEDGE_SOURCE_TOOL, COMPANY_SEARCH_TOOL, COMPANY_FETCH_TOOL,
   searchKnowledge, getKnowledgeSource, companySearch, companyFetch } from "../../plugin/knowledge/mcp-tools.js";
 import { canonicalOrigin, requestHostAllowed } from "./config.js";
+import { PRODUCT_GOOGLE_SCOPES, PRODUCT_SERVER_INFO } from "./product-auth.js";
 
 const READ_SCOPE = "knowledge.read";
 const SCOPES = [READ_SCOPE, "offline_access"];
@@ -125,7 +126,13 @@ function makeKnowledgeServer(env: Env, grant: VerifiedGrant | null | undefined, 
 
 // Reuse the audited Google OIDC consent, PKCE, and CSRF implementation, but expose
 // ONLY the login paths; NOT its legacy panel, UI or catalog proxies.
-const upstreamGoogle = createGoogleAuthHandler({ widgetHtml: "" });
+// Brand and Google scopes are overridden: the product asks only for identity
+// (openid/email/profile) — no Drive/Calendar access — and never shows legacy branding.
+const upstreamGoogle = createGoogleAuthHandler({
+  widgetHtml: "",
+  serverInfo: PRODUCT_SERVER_INFO,
+  googleScopes: PRODUCT_GOOGLE_SCOPES,
+});
 const loginHandler = {
   async fetch(request, env, ctx) {
     const url = new URL(request.url);

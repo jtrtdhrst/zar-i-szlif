@@ -54,6 +54,8 @@ export interface GoogleAuthHandlerEnv {
   SENDER_ONBOARDING_GROUP?: string;
 }
 
+// Domyślne zakresy Google należą do panelu legacy (Google Picker potrzebuje
+// `drive.file`). Produkt MCP nie prosi o Drive — nadpisuje listę w `options`.
 const GOOGLE_SCOPES = ["openid", "email", "profile", "https://www.googleapis.com/auth/drive.file"];
 const GOOGLE_AUTHORIZE_URL = "https://accounts.google.com/o/oauth2/v2/auth";
 const GOOGLE_TOKEN_URL = "https://oauth2.googleapis.com/token";
@@ -63,6 +65,21 @@ const SERVER_INFO = {
   name: "Kompas Zbiórek",
   description: "Serwer MCP Kompasu Zbiórek. Logowanie przez konto Google — używane wyłącznie do identyfikacji użytkownika.",
 };
+
+/** Brand i zakresy Google overridowalne przez wołającego (produkt MCP = Żar i Szlif). */
+/** Brand serwera i zakresy Google przekazywane do obsługi zgody. */
+export interface AuthOptions {
+  serverInfo: { name: string; description?: string };
+  googleScopes: string[];
+}
+
+export interface GoogleAuthHandlerOptions {
+  widgetHtml: string;
+  /** Nazwa/opis serwera w ekranie zgody. Domyślnie panel legacy. */
+  serverInfo?: { name: string; description?: string };
+  /** Zakresy Google w przepływie upstream. Domyślnie panel legacy. */
+  googleScopes?: string[];
+}
 
 // Proxy katalogów z dwuwarstwowym cache (Cloudflare Cache API w Workerze +
 // IndexedDB po stronie widgetu). Wpisy są kluczowane kanonicznym URL upstreamu
@@ -201,15 +218,17 @@ function getUpstreamAuthorizeUrl({
   clientId,
   redirectUri,
   state,
+  scopes,
 }: {
   clientId: string;
   redirectUri: string;
   state: string;
+  scopes: string[];
 }): string {
   const upstream = new URL(GOOGLE_AUTHORIZE_URL);
   upstream.searchParams.set("client_id", clientId);
   upstream.searchParams.set("redirect_uri", redirectUri);
-  upstream.searchParams.set("scope", GOOGLE_SCOPES.join(" "));
+  upstream.searchParams.set("scope", scopes.join(" "));
   upstream.searchParams.set("response_type", "code");
   upstream.searchParams.set("state", state);
   return upstream.href;
@@ -270,20 +289,24 @@ function redirectToGoogle(
   env: GoogleAuthHandlerEnv,
   stateToken: string,
   headers: Headers,
+  scopes: string[],
 ): Response {
   const clientId = env.GOOGLE_CLIENT_ID;
   if (!clientId || !env.GOOGLE_CLIENT_SECRET) {
     return missingConfigPage();
   }
   const redirectUri = new URL("/callback", request.url).href;
-  const location = getUpstreamAuthorizeUrl({ clientId, redirectUri, state: stateToken });
+  const location = getUpstreamAuthorizeUrl({ clientId, redirectUri, state: stateToken, scopes });
   const responseHeaders = new Headers(headers);
   responseHeaders.set("location", location);
   return new Response(null, { status: 302, headers: responseHeaders });
 }
 
-export function createGoogleAuthHandler(options: { widgetHtml: string }): ExportedHandler<GoogleAuthHandlerEnv> {
+export function createGoogleAuthHandler(options: GoogleAuthHandlerOptions): ExportedHandler<GoogleAuthHandlerEnv> {
   const { widgetHtml } = options;
+  const serverInfo = options.serverInfo ?? SERVER_INFO;
+  const googleScopes = options.googleScopes ?? GOOGLE_SCOPES;
+  const authOptions: AuthOptions = { serverInfo, googleScopes };
   const panelHandler = createPanelHandler({ widgetHtml });
 
   return {
@@ -365,11 +388,11 @@ export function createGoogleAuthHandler(options: { widgetHtml: string }): Export
       }
 
       if (pathname === "/authorize" && request.method === "GET") {
-        return handleAuthorizeGet(request, env);
+        return handleAuthorizeGet(request, env, authOptions);
       }
 
       if (pathname === "/authorize" && request.method === "POST") {
-        return handleAuthorizePost(request, env);
+        return handleAuthorizePost(request, env, authOptions);
       }
 
       if (pathname === "/callback" && request.method === "GET") {
@@ -385,7 +408,7 @@ export function createGoogleAuthHandler(options: { widgetHtml: string }): Export
   };
 }
 
-async function handleAuthorizeGet(request: Request, env: GoogleAuthHandlerEnv): Promise<Response> {
+async function handleAuthorizeGet(request: Request, env: GoogleAuthHandlerEnv, auth: AuthOptions): Promise<Response> {
   let oauthReqInfo: AuthRequest;
   try {
     oauthReqInfo = await env.OAUTH_PROVIDER.parseAuthRequest(request);
@@ -413,20 +436,20 @@ async function handleAuthorizeGet(request: Request, env: GoogleAuthHandlerEnv): 
     const { setCookie: sessionBindingCookie } = await bindStateToSession(stateToken);
     const headers = new Headers();
     headers.append("Set-Cookie", sessionBindingCookie);
-    return redirectToGoogle(request, env, stateToken, headers);
+    return redirectToGoogle(request, env, stateToken, headers, auth.googleScopes);
   }
 
   const { token: csrfToken, setCookie } = generateCSRFProtection();
   return renderApprovalDialog(request, {
     client: await env.OAUTH_PROVIDER.lookupClient(clientId),
     csrfToken,
-    server: SERVER_INFO,
+    server: auth.serverInfo,
     setCookie,
     state: { oauthReqInfo },
   });
 }
 
-async function handleAuthorizePost(request: Request, env: GoogleAuthHandlerEnv): Promise<Response> {
+async function handleAuthorizePost(request: Request, env: GoogleAuthHandlerEnv, auth: AuthOptions): Promise<Response> {
   try {
     if (!env.COOKIE_ENCRYPTION_KEY) {
       return missingConfigPage();
@@ -464,7 +487,7 @@ async function handleAuthorizePost(request: Request, env: GoogleAuthHandlerEnv):
     headers.append("Set-Cookie", approvedClientCookie);
     headers.append("Set-Cookie", sessionBindingCookie);
 
-    return redirectToGoogle(request, env, stateToken, headers);
+    return redirectToGoogle(request, env, stateToken, headers, auth.googleScopes);
   } catch (error) {
     if (error instanceof OAuthError) {
       return error.toResponse();

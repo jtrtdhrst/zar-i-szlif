@@ -12,7 +12,7 @@
   ],
   "vars": {
     "MCP_PUBLIC_ORIGIN": "https://mcp.zariszlif.pl",
-    "MCP_ALLOWED_REDIRECT_URIS": "https://chatgpt.com/connector/oauth/,https://chatgpt.com/connector_platform_oauth_redirect"
+    "MCP_ALLOWED_REDIRECT_URIS": "https://chatgpt.com/connector/oauth/,https://chatgpt.com/connector_platform_oauth_redirect,https://claude.ai/api/mcp/auth_callback"
   },
   "ai": {
     "binding": "AI"
