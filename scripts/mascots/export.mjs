@@ -38,6 +38,14 @@ export function validateCharacterJson(raw) {
   } catch {
     return { errors: ["character.json is not valid JSON"], data: null };
   }
+  if (!data || typeof data !== "object" || Array.isArray(data)) {
+    return { errors: ["character.json must be a JSON object"], data: null };
+  }
+  for (const key of ["id", "species", "role", "styleVersion"]) {
+    if (data[key] !== undefined && (typeof data[key] !== "string" || !data[key].trim())) {
+      fail(errors, `character.json ${key} must be a non-empty string`);
+    }
+  }
   for (const key of ["id", "species", "role", "styleVersion", "palette"]) {
     if (data[key] === undefined) fail(errors, `character.json missing required field: ${key}`);
   }
@@ -50,6 +58,15 @@ export function validateCharacterJson(raw) {
     } else if (!data.palette.every((c) => /^#[0-9a-fA-F]{6}$/.test(c))) {
       fail(errors, "character.json palette entries must be #rrggbb");
     }
+    // Archived STYLE_2_V0 masters use 7/10 colors; keep existing art
+    // reproducible and require five functional colors on NEW style versions.
+    if (data.styleVersion !== "style-2-v0" && Array.isArray(data.palette) && data.palette.length > 5) {
+      fail(errors, "character.json palette exceeds 5 functional colors");
+    }
+    if (Array.isArray(data.palette) &&
+        new Set(data.palette.filter((c) => typeof c === "string").map((c) => c.toLowerCase())).size !== data.palette.length) {
+      fail(errors, "character.json palette has duplicate colors");
+    }
   }
   return { errors, data };
 }
@@ -58,14 +75,25 @@ export function validateSvg(svg) {
   const errors = [];
   if (Buffer.byteLength(svg, "utf8") > MAX_SVG_BYTES) fail(errors, "source.svg exceeds 1 MiB");
   if (!/<svg[\s>]/.test(svg)) fail(errors, "source.svg has no <svg> root");
-  if (!/viewBox\s*=/.test(svg)) fail(errors, "source.svg missing viewBox");
+  const viewBox = svg.match(/viewBox\s*=\s*["']([^"']+)["']/);
+  if (!viewBox) fail(errors, "source.svg missing viewBox");
+  else {
+    const nums = viewBox[1].trim().split(/[\s,]+/).map(Number);
+    if (nums.length !== 4 || nums.some((n) => !Number.isFinite(n)) || nums[2] <= 0 || nums[3] <= 0) {
+      fail(errors, "source.svg viewBox must contain four finite numbers with positive width/height");
+    }
+  }
   // Safe-input handling: resvg never executes scripts, but reject risky input outright.
   const banned = [
     [/<!ENTITY/i, "source.svg contains <!ENTITY (XXE risk)"],
-    [/<!DOCTYPE[^>]*\[/i, "source.svg contains DOCTYPE with internal subset"],
+    [/<!DOCTYPE/i, "source.svg contains DOCTYPE"],
+    [/<image[\s/>]/i, "source.svg embeds raster/external image instead of editable vector"],
     [/<script[\s>]/i, "source.svg contains <script>"],
     [/<foreignObject[\s>]/i, "source.svg contains <foreignObject>"],
+    [/<(?:animate|animateTransform|animateMotion|set)[\s>]/i, "source.svg contains dynamic animation"],
     [/\son\w+\s*=/i, "source.svg contains event-handler attribute"],
+    [/(?:xlink:)?href\s*=\s*["'](?!#)[^"']+/i, "source.svg contains non-local href"],
+    [/url\s*\(\s*["']?\s*(?:https?:|data:|\/\/)/i, "source.svg contains remote or embedded url()"],
     [/xlink:href\s*=\s*["']https?:/i, "source.svg contains remote xlink:href"],
     [/href\s*=\s*["']https?:/i, "source.svg contains remote href"],
   ];

@@ -8,7 +8,7 @@ import { isAbsolute, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import test from "node:test";
 
-import { detachedParts, exportCharacter, runAll, SIZES } from "../scripts/mascots/export.mjs";
+import { detachedParts, exportCharacter, runAll, SIZES, validateSvg, validateCharacterJson } from "../scripts/mascots/export.mjs";
 const root = fileURLToPath(new URL("../", import.meta.url));
 const canonical = join(root, "assets", "mascots", "style-2");
 const sha256 = (buf) => createHash("sha256").update(buf).digest("hex");
@@ -89,6 +89,38 @@ test("set outputs: root manifest index and pair contact sheet are generated and 
     rmSync(a, { recursive: true, force: true });
     rmSync(b, { recursive: true, force: true });
   }
+});
+
+test("SVG inputs reject embedded raster, external references, animation and degenerate viewBoxes", () => {
+  const bad = [
+    '<svg viewBox="0 0 512 512"><image href="data:image/png;base64,AAA"/></svg>',
+    '<svg viewBox="0 0 512 512"><image href="#local"/></svg>',
+    '<svg viewBox="0 0 512 512"><use href="javascript:alert(1)"/></svg>',
+    '<svg viewBox="0 0 512 512"><rect fill="url(data:image/svg+xml;base64,AAAA)"/></svg>',
+    '<svg viewBox="0 0 512 512"><animate attributeName="opacity" values="1;0"/></svg>',
+    '<svg viewBox="0 0 0 512"><rect/></svg>',
+    '<svg viewBox="0 0 -1 512"><rect/></svg>',
+    '<svg viewBox="0 0 Infinity 512"><rect/></svg>',
+    '<!DOCTYPE svg><svg viewBox="0 0 512 512"/>',
+  ];
+  for (const input of bad) assert.notEqual(validateSvg(input).length, 0, `unsafe SVG accepted: ${input}`);
+  assert.deepEqual(validateSvg('<svg viewBox="0 0 512 512"><path id="body" d="M0 0Z"/></svg>'), []);
+});
+
+test("character metadata rejects non-object JSON, empty identity and excessive palettes", () => {
+  const base = { id: "iskra", species: "fox", role: "npc", styleVersion: "v1", palette: ["#E2702D"] };
+  const cases = [
+    "null",
+    "[]",
+    JSON.stringify({ ...base, species: "" }),
+    JSON.stringify({ ...base, styleVersion: 3 }),
+    JSON.stringify({ ...base, palette: ["#111111","#222222","#333333","#444444","#555555","#666666"] }),
+    JSON.stringify({ ...base, palette: ["#e2702d", "#E2702D"] }),
+  ];
+  for (const input of cases) assert.notEqual(validateCharacterJson(input).errors.length, 0, `bad metadata accepted: ${input}`);
+  assert.deepEqual(validateCharacterJson(JSON.stringify(base)).errors, []);
+  const historical = { ...base, styleVersion: "style-2-v0", palette: ["#111111","#222222","#333333","#444444","#555555","#666666"] };
+  assert.deepEqual(validateCharacterJson(JSON.stringify(historical)).errors, [], "archived V0 must remain reproducible");
 });
 
 test("negative: corrupted SVG fails validation", () => {
