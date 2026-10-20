@@ -36,9 +36,44 @@ const EXPECTED_TOOLS = [
   "plasmic_get_changes",
 ];
 
+/** Narzędzia tylko do odczytu — nie zmieniają projektu Plasmic. */
+const READ_ONLY_TOOLS = [
+  "plasmic_get_project",
+  "plasmic_list_pages",
+  "plasmic_list_components",
+  "plasmic_list_tokens",
+  "plasmic_read_page",
+  "plasmic_read_component",
+  "plasmic_read_component_tree",
+  "plasmic_validate",
+  "plasmic_get_changes",
+];
+
+/** Narzędzia zapisujące — platforma musi je widzieć jako zmiany. */
+const WRITE_TOOLS = [
+  "plasmic_create_page",
+  "plasmic_create_component",
+  "plasmic_insert",
+  "plasmic_update",
+  "plasmic_delete",
+  "plasmic_set_props",
+  "plasmic_set_styles",
+  "plasmic_use_component",
+];
+
+type ToolAnnotations = {
+  readOnlyHint?: boolean;
+  destructiveHint?: boolean;
+  idempotentHint?: boolean;
+};
+
 type RpcResponse = {
   id: number;
-  result?: { tools?: { name: string }[]; isError?: boolean; content?: { text?: string }[] };
+  result?: {
+    tools?: { name: string; annotations?: ToolAnnotations }[];
+    isError?: boolean;
+    content?: { text?: string }[];
+  };
   error?: { code: number; message: string };
 };
 
@@ -145,5 +180,44 @@ describe("KOMAA-1001: katalog MCP == tools/list żywego serwera", () => {
       .map((c: { text?: string }) => c.text ?? "")
       .join(" ");
     assert.match(text, /Tool plasmic_import_html not found/);
+  });
+
+  it("każde narzędzie deklaruje adnotacje, a zapisujące nie są read-only", async () => {
+    // Klasyfikacja platformy (readOnlyHint/destructiveHint) bierze się
+    // wprost z manifestu serwera — bez adnotacji insert/use_component/update
+    // wyglądały jak read-only i omijały politykę zatwierdzania zmian.
+    assert.deepEqual(
+      [...READ_ONLY_TOOLS, ...WRITE_TOOLS].sort(),
+      [...EXPECTED_TOOLS].sort(),
+      "każde narzędzie z kontraktu musi być sklasyfikowane",
+    );
+    const tools = await withServer(async (client) => {
+      const res = await client.request("tools/list", {});
+      assert.ok(res.result, `tools/list nie powiodło się: ${JSON.stringify(res.error)}`);
+      return res.result.tools ?? [];
+    });
+    assert.equal(tools.length, 17);
+    for (const t of tools) {
+      assert.ok(t.annotations, `${t.name}: brak adnotacji MCP — platforma nie sklasyfikuje narzędzia`);
+    }
+    const byName = new Map(tools.map((t) => [t.name, t.annotations!]));
+    for (const name of READ_ONLY_TOOLS) {
+      assert.equal(byName.get(name)?.readOnlyHint, true, `${name} powinno być read-only`);
+    }
+    for (const name of WRITE_TOOLS) {
+      const a = byName.get(name);
+      assert.ok(a, `${name}: brak adnotacji`);
+      assert.equal(a.readOnlyHint, false, `${name} zapisuje — nie może być read-only`);
+      assert.equal(typeof a.destructiveHint, "boolean", `${name}: brak destructiveHint`);
+    }
+    // Usunięcie i nadpisanie istniejącego wpisu są destrukcyjne.
+    assert.equal(byName.get("plasmic_delete")?.destructiveHint, true);
+    assert.equal(byName.get("plasmic_insert")?.destructiveHint, true);
+    assert.equal(byName.get("plasmic_update")?.destructiveHint, true);
+    // set_props tworzy nowe wpisy Expr przy każdym wywołaniu — nie jest idempotentne.
+    assert.equal(byName.get("plasmic_set_props")?.idempotentHint, false);
+    // Klucz idempotencji w create_page/create_component/insert/use_component.
+    assert.equal(byName.get("plasmic_create_page")?.idempotentHint, true);
+    assert.equal(byName.get("plasmic_insert")?.idempotentHint, true);
   });
 });

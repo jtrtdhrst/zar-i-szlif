@@ -5,12 +5,19 @@ import { createServer, type IncomingMessage, type ServerResponse } from "node:ht
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
 import { StreamableHTTPServerTransport } from "@modelcontextprotocol/sdk/server/streamableHttp.js";
+import type { ToolAnnotations } from "@modelcontextprotocol/sdk/types.js";
 import type { ZodRawShape } from "zod";
 
 export interface ToolDef {
   name: string;
   description: string;
   schema: ZodRawShape;
+  /**
+   * Adnotacje MCP (readOnlyHint/destructiveHint/idempotentHint). Platforma
+   * klasyfikuje narzędzia właśnie po nich: bez adnotacji narzędzie zapisujące
+   * wygląda jak read-only i omija politykę zatwierdzania zmian.
+   */
+  annotations?: ToolAnnotations;
   handler: (args: Record<string, unknown>) => Promise<unknown>;
 }
 
@@ -46,7 +53,7 @@ export function buildMcpServer(
   for (const t of tools) {
     server.registerTool(
       t.name,
-      { description: t.description, inputSchema: t.schema },
+      { description: t.description, inputSchema: t.schema, annotations: t.annotations },
       async (args) => {
         const started = Date.now();
         try {
