@@ -159,7 +159,7 @@ export function detachedParts(sizes) {
 }
 
 // ---- pixel analysis -------------------------------------------------------
-export function analyzePng(buf, expectedSize, expectedHeight = expectedSize) {
+export function analyzePng(buf, expectedSize, expectedHeight = expectedSize, { allowCanvasEdge = false } = {}) {
   const errors = [];
   let img;
   try {
@@ -196,7 +196,7 @@ export function analyzePng(buf, expectedSize, expectedHeight = expectedSize) {
     fail(errors, `PNG looks blank: opaque ratio ${ratio.toFixed(4)} < ${MIN_OPAQUE_RATIO}`);
   }
   const bbox = opaque === 0 ? null : { minX, minY, maxX, maxY };
-  if (bbox && (minX <= 0 || minY <= 0 || maxX >= img.width - 1 || maxY >= img.height - 1)) {
+  if (!allowCanvasEdge && bbox && (minX <= 0 || minY <= 0 || maxX >= img.width - 1 || maxY >= img.height - 1)) {
     fail(errors, `content touches canvas edge (bbox ${JSON.stringify(bbox)}): clipped art?`);
   }
   const components = countComponents(img);
@@ -221,7 +221,9 @@ function exportVectorAsset(assetDir, assetId, { kind = "character", validateMeta
 
   const outDir = join(assetDir, "exports");
   mkdirSync(outDir, { recursive: true });
-  const renderSvg = withSafeMargin(svg);
+  // Scene viewBoxes may intentionally crop the composition; only characters
+  // receive the extra safe-margin and edge-clipping invariant.
+  const renderSvg = kind === "scene" ? svg : withSafeMargin(svg);
   const viewBox = svg.match(/viewBox\s*=\s*["']([^"']+)["']/)[1].trim().split(/[\s,]+/).map(Number);
   const sizes = [];
   const rendered = [];
@@ -234,13 +236,17 @@ function exportVectorAsset(assetDir, assetId, { kind = "character", validateMeta
       continue;
     }
     const expectedHeight = Math.round(size * viewBox[3] / viewBox[2]);
-    const { errors: pxErrors, opaque, opaqueRatio, bbox, components, img } = analyzePng(png, size, expectedHeight);
+    const { errors: pxErrors, opaque, opaqueRatio, bbox, components, img } = analyzePng(
+      png, size, expectedHeight, { allowCanvasEdge: kind === "scene" },
+    );
     for (const e of pxErrors) fail(errors, `${assetId}@${size}: ${e}`);
     // Gated at every exported size: a split that only shows up at 512 must not
     // slip through an ungated size (UI QA: iskra-c splits at 512 *and* 256).
     const detached = kind === "character"
       ? detachedParts(components)
-      : components.filter((n) => n / components.reduce((sum, part) => sum + part, 0) < minComponentShare);
+      : components
+        .filter((n) => n >= components[0] * NOISE_COMPONENT_RATIO)
+        .filter((n) => n / components.reduce((sum, part) => sum + part, 0) < minComponentShare);
     if (detached.length > 0) {
       fail(
         errors,

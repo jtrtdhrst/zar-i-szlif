@@ -5,12 +5,15 @@ character, one renderer, no duplicate SSOT.
 
 Compositions live in `assets/mascots/style-2/scenes/<scene>/` with `source.svg`
 and `scene.json` (`id`, optional `minimumComponentShare`, default `0.01`). They
-use the same SVG validation, renderer, PNG pixel/bounds checks, hashes and
+use the same SVG validation, renderer, PNG pixel checks, hashes and
 manifest pipeline, but do not use `character.json` or the character-only
 five-color / single-character-component rules. Each scene component must meet
-its minimum share of total opaque pixels at every export size; scenes may
-contain multiple co-characters. Export dimensions are recorded as width and
-height, so viewBox aspect ratio is preserved for both characters and scenes.
+its minimum share of total opaque pixels at every export size after components
+below 1% of the largest component are treated as raster noise. Scenes may
+contain multiple co-characters and intentionally crop to their source viewBox;
+they are not expanded by the character safe margin and may touch the canvas
+edge. Export dimensions are recorded as width and height, preserving the
+source viewBox aspect ratio.
 
 **Art sources are the Designer's real masters** (KOMAA-1010, commit `c411faa`):
 `iskra/source.svg` + `iskra/character.json` and `szlif/source.svg` +

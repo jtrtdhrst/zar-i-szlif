@@ -94,10 +94,12 @@ with editable `source.svg` and `scene.json`. They use the same canonical
 renderer, SVG safety checks, raster verification, hashes and set manifest, but
 do not use character metadata or the character-only palette and one-piece
 rules. `minimumComponentShare` in `scene.json` defaults to `0.01` of total
-opaque pixels; each component must meet that floor at every export size. This
-allows multiple co-characters while still rejecting isolated small artifacts.
-Exports preserve the SVG viewBox aspect ratio and record actual `width` and
-`height` per size; dimensions are not assumed square.
+opaque pixels; components below 1% of the largest are ignored as raster noise
+before that floor is applied. This allows multiple co-characters while still
+rejecting small meaningful fragments. Scene source viewBoxes are intentional
+crop bounds: scenes are rendered without character safe-margin expansion, and
+pixels may touch the output edge. Exports preserve the viewBox aspect ratio and
+record actual `width` and `height` per size; dimensions are not assumed square.
 
 An absent or empty `silhouettes/` directory is valid. The set manifest and
 contact sheet are still generated; silhouette entries are included only when

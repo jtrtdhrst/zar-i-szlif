@@ -94,14 +94,13 @@ test("scene exports allow co-characters and record actual rectangular dimensions
   }
 });
 
-test("scene validation rejects malformed metadata, unsafe SVG, clipped art and undersized detached components", () => {
+test("scene validation rejects malformed metadata, unsafe SVG and meaningful undersized fragments", () => {
   assert.ok(validateSceneJson("{").errors.length > 0);
   assert.ok(validateSceneJson(JSON.stringify({ id: "pair", minimumComponentShare: 1 })).errors.length > 0);
   const cases = [
     ["<svg><g><unclosed>", "missing viewBox"],
     ['<svg viewBox="0 0 400 230"><script>alert(1)</script></svg>', "contains <script>"],
-    ['<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 230"><rect x="-30" y="20" width="100" height="100" fill="#111"/></svg>', "content touches canvas edge"],
-    ['<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 230"><circle cx="100" cy="115" r="60" fill="#111"/><circle cx="300" cy="115" r="60" fill="#222"/><circle cx="200" cy="15" r="1" fill="#333"/></svg>', "undersized component"],
+    ['<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 230"><circle cx="100" cy="115" r="60" fill="#111"/><circle cx="300" cy="115" r="60" fill="#222"/><circle cx="200" cy="15" r="7" fill="#333"/></svg>', "undersized component"],
   ];
   for (const [svg, expectedError] of cases) {
     const dir = isolatedTmp();
@@ -113,6 +112,20 @@ test("scene validation rejects malformed metadata, unsafe SVG, clipped art and u
     } finally {
       rmSync(dir, { recursive: true, force: true });
     }
+  }
+});
+
+test("scene viewBox crop is preserved and one-pixel islands are ignored", () => {
+  const dir = isolatedTmp();
+  try {
+    const sceneDir = addScene(dir, '<svg xmlns="http://www.w3.org/2000/svg" viewBox="38 22 398 230"><circle cx="100" cy="115" r="60" fill="#111"/><circle cx="300" cy="115" r="60" fill="#222"/><circle cx="200" cy="15" r="1" fill="#333"/></svg>');
+    const result = exportScene(sceneDir, "pair");
+    assert.equal(result.ok, true, JSON.stringify(result.errors));
+    const manifest = JSON.parse(readFileSync(join(sceneDir, "exports", "manifest.json"), "utf8"));
+    assert.deepEqual(manifest.sizes.filter(({ size }) => size === 32 || size === 64).map(({ width, height }) => [width, height]), [[64, 37], [32, 18]]);
+    assert.ok(manifest.sizes.every(({ detachedParts }) => detachedParts === 0), "one-pixel islands must not count as meaningful scene parts");
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
   }
 });
 
