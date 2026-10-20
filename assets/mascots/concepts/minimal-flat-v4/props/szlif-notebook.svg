@@ -1,5 +1,0 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512">
-  <path id="szlif-notebook-cover" fill="#2BB8A6" d="M300,300L362,288L376,332L314,344Z"/>
-  <path id="szlif-notebook-pages" fill="#D7DCE3" d="M362,288L370,286L384,330L376,332Z"/>
-  <path id="szlif-notebook-lines" fill="#232833" d="M314,308L354,299L355,305L315,314ZM318,320L358,311L359,317L319,326Z"/>
-</svg>

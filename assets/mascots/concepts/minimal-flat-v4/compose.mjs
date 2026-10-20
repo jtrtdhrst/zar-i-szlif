@@ -6,21 +6,27 @@
 // the master frame and to compose the paired interaction vignette.
 //
 // Usage: node compose.mjs <out.svg> <viewBox> <layer> [<layer> ...]
-//   layer = <src.svg>[@<id1>,<id2>]:<tx>,<ty>,<scale>[:flip]   (@ids are dropped)
+//   layer = <src.svg>[@<id1>,<id2>]:<tx>,<ty>,<scale>[,<deg>[,<px>,<py>]]   (@ids are dropped)
+//   deg rotates the placed layer about the scene-space pivot (px,py); default 0, pivot 0,0
 import { readFileSync, writeFileSync } from 'node:fs';
 
 const ARITY = { M: 2, L: 2, T: 2, H: 1, V: 1, C: 6, S: 4, Q: 4, A: 7, Z: 0 };
 const isNum = (t) => t !== undefined && /^[+-]?(\d|\.\d)/.test(t);
 
 function transformD(d, m) {
-  const { s, tx, ty, flip } = m;
+  const { s, tx, ty, flip, deg, px, py } = m;
   const out = [];
   const toks = d.match(/[A-Za-z]|[+-]?(?:\d*\.\d+|\d+)(?:[eE][+-]?\d+)?/g) || [];
+  const rad = (deg * Math.PI) / 180;
+  const cos = Math.cos(rad);
+  const sin = Math.sin(rad);
   let i = 0;
   let cmd = null;
   const xf = (x, y) => {
     const sx = flip ? -x : x;
-    return [sx * s + tx, y * s + ty];
+    const dx = sx * s + tx - px;
+    const dy = y * s + ty - py;
+    return [px + dx * cos - dy * sin, py + dx * sin + dy * cos];
   };
   while (i < toks.length) {
     if (/[A-Za-z]/.test(toks[i])) { cmd = toks[i]; out.push(cmd); i++; continue; }
@@ -51,11 +57,12 @@ function transformD(d, m) {
 }
 
 function layer(spec) {
-  const [fileAndDrops, place, flip] = spec.split(':');
+  const [fileAndDrops, place] = spec.split(':');
   const [file, drops] = fileAndDrops.split('@');
-  const [tx, ty, scale] = place.split(',').map(Number);
+  const f = place.split(',').map(Number);
+  const [tx, ty, scale, deg = 0, px = 0, py = 0] = f;
   if (!Number.isFinite(scale)) throw new Error(`bad layer spec: ${spec}`);
-  const m = { s: scale, tx, ty, flip: flip === 'flip' };
+  const m = { s: scale, tx, ty, flip: false, deg, px, py };
   const drop = new Set((drops || '').split(',').filter(Boolean));
   const svg = readFileSync(file, 'utf8');
   const body = svg.replace(/^[\s\S]*?<svg[^>]*>/, '').replace(/<\/svg>\s*$/, '');
