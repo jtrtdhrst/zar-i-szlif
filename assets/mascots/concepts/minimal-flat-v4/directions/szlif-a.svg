@@ -1,0 +1,51 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512" role="img" aria-labelledby="title desc">
+  <title id="title">Szlif — style direction A, perched thinker</title>
+  <desc id="desc">Design exploration A for Szlif the raven: upright perched posture on a slim branch, three swept-back crest feathers rooted in the crown, sharp angular ochre bill with a deep down-turned hook, folded wing with separated primary feathers, tapered pale breast, small hooded skeptical eye. Flat vector, five colours.</desc>
+  <!-- Exploration A — flat vector, no raster, filters, gradients or scripts. -->
+  <!-- SZLIF / A / CREST / swept feather 1, rooted in crown -->
+  <path id="szlif-a-crest-1" fill="#232833" d="M214,78C192,74 168,64 148,50C170,50 196,58 218,68C217,72 216,75 214,78Z"/>
+  <!-- SZLIF / A / CREST / swept feather 2 -->
+  <path id="szlif-a-crest-2" fill="#232833" d="M234,68C216,62 198,50 184,36C204,38 226,48 240,60C238,63 236,66 234,68Z"/>
+  <!-- SZLIF / A / CREST / short front feather -->
+  <path id="szlif-a-crest-3" fill="#232833" d="M254,68C242,60 232,48 228,34C242,38 258,46 268,58C264,62 259,65 254,68Z"/>
+  <!-- SZLIF / A / TAIL / rear feather -->
+  <path id="szlif-a-tail" fill="#232833" d="M214,362C186,382 158,408 134,438C126,448 114,442 120,430C138,398 168,372 200,352C208,348 216,354 214,362Z"/>
+  <!-- SZLIF / A / TAIL / near feather, two-tone separation -->
+  <path id="szlif-a-tail-near" fill="#3C4757" d="M232,374C206,392 178,416 154,444C146,454 134,448 140,436C158,406 184,380 214,362C222,360 230,368 232,374Z"/>
+  <!-- SZLIF / A / TAIL / near fan feather -->
+  <path id="szlif-a-tail-near-2" fill="#232833" d="M244,390C220,406 194,428 172,452C164,460 152,454 158,442C174,414 198,392 226,378C234,378 242,384 244,390Z"/>
+  <!-- SZLIF / A / BODY / upright tapering -->
+  <path id="szlif-a-body" fill="#232833" d="M244,178C278,178 300,196 306,240C312,296 310,352 300,398C292,432 272,452 244,454C216,452 196,432 192,398C186,352 190,296 198,240C202,196 212,178 244,178Z"/>
+  <!-- SZLIF / A / WING / folded shoulder panel -->
+  <path id="szlif-a-wing" fill="#3C4757" d="M236,200C266,204 282,232 278,266C274,302 264,340 250,370C238,394 222,408 208,406C198,404 198,394 204,384C216,354 222,318 222,286C222,246 218,204 236,200Z"/>
+  <!-- SZLIF / A / WING / primary feather 1 -->
+  <path id="szlif-a-wing-primary-1" fill="#3C4757" d="M244,318C238,352 226,384 206,410C218,404 232,390 240,372C246,356 248,336 244,318Z"/>
+  <!-- SZLIF / A / WING / primary feather 2 -->
+  <path id="szlif-a-wing-primary-2" fill="#3C4757" d="M222,314C216,350 202,384 180,406C196,398 210,382 218,364C224,350 226,330 222,314Z"/>
+  <!-- SZLIF / A / THROAT / small pale patch instead of a penguin belly -->
+  <path id="szlif-a-breast" fill="#D7DCE3" d="M292,116C306,128 312,150 306,168C298,178 284,176 280,164C276,146 282,126 292,116Z"/>
+  <!-- SZLIF / A / LEG / left -->
+  <path id="szlif-a-leg-left" fill="#E2A03F" d="M238,442C236,452 236,462 238,468L248,468C248,460 248,450 250,442Z"/>
+  <!-- SZLIF / A / LEG / right -->
+  <path id="szlif-a-leg-right" fill="#E2A03F" d="M272,442C270,452 270,462 272,468L282,468C282,460 282,450 284,442Z"/>
+  <!-- SZLIF / A / FOOT / left -->
+  <path id="szlif-a-foot-left" fill="#E2A03F" d="M222,464C234,458 252,458 264,466C270,471 264,478 254,478L226,478C216,478 214,468 222,464Z"/>
+  <!-- SZLIF / A / FOOT / right -->
+  <path id="szlif-a-foot-right" fill="#E2A03F" d="M262,464C274,458 292,458 304,466C310,471 304,478 294,478L266,478C256,478 254,468 262,464Z"/>
+  <!-- SZLIF / A / BRANCH / slim perch -->
+  <path id="szlif-a-branch" fill="#3C4757" d="M104,472C180,466 300,464 404,472C300,480 180,478 104,472Z"/>
+  <!-- SZLIF / A / HEAD / flat crown, angular nape -->
+  <path id="szlif-a-head" fill="#232833" d="M196,126C196,92 214,62 248,56C282,50 306,68 312,96C314,108 316,118 322,126C312,132 300,134 290,132C286,158 268,176 244,180C216,184 198,166 196,140Z"/>
+  <!-- SZLIF / A / BEAK / lower mandible -->
+  <path id="szlif-a-beak-lower" fill="#E2A03F" d="M308,128L340,138L330,152L312,140Z"/>
+  <!-- SZLIF / A / BEAK / sharp hooked upper mandible -->
+  <path id="szlif-a-beak" fill="#E2A03F" d="M306,108L366,122L358,138L330,160L316,134Z"/>
+  <!-- SZLIF / A / BEAK / gape line -->
+  <path id="szlif-a-beak-mouth" fill="#232833" d="M306,120L342,130L340,135L306,126Z"/>
+  <!-- SZLIF / A / EYE / pale ring -->
+  <path id="szlif-a-eye-ring" fill="#D7DCE3" d="M262,94C272,86 286,88 292,98C298,108 294,120 284,124C274,128 262,124 258,114C255,106 257,98 262,94Z"/>
+  <!-- SZLIF / A / EYE / ink pupil, high and skeptical -->
+  <path id="szlif-a-eye-pupil" fill="#232833" d="M276,94C284,94 290,101 290,109C290,117 284,123 277,122C270,121 266,115 266,108C266,100 270,94 276,94Z"/>
+  <!-- SZLIF / A / EYE / heavy upper lid -->
+  <path id="szlif-a-eye-lid" fill="#232833" d="M256,90C266,82 282,82 292,92C286,90 278,90 272,94C266,98 260,100 254,98C252,95 253,92 256,90Z"/>
+</svg>

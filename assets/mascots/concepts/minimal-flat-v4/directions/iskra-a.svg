@@ -1,0 +1,49 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512" role="img" aria-labelledby="title desc">
+  <title id="title">Iskra — style direction A, campfire sitter</title>
+  <desc id="desc">Design exploration A for Iskra the fox: sitting campfire pose, cheek ruff, tapered tail with cream tip sweeping up to the right, raised paw, tilted turquoise scarf. Flat vector, five colours.</desc>
+  <!-- Exploration A — flat vector, no raster, filters, gradients or scripts. -->
+  <!-- ISKRA / A / TAIL / tapered plume -->
+  <path id="iskra-a-tail" fill="#E2702D" d="M344,430C372,424 396,404 412,372C428,340 430,290 416,250C412,236 406,228 400,226C408,246 410,272 404,300C396,336 376,370 348,396C324,418 296,432 272,440C296,438 320,436 344,430Z"/>
+  <!-- ISKRA / A / TAIL / cream tip -->
+  <path id="iskra-a-tail-tip" fill="#F7E8D3" d="M400,226C406,228 412,236 416,250C424,272 426,290 424,306L398,300C400,280 400,250 400,226Z"/>
+  <!-- ISKRA / A / BODY / sitting bell -->
+  <path id="iskra-a-body" fill="#E2702D" d="M256,206C302,206 326,240 334,294C342,342 352,378 348,406C344,438 318,460 280,462C242,460 216,438 212,406C208,378 218,342 226,294C234,240 210,206 256,206Z"/>
+  <!-- ISKRA / A / BIB / cream chest -->
+  <path id="iskra-a-bib" fill="#F7E8D3" d="M236,246C228,276 224,306 226,336C228,366 238,388 254,392C270,396 286,384 292,362C298,336 294,300 288,272C272,258 252,244 236,246Z"/>
+  <!-- ISKRA / A / LEG / left -->
+  <path id="iskra-a-leg-left" fill="#B94F1D" d="M216,352C210,384 208,420 212,442C216,456 234,458 238,444C240,418 236,382 230,352Z"/>
+  <!-- ISKRA / A / LEG / right -->
+  <path id="iskra-a-leg-right" fill="#B94F1D" d="M288,352C294,384 298,420 294,442C290,456 272,458 268,444C264,418 266,382 270,352Z"/>
+  <!-- ISKRA / A / HEAD / cheek ruff -->
+  <path id="iskra-a-head" fill="#E2702D" d="M256,78C306,78 344,116 344,166L350,194L336,192L344,216L318,214C310,230 292,238 274,240C268,244 262,246 256,246C250,246 244,244 238,240C222,238 204,230 194,214L168,216L176,192L162,194L168,166C168,116 206,78 256,78Z"/>
+  <!-- ISKRA / A / EAR / left -->
+  <path id="iskra-a-ear-left" fill="#E2702D" d="M186,132C176,96 170,58 166,34C196,50 218,74 236,98C222,116 202,130 186,132Z"/>
+  <!-- ISKRA / A / EAR / right -->
+  <path id="iskra-a-ear-right" fill="#E2702D" d="M280,98C298,72 320,46 348,28C342,72 332,110 324,142C304,132 288,114 280,98Z"/>
+  <!-- ISKRA / A / EAR / inner left -->
+  <path id="iskra-a-ear-inner-left" fill="#B94F1D" d="M196,124C188,96 184,68 182,50C202,62 218,80 228,96C218,112 206,122 196,124Z"/>
+  <!-- ISKRA / A / EAR / inner right -->
+  <path id="iskra-a-ear-inner-right" fill="#B94F1D" d="M292,100C304,82 318,64 332,48C328,76 320,106 314,126C304,120 296,110 292,100Z"/>
+  <!-- ISKRA / A / FRINGE / asymmetric sweep -->
+  <path id="iskra-a-fringe" fill="#B94F1D" d="M170,164C168,116 198,88 244,82C268,80 290,86 306,98C272,96 244,110 226,132C214,148 208,162 206,174C194,168 182,152 174,138C176,148 174,156 170,164Z"/>
+  <!-- ISKRA / A / SCARF / tilted wrap -->
+  <path id="iskra-a-scarf" fill="#2BB8A6" d="M196,250C234,236 282,230 318,232L320,262C284,262 234,270 194,284Z"/>
+  <!-- ISKRA / A / SCARF / knot -->
+  <path id="iskra-a-scarf-knot" fill="#2BB8A6" d="M306,238C318,230 334,236 336,250C338,264 324,274 312,270C300,266 296,246 306,238Z"/>
+  <!-- ISKRA / A / SCARF / fluttering end -->
+  <path id="iskra-a-scarf-end" fill="#2BB8A6" d="M316,266C332,282 344,304 348,330C348,314 342,296 330,284C324,276 318,270 316,266Z"/>
+  <!-- ISKRA / A / ARM / raised paw -->
+  <path id="iskra-a-arm" fill="#E2702D" d="M216,306C194,300 176,286 166,264C160,250 164,240 172,242C188,252 202,268 220,278C234,288 232,300 216,306Z"/>
+  <!-- ISKRA / A / PAW / cream -->
+  <path id="iskra-a-paw" fill="#F7E8D3" d="M138,232C130,218 138,202 154,202C170,202 180,216 177,232C174,248 164,258 154,258C140,258 133,246 138,232Z"/>
+  <!-- ISKRA / A / SNOUT / cream -->
+  <path id="iskra-a-snout" fill="#F7E8D3" d="M234,172C242,164 252,162 262,164C272,162 282,164 290,172C288,190 276,208 262,216C248,208 236,190 234,172Z"/>
+  <!-- ISKRA / A / NOSE -->
+  <path id="iskra-a-nose" fill="#2B2A33" d="M250,206C254,198 270,198 274,206C272,216 252,216 250,206Z"/>
+  <!-- ISKRA / A / MOUTH -->
+  <path id="iskra-a-mouth" fill="#2B2A33" d="M250,218C255,227 269,227 274,218C268,222 256,222 250,218Z"/>
+  <!-- ISKRA / A / EYE / left -->
+  <path id="iskra-a-eye-left" fill="#2B2A33" fill-rule="evenodd" d="M201,148C201,130 214,117 229,121C241,126 244,146 233,159C220,170 201,163 201,148ZM211,133C207,133 205,137 207,140C209,143 213,142 214,139C215,136 213,133 211,133Z"/>
+  <!-- ISKRA / A / EYE / right -->
+  <path id="iskra-a-eye-right" fill="#2B2A33" fill-rule="evenodd" d="M313,142C313,124 300,111 285,115C273,120 270,140 281,153C294,164 313,157 313,142ZM284,127C280,127 278,131 280,134C282,137 286,136 287,133C288,130 286,127 284,127Z"/>
+</svg>
