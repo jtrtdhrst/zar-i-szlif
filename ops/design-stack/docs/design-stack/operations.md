@@ -4,6 +4,10 @@
   `docker compose -f docker-compose.mcp.yml pull && up -d`. Limity: 256 MiB / 0.5 CPU,
   restart unless-stopped, healthchecki, rotacja logów, read-only fs.
 - Rollback: zmiana `IMAGE_TAG` na poprzednie SHA + `up -d`.
+- `IMAGE_TAG` jest WYMAGANE: compose używa `${IMAGE_TAG:?...}`, więc brak (lub pusta)
+  zmienna przerywa deploy zamiast ciągnąć pływający tag `latest`. Wartość = SHA
+  commita z `main`, na którym CI zbudował obraz (tag `sha` + `latest`).
+  `IMAGE_TAG=<sha>` w `.env` przed `pull && up -d`.
 - Oba serwery (`plasmic-mcp`, `opendesign-bridge-mcp`) startują z tego samego obrazu CI
   `ghcr.io/miloszspyrka-code/kompas-zbiorek-opendesign-mcp:<sha>`; serwer wybiera
   `command` w compose. `IMAGE_TAG` = SHA commita z `main`.
