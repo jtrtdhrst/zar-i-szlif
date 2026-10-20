@@ -126,7 +126,7 @@ function makeKnowledgeServer(env: Env, grant: VerifiedGrant | null | undefined, 
 // Reuse the audited Google OIDC consent, PKCE, and CSRF implementation, but expose
 // ONLY the login paths; NOT its legacy panel, UI or catalog proxies.
 const upstreamGoogle = createGoogleAuthHandler({ widgetHtml: "" });
-const loginHandler: ExportedHandler<Env> = {
+const loginHandler = {
   async fetch(request, env, ctx) {
     const url = new URL(request.url);
     if (url.pathname === "/health" && request.method === "GET") {
@@ -139,12 +139,12 @@ const loginHandler: ExportedHandler<Env> = {
     const callback = url.pathname === "/callback" && request.method === "GET";
     if (!authorize && !callback) return new Response("Not found", { status: 404 });
     // The reused upstream auth flow includes CSRF protection and consent, unlike a raw redirect.
-    return upstreamGoogle.fetch(request, env, ctx);
+    return upstreamGoogle.fetch!(request, env, ctx);
   },
-};
+} satisfies ExportedHandler<Env>;
 
 function createProvider(origin: string, redirects: string) {
-  const apiHandler: ExportedHandler<Env> = {
+  const apiHandler = {
     async fetch(request, env, ctx) {
       if (!requestHostAllowed(request.url, origin)) return new Response("Invalid Host", { status: 400 });
       const scope = (ctx as VerifiedContext).props as VerifiedGrant | undefined;
@@ -156,7 +156,7 @@ function createProvider(origin: string, redirects: string) {
       try { return await transport.handleRequest(request); }
       finally { await transport.close(); }
     },
-  };
+  } satisfies ExportedHandler<Env>;
   return new OAuthProvider<Env>({
     apiRoute: "/mcp",
     apiHandler,
