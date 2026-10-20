@@ -119,6 +119,20 @@ test("docs-only changes run the minimum canonical gate, never a provider gate", 
   assert.equal(plan.nonReleaseOnly, true);
 });
 
+test("review-only mascot concepts remain non-release; unknown assets still fail closed", () => {
+  const plan = classifyTargets([
+    "assets/mascots/concepts/minimal-flat-v4/masters/iskra-master.svg",
+    "assets/mascots/concepts/minimal-flat-v4/masters/szlif-master.svg",
+    "assets/mascots/concepts/minimal-flat-v4/exports/sheet-pair.png",
+    "assets/mascots/concepts/minimal-flat-v4/render.mjs",
+  ]);
+  assert.deepEqual(plan.scripts, ["validate:code"]);
+  assert.deepEqual(plan.unclassified, []);
+  assert.equal(plan.nonReleaseOnly, true);
+  assert.deepEqual(classifyTargets(["assets/mascots/unclassified/app.js"]).unclassified,
+    ["assets/mascots/unclassified/app.js"]);
+});
+
 test("ambiguous classification fails closed instead of skipping validation", () => {
   // Behavioural, not a source-string assertion: build a throwaway repo whose
   // only change touches an unclassified path, run the real gate, and require a

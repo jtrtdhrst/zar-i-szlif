@@ -34,6 +34,9 @@ const RELEASE_RULES = [
 
 // Docs/non-release-only: minimum canonical repo validation, never provider auth.
 const NON_RELEASE_RULES = [
+  // Review-only editable mascot concepts and reproducible visual proof are not
+  // referenced by either deploy target until explicitly promoted to app assets.
+  /^assets\/mascots\/concepts\//,
   /^docs\//,
   /^archive\//,
   /^content\//,
