@@ -1,0 +1,23 @@
+{
+  "name": "zar-i-szlif-mcp-worker",
+  "version": "0.2.0",
+  "private": true,
+  "type": "module",
+  "description": "Independent product MCP for Żar i Szlif (Cloudflare Workers)",
+  "scripts": {
+    "build": "npm ci --prefix ../.. --ignore-scripts && npm run validate",
+    "validate": "npm run typecheck && npm run test",
+    "typecheck": "tsc --noEmit -p tsconfig.json",
+    "test": "vitest run",
+    "deploy": "node scripts/deploy.mjs"
+  },
+  "dependencies": {
+    "@cloudflare/workers-oauth-provider": "^0.10.3"
+  },
+  "devDependencies": {
+    "@cloudflare/workers-types": "^5.20260730.1",
+    "typescript": "^5.8.3",
+    "vitest": "^4.1.11",
+    "wrangler": "^4.123.0"
+  }
+}

@@ -13,7 +13,7 @@
 // Enforcement points (all call this module, so they cannot drift apart):
 // - `.githooks/pre-commit` — `--check-config` (effective user.name/user.email)
 // - `.githooks/pre-push`   — commit objects in the pushed range, before the
-//   release gate (runs before push/Vercel)
+//   release gate (runs before push/production)
 // - `.github/workflows/ci.yml` — `--base/--head` on the pushed/PR range, so
 //   `--no-verify` is never the normal path, only a CI-caught bypass
 

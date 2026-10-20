@@ -4,10 +4,10 @@
 
 Repo ma dwa różne targety wdrożeniowe i nie wolno ich łączyć w jeden globalny gate:
 
-1. **Vercel** — frontend/statyczny panel z `app/web/dist`, wdrażany przez integrację Vercel ↔ GitHub według `vercel.json`.
+1. **Frontend** — statyczny panel z `app/web/dist`, hostowany self-hosted przez Coolify (patrz „Frontend / Coolify (self-hosted)").
 2. **Cloudflare Worker** — API/integracje/OAuth z `app/cloudflare-worker/`, wdrażany osobnym workflow GitHub Actions.
 
-Brak poświadczeń Cloudflare nie oznacza, że frontend Vercel jest niesprawny lub niewdrażalny.
+Brak poświadczeń Cloudflare nie oznacza, że frontend jest niesprawny lub niewdrażalny.
 
 ## Core CI
 
@@ -37,7 +37,7 @@ zachowanie przy każdej kombinacji: `app/README.md`, sekcja „Zmienne
 
 ## Produkcyjny endpoint MCP (Cloudflare)
 
-Kanoniczny serwer MCP z logowaniem Google żyje na Cloudflare Workerze, nie na Vercelu.
+Kanoniczny serwer MCP z logowaniem Google żyje na Cloudflare Workerze, nie na frontendzie self-hosted.
 Poniższy zestaw to kontrakt **wdrożony na produkcji** 2026-10-01 (worker
 `panel-kompaszbiorek`, kandydat `e3c6ba6`, release run 36789230919 zielony):
 
@@ -110,7 +110,7 @@ przykładami w komunikatach błędów i komentarzach — nie są źródłem praw
 o hoście; host pochodzi wyłącznie z `vars.MCP_PUBLIC_ORIGIN` i zmiennych
 środowiskowych.
 
-**Vercel nie jest bramką tego MCP.** Brak `VERCEL_ORG_ID` / `VERCEL_PROJECT_ID` blokuje `validate:vercel:platform` (platform check frontendu na `main`), ale nie blokuje candidate gate'u brancha ani wdrożenia ani akceptacji MCP — to celowy podział targetów opisany wyżej.
+**Frontend nie jest bramką tego MCP.** Brak poświadczeń platformy nie blokuje candidate gate'u brancha ani wdrożenia ani akceptacji MCP — to celowy podział targetów opisany wyżej.
 
 Wymagane sekrety Workera (nazwy bez wartości): `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET`, `COOKIE_ENCRYPTION_KEY`, `QDRANT_URL`, `QDRANT_API_KEY`; opcjonalnie `GOOGLE_PICKER_API_KEY`. Bindingi: `OAUTH_KV` (KV dla `workers-oauth-provider`), `AI` (Workers AI `bge-m3`).
 
@@ -128,19 +128,19 @@ Canonicalny opis protokołu, narzędzi, sekretów i smoke: `app/cloudflare-worke
 
 ## Lokalna bramka jest target-aware
 
-`npm run validate:release` **nie jest** aliasem `validate:vercel`. To dispatcher
+`npm run validate:release` **nie jest** aliasem `validate:frontend`. To dispatcher
 `scripts/release-targets.mjs`, który klasyfikuje zmienione ścieżki względem
 `origin/main` i uruchamia wyłącznie gate'y właścicielów touched targetów:
 
 | Zmienione ścieżki | Gate |
 | --- | --- |
 | `app/cloudflare-worker/**` | `validate:worker` |
-| `app/web/**`, `vercel.json` | `validate:vercel` |
+| `app/web/**`, `ops/coolify/**` | `validate:frontend` |
 | `app/plugin/**`, `package.json`, `package-lock.json`, `scripts/**`, `tests/**`, `.githooks/**`, `.github/workflows/**` | oba |
 | tylko dokumentacja / non-release | `validate:code` (minimum) |
 
 `app/plugin/**` jest celowo wspólne: `tsc -p plugin/tsconfig.json` wchodzi do
-buildu Vercel, a `src/mcp.ts` -> `../../plugin/server.js` do bundla Workera.
+buildu frontendu, a `src/mcp.ts` -> `../../plugin/server.js` do bundla Workera.
 
 Zasady:
 
@@ -155,8 +155,8 @@ Zasady:
 - Gate brudnego working tree nie działa: walidowany content musi być
   pushowanym content.
 - **Zwykła ścieżka Cloudflare nie używa `--no-verify`.** Push zmiany
-  Workera przechodzi `validate:worker` bez `VERCEL_*`; push zmiany Vercel
-  przechodzi `validate:vercel` bez `CLOUDFLARE_*`. `--no-verify` nie jest
+  Workera przechodzi `validate:worker` bez gate'u frontendu; push zmiany
+  frontendu przechodzi `validate:frontend` bez `CLOUDFLARE_*`. `--no-verify` nie jest
   normalną ścieżką żadnego z targetów.
 
 Podgląd planu bez uruchamiania gate'ów (używany do smoke):
@@ -178,7 +178,7 @@ Egzekucja na zwykłej ścieżce (ten sam moduł, więc nie mogą się rozejść)
 
 1. `.githooks/pre-commit` — `--check-config` (efektywne `user.name` / `user.email`);
 2. `.githooks/pre-push` — obiekty commitów z pushowanego zakresu, **przed**
-   gate'em target-aware (czyli przed pushem/Vercel);
+   gate'em target-aware (czyli przed pushem produkcyjnym);
 3. `CI` — `--base/--head` na zakresie PR/pusha, więc `--no-verify` nie jest
    normalną ścieżką, tylko obejściem łapanym serwerowo.
 
@@ -190,7 +190,7 @@ do Harnessa.
 
 ## Provenance produkcji
 
-Produkcja Vercel i Cloudflare wdraża **jeden dokładny zweryfikowany SHA na
+Produkcja (frontend i Cloudflare) wdraża **jeden dokładny zweryfikowany SHA na
 `origin/main`**. `scripts/assert-release-provenance.mjs` jest jedynym
 fail-closed asercją używaną lokalnie i w CI, więc ścieżki nie mogą się rozejść.
 Sprawdza:
@@ -212,7 +212,7 @@ niemożliwa: brak SHA == brak refu.
 4. PR + `CI` PASS na tym samym SHA;
 5. merge do `main`;
 6. target-specific release: `Cloudflare Worker Release` dla Workera,
-   `Vercel Frontend Platform Check` + integracja Vercel dla frontendu.
+   auto-deploy Coolify (webhook push) dla frontendu.
 
 `Cloudflare Worker Release` jest zserializowany per repo
 (`concurrency: cloudflare-worker-production`, `cancel-in-progress: false`), więc
@@ -221,42 +221,34 @@ trwającej mutacji produkcyjnej jest wyłączone. Build jest robiony raz, w jobi
 `verify-worker`, a `deploy-production` konsumuje ten sam artefakt z tego samego
 SHA zamiast przebudowywać z późniejszego stanu workspace.
 
-## Frontend / Vercel
+## Frontend / Coolify (self-hosted)
 
-Frontend jest publikowany przez podpiętą integrację Vercel ↔ GitHub **z `main`**.
-Lokalny checkout nigdy nie deployuje produkcji; deploy platformy dzieje się
-po merge do `main` w integracji Vercel, nie z worktree dewelopera.
+Frontend jest hostowany **self-hosted przez Coolify**, z `main`. Lokalny checkout
+nigdy nie deployuje produkcji; deploy dzieje się po merge do `main` przez
+webhook GitHub App, nie z worktree dewelopera.
 
-`vercel.json` definiuje:
+- Build: `build_pack: dockerfile`, `dockerfile_location: /ops/coolify/Dockerfile`
+  (kontekst = root repozytorium) — Node 24, `npm ci --include=dev`,
+  `npm --prefix app run build` -> `app/web/dist`.
+- Runtime: nginx z `ops/coolify/nginx.conf` — SPA fallback i przekierowanie
+  `/panel` na host panelu (Worker).
+- Source: GitHub App (`coolify-zar-i-szlif`, zainstalowana **wyłącznie** na tym
+  repozytorium). Klon idzie tokenem instalacji, webhook zdarzeń `push`
+  zarejestrował App. Deploy key SSH nie jest używany.
+- API/OAuth/MCP **pozostają** na Cloudflare Worker — ten target nie przenosi
+  backendu.
 
-- root repozytorium;
-- `npm ci`;
-- `npm run build`;
-- output `app/web/dist`;
-- framework = brak / Other.
-
-Gate frontendu ma dwie rozdzielne ścieżki (KOMAA-499):
-
-- **Candidate validation (domyślna, `npm run validate:vercel`)** — sprawdza kod
-  (`validate:code`), wykonuje `npm run build`, asertuje niepusty
-  `app/web/dist/index.html` i statycznie waliduje kluczowe pola `vercel.json`
-  (`buildCommand`, `installCommand`, `outputDirectory`). **Zero `vercel pull` /
-  `vercel build`, zero `VERCEL_*`, zero `.vercel/project.json`.** To jest
-  ścieżka brancha/PR i hooka pre-push; zwykły push nigdy nie wymaga lokalnego
-  linku Vercel ani Vercel API.
-- **Platform deploy validation (`npm run validate:vercel:platform`, czyli
-  `node scripts/validate-vercel.mjs --platform`)** — pełna walidacja Vercel
-  (`vercel pull` + `vercel build`) z `VERCEL_ORG_ID` / `VERCEL_PROJECT_ID` /
-  `VERCEL_TOKEN`; działa w jawnej ścieżce `main`: workflow
-  `.github/workflows/vercel-frontend-platform.yml` (push na `main` dla
-  `app/web/**`, `app/plugin/**`, `vercel.json` + `workflow_dispatch`, środowisko
-  `production`, fail-closed na brakujących sekretach, `concurrency:
-  vercel-frontend-production`). Nigdy jako wymóg pushowania brancha.
+Gate frontendu to **candidate validation** (`npm run validate:frontend`): sprawdza
+kod (`validate:code`), buduje statyczny frontend (`npm --prefix app run build`),
+asertuje niepusty `app/web/dist/index.html`, obecność `kompas-logo.png` i zgodność
+publish directory z `ops/coolify/Dockerfile`. Zero platformy, zero API, zero
+sekretów — ścieżka brancha/PR i hooka pre-push.
 
 `--no-verify` nie jest normalną ścieżką żadnego targetu; zielony push
 przechodzi hooka bez niego.
 
-Po pushu/merge status deploymentu Vercel jest zewnętrznym sygnałem powodzenia wdrożenia frontendu. Jeśli do jednego SHA raportuje kilka projektów Vercel, trzeba ustalić który projekt jest związany z właściwą domeną produkcyjną; nie należy traktować wszystkich jako równoważnych bez potwierdzenia.
+Po pushu/merge status aplikacji Coolify (obraz oznaczony SHA) jest zewnętrznym
+sygnałem powodzenia wdrożenia frontendu.
 
 ## Cloudflare Worker
 
@@ -278,7 +270,7 @@ Pipeline Workera wykonuje:
 4. `wrangler whoami`;
 5. produkcyjny `wrangler deploy --keep-vars` na pobranym artefakcie.
 
-Jeśli Cloudflare secrets są brakujące lub nieważne, blokowany jest wyłącznie release Workera. Nie może to zaczerwienić zwykłego frontendowego Vercel release.
+Jeśli Cloudflare secrets są brakujące lub nieważne, blokowany jest wyłącznie release Workera. Nie może to zaczerwienić zwykłego frontendowego release.
 
 ## Lokalne bramki
 
@@ -292,8 +284,7 @@ npm run validate:release
 Ręcznie, jeden target:
 
 ```bash
-npm run validate:vercel            # frontend / Vercel (candidate, bez Vercel API)
-npm run validate:vercel:platform   # frontend / Vercel (platforma, wymaga linku + VERCEL_*)
+npm run validate:frontend          # frontend (candidate: build + artefakty dist)
 npm run validate:worker            # Cloudflare Worker
 ```
 

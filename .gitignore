@@ -48,5 +48,4 @@ audyt-ui/*.json
 *storybook.log
 storybook-static
 opencode-mcp/.runtime/
-.vercel/
 .paperclip/

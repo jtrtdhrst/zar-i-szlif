@@ -5,12 +5,13 @@ import test from "node:test";
 
 const root = fileURLToPath(new URL("../", import.meta.url));
 const packageJson = JSON.parse(readFileSync(`${root}/package.json`, "utf8"));
-const vercelJson = JSON.parse(readFileSync(`${root}/vercel.json`, "utf8"));
 
 test("repo exposes the V0 application contract", () => {
   for (const path of [
     "package.json",
-    "vercel.json",
+    "ops/coolify/Dockerfile",
+    "ops/coolify/nginx.conf",
+    "scripts/validate-frontend.mjs",
     "app",
     "app/plugin",
     "branding",
@@ -33,10 +34,12 @@ test("repo exposes the V0 application contract", () => {
   assert.equal(existsSync(`${root}/app/server`), false, "legacy app/server must stay removed; use app/plugin");
 
   assert.deepEqual(packageJson.workspaces, ["app"]);
-  assert.equal(vercelJson.buildCommand, "npm run build");
-  assert.equal(vercelJson.installCommand, "npm ci");
-  assert.equal(vercelJson.outputDirectory, "app/web/dist");
-  assert.equal(vercelJson.framework, null);
+
+  // The frontend target publishes one fixed directory; the container copies it
+  // verbatim, so build and publish paths must stay in sync.
+  const dockerfile = readFileSync(`${root}/ops/coolify/Dockerfile`, "utf8");
+  assert.match(dockerfile, /npm --prefix app run build/);
+  assert.match(dockerfile, /\/app\/app\/web\/dist/);
 });
 
 // Inwariant architektury (KOMAA-385): produkt gada z Qdrantem bezpośrednio po
@@ -56,7 +59,7 @@ test("product knowledge path is direct-to-Qdrant and env-addressed", () => {
 test("frontend and Cloudflare Worker release paths stay separated", () => {
   for (const script of [
     "validate:code",
-    "validate:vercel",
+    "validate:frontend",
     "validate:cloudflare",
     "validate:worker",
     "validate:release",
@@ -67,7 +70,7 @@ test("frontend and Cloudflare Worker release paths stay separated", () => {
   // validate:release is the target-aware dispatcher (KOMAA-457); it must not
   // collapse to a single provider's gate.
   assert.match(packageJson.scripts["validate:release"], /release-targets\.mjs/);
-  assert.doesNotMatch(packageJson.scripts["validate:release"], /validate:vercel/);
+  assert.doesNotMatch(packageJson.scripts["validate:release"], /validate:frontend/);
   assert.match(packageJson.scripts["validate:worker"], /validate:cloudflare/);
 
   const prePush = readFileSync(`${root}/.githooks/pre-push`, "utf8");
@@ -94,6 +97,6 @@ test("frontend and Cloudflare Worker release paths stay separated", () => {
   assert.equal(
     existsSync(`${root}/.github/workflows/release-readiness.yml`),
     false,
-    "global Cloudflare readiness must not gate Vercel/frontend PRs",
+    "global Cloudflare readiness must not gate frontend PRs",
   );
 });
