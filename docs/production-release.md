@@ -4,7 +4,7 @@
 
 Repo ma dwa różne targety wdrożeniowe i nie wolno ich łączyć w jeden globalny gate:
 
-1. **Vercel** — frontend/statyczny panel z `app/web/dist`, wdrażany przez integrację Vercel ↔ GitHub według `vercel.json`.
+1. **Vercel** — frontend/statyczny panel z `app/web/dist`, wdrażany przez integrację Vercel ↔ GitHub według `vercel.json`. Ten sam artefakt może być hostowany self-hosted przez Coolify — patrz „Frontend / Coolify (self-hosted)”.
 2. **Cloudflare Worker** — API/integracje/OAuth z `app/cloudflare-worker/`, wdrażany osobnym workflow GitHub Actions.
 
 Brak poświadczeń Cloudflare nie oznacza, że frontend Vercel jest niesprawny lub niewdrażalny.
@@ -257,6 +257,21 @@ Gate frontendu ma dwie rozdzielne ścieżki (KOMAA-499):
 przechodzi hooka bez niego.
 
 Po pushu/merge status deploymentu Vercel jest zewnętrznym sygnałem powodzenia wdrożenia frontendu. Jeśli do jednego SHA raportuje kilka projektów Vercel, trzeba ustalić który projekt jest związany z właściwą domeną produkcyjną; nie należy traktować wszystkich jako równoważnych bez potwierdzenia.
+
+## Frontend / Coolify (self-hosted)
+
+Coolify hostuje **ten sam** artefakt statyczny co Vercel (`app/web/dist`), ale
+na własnym VPS. Nie jest to trzeci gate — to drugi host tego samego targetu
+frontendowego, więc `scripts/release-targets.mjs` klasyfikuje `ops/coolify/**`
+jako frontend (`vercel`).
+
+- Build: `build_pack: dockerfile`, `dockerfile_location: /ops/coolify/Dockerfile`
+  (kontekst = root repozytorium) — Node 24, `npm ci --include=dev`,
+  `npm --prefix app run build`.
+- Runtime: nginx z `ops/coolify/nginx.conf`, który odwzorowuje przekierowania
+  `vercel.json` (`/panel` → host panelu) i SPA fallback.
+- Deploy: `main` + webhook push; API/OAuth/MCP **pozostają** na Cloudflare
+  Worker — ten target nie przenosi backendu.
 
 ## Cloudflare Worker
 

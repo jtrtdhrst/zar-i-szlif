@@ -105,6 +105,13 @@ test("app/plugin is genuinely shared and runs both gates", () => {
   ]);
 });
 
+test("self-hosted Coolify deployment files run the frontend gate, never the Worker gate", () => {
+  const plan = classifyTargets(["ops/coolify/Dockerfile", "ops/coolify/nginx.conf"]);
+
+  assert.deepEqual(plan.scripts, ["validate:vercel"]);
+  assert.equal(plan.unclassified.length, 0);
+});
+
 test("docs-only changes run the minimum canonical gate, never a provider gate", () => {
   const plan = classifyTargets(["docs/production-release.md", "AGENTS.md", "archive/old/thing.txt"]);
 

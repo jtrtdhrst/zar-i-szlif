@@ -26,6 +26,10 @@ const RELEASE_RULES = [
   { re: /^\.github\/workflows\//, targets: ["vercel", "cloudflare"] },
   { re: /^\.githooks\//, targets: ["vercel", "cloudflare"] },
   { re: /^(scripts|tests)\//, targets: ["vercel", "cloudflare"] },
+  // Self-hosted deployment of the same static frontend artifact. `ops/` is
+  // otherwise non-release, but these files are release infrastructure: the
+  // frontend gate owns them, they must not be silently skipped.
+  { re: /^ops\/coolify\//, targets: ["vercel"] },
 ];
 
 // Docs/non-release-only: minimum canonical repo validation, never provider auth.
