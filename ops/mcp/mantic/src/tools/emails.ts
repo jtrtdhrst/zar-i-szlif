@@ -12,6 +12,7 @@ export const toolDefinitions: ToolDefinition[] = [
   // Existing email tools
   {
     name: 'send_email',
+    annotations: { readOnlyHint: false, destructiveHint: true, openWorldHint: true },
     description: 'Send an email to specific contacts',
     inputSchema: {
       type: 'object',
@@ -24,6 +25,7 @@ export const toolDefinitions: ToolDefinition[] = [
   },
   {
     name: 'list_emails',
+    annotations: { readOnlyHint: true, openWorldHint: true },
     description: 'Get all email templates and campaigns',
     inputSchema: {
       type: 'object',
@@ -37,6 +39,7 @@ export const toolDefinitions: ToolDefinition[] = [
   },
   {
     name: 'get_email',
+    annotations: { readOnlyHint: true, openWorldHint: true },
     description: 'Get detailed email information',
     inputSchema: {
       type: 'object',
@@ -48,6 +51,7 @@ export const toolDefinitions: ToolDefinition[] = [
   },
   {
     name: 'create_email_template',
+    annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: true, openWorldHint: true },
     description:
       'Create a new email template (draft by default, idempotent on the exact email name)',
     inputSchema: {
@@ -72,6 +76,7 @@ export const toolDefinitions: ToolDefinition[] = [
   },
   {
     name: 'get_email_stats',
+    annotations: { readOnlyHint: true, openWorldHint: true },
     description: 'Get email performance statistics',
     inputSchema: {
       type: 'object',
@@ -85,6 +90,7 @@ export const toolDefinitions: ToolDefinition[] = [
   // NEW Mautic 7 email tools
   {
     name: 'send_email_to_segment',
+    annotations: { readOnlyHint: false, destructiveHint: true, openWorldHint: true },
     description: 'Send email to its assigned segment(s) with real-time audience adaptation (Mautic 7)',
     inputSchema: {
       type: 'object',
@@ -96,6 +102,7 @@ export const toolDefinitions: ToolDefinition[] = [
   },
   {
     name: 'record_email_reply',
+    annotations: { readOnlyHint: false, destructiveHint: false, openWorldHint: true },
     description: 'Record an email reply by tracking hash (Mautic 7)',
     inputSchema: {
       type: 'object',
@@ -107,6 +114,7 @@ export const toolDefinitions: ToolDefinition[] = [
   },
   {
     name: 'get_email_graph_stats',
+    annotations: { readOnlyHint: true, openWorldHint: true },
     description: 'Get email graph statistics for a date range (Mautic 7)',
     inputSchema: {
       type: 'object',

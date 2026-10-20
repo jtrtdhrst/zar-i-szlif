@@ -98,6 +98,59 @@ Patched build, same input:
 → `isPublished` is the **string** `"0"`, `recipients` is rejected with
 `unsupported_field` before the POST.
 
+### Campaign + tag write contract (the same wire defect)
+
+The campaign form binds the same `YesNoButtonGroupType` fields, so the same
+boundary conversion applies — and upstream had the worse default:
+
+```ts
+// upstream src/tools/campaigns.ts (vendored, unpatched)
+isPublished: args.isPublished !== undefined ? args.isPublished : true,  // defaults to PUBLISHED
+allowRestart: args.allowRestart || false,
+const response = await client.v1.post('/campaigns/new', payload);        // boolean on the wire
+```
+
+`create_campaign` was worse still: it forwarded the tool arguments **verbatim**
+(`client.v1.post('/campaigns/new', args)`), so any unknown field — including an
+audience field — reached the provider.
+
+Patched `src/tools/campaigns.ts` + `src/tools/business.ts`:
+
+* `isPublished` — boolean in the MCP schema, **string `"0"`/`"1"`** on the wire,
+  **missing ⇒ `"0"`** (a campaign is never published silently). A non-boolean is
+  rejected with a typed error before the provider call.
+* `allowRestart` — same conversion; the form-bound strings `"0"`/`"1"` are also
+  accepted, everything else is rejected.
+* Unknown fields are **rejected**, not forwarded verbatim, for both campaign
+  handlers and for `create_email_template`.
+* **No silent activation:** a campaign is never created *published together with
+  an audience* (`segments`/`forms`) or *published with a publish window*
+  (`publishUp`/`publishDown`) — those are the only paths in this tool that can
+  send. Both combinations are refused with a typed error
+  (`unsafe_published_audience`, `unsafe_published_schedule`).
+* **Event sequence validation:** every event needs a known field set, a
+  non-negative integer `order`, unique and **ascending** order (the array order
+  must match the execution order), and a delay (`triggerInterval` +
+  `triggerIntervalUnit`) is only allowed on an `interval` trigger — a delay on an
+  `immediate` trigger is refused instead of being silently ignored.
+* **Audience IDs** (`segments`, `forms`) must be unique positive integers.
+* **Idempotent create:** a campaign (or tag) with the exact same name is reused
+  and nothing is written; an ambiguous 5xx is reconciled by exact name before
+  any retry, so a failed create can never produce a duplicate.
+* `create_tag` reads before it writes (`GET /tags`, exact-name match) and posts
+  the Mautic shape `{ tag }`; `add_contact_tags` validates the contact ID and the
+  tag list before it touches a contact.
+
+### Risk annotations
+
+The tools in this issue's scope (`campaigns.ts`, `business.ts`, `emails.ts`) now
+carry MCP `annotations`: `readOnlyHint: true` for the read tools and
+`readOnlyHint: false` (+ `destructiveHint` where a mutation can destroy or
+send) for the mutating ones — `add_contact_tags` and `execute_campaign` are
+mutations of provider state and must never be classified as read-only.
+The remaining upstream tool files stay unannotated, which the MCP spec treats
+as **not** read-only (the conservative default).
+
 ## 3. Build, test, verify
 
 ```bash
@@ -120,13 +173,33 @@ npm run verify           # build + test
   (bad `emailType`, non-boolean `isPublished`, unsupported fields, missing/empty
   `name`/`subject`) — each asserted to fail **before** the provider POST. Plus the
   500 surfacing, the ambiguous-500 reconciliation and the idempotent-create cases.
+* `test/mautic-campaign-contract.test.mjs` — 29 contract tests for the campaign
+  and tag write paths: unpublished default for both campaign handlers,
+  `isPublished`/`allowRestart` boolean → `"0"`/`"1"`, the form-bound
+  `allowRestart` strings, unknown-field rejection, event order (unique,
+  ascending, required) and interval/delay validation, audience-ID validation,
+  the refused "published + audience" and "published + publish window"
+  combinations, idempotent create, the ambiguous-500 reconciliation and the
+  typed 500 surfacing, plus the tag create/read-before-create and the
+  `add_contact_tags` validation.
 * `test/tools-list.test.mjs` — starts the real built server over stdio (MCP
-  `initialize` + `tools/list`) and asserts the published schema and the tool
+  `initialize` + `tools/list`) and asserts the published schema, the tool
   surface (`create_email_template`, `list_emails`, `get_email`, `create_tag`,
   `add_contact_tags`, `create_campaign_with_automation`, `list_tags`,
-  `list_segments`, `list_campaigns`).
+  `list_segments`, `list_campaigns`) and the risk annotations.
 
-Last run: **17 tests, 17 pass, 0 fail** (contract 16 + MCP readback 1).
+Last run: **46 tests, 46 pass, 0 fail** (email contract 16 + campaign/tag
+contract 29 + MCP readback 1).
+
+### RED control for the campaign/tag contract
+
+The vendored upstream `campaigns.ts` / `business.ts` (commit `5c8c208`, which
+contains the unpatched upstream sources) fail **27 of the 29** new contract
+tests — including "defaults to an unpublished campaign", "maps explicit
+false/true to the wire strings", "rejects a non-boolean isPublished",
+"rejects unknown fields", the event-order/delay negatives, the idempotent and
+500-reconciliation cases and the annotation assertions. The patched build
+passes all 29.
 
 ## 4. Container image
 
@@ -178,10 +251,16 @@ touch Paperclip/OpenCode Core.
 * Keep the previous image IDs (`8dca325d92b3`, `00fe114aacd6`) — rollback is
   re-pointing the container at the previous image tag, not a rebuild.
 * Rollback of a created TEST template is deleting that email ID in Mautic.
-* This patch changes only the request payload and the error surface of
-  `create_email_template`; no other tool, schema or provider behaviour changes.
+* This patch changes only the request payload, the validation surface and the
+  risk annotations of the email/campaign/tag create tools; no other tool,
+  schema or provider behaviour changes.
 
 ## 6. Live canary procedure (only after an effective service + scoped write grant)
+
+### 6.1 Draft HTML template — the grant that exists today
+
+Lifecycle Ops (the authorized original provider caller) runs this after the
+patched service is running:
 
 1. `list_emails` — confirm no duplicate TEST template with the exact name.
 2. Call `create_email_template` **once** with:
@@ -195,6 +274,32 @@ touch Paperclip/OpenCode Core.
 4. Read-only checks: `list_tags`, `list_segments`, `list_campaigns`.
 5. Negative checks: `send_email`, `send_email_to_segment`, mass audience and
    production campaign stay denied. No real end-user contact data is mutated.
+
+### 6.2 TEST tag + inactive sequence — needs a separate lawful grant
+
+`create_tag`, `create_campaign` and `create_campaign_with_automation` are **off**
+in the current tool profile (profile `785a9c7b`, `create_email_template` only).
+They need their own scoped grant before the following steps may run:
+
+1. `list_tags` — confirm no duplicate TEST tag.
+2. `create_tag` **once** with a harmless TEST-only namespace, e.g.
+   `tag: "MCP-CANARY-TEST-20261020"`. Readback with `list_tags`: real tag ID.
+3. `list_campaigns` — confirm no duplicate TEST campaign.
+4. `create_campaign_with_automation` **once** with:
+   * `name`: `MCP CANARY — SEQUENCE — NIE WYSYŁAĆ`
+   * `isPublished`: `false` (omitted ⇒ draft)
+   * `allowRestart`: `false`
+   * `events`: one `immediate` action event and one `interval` action event with
+     `triggerInterval: 1`, `triggerIntervalUnit: 'h'`, `order` ascending
+   * **no** `segments`, **no** `forms`, **no** `publishUp`/`publishDown`
+5. Readback with `list_campaigns` / `get_campaign`: real campaign ID,
+   `isPublished=false`, the event order and the delay configuration as submitted.
+6. Negative checks: `execute_campaign`, `send_email`, `send_email_to_segment`,
+   `add_contact_to_campaign` and `add_contact_tags` stay denied — no real
+   end-user contact data is mutated.
+
+Both steps are **blocked** until the patched image is running: the current
+provider still reports the original 68-tool service.
 
 ## 7. Known limits / out of scope
 

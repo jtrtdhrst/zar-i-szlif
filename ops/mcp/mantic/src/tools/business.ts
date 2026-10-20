@@ -1,9 +1,19 @@
+import { ErrorCode } from '@modelcontextprotocol/sdk/types.js';
 import type { MauticApiClient } from '../api/client.js';
 import type { ToolDefinition, ToolHandler } from '../types/index.js';
+import {
+  extractProviderMessage,
+  findTagsByExactName,
+  MauticContractError,
+  validateEntityId,
+  validateTagName,
+  validateTagNames,
+} from './mautic-contract.js';
 
 export const toolDefinitions: ToolDefinition[] = [
   {
     name: 'list_companies',
+    annotations: { readOnlyHint: true, openWorldHint: true },
     description: 'Get all companies',
     inputSchema: {
       type: 'object',
@@ -16,6 +26,7 @@ export const toolDefinitions: ToolDefinition[] = [
   },
   {
     name: 'create_company',
+    annotations: { readOnlyHint: false, destructiveHint: false, openWorldHint: true },
     description: 'Create new company',
     inputSchema: {
       type: 'object',
@@ -36,6 +47,7 @@ export const toolDefinitions: ToolDefinition[] = [
   },
   {
     name: 'add_contact_to_company',
+    annotations: { readOnlyHint: false, destructiveHint: true, openWorldHint: true },
     description: 'Associate contact with company',
     inputSchema: {
       type: 'object',
@@ -48,6 +60,7 @@ export const toolDefinitions: ToolDefinition[] = [
   },
   {
     name: 'create_note',
+    annotations: { readOnlyHint: false, destructiveHint: false, openWorldHint: true },
     description: 'Add note to contact or company',
     inputSchema: {
       type: 'object',
@@ -62,6 +75,7 @@ export const toolDefinitions: ToolDefinition[] = [
   },
   {
     name: 'get_contact_notes',
+    annotations: { readOnlyHint: true, openWorldHint: true },
     description: 'Get all notes for a contact',
     inputSchema: {
       type: 'object',
@@ -74,6 +88,7 @@ export const toolDefinitions: ToolDefinition[] = [
   },
   {
     name: 'list_tags',
+    annotations: { readOnlyHint: true, openWorldHint: true },
     description: 'Get all available tags',
     inputSchema: {
       type: 'object',
@@ -85,7 +100,8 @@ export const toolDefinitions: ToolDefinition[] = [
   },
   {
     name: 'create_tag',
-    description: 'Create new tag',
+    annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: true, openWorldHint: true },
+    description: 'Create new tag (idempotent on the exact tag name — an existing tag is reused)',
     inputSchema: {
       type: 'object',
       properties: {
@@ -96,6 +112,7 @@ export const toolDefinitions: ToolDefinition[] = [
   },
   {
     name: 'add_contact_tags',
+    annotations: { readOnlyHint: false, destructiveHint: true, openWorldHint: true },
     description: 'Add tags to contact',
     inputSchema: {
       type: 'object',
@@ -108,6 +125,7 @@ export const toolDefinitions: ToolDefinition[] = [
   },
   {
     name: 'list_categories',
+    annotations: { readOnlyHint: true, openWorldHint: true },
     description: 'Get all categories',
     inputSchema: {
       type: 'object',
@@ -119,6 +137,7 @@ export const toolDefinitions: ToolDefinition[] = [
   },
   {
     name: 'create_category',
+    annotations: { readOnlyHint: false, destructiveHint: false, openWorldHint: true },
     description: 'Create new category',
     inputSchema: {
       type: 'object',
@@ -196,14 +215,69 @@ export const toolHandlers: Record<string, ToolHandler> = {
   },
 
   async create_tag(client: MauticApiClient, args: any) {
-    const response = await client.v1.post('/tags/new', { tag: args.tag });
-    return {
-      content: [{ type: 'text', text: `Tag created successfully:\n${JSON.stringify(response.data.tag, null, 2)}` }],
-    };
+    // Validate + read-before-create: a tag that already exists is reused, so a
+    // retried create never produces a duplicate tag.
+    const tag = validateTagName(args?.tag);
+
+    const existing = await findTagsByExactName(client, tag);
+    if (existing.length === 1) {
+      return {
+        content: [
+          {
+            type: 'text',
+            text: `Tag already exists (idempotent create, nothing written):\n${JSON.stringify(existing[0], null, 2)}`,
+          },
+        ],
+      };
+    }
+    if (existing.length > 1) {
+      throw new MauticContractError(
+        'ambiguous_existing_tag',
+        `Found ${existing.length} existing tags named "${tag}". Refusing to create a duplicate; resolve them with list_tags first.`,
+        'tag',
+        ErrorCode.InvalidRequest,
+      );
+    }
+
+    try {
+      const response = await client.v1.post('/tags/new', { tag });
+      return {
+        content: [{ type: 'text', text: `Tag created successfully:\n${JSON.stringify(response.data.tag, null, 2)}` }],
+      };
+    } catch (error: any) {
+      const status = error?.response?.status;
+      if (typeof status === 'number' && status >= 500) {
+        // Ambiguous outcome: reconcile by exact name before any retry.
+        const reconciled = await findTagsByExactName(client, tag);
+        if (reconciled.length === 1) {
+          return {
+            content: [
+              {
+                type: 'text',
+                text: `Mautic API returned ${status} but the tag exists (reconciled by exact name, no duplicate written):\n${JSON.stringify(reconciled[0], null, 2)}`,
+              },
+            ],
+          };
+        }
+        throw new MauticContractError(
+          'mautic_server_error',
+          `Mautic API Error ${status}: server error while creating tag "${tag}". ` +
+            'No tag with this exact name exists after the failure, so nothing was created. ' +
+            'Do not blind-retry — reconcile with list_tags first. ' +
+            `Provider message: ${extractProviderMessage(error)}`,
+          undefined,
+          ErrorCode.InternalError,
+        );
+      }
+      throw error;
+    }
   },
 
   async add_contact_tags(client: MauticApiClient, args: any) {
-    const { contactId, tags } = args;
+    // This tool MUTATES a contact in the provider (it is not a read tool).
+    const contactId = validateEntityId(args?.contactId, 'contactId');
+    const tags = validateTagNames(args?.tags);
+
     const response = await client.v1.post(`/contacts/${contactId}/contact/add`, { tags });
     return {
       content: [{ type: 'text', text: `Tags added to contact ${contactId} successfully:\n${JSON.stringify(response.data, null, 2)}` }],

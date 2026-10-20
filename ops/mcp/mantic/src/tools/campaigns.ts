@@ -1,10 +1,19 @@
+import { ErrorCode } from '@modelcontextprotocol/sdk/types.js';
 import type { MauticApiClient } from '../api/client.js';
 import type { ToolDefinition, ToolHandler } from '../types/index.js';
+import {
+  buildCampaignAutomationPayload,
+  buildCampaignCreatePayload,
+  extractProviderMessage,
+  findCampaignsByExactName,
+  MauticContractError,
+} from './mautic-contract.js';
 
 export const toolDefinitions: ToolDefinition[] = [
   // Existing campaign tools
   {
     name: 'list_campaigns',
+    annotations: { readOnlyHint: true, openWorldHint: true },
     description: 'Get all campaigns with status and statistics',
     inputSchema: {
       type: 'object',
@@ -18,6 +27,7 @@ export const toolDefinitions: ToolDefinition[] = [
   },
   {
     name: 'get_campaign',
+    annotations: { readOnlyHint: true, openWorldHint: true },
     description: 'Get detailed campaign information',
     inputSchema: {
       type: 'object',
@@ -29,7 +39,9 @@ export const toolDefinitions: ToolDefinition[] = [
   },
   {
     name: 'create_campaign',
-    description: 'Create a new campaign',
+    annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: true, openWorldHint: true },
+    description:
+      'Create a new campaign (draft by default, idempotent on the exact campaign name). isPublished is a boolean and is converted to the Mautic 7 wire string "0"/"1"; omitted means draft.',
     inputSchema: {
       type: 'object',
       properties: {
@@ -44,6 +56,7 @@ export const toolDefinitions: ToolDefinition[] = [
   },
   {
     name: 'add_contact_to_campaign',
+    annotations: { readOnlyHint: false, destructiveHint: true, openWorldHint: true },
     description: 'Add a contact to a campaign',
     inputSchema: {
       type: 'object',
@@ -56,7 +69,9 @@ export const toolDefinitions: ToolDefinition[] = [
   },
   {
     name: 'create_campaign_with_automation',
-    description: 'Create campaign with full event automation including triggers, actions, and canvas settings',
+    annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: true, openWorldHint: true },
+    description:
+      'Create campaign with full event automation including triggers, actions, and canvas settings (draft by default, idempotent on the exact campaign name). isPublished is a boolean and is converted to the Mautic 7 wire string "0"/"1"; omitted means draft.',
     inputSchema: {
       type: 'object',
       properties: {
@@ -93,6 +108,7 @@ export const toolDefinitions: ToolDefinition[] = [
   },
   {
     name: 'execute_campaign',
+    annotations: { readOnlyHint: false, destructiveHint: true, openWorldHint: true },
     description: 'Manually execute/trigger a campaign',
     inputSchema: {
       type: 'object',
@@ -105,6 +121,7 @@ export const toolDefinitions: ToolDefinition[] = [
   },
   {
     name: 'get_campaign_contacts',
+    annotations: { readOnlyHint: true, openWorldHint: true },
     description: 'Get contacts in a campaign with their status',
     inputSchema: {
       type: 'object',
@@ -120,6 +137,7 @@ export const toolDefinitions: ToolDefinition[] = [
   // NEW Mautic 7 campaign tools
   {
     name: 'clone_campaign',
+    annotations: { readOnlyHint: false, destructiveHint: false, openWorldHint: true },
     description: 'Clone an existing campaign (Mautic 7)',
     inputSchema: {
       type: 'object',
@@ -131,6 +149,7 @@ export const toolDefinitions: ToolDefinition[] = [
   },
   {
     name: 'export_campaign',
+    annotations: { readOnlyHint: true, openWorldHint: true },
     description: 'Export campaign data with all related assets (Mautic 7)',
     inputSchema: {
       type: 'object',
@@ -142,6 +161,7 @@ export const toolDefinitions: ToolDefinition[] = [
   },
   {
     name: 'import_campaign',
+    annotations: { readOnlyHint: false, destructiveHint: false, openWorldHint: true },
     description: 'Import a campaign from JSON data (Mautic 7)',
     inputSchema: {
       type: 'object',
@@ -153,6 +173,7 @@ export const toolDefinitions: ToolDefinition[] = [
   },
   {
     name: 'get_campaign_event_details',
+    annotations: { readOnlyHint: true, openWorldHint: true },
     description: 'Get detailed metrics for a specific campaign event (Mautic 7)',
     inputSchema: {
       type: 'object',
@@ -166,6 +187,7 @@ export const toolDefinitions: ToolDefinition[] = [
   },
   {
     name: 'get_campaign_graph_stats',
+    annotations: { readOnlyHint: true, openWorldHint: true },
     description: 'Get campaign graph statistics for a date range (Mautic 7)',
     inputSchema: {
       type: 'object',
@@ -179,6 +201,7 @@ export const toolDefinitions: ToolDefinition[] = [
   },
   {
     name: 'get_campaign_map_stats',
+    annotations: { readOnlyHint: true, openWorldHint: true },
     description: 'Get campaign geographic map statistics for a date range (Mautic 7)',
     inputSchema: {
       type: 'object',
@@ -215,10 +238,65 @@ export const toolHandlers: Record<string, ToolHandler> = {
   },
 
   async create_campaign(client: MauticApiClient, args: any) {
-    const response = await client.v1.post('/campaigns/new', args);
-    return {
-      content: [{ type: 'text', text: `Campaign created successfully:\n${JSON.stringify(response.data.campaign, null, 2)}` }],
-    };
+    // Validate + normalize BEFORE the provider call: isPublished is a boolean
+    // here and the STRING "0"/"1" on the wire (Mautic 7 / Symfony
+    // ChoiceToValueTransformer rejects non-strings and answers HTTP 500).
+    const payload = buildCampaignCreatePayload(args);
+
+    // Idempotent create: a campaign with this exact name already exists ->
+    // reuse it, never write a duplicate.
+    const existing = await findCampaignsByExactName(client, payload.name);
+    if (existing.length === 1) {
+      return {
+        content: [
+          {
+            type: 'text',
+            text: `Campaign already exists (idempotent create, nothing written):\n${JSON.stringify(existing[0], null, 2)}`,
+          },
+        ],
+      };
+    }
+    if (existing.length > 1) {
+      throw new MauticContractError(
+        'ambiguous_existing_campaign',
+        `Found ${existing.length} existing campaigns named "${payload.name}". Refusing to create a duplicate; resolve them with list_campaigns/get_campaign first.`,
+        'name',
+        ErrorCode.InvalidRequest,
+      );
+    }
+
+    try {
+      const response = await client.v1.post('/campaigns/new', payload);
+      return {
+        content: [{ type: 'text', text: `Campaign created successfully:\n${JSON.stringify(response.data.campaign, null, 2)}` }],
+      };
+    } catch (error: any) {
+      const status = error?.response?.status;
+      if (typeof status === 'number' && status >= 500) {
+        // Ambiguous outcome: reconcile by exact name before any retry so we never duplicate.
+        const reconciled = await findCampaignsByExactName(client, payload.name);
+        if (reconciled.length === 1) {
+          return {
+            content: [
+              {
+                type: 'text',
+                text: `Mautic API returned ${status} but the campaign exists (reconciled by exact name, no duplicate written):\n${JSON.stringify(reconciled[0], null, 2)}`,
+              },
+            ],
+          };
+        }
+        throw new MauticContractError(
+          'mautic_server_error',
+          `Mautic API Error ${status}: server error while creating campaign "${payload.name}". ` +
+            'No campaign with this exact name exists after the failure, so nothing was created. ' +
+            'Do not blind-retry — reconcile with list_campaigns first. ' +
+            `Provider message: ${extractProviderMessage(error)}`,
+          undefined,
+          ErrorCode.InternalError,
+        );
+      }
+      throw error;
+    }
   },
 
   async add_contact_to_campaign(client: MauticApiClient, args: any) {
@@ -230,22 +308,60 @@ export const toolHandlers: Record<string, ToolHandler> = {
   },
 
   async create_campaign_with_automation(client: MauticApiClient, args: any) {
-    const payload: any = {
-      name: args.name,
-      description: args.description || '',
-      isPublished: args.isPublished !== undefined ? args.isPublished : true,
-      allowRestart: args.allowRestart || false,
-    };
+    // Validate + normalize BEFORE the provider call (see create_campaign).
+    const payload = buildCampaignAutomationPayload(args);
 
-    if (args.events?.length > 0) payload.events = args.events;
-    if (args.segments?.length > 0) payload.lists = args.segments.map((id: number) => ({ id }));
-    if (args.forms?.length > 0) payload.forms = args.forms.map((id: number) => ({ id }));
-    if (args.canvasSettings) payload.canvasSettings = args.canvasSettings;
+    const existing = await findCampaignsByExactName(client, payload.name);
+    if (existing.length === 1) {
+      return {
+        content: [
+          {
+            type: 'text',
+            text: `Campaign already exists (idempotent create, nothing written):\n${JSON.stringify(existing[0], null, 2)}`,
+          },
+        ],
+      };
+    }
+    if (existing.length > 1) {
+      throw new MauticContractError(
+        'ambiguous_existing_campaign',
+        `Found ${existing.length} existing campaigns named "${payload.name}". Refusing to create a duplicate; resolve them with list_campaigns/get_campaign first.`,
+        'name',
+        ErrorCode.InvalidRequest,
+      );
+    }
 
-    const response = await client.v1.post('/campaigns/new', payload);
-    return {
-      content: [{ type: 'text', text: `Campaign with automation created successfully:\n${JSON.stringify(response.data.campaign, null, 2)}` }],
-    };
+    try {
+      const response = await client.v1.post('/campaigns/new', payload);
+      return {
+        content: [{ type: 'text', text: `Campaign with automation created successfully:\n${JSON.stringify(response.data.campaign, null, 2)}` }],
+      };
+    } catch (error: any) {
+      const status = error?.response?.status;
+      if (typeof status === 'number' && status >= 500) {
+        const reconciled = await findCampaignsByExactName(client, payload.name);
+        if (reconciled.length === 1) {
+          return {
+            content: [
+              {
+                type: 'text',
+                text: `Mautic API returned ${status} but the campaign exists (reconciled by exact name, no duplicate written):\n${JSON.stringify(reconciled[0], null, 2)}`,
+              },
+            ],
+          };
+        }
+        throw new MauticContractError(
+          'mautic_server_error',
+          `Mautic API Error ${status}: server error while creating campaign "${payload.name}". ` +
+            'No campaign with this exact name exists after the failure, so nothing was created. ' +
+            'Do not blind-retry — reconcile with list_campaigns first. ' +
+            `Provider message: ${extractProviderMessage(error)}`,
+          undefined,
+          ErrorCode.InternalError,
+        );
+      }
+      throw error;
+    }
   },
 
   async execute_campaign(client: MauticApiClient, args: any) {

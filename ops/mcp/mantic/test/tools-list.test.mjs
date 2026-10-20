@@ -59,11 +59,46 @@ test('the running MCP server exposes the patched email-create contract', async (
     assert.ok(names.includes(name), `missing tool over MCP: ${name}`);
   }
 
+  // Campaign write contract over the real transport: the schema stays ergonomic
+  // and the risk annotations tell a client that the tool mutates the provider.
+  const createCampaign = tools.find((tool) => tool.name === 'create_campaign');
+  assert.ok(createCampaign, 'create_campaign must be exposed over MCP');
+  assert.equal(createCampaign.inputSchema.properties.isPublished.type, 'boolean');
+  assert.deepEqual(createCampaign.inputSchema.required, ['name']);
+  assert.notEqual(
+    createCampaign.annotations?.readOnlyHint,
+    true,
+    'create_campaign mutates the provider and must not be announced as read-only',
+  );
+
+  const createAutomation = tools.find((tool) => tool.name === 'create_campaign_with_automation');
+  assert.ok(createAutomation, 'create_campaign_with_automation must be exposed over MCP');
+  assert.equal(createAutomation.inputSchema.properties.isPublished.type, 'boolean');
+  assert.equal(createAutomation.inputSchema.properties.allowRestart.type, 'boolean');
+  assert.deepEqual(createAutomation.inputSchema.required, ['name']);
+  assert.notEqual(
+    createAutomation.annotations?.readOnlyHint,
+    true,
+    'create_campaign_with_automation mutates the provider and must not be announced as read-only',
+  );
+
+  const listCampaigns = tools.find((tool) => tool.name === 'list_campaigns');
+  assert.equal(listCampaigns.annotations?.readOnlyHint, true, 'list_campaigns is read-only');
+
+  const addContactTags = tools.find((tool) => tool.name === 'add_contact_tags');
+  assert.notEqual(
+    addContactTags.annotations?.readOnlyHint,
+    true,
+    'add_contact_tags mutates a contact and must not be announced as read-only',
+  );
+
   console.log(
     JSON.stringify(
       {
         toolCount: tools.length,
         createEmailTemplateSchema: createEmail.inputSchema,
+        createCampaignSchema: createCampaign.inputSchema,
+        createCampaignWithAutomationSchema: createAutomation.inputSchema,
       },
       null,
       2,

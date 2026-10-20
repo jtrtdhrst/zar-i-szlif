@@ -21,6 +21,19 @@ export interface ApiPlatformCollection<T> {
   };
 }
 
+export interface ToolAnnotations {
+  /** Human-readable title for the tool. */
+  title?: string;
+  /** True when the tool only reads and never modifies provider state. */
+  readOnlyHint?: boolean;
+  /** True when the tool may perform destructive updates (meaningful only when readOnlyHint is false). */
+  destructiveHint?: boolean;
+  /** True when repeated calls with the same arguments have no additional effect. */
+  idempotentHint?: boolean;
+  /** True when the tool interacts with an external system (the Mautic provider). */
+  openWorldHint?: boolean;
+}
+
 export interface ToolDefinition {
   name: string;
   description: string;
@@ -29,6 +42,12 @@ export interface ToolDefinition {
     properties: Record<string, any>;
     required?: string[];
   };
+  /**
+   * Risk hints for MCP clients and tool catalogs. A tool that mutates the
+   * provider must not be classified as read-only (the MCP spec defaults
+   * readOnlyHint to false when the annotation is absent).
+   */
+  annotations?: ToolAnnotations;
 }
 
 export interface ToolResult {
