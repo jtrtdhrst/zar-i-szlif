@@ -52,13 +52,19 @@ async function mcpSmoke(
 }
 
 describe("smoke: plasmic-mcp (stdio, bez sekretów)", () => {
-  it("startuje i wystawia 17 narzędzi", { skip: !SMOKE }, async () => {
+  it("startuje i wystawia 19 narzędzi", { skip: !SMOKE }, async () => {
     const { tools } = await mcpSmoke(
       "services/plasmic-mcp/server.ts",
       { PLASMIC_HOST: "127.0.0.1", PLASMIC_PORT: "1" },
-      ["plasmic_get_project", "plasmic_validate", "plasmic_get_changes"],
+      [
+        "plasmic_get_project",
+        "plasmic_validate",
+        "plasmic_get_changes",
+        "plasmic_list_projects",
+        "plasmic_create_project",
+      ],
     );
-    assert.equal(tools.length, 17);
+    assert.equal(tools.length, 19);
   });
 });
 

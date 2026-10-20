@@ -177,6 +177,70 @@ export function plasmicTools(ctx: PlasmicCtx): ToolDef[] {
   const c = ctx.client;
   return [
     {
+      name: "plasmic_list_projects",
+      description:
+        "Projekty Plasmic zalogowanego użytkownika (id + nazwa + workspace) oraz jego workspace'y.",
+      schema: {},
+      handler: async () => {
+        const projects = await c.listProjects();
+        const workspaces = await c.listWorkspaces();
+        return {
+          projects: projects.map((p) => ({
+            id: p.id,
+            name: p.name,
+            workspaceId: (p.workspaceId as string | undefined) ?? null,
+          })),
+          workspaces: workspaces ?? null,
+        };
+      },
+    },
+    {
+      name: "plasmic_create_project",
+      description:
+        "Nowy NIEZALEŻNY projekt Plasmic (osobny projekt Studio, nie strona w istniejącym). Wymaga autoryzowanej sesji operatora.",
+      schema: {
+        name: z.string().describe("Nazwa projektu, np. 'Żar i Szlif — Website'"),
+        workspaceId: z.string().optional().describe("Id workspace (gdy pominięte — default użytkownika)"),
+        ...idKey,
+        ...dry,
+      },
+      handler: async (a) => {
+        const name = a.name as string;
+        const workspaceId = a.workspaceId as string | undefined;
+        const key = `create_project:${name}:${workspaceId ?? ""}:${(a.idempotencyKey as string | undefined) ?? ""}`;
+        const { result } = await idempotent(ctx.stateDir + "/idempotency", key, () =>
+          withProjectLock(ctx.stateDir + "/locks", `create:${name}`, async () => {
+            if (a.dryRun) {
+              const existing = await c.listProjects();
+              const same = existing.filter((p) => p.name === name).map((p) => p.id);
+              return {
+                dryRun: true,
+                name,
+                wouldCreate: same.length === 0,
+                existing: same,
+              };
+            }
+            const project = await c.createProject(name, workspaceId);
+            await auditLog(ctx.auditFile, {
+              agent: ctx.agent,
+              run: ctx.run,
+              project: project.id,
+              tool: "plasmic_create_project",
+              target: name,
+              beforeHash: sha256(name),
+              afterHash: sha256(JSON.stringify(project).slice(0, 5000)),
+              ok: true,
+            });
+            return {
+              dryRun: false,
+              project: { id: project.id, name: project.name, workspaceId: workspaceId ?? null },
+            };
+          }),
+        );
+        return result;
+      },
+    },
+    {
       name: "plasmic_get_project",
       description: "Meta projektu Plasmic + numer rewizji + liczniki stron/komponentów/tokenów.",
       schema: { projectId: z.string(), branchId: z.string().optional() },
