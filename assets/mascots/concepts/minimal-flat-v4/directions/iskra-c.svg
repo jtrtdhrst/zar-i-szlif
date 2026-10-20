@@ -1,41 +1,35 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512" role="img" aria-labelledby="title desc">
-  <title id="title">Iskra — style direction C, upright herald</title>
-  <desc id="desc">Design exploration C for Iskra the fox: tall upright herald stance, plume tail sweeping up to the right, raised waving paw, tilted turquoise scarf with knot and flying end. Flat vector, five colours.</desc>
-  <!-- Exploration C — flat vector, no raster, filters, gradients or scripts. -->
-  <!-- ISKRA / C / TAIL / plume -->
-  <path id="iskra-c-tail" fill="#E2702D" d="M340,424C368,418 392,398 408,366C424,334 426,284 412,244C408,230 402,222 396,220C404,240 406,266 400,294C392,330 372,364 344,390C320,412 292,426 268,434C292,432 316,430 340,424Z"/>
+  <title id="title">Iskra — style direction C, reduced emblematic icon</title>
+  <desc id="desc">Design exploration C for Iskra the fox: reduced emblematic construction from a circle skull, a triangular muzzle, two triangle ears, a single teal scarf shield and one oversized angular sickle tail, tuned to stay legible at 32 pixels. Flat vector, five colours.</desc>
+  <!-- Exploration C — reduced emblematic. Flat vector, no raster, filters, gradients or scripts. -->
+  <!-- ISKRA / C / TAIL / oversized angular sickle, the signature element -->
+  <path id="iskra-c-tail" fill="#E2702D" d="M286,296L342,274L390,234L418,178L452,158L466,190L438,256L384,310L308,340Z"/>
   <!-- ISKRA / C / TAIL / cream tip -->
-  <path id="iskra-c-tail-tip" fill="#F7E8D3" d="M396,220C402,222 408,230 412,244C420,266 422,284 420,300L394,294C396,274 396,244 396,220Z"/>
-  <!-- ISKRA / C / BODY / upright -->
-  <path id="iskra-c-body" fill="#E2702D" d="M256,214C300,214 320,250 328,296C336,340 348,378 344,406C340,436 316,456 280,458C244,456 220,436 216,406C212,378 224,340 230,296C236,250 212,214 256,214Z"/>
-  <!-- ISKRA / C / BIB / cream chest -->
-  <path id="iskra-c-bib" fill="#F7E8D3" d="M238,250C232,280 228,312 230,342C232,372 242,394 258,398C274,402 290,390 296,368C302,342 298,304 292,276C276,262 254,246 238,250Z"/>
-  <!-- ISKRA / C / LEG / left -->
-  <path id="iskra-c-leg-left" fill="#B94F1D" d="M220,358C214,390 212,424 216,446C220,460 238,462 242,448C244,422 240,388 234,358Z"/>
-  <!-- ISKRA / C / LEG / right -->
-  <path id="iskra-c-leg-right" fill="#B94F1D" d="M292,358C298,390 302,424 298,446C294,460 276,462 272,448C268,422 270,388 274,358Z"/>
-  <!-- ISKRA / C / HEAD GROUP -->
-  <g id="iskra-c-head" transform="translate(4 -12)">
-    <path id="iskra-c-head-shape" fill="#E2702D" d="M256,78C306,78 344,116 344,166L350,194L336,192L344,216L318,214C310,230 292,238 274,240C268,244 262,246 256,246C250,246 244,244 238,240C222,238 204,230 194,214L168,216L176,192L162,194L168,166C168,116 206,78 256,78Z"/>
-    <path id="iskra-c-ear-left" fill="#E2702D" d="M186,132C176,96 170,58 166,34C196,50 218,74 236,98C222,116 202,130 186,132Z"/>
-    <path id="iskra-c-ear-right" fill="#E2702D" d="M280,98C298,72 320,46 348,28C342,72 332,110 324,142C304,132 288,114 280,98Z"/>
-    <path id="iskra-c-ear-inner-left" fill="#B94F1D" d="M196,124C188,96 184,68 182,50C202,62 218,80 228,96C218,112 206,122 196,124Z"/>
-    <path id="iskra-c-ear-inner-right" fill="#B94F1D" d="M292,100C304,82 318,64 332,48C328,76 320,106 314,126C304,120 296,110 292,100Z"/>
-    <path id="iskra-c-fringe" fill="#B94F1D" d="M170,164C168,116 198,88 244,82C268,80 290,86 306,98C272,96 244,110 226,132C214,148 208,162 206,174C194,168 182,152 174,138C176,148 174,156 170,164Z"/>
-    <path id="iskra-c-snout" fill="#F7E8D3" d="M234,172C242,164 252,162 262,164C272,162 282,164 290,172C288,190 276,208 262,216C248,208 236,190 234,172Z"/>
-    <path id="iskra-c-nose" fill="#2B2A33" d="M250,206C254,198 270,198 274,206C272,216 252,216 250,206Z"/>
-    <path id="iskra-c-mouth" fill="#2B2A33" d="M250,218C255,227 269,227 274,218C268,222 256,222 250,218Z"/>
-    <path id="iskra-c-eye-left" fill="#2B2A33" fill-rule="evenodd" d="M201,148C201,130 214,117 229,121C241,126 244,146 233,159C220,170 201,163 201,148ZM211,133C207,133 205,137 207,140C209,143 213,142 214,139C215,136 213,133 211,133Z"/>
-    <path id="iskra-c-eye-right" fill="#2B2A33" fill-rule="evenodd" d="M313,142C313,124 300,111 285,115C273,120 270,140 281,153C294,164 313,157 313,142ZM284,127C280,127 278,131 280,134C282,137 286,136 287,133C288,130 286,127 284,127Z"/>
-  </g>
-  <!-- ISKRA / C / SCARF / tilted wrap -->
-  <path id="iskra-c-scarf" fill="#2BB8A6" d="M196,256C234,242 282,236 318,238L320,268C284,268 234,276 194,290Z"/>
-  <!-- ISKRA / C / SCARF / knot -->
-  <path id="iskra-c-scarf-knot" fill="#2BB8A6" d="M304,244C316,236 332,242 334,256C336,270 322,280 310,276C298,272 294,252 304,244Z"/>
-  <!-- ISKRA / C / SCARF / flying end -->
-  <path id="iskra-c-scarf-end" fill="#2BB8A6" d="M314,272C330,288 342,310 346,336C346,320 340,302 328,290C322,282 316,276 314,272Z"/>
-  <!-- ISKRA / C / ARM / raised waving -->
-  <path id="iskra-c-arm" fill="#E2702D" d="M216,312C194,306 176,292 166,270C160,256 164,246 172,248C188,258 202,274 220,284C234,294 232,306 216,312Z"/>
-  <!-- ISKRA / C / PAW / cream -->
-  <path id="iskra-c-paw" fill="#F7E8D3" d="M138,238C130,224 138,208 154,208C170,208 180,222 177,238C174,254 164,264 154,264C140,264 133,252 138,238Z"/>
+  <path id="iskra-c-tail-tip" fill="#F7E8D3" d="M424,172L452,158L466,190L442,224L418,204Z"/>
+  <!-- ISKRA / C / BODY / simple teardrop torso -->
+  <path id="iskra-c-body" fill="#E2702D" d="M256,226C302,230 330,268 330,314C330,362 300,398 258,398C216,398 188,366 190,320C192,272 216,226 256,226Z"/>
+  <!-- ISKRA / C / CHEST / single cream chest patch -->
+  <path id="iskra-c-chest" fill="#F7E8D3" d="M240,250C224,272 218,304 224,330C230,356 244,368 258,366C272,364 276,342 270,314C264,288 252,258 246,248Z"/>
+  <!-- ISKRA / C / EAR / far ear -->
+  <path id="iskra-c-ear-far" fill="#E2702D" d="M182,112L150,46L224,86Z"/>
+  <!-- ISKRA / C / EAR / near ear, larger -->
+  <path id="iskra-c-ear-near" fill="#E2702D" d="M256,84L318,36L298,140Z"/>
+  <!-- ISKRA / C / HEAD / circle skull -->
+  <path id="iskra-c-head" fill="#E2702D" d="M236,80A86,86 0 1 1 235.9,80Z"/>
+  <!-- ISKRA / C / MUZZLE / triangular snout, merges with the skull -->
+  <path id="iskra-c-muzzle" fill="#E2702D" d="M178,138L112,186L188,226Z"/>
+  <!-- ISKRA / C / MUZZLE / cream jaw triangle -->
+  <path id="iskra-c-muzzle-cream" fill="#F7E8D3" d="M112,186L188,226L152,196Z"/>
+  <!-- ISKRA / C / NOSE -->
+  <path id="iskra-c-nose" fill="#2B2A33" d="M104,172L128,182L106,196Z"/>
+  <!-- ISKRA / C / MOUTH -->
+  <path id="iskra-c-mouth" fill="#2B2A33" d="M124,186L150,198L148,190L126,178Z"/>
+  <!-- ISKRA / C / FRINGE / single asymmetric crescent -->
+  <path id="iskra-c-fringe" fill="#B94F1D" d="M174,98C198,82 240,78 268,92C240,88 214,96 198,114C186,126 176,114 174,98Z"/>
+  <!-- ISKRA / C / EYE / far eye, dot -->
+  <path id="iskra-c-eye-far" fill="#2B2A33" d="M176,150A11,11 0 1 1 175.9,150Z"/>
+  <!-- ISKRA / C / EYE / near eye, dot -->
+  <path id="iskra-c-eye-near" fill="#2B2A33" d="M256,140A11,11 0 1 1 255.9,140Z"/>
+  <!-- ISKRA / C / SCARF / single teal shield -->
+  <path id="iskra-c-scarf" fill="#2BB8A6" d="M186,236L272,220L280,258L194,274Z"/>
 </svg>

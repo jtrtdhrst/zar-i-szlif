@@ -1,41 +1,49 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512" role="img" aria-labelledby="title desc">
-  <title id="title">Iskra — style direction B, low prowling dash</title>
-  <desc id="desc">Design exploration B for Iskra the fox: low forward-leaning prowling pose, head thrust to the right, tail streaming back to the left, turquoise scarf trailing. Flat vector, five colours.</desc>
-  <!-- Exploration B — flat vector, no raster, filters, gradients or scripts. -->
-  <!-- ISKRA / B / TAIL / streaming back -->
-  <path id="iskra-b-tail" fill="#E2702D" d="M162,388C126,374 92,344 64,308C52,292 42,274 38,258C58,276 84,290 108,298C118,322 132,350 152,378C160,386 162,388 162,388Z"/>
+  <title id="title">Iskra — style direction B, angular editorial stance</title>
+  <desc id="desc">Design exploration B for Iskra the fox: hard-edged editorial geometry, faceted wedge head, angular slit eyes, hard diagonal fringe slab, sharp-cornered turquoise scarf banner, straight legs and a bold angular sickle tail. Flat vector, five colours.</desc>
+  <!-- Exploration B — angular editorial. Flat vector, no raster, filters, gradients or scripts. -->
+  <!-- ISKRA / B / EAR / far ear, sharp triangle -->
+  <path id="iskra-b-ear-far" fill="#E2702D" d="M136,96L104,40L162,74Z"/>
+  <!-- ISKRA / B / EAR / far ear inner -->
+  <path id="iskra-b-ear-far-inner" fill="#B94F1D" d="M138,92L120,58L152,80Z"/>
+  <!-- ISKRA / B / EAR / near ear, larger and set back -->
+  <path id="iskra-b-ear-near" fill="#E2702D" d="M188,90L222,36L232,88Z"/>
+  <!-- ISKRA / B / EAR / near ear inner -->
+  <path id="iskra-b-ear-near-inner" fill="#B94F1D" d="M196,86L216,56L220,84Z"/>
+  <!-- ISKRA / B / TAIL / angular tapering sickle -->
+  <path id="iskra-b-tail" fill="#E2702D" d="M298,278L356,256L406,202L446,144L462,160L430,222L384,282L330,330L298,330Z"/>
   <!-- ISKRA / B / TAIL / cream tip -->
-  <path id="iskra-b-tail-tip" fill="#F7E8D3" d="M38,258C42,274 52,292 64,308C70,300 74,290 76,280C62,270 48,262 38,258Z"/>
-  <!-- ISKRA / B / BODY / low forward lean -->
-  <path id="iskra-b-body" fill="#E2702D" d="M298,276C318,282 326,300 322,322C316,350 294,370 262,380C228,390 190,392 158,384C132,378 118,360 126,340C136,314 172,290 216,278C244,270 276,270 298,276Z"/>
-  <!-- ISKRA / B / BIB / cream chest -->
-  <path id="iskra-b-bib" fill="#F7E8D3" d="M268,286C262,312 258,340 258,362C258,384 266,398 278,398C290,398 298,384 300,362C302,340 300,312 296,292C286,284 276,282 268,286Z"/>
-  <!-- ISKRA / B / LEG / front -->
-  <path id="iskra-b-leg-front" fill="#B94F1D" d="M298,346C294,376 294,398 298,412C302,422 316,424 320,412C322,392 318,366 312,346Z"/>
-  <!-- ISKRA / B / LEG / second -->
-  <path id="iskra-b-leg-second" fill="#B94F1D" d="M264,356C260,386 260,406 264,420C268,430 282,432 286,420C288,400 284,374 278,356Z"/>
-  <!-- ISKRA / B / LEG / hind -->
-  <path id="iskra-b-leg-hind" fill="#B94F1D" d="M144,348C136,376 134,404 138,418C142,430 158,432 162,418C164,398 160,370 156,348Z"/>
-  <!-- ISKRA / B / HEAD GROUP -->
-  <g id="iskra-b-head" transform="translate(62 54) scale(0.92)">
-    <path id="iskra-b-head-shape" fill="#E2702D" d="M256,78C306,78 344,116 344,166L350,194L336,192L344,216L318,214C310,230 292,238 274,240C268,244 262,246 256,246C250,246 244,244 238,240C222,238 204,230 194,214L168,216L176,192L162,194L168,166C168,116 206,78 256,78Z"/>
-    <path id="iskra-b-ear-left" fill="#E2702D" d="M186,132C176,96 170,58 166,34C196,50 218,74 236,98C222,116 202,130 186,132Z"/>
-    <path id="iskra-b-ear-right" fill="#E2702D" d="M280,98C298,72 320,46 348,28C342,72 332,110 324,142C304,132 288,114 280,98Z"/>
-    <path id="iskra-b-ear-inner-left" fill="#B94F1D" d="M196,124C188,96 184,68 182,50C202,62 218,80 228,96C218,112 206,122 196,124Z"/>
-    <path id="iskra-b-ear-inner-right" fill="#B94F1D" d="M292,100C304,82 318,64 332,48C328,76 320,106 314,126C304,120 296,110 292,100Z"/>
-    <path id="iskra-b-fringe" fill="#B94F1D" d="M170,164C168,116 198,88 244,82C268,80 290,86 306,98C272,96 244,110 226,132C214,148 208,162 206,174C194,168 182,152 174,138C176,148 174,156 170,164Z"/>
-    <path id="iskra-b-snout" fill="#F7E8D3" d="M234,172C242,164 252,162 262,164C272,162 282,164 290,172C288,190 276,208 262,216C248,208 236,190 234,172Z"/>
-    <path id="iskra-b-nose" fill="#2B2A33" d="M250,206C254,198 270,198 274,206C272,216 252,216 250,206Z"/>
-    <path id="iskra-b-mouth" fill="#2B2A33" d="M250,218C255,227 269,227 274,218C268,222 256,222 250,218Z"/>
-    <path id="iskra-b-eye-left" fill="#2B2A33" fill-rule="evenodd" d="M201,148C201,130 214,117 229,121C241,126 244,146 233,159C220,170 201,163 201,148ZM211,133C207,133 205,137 207,140C209,143 213,142 214,139C215,136 213,133 211,133Z"/>
-    <path id="iskra-b-eye-right" fill="#2B2A33" fill-rule="evenodd" d="M313,142C313,124 300,111 285,115C273,120 270,140 281,153C294,164 313,157 313,142ZM284,127C280,127 278,131 280,134C282,137 286,136 287,133C288,130 286,127 284,127Z"/>
-  </g>
-  <!-- ISKRA / B / SCARF / trailing wrap -->
-  <path id="iskra-b-scarf" fill="#2BB8A6" d="M262,262C286,250 312,246 336,250L338,278C312,276 288,282 268,294Z"/>
-  <!-- ISKRA / B / SCARF / knot -->
-  <path id="iskra-b-scarf-knot" fill="#2BB8A6" d="M248,268C260,258 276,262 280,276C284,290 272,300 258,296C246,292 240,278 248,268Z"/>
-  <!-- ISKRA / B / SCARF / streaming end -->
-  <path id="iskra-b-scarf-end" fill="#2BB8A6" d="M250,292C228,306 200,318 174,326C196,306 208,288 210,270C224,270 240,278 250,292Z"/>
-  <!-- ISKRA / B / PAW / forward reaching -->
-  <path id="iskra-b-paw" fill="#F7E8D3" d="M330,300C322,288 328,272 344,272C360,272 370,286 367,302C364,318 354,326 344,326C332,326 325,312 330,300Z"/>
+  <path id="iskra-b-tail-tip" fill="#F7E8D3" d="M446,144L462,160L432,186Z"/>
+  <!-- ISKRA / B / BODY / faceted barrel, shoulder to hip -->
+  <path id="iskra-b-body" fill="#E2702D" d="M198,204L256,196L300,216L328,254L332,296L312,328L246,340L200,326L184,268L186,226Z"/>
+  <!-- ISKRA / B / CHEST / angular bib -->
+  <path id="iskra-b-chest" fill="#F7E8D3" d="M196,228L226,222L238,282L226,330L196,330L188,274Z"/>
+  <!-- ISKRA / B / LEG / far front leg -->
+  <path id="iskra-b-leg-far" fill="#B94F1D" d="M180,298L202,294L196,412L174,412Z"/>
+  <!-- ISKRA / B / LEG / near front leg -->
+  <path id="iskra-b-leg-near" fill="#E2702D" d="M198,296L228,292L224,420L194,420Z"/>
+  <!-- ISKRA / B / PAW / near front paw -->
+  <path id="iskra-b-paw-front" fill="#B94F1D" d="M192,416L228,414L232,436L188,438Z"/>
+  <!-- ISKRA / B / LEG / hind leg -->
+  <path id="iskra-b-leg-hind" fill="#E2702D" d="M296,300L328,296L338,406L306,410Z"/>
+  <!-- ISKRA / B / PAW / hind foot -->
+  <path id="iskra-b-paw-hind" fill="#B94F1D" d="M302,404L344,400L350,424L300,428Z"/>
+  <!-- ISKRA / B / HEAD / faceted wedge with a planar snout -->
+  <path id="iskra-b-head" fill="#E2702D" d="M170,76C196,84 216,98 226,116L230,152C224,174 212,190 196,198L156,206C132,202 108,196 92,188L78,180L100,150C114,140 128,132 140,124L152,88Z"/>
+  <!-- ISKRA / B / FRINGE / hard diagonal slab across the brow -->
+  <path id="iskra-b-fringe" fill="#B94F1D" d="M126,122L152,86L180,98L150,146L130,154Z"/>
+  <!-- ISKRA / B / MUZZLE / angular cream jaw -->
+  <path id="iskra-b-muzzle" fill="#F7E8D3" d="M82,182L140,200L134,178L96,168Z"/>
+  <!-- ISKRA / B / NOSE -->
+  <path id="iskra-b-nose" fill="#2B2A33" d="M72,170L96,175L76,187Z"/>
+  <!-- ISKRA / B / MOUTH -->
+  <path id="iskra-b-mouth" fill="#2B2A33" d="M94,190L122,198L118,190L96,184Z"/>
+  <!-- ISKRA / B / EYE / far eye, angular slit -->
+  <path id="iskra-b-eye-far" fill="#2B2A33" d="M122,150L148,144L150,153L124,158Z"/>
+  <!-- ISKRA / B / EYE / near eye, angular slit -->
+  <path id="iskra-b-eye-near" fill="#2B2A33" d="M180,140L206,134L208,143L182,148Z"/>
+  <!-- ISKRA / B / SCARF / hard-cornered banner, tilted -->
+  <path id="iskra-b-scarf" fill="#2BB8A6" d="M186,204L238,190L248,218L196,234L190,218Z"/>
+  <!-- ISKRA / B / SCARF / sharp flying flag -->
+  <path id="iskra-b-scarf-end" fill="#2BB8A6" d="M240,192L272,170L266,200L246,216Z"/>
 </svg>

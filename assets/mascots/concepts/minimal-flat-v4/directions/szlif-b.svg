@@ -1,0 +1,31 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512" role="img" aria-labelledby="title desc">
+  <title id="title">Szlif — style direction B, soft-round contemplative</title>
+  <desc id="desc">Design exploration B for Szlif the raven: soft rounded construction with no hard edges, a rounded pompadour crest, a short gently curved hooked beak tilted upward, a plump body, a soft folded wing, a rounded tail fan and ochre feet on the ground. Flat vector, four colours.</desc>
+  <!-- Exploration B — soft-round contemplative. Flat vector, no raster, filters, gradients or scripts. -->
+  <!-- SZLIF / B / CREST / rounded pompadour tuft -->
+  <path id="szlif-b-crest" fill="#232833" d="M212,76C206,48 226,28 252,28C278,28 296,46 294,70C280,58 258,54 240,62C226,68 216,78 212,76Z"/>
+  <!-- SZLIF / B / CREST / small forward curl -->
+  <path id="szlif-b-crest-2" fill="#232833" d="M256,32C268,18 288,18 298,28C284,26 270,32 260,42C254,48 250,38 256,32Z"/>
+  <!-- SZLIF / B / TAIL / rounded fan -->
+  <path id="szlif-b-tail" fill="#3C4757" d="M226,368C204,392 178,420 154,446C166,456 182,456 196,448C214,436 230,412 238,392C242,380 234,362 226,368Z"/>
+  <!-- SZLIF / B / BODY / plump pear, soft shoulders -->
+  <path id="szlif-b-body" fill="#232833" d="M252,192C290,196 312,228 314,272C316,316 306,360 288,394C272,424 244,432 226,418C206,402 200,368 202,330C204,286 210,236 230,208C236,198 244,192 252,192Z"/>
+  <!-- SZLIF / B / WING / soft folded panel -->
+  <path id="szlif-b-wing" fill="#3C4757" d="M296,238C312,254 314,290 304,326C294,362 274,394 252,408C238,416 226,410 228,398C232,376 240,348 242,318C244,282 240,252 252,240C264,230 286,230 296,238Z"/>
+  <!-- SZLIF / B / LEGS -->
+  <path id="szlif-b-legs" fill="#E2A03F" d="M240,414C234,428 234,444 240,452L250,450C246,440 246,426 252,416ZM264,414C258,428 258,444 264,452L274,450C270,440 270,426 276,416Z"/>
+  <!-- SZLIF / B / FEET -->
+  <path id="szlif-b-feet" fill="#E2A03F" d="M230,448C244,444 260,444 272,450C278,454 274,460 262,460L236,460C226,460 224,452 230,448ZM254,448C268,444 284,444 296,450C302,454 298,460 286,460L260,460C250,460 248,452 254,448Z"/>
+  <!-- SZLIF / B / HEAD / rounded oval skull -->
+  <path id="szlif-b-head" fill="#232833" d="M248,54C292,54 320,84 320,126C320,160 300,188 270,198C244,206 214,196 200,170C186,144 188,106 204,82C214,66 230,54 248,54Z"/>
+  <!-- SZLIF / B / BEAK / short soft beak, tilted up, gently hooked -->
+  <path id="szlif-b-beak" fill="#E2A03F" d="M298,112C322,96 350,84 374,84C380,86 381,94 376,102C370,114 352,126 332,132C334,120 332,110 324,106C314,102 304,106 298,112Z"/>
+  <!-- SZLIF / B / BEAK / lower mandible -->
+  <path id="szlif-b-beak-lower" fill="#E2A03F" d="M300,116C316,110 332,110 344,116C338,128 324,136 312,132C306,130 302,124 300,116Z"/>
+  <!-- SZLIF / B / BEAK / gape line -->
+  <path id="szlif-b-beak-gape" fill="#232833" d="M298,110C318,102 338,102 356,110C338,106 318,106 298,114Z"/>
+  <!-- SZLIF / B / EYE / soft dark eye -->
+  <path id="szlif-b-eye" fill="#D7DCE3" d="M286,106C296,100 308,104 310,116C312,128 304,138 292,138C280,138 274,128 276,116C277,111 281,108 286,106Z"/>
+  <!-- SZLIF / B / EYE / pupil -->
+  <path id="szlif-b-pupil" fill="#232833" d="M288,110C292,108 296,111 295,116C294,121 288,122 285,118C283,115 285,112 288,110Z"/>
+</svg>

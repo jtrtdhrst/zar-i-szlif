@@ -12,8 +12,8 @@
       "id": "iskra-a",
       "group": "directions",
       "file": "directions/iskra-a.svg",
-      "title": "Iskra — style direction A, campfire sitter",
-      "sourceSha256": "954353289a19923cadc4c7bcae1cab0945199ec800ef2137f057d3b21c860f5a",
+      "title": "Iskra — style direction A, soft-round three-quarter sitter",
+      "sourceSha256": "0eaf253787bdf1d80c03f41b1dd5f55776e438ef796519a9ecc6735a929ed36c",
       "shapes": 22,
       "colors": [
         "#2B2A33",
@@ -26,70 +26,70 @@
         {
           "file": "exports/iskra-a-512.png",
           "size": 512,
-          "sha256": "67fd3b43f96699a8240c3c63e492d4414bb0e620dd1078ad5742e43ee9747259"
+          "sha256": "ad8945f011365fc1ccb95398e376e29dd115d47a2421d75968e20269bc50ad69"
         },
         {
           "file": "exports/iskra-a-128.png",
           "size": 128,
-          "sha256": "e873a122261a9ba496f8b78694fefb6cd8f9e4312269a107613a1c0328f00453"
+          "sha256": "d3149cca0f6a97908a6fe603ac3b6f88b3850d06ac7ff2fc39cf68e6f5ca31a7"
         },
         {
           "file": "exports/iskra-a-64.png",
           "size": 64,
-          "sha256": "c6653c2d26dee891a60d42814f43bd436a0f6ac82eaf488b108f301a239f3bcc"
+          "sha256": "39e4bd359a37160db8364b1286468b22623e3ffdf13f8876e5e2bf78c2e5abbd"
         },
         {
           "file": "exports/iskra-a-32.png",
           "size": 32,
-          "sha256": "dc899925dddcc248e8953d62c9a382ed438db3956583f646115dbe7a17d70247"
+          "sha256": "01082c4cd21aa0a9264621c77ba05b034a7b20b3d8e98e28410f352c73f8f8e5"
         },
         {
           "file": "exports/iskra-a-sil-64.png",
           "size": 64,
           "silhouette": true,
-          "sha256": "53afce44d6a24a8ee6c566a0200848b4e8ec3b2f7ce100fd245db11f18456fb6"
+          "sha256": "61b9f3bc38f9855bf95561f2ce43e9e4898a3b6edabf11f1ffd59f8009bd536d"
         },
         {
           "file": "exports/iskra-a-sil-32.png",
           "size": 32,
           "silhouette": true,
-          "sha256": "eee3c41a8016219b2f7c164e7fe2083c38207fcb0f07bfa962542c9ff009c4c6"
+          "sha256": "f661dbb63a099b62d8437270d2a030e4febe34d98170ea7bfd63adb8f65567b1"
         },
         {
           "file": "exports/iskra-a-white-128.png",
           "size": 128,
           "background": "white",
-          "sha256": "2f63a0927c13c4d6d07bc7c5e7df9f727a95bdf7e5d71dc6b1c40a16485f0cc2"
+          "sha256": "8ae99be1faf4d3ac4b4b161beba21e658b9be1ecf33c2bdc630dccd6c5395aa8"
         },
         {
           "file": "exports/iskra-a-white-64.png",
           "size": 64,
           "background": "white",
-          "sha256": "c7dae2086a079e1ff9434d8aab5257f3e0c2bf285157ccaa05e7671df7cbe1bd"
+          "sha256": "d3af9ed25c7b270e0313eda7343c5e38eed0443385aed09148ae06a0472d6494"
         },
         {
           "file": "exports/iskra-a-dark-128.png",
           "size": 128,
           "background": "dark",
-          "sha256": "949b9ee19c06ce66402ba7b7700774daba4d11e360fb3244fe04fbe1b2803720"
+          "sha256": "f8da6d763602113f45b9672c24fe1ccb7b36c155765670b68c1c0dbcf4f0981f"
         },
         {
           "file": "exports/iskra-a-dark-64.png",
           "size": 64,
           "background": "dark",
-          "sha256": "c41f31a0b26c0430dc21a9bb0651612dcbff423d069115590b8265c814def28d"
+          "sha256": "736dbc3d1864585b42ccbe95deeee81d032f75ad42783e1d855b857e3171eda6"
         },
         {
           "file": "exports/iskra-a-camp-128.png",
           "size": 128,
           "background": "camp",
-          "sha256": "1601f1fd22600740fbe0b31b9059a9d539401f22abfe8af5898cbf109f1048bf"
+          "sha256": "efa759b8c8388701ec14122e261e3f51c48168f3c562562ca5b8910bdfe0fb96"
         },
         {
           "file": "exports/iskra-a-camp-64.png",
           "size": 64,
           "background": "camp",
-          "sha256": "41372483c402ff1e16323d8d38ba85dfbc57e1d254d97200279db9d9ffa57245"
+          "sha256": "baaf153b1f847d1b37a47d0afb438134f6b58015ad397d254323f4f22e3e6622"
         }
       ]
     },
@@ -97,8 +97,8 @@
       "id": "iskra-b",
       "group": "directions",
       "file": "directions/iskra-b.svg",
-      "title": "Iskra — style direction B, low prowling dash",
-      "sourceSha256": "55f851fb276623d771b69f7500b5c7bc002ea2906db9b35e0bd1da76cac3605c",
+      "title": "Iskra — style direction B, angular editorial stance",
+      "sourceSha256": "ef0d9aabf19335fdbd1e9390d83be9d13bdcf20730f292617b4d6ec1086dcfa1",
       "shapes": 22,
       "colors": [
         "#2B2A33",
@@ -111,70 +111,70 @@
         {
           "file": "exports/iskra-b-512.png",
           "size": 512,
-          "sha256": "42bca15d8b3953f31098958ad2df98992e999efa985f8e239f43054496aa3ebd"
+          "sha256": "df92fb78efd6e708911dca7af3ef625399233107048498d92e1989c6515f435e"
         },
         {
           "file": "exports/iskra-b-128.png",
           "size": 128,
-          "sha256": "71f31f89b72bba4e7ac80507a5592f7aa1265ecedb8d369ec2e0ba792d844761"
+          "sha256": "5f9c487eddc614a2ad46e811d0b6b6e4895a3c277c5fa6bdb780e3c0e3f7ca44"
         },
         {
           "file": "exports/iskra-b-64.png",
           "size": 64,
-          "sha256": "811160e7dca1f62e6345340cdb83d266cab1864980001a0966339eb54b145b5f"
+          "sha256": "15d310b0e6299a8f4138431cd845cfd46881a41e9b74b45c84adc0b22d30041c"
         },
         {
           "file": "exports/iskra-b-32.png",
           "size": 32,
-          "sha256": "2d82f601b260bec8dde5366d93adfe65bcc6de19dca5aef9620033811c6bc3f5"
+          "sha256": "e8bb78993046bd5118a939fa284c58461934ed82270caf16b1a9488b6636bff7"
         },
         {
           "file": "exports/iskra-b-sil-64.png",
           "size": 64,
           "silhouette": true,
-          "sha256": "93c917dfd991bb5aa8577a0457bf0e0fd32eeb8755791960f9ffb73539addfe9"
+          "sha256": "662e1590efa0d498a5e6ac68da01c942af3e931af49d81fb0d504ae6ac526c03"
         },
         {
           "file": "exports/iskra-b-sil-32.png",
           "size": 32,
           "silhouette": true,
-          "sha256": "14af5e3a52cf02e0e32e56cbacbf6a013be9353f55cd7e862b4bc20aad8e32ba"
+          "sha256": "7baae61b93f86c4b5b84eea365772388dbcb5661fd912d0ee948845d35e53036"
         },
         {
           "file": "exports/iskra-b-white-128.png",
           "size": 128,
           "background": "white",
-          "sha256": "6c69ea9ac8d65a745b65ef738ee52dcdc5d6639b1493be0608dd10825ecdc2fe"
+          "sha256": "ad8e5f78901756a4b6943b2900b20da973201756c0b0eb2effd89ed376859f10"
         },
         {
           "file": "exports/iskra-b-white-64.png",
           "size": 64,
           "background": "white",
-          "sha256": "516721f42876ce1f354a1f6fd55925b75d23619c6ba0109ba15f48aa1b60a920"
+          "sha256": "6d65798d422d35cf0efe8b773fe7d87dc5fdb5d3f2c3a66d855f8b56e89014b9"
         },
         {
           "file": "exports/iskra-b-dark-128.png",
           "size": 128,
           "background": "dark",
-          "sha256": "6ac2ba5f9a9aae54145603143a785c32852819529419db0c27520f28546feedf"
+          "sha256": "9dff679f12f39c51a47ebef6fa621890908716d6d47efa9865276c4503e49cb6"
         },
         {
           "file": "exports/iskra-b-dark-64.png",
           "size": 64,
           "background": "dark",
-          "sha256": "466e2f88fca8b15f19fe666471689e13135e4a0d2864c3204b25d8f2539eb145"
+          "sha256": "50d8bf18de08894f99fbe2504c6205b528b43f206ca0e9cbc1421f6675fb977e"
         },
         {
           "file": "exports/iskra-b-camp-128.png",
           "size": 128,
           "background": "camp",
-          "sha256": "995664caec59ea953f57323890010041ab0bcc1007a8048bb4dd971d1e39810f"
+          "sha256": "e4724360ff81af9df42547f73e949101d56f8375b33501442cdc06a28e36f9fb"
         },
         {
           "file": "exports/iskra-b-camp-64.png",
           "size": 64,
           "background": "camp",
-          "sha256": "97a2359ce9f17cd06fc035bd004f7381fb0897cb8e0ff724129475be9ef36b52"
+          "sha256": "ee0d4b4fdfa77e72e09caadb41104c174243b8826f0936b567cfebde51f7a0df"
         }
       ]
     },
@@ -182,9 +182,9 @@
       "id": "iskra-c",
       "group": "directions",
       "file": "directions/iskra-c.svg",
-      "title": "Iskra — style direction C, upright herald",
-      "sourceSha256": "2e4fa80a7be2172622372094b0d35416bc0afee94162be68501265b4f51a062a",
-      "shapes": 22,
+      "title": "Iskra — style direction C, reduced emblematic icon",
+      "sourceSha256": "55629b993e84cb79a921e4a0c2a81ad7462b27c9f3eaa4aaf39114f6e0b59647",
+      "shapes": 15,
       "colors": [
         "#2B2A33",
         "#2BB8A6",
@@ -196,70 +196,70 @@
         {
           "file": "exports/iskra-c-512.png",
           "size": 512,
-          "sha256": "15ed0532267bc7173a61259f8effe1854bdb07c97f30a5d410b23dc21f4d558d"
+          "sha256": "47ac7ba4a300b80d8c754f3ffb043112d81c9cd4a2799bc357584d59ce0dca0a"
         },
         {
           "file": "exports/iskra-c-128.png",
           "size": 128,
-          "sha256": "2ddb25ff7953a517816364d3d68745347373a2c20076ce3dcc5cae502bbe2842"
+          "sha256": "b0a69d2f917772d9164fbe3f1ab4d9cdb2250e94f06dac28f8a51521c7300003"
         },
         {
           "file": "exports/iskra-c-64.png",
           "size": 64,
-          "sha256": "2914616ba447e5fcaee0fe1dd79d5e942b59d771f43bdc84de95c654252a2cfc"
+          "sha256": "b80ed2a295dea9813075340f8eb21406ee82e48715cb33bbe0e3ebee3decd865"
         },
         {
           "file": "exports/iskra-c-32.png",
           "size": 32,
-          "sha256": "bf1385124143463d51cbe3e2cb6cb1319587ad6686305d1c8c4ad930bb8bba6d"
+          "sha256": "cd25738665caa3cc793690e890e334db44eecca71225833931f0b5008cf2ecb7"
         },
         {
           "file": "exports/iskra-c-sil-64.png",
           "size": 64,
           "silhouette": true,
-          "sha256": "32d9f24f7831757f39e1023063d3df021da63536dd292b0ea17ad03bd9526258"
+          "sha256": "8ccec00c607d31205f468c578bc1f27e96f85c7e04db4d86ce0eb409232ac42b"
         },
         {
           "file": "exports/iskra-c-sil-32.png",
           "size": 32,
           "silhouette": true,
-          "sha256": "a9d8cffef242eb0f1c365df74dd3c38c05fdec54052604e240d84078a2fae748"
+          "sha256": "3fbd21db36389e56d494c95dd039e9db8902fb552f216f99ed182bb8e55c1be4"
         },
         {
           "file": "exports/iskra-c-white-128.png",
           "size": 128,
           "background": "white",
-          "sha256": "3ccb76715d464aa946e2f0c15fa3884e5db6b98111fe0f7deb62d50b3610dc32"
+          "sha256": "5432d9378421fd9b22c718dfe66fd2e98c37adbdbd63dad971a79bd53c1f38ab"
         },
         {
           "file": "exports/iskra-c-white-64.png",
           "size": 64,
           "background": "white",
-          "sha256": "d186fe1e5f8037677222322f2ebe17e1026b47140a38f4dcf5a7aff2b5fb3974"
+          "sha256": "4a561414b1c46a06c163a5367162bd696c0f978630388bccadbf713e11361401"
         },
         {
           "file": "exports/iskra-c-dark-128.png",
           "size": 128,
           "background": "dark",
-          "sha256": "d667ec42fa7cdef6d222f6412fb61893c1a849ef92b20b3bd458dafeb5502e45"
+          "sha256": "b9a72b0eabfa5fed6737a8c9dec2794cca7d159b25ae92231e513fb7c2199e66"
         },
         {
           "file": "exports/iskra-c-dark-64.png",
           "size": 64,
           "background": "dark",
-          "sha256": "da2ffee8fbc28048e6f2926ad645f039a937197bd0b4d8c1c363ae015b9cc70d"
+          "sha256": "9b89474e0ffb11c6387bfe4aafc496fd0be219b7c7cdf9f729ae71f762dd8ac6"
         },
         {
           "file": "exports/iskra-c-camp-128.png",
           "size": 128,
           "background": "camp",
-          "sha256": "2fa529ab6436e9005521348820639f2a8e5dc6331226baceda5e0edce01ee546"
+          "sha256": "6cb69649bfdf864ccec52ffd0834e19fed729b19f6d01fdc329555adefe562bc"
         },
         {
           "file": "exports/iskra-c-camp-64.png",
           "size": 64,
           "background": "camp",
-          "sha256": "676685ebc7308dc9113def8ab8465b6d3f84111452f076dfa005c825fd93144d"
+          "sha256": "3d226c2ff1b5984e5baaaa2cf470d6c5f9e1f6b9c464c6f41ce2270f992daff4"
         }
       ]
     },
@@ -267,9 +267,9 @@
       "id": "szlif-a",
       "group": "directions",
       "file": "directions/szlif-a.svg",
-      "title": "Szlif — style direction A, perched thinker",
-      "sourceSha256": "3d7dc38982bd2e8c0caf6f92769096de40d111c4242e0910968b0e4c5ceaee8b",
-      "shapes": 23,
+      "title": "Szlif — style direction A, perched thinker with swept crest",
+      "sourceSha256": "552f46ae841c712eea9a361da8bbd0fa25adf4338f676476af6b8b59e74f357c",
+      "shapes": 19,
       "colors": [
         "#232833",
         "#3C4757",
@@ -280,70 +280,497 @@
         {
           "file": "exports/szlif-a-512.png",
           "size": 512,
-          "sha256": "e7b8effda5b4546d19ae2d01223518ef7182723278f0865ae3b9886fe977b8f1"
+          "sha256": "b34e58719dbdf027b34b661da04d7c2f6fc88e0d9f7a32cf7c325cf11916169b"
         },
         {
           "file": "exports/szlif-a-128.png",
           "size": 128,
-          "sha256": "15ad7805d615abf1174f079b8eb718ef6af6ef0482b9fbc69139a763b6ef6412"
+          "sha256": "8ce81d8a0bd348a135a71841d3bcd49a79291ff04797670ebab24c917ce53c74"
         },
         {
           "file": "exports/szlif-a-64.png",
           "size": 64,
-          "sha256": "d134c240315d5c688dab9e7aed1c435ef254e7ac8ed0229757295a09353f0cc4"
+          "sha256": "41f414115bc9b39a61719328dfe7d85d5b79b608fec3279487e4bbca6ea6d90f"
         },
         {
           "file": "exports/szlif-a-32.png",
           "size": 32,
-          "sha256": "9ddc000ab9b754769f0fe0f79a62dda94ea24fbf4ee3c4fcaaffd2bcb63d406d"
+          "sha256": "f948f08d73f16bb6186b8a3cd6d24d5b3cfba957a02a6cc209f8340535914097"
         },
         {
           "file": "exports/szlif-a-sil-64.png",
           "size": 64,
           "silhouette": true,
-          "sha256": "07a3779e50ebaf7332bc030705f2367064469f0e0f0de3a687041a3958cbcd1a"
+          "sha256": "8a1f382f66d5774574ce24857ca259dc10c54d84bed19d7f599c649284d76dcb"
         },
         {
           "file": "exports/szlif-a-sil-32.png",
           "size": 32,
           "silhouette": true,
-          "sha256": "c2e927d787a34f51da2582532598496f630fe73ded3b7ef08e7cd1fd56411639"
+          "sha256": "185df227543613f05d181656129f61c669a03a95557cb2b121459efea9a6ab55"
         },
         {
           "file": "exports/szlif-a-white-128.png",
           "size": 128,
           "background": "white",
-          "sha256": "0fd551f58c521575070c76547f41b8c748c8d74dbb419cf62f4cfec599fd4700"
+          "sha256": "9de0b869ce1b14084c3df31c5afadf34c919cda2bb1563ed6960f871b18c72a6"
         },
         {
           "file": "exports/szlif-a-white-64.png",
           "size": 64,
           "background": "white",
-          "sha256": "93bdb57acc474a678bf7ab158a7f9140545126b8730e5c6931f0d59fc03e7b7e"
+          "sha256": "2dfd59ababb3e72bfbbd63256219e823d9c5ac55ba844183d2e694cd1ae967dd"
         },
         {
           "file": "exports/szlif-a-dark-128.png",
           "size": 128,
           "background": "dark",
-          "sha256": "922ff0c0b72b8179f34a5ebbf97e832a106cd17cef393aa138be4bb5da051c2c"
+          "sha256": "28f899e6157bbbe8cd46ba95a6d6f74567170b477bf46fcf183a4d842134a61d"
         },
         {
           "file": "exports/szlif-a-dark-64.png",
           "size": 64,
           "background": "dark",
-          "sha256": "493e5a976cf22eaa83bb5026176ec7e3d897e4068f8bcb0ace35daba9de9b717"
+          "sha256": "3861741ca840b41c34442e39fe4bcccbb373621227e634c7289b9c02e6332f4b"
         },
         {
           "file": "exports/szlif-a-camp-128.png",
           "size": 128,
           "background": "camp",
-          "sha256": "565e652673f99af14a4d8f4bb1e864e14970916b9d63081c46d216327856f4fd"
+          "sha256": "d7cf285055e5ce57eb38974d36b1dcd79710ed16d20f29fb25f1b5f7c1a674db"
         },
         {
           "file": "exports/szlif-a-camp-64.png",
           "size": 64,
           "background": "camp",
-          "sha256": "453bc50e3188b9e6d02859183dcdb8e7d0c3d1ff05e2aedc04342921c0e85f3c"
+          "sha256": "e873e5847f0b3caa5b26eaf962258acdd82c8fe2cd846b76797f611dea0fc3ff"
+        }
+      ]
+    },
+    {
+      "id": "szlif-b",
+      "group": "directions",
+      "file": "directions/szlif-b.svg",
+      "title": "Szlif — style direction B, soft-round contemplative",
+      "sourceSha256": "3c0bdc24c399d206c5f02348e4c1674ca822b0d8600275aadba6b548c447fc0d",
+      "shapes": 13,
+      "colors": [
+        "#232833",
+        "#3C4757",
+        "#D7DCE3",
+        "#E2A03F"
+      ],
+      "outputs": [
+        {
+          "file": "exports/szlif-b-512.png",
+          "size": 512,
+          "sha256": "ac5f0f386a59e0d15dd93ec527d8adb65bb17fd4b3ffc149c49ef6f6242bc022"
+        },
+        {
+          "file": "exports/szlif-b-128.png",
+          "size": 128,
+          "sha256": "ad85969aad11a43be4cb13c53e663ffdcb540b550a7cd4db5b546fd6b34edb93"
+        },
+        {
+          "file": "exports/szlif-b-64.png",
+          "size": 64,
+          "sha256": "1a5e87df5d37597d19578ae933ee586f7577fcea649c18be547a7e3c35b949f3"
+        },
+        {
+          "file": "exports/szlif-b-32.png",
+          "size": 32,
+          "sha256": "1cff45bd0d779640010105a340ab40b3dca5e06ad7cf8b8db76a181c9e0786a0"
+        },
+        {
+          "file": "exports/szlif-b-sil-64.png",
+          "size": 64,
+          "silhouette": true,
+          "sha256": "07ef1d2281df956e069a708d3a0241f1065209910a1df98d0f1592aef554864d"
+        },
+        {
+          "file": "exports/szlif-b-sil-32.png",
+          "size": 32,
+          "silhouette": true,
+          "sha256": "f87795eac6040169b153c73a5f9782967074a3ed330f6082a5061289915fdc38"
+        },
+        {
+          "file": "exports/szlif-b-white-128.png",
+          "size": 128,
+          "background": "white",
+          "sha256": "0cc3cde5966ae11262ce7abb56a1f21fe07f56e2ac6ec7006a86c7d6aa0f15ca"
+        },
+        {
+          "file": "exports/szlif-b-white-64.png",
+          "size": 64,
+          "background": "white",
+          "sha256": "54b2f41d472159e5c83d9cf972f93b8e23b7e1e3886a50f231af813d34dca306"
+        },
+        {
+          "file": "exports/szlif-b-dark-128.png",
+          "size": 128,
+          "background": "dark",
+          "sha256": "28e1e0c228064a2bcf726f9fec7f097749488b18857723652f99ef0d1661f4c2"
+        },
+        {
+          "file": "exports/szlif-b-dark-64.png",
+          "size": 64,
+          "background": "dark",
+          "sha256": "498c387b7d78f58d05df4ea3286b9fa5673196ff8bfb7f454a07220aa15c1b79"
+        },
+        {
+          "file": "exports/szlif-b-camp-128.png",
+          "size": 128,
+          "background": "camp",
+          "sha256": "7dc6274622525a981c6e205af5eda465f701d03bdd2f392e387e8f38009922e9"
+        },
+        {
+          "file": "exports/szlif-b-camp-64.png",
+          "size": 64,
+          "background": "camp",
+          "sha256": "e96a598b974e37ac2b92f5587ef32cffaa6684c5c08da9df978dd62db18df595"
+        }
+      ]
+    },
+    {
+      "id": "szlif-c",
+      "group": "directions",
+      "file": "directions/szlif-c.svg",
+      "title": "Szlif — style direction C, reduced emblematic icon",
+      "sourceSha256": "c81c9f6751147ef170b1faf8f2603db215dafae8eb00f9b722337cbb62719d7d",
+      "shapes": 12,
+      "colors": [
+        "#232833",
+        "#3C4757",
+        "#D7DCE3",
+        "#E2A03F"
+      ],
+      "outputs": [
+        {
+          "file": "exports/szlif-c-512.png",
+          "size": 512,
+          "sha256": "dcb0df7cb6ec64787204fbac47d4267e00301249256bc445e84ad59736b79deb"
+        },
+        {
+          "file": "exports/szlif-c-128.png",
+          "size": 128,
+          "sha256": "c3338a114b640fb3fe6e1f577d69f3a1299198938b98bc74a92f0582e057bdb6"
+        },
+        {
+          "file": "exports/szlif-c-64.png",
+          "size": 64,
+          "sha256": "59312ee43d9812339628e6b940724586c9609ef920355f8beb408fedc65b9042"
+        },
+        {
+          "file": "exports/szlif-c-32.png",
+          "size": 32,
+          "sha256": "92293cfbd3260cac9c7c712d116e25d75b6111d932df5881bee13ff979f9d315"
+        },
+        {
+          "file": "exports/szlif-c-sil-64.png",
+          "size": 64,
+          "silhouette": true,
+          "sha256": "3c1ed9ee82b377b3c82464c2c05c985466a6695b22bd5d0bd2d487b6ff1f0527"
+        },
+        {
+          "file": "exports/szlif-c-sil-32.png",
+          "size": 32,
+          "silhouette": true,
+          "sha256": "1901e5dd72cae131e3db7657d5e302ea6ca29d7c9f21bacbe1a9b3ad9b386581"
+        },
+        {
+          "file": "exports/szlif-c-white-128.png",
+          "size": 128,
+          "background": "white",
+          "sha256": "3805c1a7d66dea2373267dac2e5134ea47872700591e9407b010821bd65bf266"
+        },
+        {
+          "file": "exports/szlif-c-white-64.png",
+          "size": 64,
+          "background": "white",
+          "sha256": "e5fdc89233fea933c860d6489c421bda3c276d571f48255409840b94e7d4c188"
+        },
+        {
+          "file": "exports/szlif-c-dark-128.png",
+          "size": 128,
+          "background": "dark",
+          "sha256": "1b8411ae71d1634ff65c521ae3964c5a915f305b61b284f18f8caf868318e952"
+        },
+        {
+          "file": "exports/szlif-c-dark-64.png",
+          "size": 64,
+          "background": "dark",
+          "sha256": "30b98ce22d573f72f22a555122e032fb1e0d632672932c98e00acff3ea6c7601"
+        },
+        {
+          "file": "exports/szlif-c-camp-128.png",
+          "size": 128,
+          "background": "camp",
+          "sha256": "09ddd36ff64cc6507c6c86de267bbe67e18da02b67ecde77725879b650cb29f5"
+        },
+        {
+          "file": "exports/szlif-c-camp-64.png",
+          "size": 64,
+          "background": "camp",
+          "sha256": "275873b6074a1419702228c4112e6af7cb20ae302ee49919e4c3f3eada83a027"
+        }
+      ]
+    },
+    {
+      "id": "iskra-master",
+      "group": "masters",
+      "file": "masters/iskra-master.svg",
+      "title": "Iskra — master fox vector (direction A refined)",
+      "sourceSha256": "13a1abbdbb58546b4acaa3f60a97fd95a94e130325a0a04cf5a645f71c36528d",
+      "shapes": 22,
+      "colors": [
+        "#2B2A33",
+        "#2BB8A6",
+        "#B94F1D",
+        "#E2702D",
+        "#F7E8D3"
+      ],
+      "outputs": [
+        {
+          "file": "exports/iskra-master-512.png",
+          "size": 512,
+          "sha256": "f8449134a344b9ed81489218009168f31526b1b9c88ad1b830ec25cf1535273f"
+        },
+        {
+          "file": "exports/iskra-master-128.png",
+          "size": 128,
+          "sha256": "899b395b91f35aeace194e4828b94b70a952ed5b225a2dd89590ae094f9d0078"
+        },
+        {
+          "file": "exports/iskra-master-64.png",
+          "size": 64,
+          "sha256": "042e930ca507e5dd554856b2c4da5088ffa5717bd1032838f95e717ffbe87688"
+        },
+        {
+          "file": "exports/iskra-master-32.png",
+          "size": 32,
+          "sha256": "e81c70afd85935f55d6d6908e77b1ae402dddbd8a8cc5ea05d768acad15e4867"
+        },
+        {
+          "file": "exports/iskra-master-sil-64.png",
+          "size": 64,
+          "silhouette": true,
+          "sha256": "a87916c769be71b99d8fd3bed5965fc9001379dd54888001ad29397d731144d4"
+        },
+        {
+          "file": "exports/iskra-master-sil-32.png",
+          "size": 32,
+          "silhouette": true,
+          "sha256": "7bc0431ddf7fbbc61b15462c45af7f618bcadd0939beede6b042460f11744129"
+        },
+        {
+          "file": "exports/iskra-master-white-128.png",
+          "size": 128,
+          "background": "white",
+          "sha256": "d54cc309b9d4559d0cfa940c76a7c6a681cb9bfead045e00ad7f1fb30c7d336d"
+        },
+        {
+          "file": "exports/iskra-master-white-64.png",
+          "size": 64,
+          "background": "white",
+          "sha256": "09cc3ac4d98a46a9c9c0b492cd113126561fcd092a370a2e9aec48bb830014c6"
+        },
+        {
+          "file": "exports/iskra-master-dark-128.png",
+          "size": 128,
+          "background": "dark",
+          "sha256": "e7c31c6381f89885b083df86d0e41029088566306208a258b0b7eecca8cdcc87"
+        },
+        {
+          "file": "exports/iskra-master-dark-64.png",
+          "size": 64,
+          "background": "dark",
+          "sha256": "60c5d6d73253d027440962b931d930d3aa2f8c46c2e7d8c7d39c7bad87a71a19"
+        },
+        {
+          "file": "exports/iskra-master-camp-128.png",
+          "size": 128,
+          "background": "camp",
+          "sha256": "3619c7292f7c4df2a38a75bfa329759564163dddbf71e2fb7831c82ee56e8d73"
+        },
+        {
+          "file": "exports/iskra-master-camp-64.png",
+          "size": 64,
+          "background": "camp",
+          "sha256": "f40d26b7152f6715935754378d4079b16372ba157b0566eb578c8fb540a83183"
+        }
+      ]
+    },
+    {
+      "id": "szlif-master",
+      "group": "masters",
+      "file": "masters/szlif-master.svg",
+      "title": "Szlif — master raven vector (direction A refined, with plan notebook)",
+      "sourceSha256": "aa80e9fabcf1d5e82b20d80f9e7a04d8472055e47093dbcd76999e23fac92008",
+      "shapes": 21,
+      "colors": [
+        "#232833",
+        "#2BB8A6",
+        "#3C4757",
+        "#D7DCE3",
+        "#E2A03F"
+      ],
+      "outputs": [
+        {
+          "file": "exports/szlif-master-512.png",
+          "size": 512,
+          "sha256": "653d7c1f36b595eca80b5ac2161c0497cb5d5a31626b14219b6f281664b1a397"
+        },
+        {
+          "file": "exports/szlif-master-128.png",
+          "size": 128,
+          "sha256": "a569dc3ceb4381142c6998a25fdebc29d5db0fffda4acafc62f685148c39c1ab"
+        },
+        {
+          "file": "exports/szlif-master-64.png",
+          "size": 64,
+          "sha256": "a9f2f6e52ff75acf87cf478f1ed0ac4bf27749804b29280199313e5be6416a51"
+        },
+        {
+          "file": "exports/szlif-master-32.png",
+          "size": 32,
+          "sha256": "d351322e8b2e9c0dbc6e92bfaedae71078f326442f8d49009b50c9f03e1ffaf0"
+        },
+        {
+          "file": "exports/szlif-master-sil-64.png",
+          "size": 64,
+          "silhouette": true,
+          "sha256": "8cd0e06f9d1655772e0561755d3bc8f4f90cce5e0269c7b495da1135ad89128e"
+        },
+        {
+          "file": "exports/szlif-master-sil-32.png",
+          "size": 32,
+          "silhouette": true,
+          "sha256": "0d9950eb437b99b9d12ae511717a298d152783cd5174f33968f777c4e19fc8f8"
+        },
+        {
+          "file": "exports/szlif-master-white-128.png",
+          "size": 128,
+          "background": "white",
+          "sha256": "308afc4b0b326f32faca6f5e660822caed4206c2bb3eec7b14cf02c0d24c17b7"
+        },
+        {
+          "file": "exports/szlif-master-white-64.png",
+          "size": 64,
+          "background": "white",
+          "sha256": "4bffd71e5000a49dcc135e1b7eba4ceb31044076e39823aebe7da1cae33b4a3a"
+        },
+        {
+          "file": "exports/szlif-master-dark-128.png",
+          "size": 128,
+          "background": "dark",
+          "sha256": "336a73a7618c1c5c6b6ad7691eb5326baeda0a12ea3dccf700c2c198772fb1df"
+        },
+        {
+          "file": "exports/szlif-master-dark-64.png",
+          "size": 64,
+          "background": "dark",
+          "sha256": "514337f43998b5faf7ad558c58aa7459af6058b8121cbfb5ef96c23cf16b0350"
+        },
+        {
+          "file": "exports/szlif-master-camp-128.png",
+          "size": 128,
+          "background": "camp",
+          "sha256": "27e12d75047a83aedf954d9af9000949be7a95cc2dc4950808e0f83acfdbc6d0"
+        },
+        {
+          "file": "exports/szlif-master-camp-64.png",
+          "size": 64,
+          "background": "camp",
+          "sha256": "a13e639ac2770240cba994af31c2c553cb1be55248494345a678c9dcbaf55789"
+        }
+      ]
+    },
+    {
+      "id": "iskra-szlif-vignette",
+      "group": "scenes",
+      "file": "scenes/iskra-szlif-vignette.svg",
+      "title": "Iskra proposes, Szlif evaluates — paired interaction vignette",
+      "sourceSha256": "7d30cefe2f4ec2bee306d58e62f5e4c20f317dded5e9101036ef5c3572a44dc9",
+      "shapes": 44,
+      "colors": [
+        "#232833",
+        "#2B2A33",
+        "#2BB8A6",
+        "#3C4757",
+        "#B94F1D",
+        "#D7DCE3",
+        "#E2702D",
+        "#E2A03F",
+        "#F7E8D3"
+      ],
+      "outputs": [
+        {
+          "file": "exports/iskra-szlif-vignette-512.png",
+          "size": 512,
+          "sha256": "cfa9036d79b2eea2911fc879fd129dce937fe54399ab3d016624369d6cd076df"
+        },
+        {
+          "file": "exports/iskra-szlif-vignette-128.png",
+          "size": 128,
+          "sha256": "fc5e789383edcbb4bba4bb546be691173a9ed897baf40598216c8d7f16cf62ab"
+        },
+        {
+          "file": "exports/iskra-szlif-vignette-64.png",
+          "size": 64,
+          "sha256": "c61ea69e3f2c1cbba781231c02dff54c21bf4f8965a31d55daf15e4a09e86d72"
+        },
+        {
+          "file": "exports/iskra-szlif-vignette-32.png",
+          "size": 32,
+          "sha256": "09a5f549af234f8fd9c4f71f6cd306a68fe83a868031153a574592960c33bf6e"
+        },
+        {
+          "file": "exports/iskra-szlif-vignette-sil-64.png",
+          "size": 64,
+          "silhouette": true,
+          "sha256": "bf3c9dbcd0b59a8a73383545d1881be4ef66532d873971e1bd4226850ad0c6f0"
+        },
+        {
+          "file": "exports/iskra-szlif-vignette-sil-32.png",
+          "size": 32,
+          "silhouette": true,
+          "sha256": "bb054c8ebd67422e80a74027be75afaf7b5a24c937639e75d323e9852e39eacf"
+        },
+        {
+          "file": "exports/iskra-szlif-vignette-white-128.png",
+          "size": 128,
+          "background": "white",
+          "sha256": "a1e7c89e3f600fdaa89e47501ae38eb342369a31baf10c6ec0fae84780f923f0"
+        },
+        {
+          "file": "exports/iskra-szlif-vignette-white-64.png",
+          "size": 64,
+          "background": "white",
+          "sha256": "0bec72a214c6ab92735207e756f8105d3ebe363656413dd06e744d965329e936"
+        },
+        {
+          "file": "exports/iskra-szlif-vignette-dark-128.png",
+          "size": 128,
+          "background": "dark",
+          "sha256": "0c4ab1c44e50df6290e317389318edf968ad1a910f46ff37c7c68d3f46937ea4"
+        },
+        {
+          "file": "exports/iskra-szlif-vignette-dark-64.png",
+          "size": 64,
+          "background": "dark",
+          "sha256": "624b61c24777825db6185647b31d86b0704eb79dbaf1070d52c321a4e6dddba0"
+        },
+        {
+          "file": "exports/iskra-szlif-vignette-camp-128.png",
+          "size": 128,
+          "background": "camp",
+          "sha256": "b2d54f341544f0ba6eda88df0b16554741252c3d683b32435967894726234f90"
+        },
+        {
+          "file": "exports/iskra-szlif-vignette-camp-64.png",
+          "size": 64,
+          "background": "camp",
+          "sha256": "11fcf1081be8e2f20284a76c662035b3008fcb334a22190317cebd73ee41315f"
         }
       ]
     }
@@ -351,17 +778,24 @@
   "sheets": [
     {
       "file": "exports/sheet-directions.png",
-      "sha256": "20ba06e35e4b75a92c65665c90605e40e8f6a9ceb30d1b1319129ac073607b78",
+      "sha256": "5b7741a9fdd1ba6887cefe17782aae22b43e7b07e01a8e889ce949300d2e4af0",
       "width": 3156,
-      "height": 2198,
+      "height": 3278,
       "title": "DIRECTIONS 512 128 64 32 SIL64 SIL32"
     },
     {
       "file": "exports/sheet-backgrounds.png",
-      "sha256": "274371b580015792f4e9fde64d322e9b83a1bfbdac2e54a2e8f290addb9ba812",
+      "sha256": "f77bcd1fd53d0f0fe04a2559814399476d32c752303c5b730a28b65d0a5d8528",
       "width": 572,
-      "height": 662,
+      "height": 974,
       "title": "BACKGROUNDS WHITE DARK CAMP128 CAMP64"
+    },
+    {
+      "file": "exports/sheet-pair.png",
+      "sha256": "249f2706eea2d93a6cfca63ce490caa2fad4ccf8b89abb302c806d2fa7a059c2",
+      "width": 3156,
+      "height": 1658,
+      "title": "MASTERS AND SCENE 512 128 64 32 SIL64 CAMP"
     }
   ]
 }

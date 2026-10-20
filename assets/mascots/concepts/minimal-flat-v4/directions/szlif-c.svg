@@ -1,0 +1,29 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512" role="img" aria-labelledby="title desc">
+  <title id="title">Szlif — style direction C, reduced emblematic icon</title>
+  <desc id="desc">Design exploration C for Szlif the raven: reduced emblematic construction from a hexagonal skull, one oversized wedge bill, two triangle crest spikes, a chunky angular torso, a bold folded wing and a broad stepped fan tail, tuned to stay legible at 32 pixels. Flat vector, four colours.</desc>
+  <!-- Exploration C — reduced emblematic. Flat vector, no raster, filters, gradients or scripts. -->
+  <!-- SZLIF / C / TAIL / broad stepped fan -->
+  <path id="szlif-c-tail" fill="#3C4757" d="M228,368L180,392L120,442L156,436L128,468L172,452L146,478L200,452L232,420L244,382Z"/>
+  <!-- SZLIF / C / BODY / chunky angular torso -->
+  <path id="szlif-c-body" fill="#232833" d="M244,190L300,196L322,250L316,330L286,392L232,400L206,340L206,250Z"/>
+  <!-- SZLIF / C / WING / bold folded panel -->
+  <path id="szlif-c-wing" fill="#3C4757" d="M292,224L316,258L308,330L276,382L248,388L258,320L252,262L264,226Z"/>
+  <!-- SZLIF / C / LEGS -->
+  <path id="szlif-c-legs" fill="#E2A03F" d="M232,392L252,396L250,452L230,450ZM272,392L292,388L296,448L276,452Z"/>
+  <!-- SZLIF / C / FEET -->
+  <path id="szlif-c-feet" fill="#E2A03F" d="M220,444L252,444L256,464L216,462ZM272,442L302,438L308,458L270,460Z"/>
+  <!-- SZLIF / C / CREST / triangle spike, long -->
+  <path id="szlif-c-crest-1" fill="#232833" d="M248,56L222,8L272,42Z"/>
+  <!-- SZLIF / C / CREST / triangle spike, short -->
+  <path id="szlif-c-crest-2" fill="#232833" d="M272,50L278,6L306,40Z"/>
+  <!-- SZLIF / C / HEAD / hexagonal skull -->
+  <path id="szlif-c-head" fill="#232833" d="M256,56L312,92L320,150L286,196L226,196L192,150L200,92Z"/>
+  <!-- SZLIF / C / BEAK / oversized wedge bill -->
+  <path id="szlif-c-beak" fill="#E2A03F" d="M308,100L418,118L412,158L352,186L306,158Z"/>
+  <!-- SZLIF / C / BEAK / gape line -->
+  <path id="szlif-c-beak-gape" fill="#232833" d="M308,126L414,136L410,146L308,138Z"/>
+  <!-- SZLIF / C / EYE / pale disc -->
+  <path id="szlif-c-eye" fill="#D7DCE3" d="M262,106A16,16 0 1 1 261.9,106Z"/>
+  <!-- SZLIF / C / EYE / ink pupil -->
+  <path id="szlif-c-pupil" fill="#232833" d="M268,100A9,9 0 1 1 267.9,100Z"/>
+</svg>
