@@ -13,6 +13,10 @@ const DEFAULT_BASE = "origin/main";
 // Ordered: first match wins. Order encodes specificity (exact files before
 // broad prefixes), so a path never lands in the wrong bucket.
 const RELEASE_RULES = [
+  // The Vercel config is gone, but the path stays classified: a deletion (or a
+  // future re-addition) of it must never land unclassified — the gate fails
+  // closed, and an unclassified path would block the push.
+  { re: /^vercel\.json$/, targets: ["frontend"] },
   { re: /^app\/web\//, targets: ["frontend"] },
   { re: /^app\/cloudflare-worker\//, targets: ["cloudflare"] },
   // app/plugin is compiled into the frontend build (tsc -p plugin/tsconfig.json)
