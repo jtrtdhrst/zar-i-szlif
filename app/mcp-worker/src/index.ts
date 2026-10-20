@@ -16,6 +16,7 @@ import { COLLECTION_NAME } from "../../plugin/knowledge/schema.js";
 import { SEARCH_KNOWLEDGE_TOOL, GET_KNOWLEDGE_SOURCE_TOOL, COMPANY_SEARCH_TOOL, COMPANY_FETCH_TOOL,
   searchKnowledge, getKnowledgeSource, companySearch, companyFetch } from "../../plugin/knowledge/mcp-tools.js";
 import { canonicalOrigin, requestHostAllowed } from "./config.js";
+import { mcpLandingResponse } from "./landing.js";
 
 const READ_SCOPE = "knowledge.read";
 const SCOPES = [READ_SCOPE, "offline_access"];
@@ -132,9 +133,8 @@ const loginHandler = {
     if (url.pathname === "/health" && request.method === "GET") {
       return Response.json({ ok: true, name: "Żar i Szlif MCP" });
     }
-    if (url.pathname === "/" && request.method === "GET") {
-      return new Response("Żar i Szlif MCP — connect at /mcp", { headers: { "content-type": "text/plain; charset=utf-8" } });
-    }
+    const landing = mcpLandingResponse(request, canonicalOrigin(env.MCP_PUBLIC_ORIGIN));
+    if (landing) return landing;
     const authorize = url.pathname === "/authorize" && (request.method === "GET" || request.method === "POST");
     const callback = url.pathname === "/callback" && request.method === "GET";
     if (!authorize && !callback) return new Response("Not found", { status: 404 });
