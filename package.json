@@ -17,6 +17,7 @@
     "validate:frontend": "npm run validate:code && node scripts/validate-frontend.mjs",
     "validate:cloudflare": "npm run build && cd app/cloudflare-worker && npx wrangler deploy --dry-run --config wrangler.panel.jsonc",
     "validate:worker": "npm run validate:code && npm run validate:cloudflare",
+    "validate:product-mcp": "npm --prefix app/mcp-worker run typecheck && npm --prefix app/mcp-worker run test",
     "validate:release": "node scripts/release-targets.mjs"
   },
   "dependencies": {

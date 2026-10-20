@@ -19,16 +19,25 @@ const RELEASE_RULES = [
   { re: /^vercel\.json$/, targets: ["frontend"] },
   { re: /^app\/web\//, targets: ["frontend"] },
   { re: /^app\/cloudflare-worker\//, targets: ["cloudflare"] },
+  // Dedicated product MCP Worker: its own worker, its own lockfile and its own
+  // validation. It must never fall through to the legacy Cloudflare panel gate
+  // (different provider config) or to the frontend gate.
+  { re: /^app\/mcp-worker\//, targets: ["product-mcp"] },
+  // Knowledge code is shared by the frontend build, the legacy worker and the
+  // product MCP worker, so all three gates apply.
+  { re: /^app\/plugin\/knowledge\//, targets: ["frontend", "cloudflare", "product-mcp"] },
   // app/plugin is compiled into the frontend build (tsc -p plugin/tsconfig.json)
   // and bundled into the Worker (src/mcp.ts -> ../../plugin/server.js), so it
   // is genuinely shared and both gates apply.
   { re: /^app\/plugin\//, targets: ["frontend", "cloudflare"] },
   { re: /^app\/package(-lock)?\.json$/, targets: ["frontend", "cloudflare"] },
-  { re: /^package(-lock)?\.json$/, targets: ["frontend", "cloudflare"] },
-  // Release infrastructure gates both delivery paths.
-  { re: /^\.github\/workflows\//, targets: ["frontend", "cloudflare"] },
-  { re: /^\.githooks\//, targets: ["frontend", "cloudflare"] },
-  { re: /^(scripts|tests)\//, targets: ["frontend", "cloudflare"] },
+  // The root lockfile feeds every npm project in the repo (the product MCP
+  // worker installs the root before validating), so it gates all of them.
+  { re: /^package(-lock)?\.json$/, targets: ["frontend", "cloudflare", "product-mcp"] },
+  // Release infrastructure gates every delivery path.
+  { re: /^\.github\/workflows\//, targets: ["frontend", "cloudflare", "product-mcp"] },
+  { re: /^\.githooks\//, targets: ["frontend", "cloudflare", "product-mcp"] },
+  { re: /^(scripts|tests)\//, targets: ["frontend", "cloudflare", "product-mcp"] },
   // Self-hosted deployment of the same static frontend artifact. `ops/` is
   // otherwise non-release, but these files are release infrastructure: the
   // frontend gate owns them, they must not be silently skipped.
@@ -74,6 +83,7 @@ export function classifyTargets(paths) {
   const scripts = [];
   if (targets.has("frontend")) scripts.push("validate:frontend");
   if (targets.has("cloudflare")) scripts.push("validate:worker");
+  if (targets.has("product-mcp")) scripts.push("validate:product-mcp");
   if (scripts.length === 0) {
     // Either docs-only or an empty diff. Minimum canonical repo validation,
     // never a provider gate: requirement 2 forbids inventing provider auth.

@@ -225,6 +225,131 @@ test("regression fixture: candidate 8526d68 keeps the Worker gate", () => {
   ]);
 });
 
+// --- KOMAA-1143: the dedicated product MCP Worker is its own release target --
+
+test("product-MCP-only changes run the dedicated product-mcp gate and nothing else", () => {
+  const plan = classifyTargets([
+    "app/mcp-worker/src/index.ts",
+    "app/mcp-worker/src/config.ts",
+    "app/mcp-worker/package.json",
+    "app/mcp-worker/package-lock.json",
+  ]);
+
+  assert.deepEqual(plan.scripts, ["validate:product-mcp"]);
+  assert.deepEqual(plan.targets, ["product-mcp"]);
+  assert.equal(plan.unclassified.length, 0);
+
+  // The dedicated gate validates the product worker itself: its own typecheck
+  // and its own vitest run. It must not reuse the legacy Cloudflare panel
+  // config, the Vercel path or the frontend build.
+  const gate = packageJson.scripts["validate:product-mcp"] ?? "";
+  assert.match(gate, /app\/mcp-worker/);
+  assert.match(gate, /typecheck/);
+  assert.match(gate, /test/);
+  assert.doesNotMatch(gate, /wrangler|cloudflare|vercel/i);
+  // ... and the legacy worker gate must not swallow the product worker.
+  assert.doesNotMatch(packageJson.scripts["validate:worker"] ?? "", /mcp-worker/);
+  assert.doesNotMatch(packageJson.scripts["validate:frontend"] ?? "", /mcp-worker/);
+});
+
+test("legacy worker-only changes keep the legacy gate and never reach product-mcp", () => {
+  const plan = classifyTargets(["app/cloudflare-worker/src/google-handler.ts"]);
+
+  assert.deepEqual(plan.scripts, ["validate:worker"]);
+  assert.ok(!plan.scripts.includes("validate:product-mcp"));
+  assert.equal(plan.unclassified.length, 0);
+});
+
+test("frontend-only changes keep the frontend gate and never reach product-mcp", () => {
+  const plan = classifyTargets(["app/web/src/static-app-v2.js"]);
+
+  assert.deepEqual(plan.scripts, ["validate:frontend"]);
+  assert.ok(!plan.scripts.includes("validate:product-mcp"));
+});
+
+test("shared knowledge, root lockfile and release tooling run every affected gate", () => {
+  const all = ["validate:frontend", "validate:worker", "validate:product-mcp"];
+
+  assert.deepEqual(classifyTargets(["app/plugin/knowledge/retrieval.ts"]).scripts, all);
+  assert.deepEqual(classifyTargets(["package-lock.json"]).scripts, all);
+  assert.deepEqual(classifyTargets(["package.json"]).scripts, all);
+  assert.deepEqual(classifyTargets(["scripts/release-targets.mjs"]).scripts, all);
+  assert.deepEqual(classifyTargets(["tests/release-gate.test.mjs"]).scripts, all);
+  assert.deepEqual(classifyTargets([".github/workflows/product-mcp-ci.yml"]).scripts, all);
+});
+
+test("the real gate routes product-MCP-only to the dedicated gate and still fails closed", () => {
+  // Behavioural: run the actual gate binary in a throwaway repo, so the
+  // classification is proven end to end, not only as a pure function.
+  const dir = mkdtempSync(join(fixtureTmpBase(), "kompas-gate-mcp-"));
+  const git = (...args) => {
+    const r = spawnSync("git", args, { cwd: dir, encoding: "utf8", env: GIT_ENV });
+    assert.equal(r.status, 0, `git ${args.join(" ")} failed: ${r.stderr}`);
+    return r;
+  };
+  const run = (sha, base) => {
+    const r = spawnSync(
+      process.execPath,
+      [`${root}/scripts/release-targets.mjs`, "--plan", `--base=${base}`, sha],
+      { cwd: dir, encoding: "utf8", env: GIT_ENV },
+    );
+    return { status: r.status, out: `${r.stdout}${r.stderr}` };
+  };
+
+  try {
+    assertFixtureDirPathIsolated(dir);
+    git("init", "--initial-branch=main");
+    assertFixtureRepoIsolated(dir);
+    git("config", "user.email", "gate@example.invalid");
+    git("config", "user.name", "gate");
+    writeFileSync(join(dir, "seed.txt"), "seed\n");
+    git("add", "-A");
+    git("commit", "-m", "seed");
+    const seed = git("rev-parse", "HEAD").stdout.trim();
+
+    // 1. product MCP only -> dedicated gate only.
+    mkdirSync(join(dir, "app/mcp-worker/src"), { recursive: true });
+    writeFileSync(join(dir, "app/mcp-worker/src/index.ts"), "export const x = 1;\n");
+    git("add", "-A");
+    git("commit", "-m", "product mcp");
+    const mcp = run(git("rev-parse", "HEAD").stdout.trim(), seed);
+    assert.equal(mcp.status, 0, mcp.out);
+    assert.match(mcp.out, /targets: product-mcp/);
+    assert.match(mcp.out, /PLAN npm run validate:product-mcp/);
+    assert.doesNotMatch(mcp.out, /validate:frontend/);
+    assert.doesNotMatch(mcp.out, /validate:worker/);
+
+    // 2. an unknown app path still fails closed, with no gate executed.
+    mkdirSync(join(dir, "app/not-a-target"), { recursive: true });
+    writeFileSync(join(dir, "app/not-a-target/thing.ts"), "export const x = 1;\n");
+    git("add", "-A");
+    git("commit", "-m", "ambiguous");
+    const ambiguous = run(git("rev-parse", "HEAD").stdout.trim(), seed);
+    assert.equal(ambiguous.status, 2, "ambiguous target must exit non-zero");
+    assert.match(ambiguous.out, /AMBIGUOUS release target/);
+    assert.doesNotMatch(ambiguous.out, /PLAN npm run/);
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
+});
+
+test("pre-push keeps identity, clean-tree and direct-main protections", () => {
+  const prePush = readFileSync(`${root}/.githooks/pre-push`, "utf8");
+
+  // Direct pushes to main stay blocked.
+  assert.match(prePush, /refs\/heads\/main/);
+  // Dirty trees stay refused.
+  assert.match(prePush, /Refusing to gate a dirty working tree/);
+  // The identity gate still runs before the release gate.
+  assert.match(prePush, /assert-git-identity\.mjs/);
+  assert.ok(
+    prePush.indexOf("assert-git-identity.mjs") < prePush.indexOf("release-targets.mjs"),
+    "identity gate must run before the release gate",
+  );
+  // No bypass escape hatch was introduced.
+  assert.doesNotMatch(prePush, /git push/);
+});
+
 // --- requirement 2: the hook dispatches per target ------------------------
 
 test("pre-push classifies release targets instead of aliasing validate:frontend", () => {
