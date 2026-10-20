@@ -122,6 +122,12 @@ Aktualizuj dokumentację tylko wtedy, gdy zmiana rzeczywiście modyfikuje jej ko
 
 Frontend/statyczny panel jest targetem **Vercel** i korzysta z integracji Vercel ↔ GitHub oraz `vercel.json`. Zwykły frontend release nie wymaga sekretów Cloudflare w GitHub Actions.
 
+Ten sam artefakt (`app/web/dist`) może być hostowany self-hosted przez **Coolify**
+(`ops/coolify/Dockerfile` — Node 24 + nginx; deploy z `main` przez webhook push).
+To drugi host tego samego targetu frontendowego, nie trzeci gate: API/OAuth/MCP
+zostają na Cloudflare Worker. Zmiany `ops/coolify/**` są klasyfikowane w
+`scripts/release-targets.mjs` jako frontend, więc przechodzą gate frontendu.
+
 Cloudflare dotyczy wyłącznie `app/cloudflare-worker/` (API/integracje/OAuth). Jego release jest osobnym workflow `.github/workflows/cloudflare-worker-release.yml` i uruchamia się automatycznie tylko po zmianach w `app/cloudflare-worker/**` albo ręcznie przez workflow dispatch.
 
 Dla zmian Workera:
