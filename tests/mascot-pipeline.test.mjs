@@ -2,13 +2,13 @@
 // tmp dirs outside the repo; the repo's canonical sources are inputs only.
 import assert from "node:assert/strict";
 import { createHash } from "node:crypto";
-import { cpSync, existsSync, mkdtempSync, readFileSync, realpathSync, rmSync, writeFileSync } from "node:fs";
+import { cpSync, existsSync, mkdirSync, mkdtempSync, readFileSync, realpathSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { isAbsolute, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import test from "node:test";
 
-import { detachedParts, exportCharacter, runAll, SIZES, validateSvg, validateCharacterJson } from "../scripts/mascots/export.mjs";
+import { detachedParts, exportCharacter, exportScene, runAll, SIZES, validateSvg, validateCharacterJson, validateSceneJson } from "../scripts/mascots/export.mjs";
 const root = fileURLToPath(new URL("../", import.meta.url));
 const canonical = join(root, "assets", "mascots", "style-2");
 const sha256 = (buf) => createHash("sha256").update(buf).digest("hex");
@@ -55,6 +55,78 @@ test("positive: runAll covers every character in root", () => {
     cpSync(canonical, dir, { recursive: true });
     const r = runAll(dir);
     assert.equal(r.ok, true, JSON.stringify(r.errors));
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
+});
+
+function addScene(dir, svg = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 230"><circle cx="100" cy="115" r="60" fill="#111111"/><circle cx="300" cy="115" r="60" fill="#222222"/></svg>') {
+  const sceneDir = join(dir, "scenes", "pair");
+  mkdirSync(join(dir, "scenes"), { recursive: true });
+  mkdirSync(sceneDir, { recursive: true });
+  writeFileSync(join(sceneDir, "scene.json"), JSON.stringify({ id: "pair", minimumComponentShare: 0.01 }));
+  writeFileSync(join(sceneDir, "source.svg"), svg);
+  return sceneDir;
+}
+
+test("scene exports allow co-characters and record actual rectangular dimensions in the set manifest", () => {
+  const dir = isolatedTmp();
+  try {
+    cpSync(canonical, dir, { recursive: true });
+    rmSync(join(dir, "silhouettes"), { recursive: true });
+    const sceneDir = addScene(dir);
+    const r = runAll(dir);
+    assert.equal(r.ok, true, JSON.stringify(r.errors));
+    const scene = JSON.parse(readFileSync(join(sceneDir, "exports", "manifest.json"), "utf8"));
+    assert.equal(scene.scene, "pair");
+    assert.deepEqual(scene.sizes.map(({ width }) => width), SIZES);
+    assert.notEqual(scene.sizes[0].height, scene.sizes[0].width, "rectangular scene was squared");
+    assert.ok(scene.sizes.every(({ width, height }) => width > 0 && height > 0));
+    const set = JSON.parse(readFileSync(join(dir, "manifest.json"), "utf8"));
+    assert.deepEqual(set.scenes.map(({ id }) => id), ["pair"]);
+    assert.deepEqual(set.scenes[0].exports.map(({ height }) => height), scene.sizes.map(({ height }) => height));
+    assert.ok(set.scenes[0].source.file.endsWith("scenes/pair/source.svg"));
+    assert.ok(set.contactSheet.width > 0 && set.contactSheet.height > 0);
+    assert.ok(existsSync(join(dir, "contact-sheet.png")), "set outputs absent without silhouettes");
+    assert.equal("silhouettes" in set, false);
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
+});
+
+test("scene validation rejects malformed metadata, unsafe SVG, clipped art and undersized detached components", () => {
+  assert.ok(validateSceneJson("{").errors.length > 0);
+  assert.ok(validateSceneJson(JSON.stringify({ id: "pair", minimumComponentShare: 1 })).errors.length > 0);
+  const cases = [
+    ["<svg><g><unclosed>", "missing viewBox"],
+    ['<svg viewBox="0 0 400 230"><script>alert(1)</script></svg>', "contains <script>"],
+    ['<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 230"><rect x="-30" y="20" width="100" height="100" fill="#111"/></svg>', "content touches canvas edge"],
+    ['<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 230"><circle cx="100" cy="115" r="60" fill="#111"/><circle cx="300" cy="115" r="60" fill="#222"/><circle cx="200" cy="15" r="1" fill="#333"/></svg>', "undersized component"],
+  ];
+  for (const [svg, expectedError] of cases) {
+    const dir = isolatedTmp();
+    try {
+      const sceneDir = addScene(dir, svg);
+      const r = exportScene(sceneDir, "pair");
+      assert.equal(r.ok, false, `accepted bad scene: ${svg}`);
+      assert.ok(r.errors.some((error) => error.includes(expectedError)), `missing ${expectedError}: ${r.errors.join("; ")}`);
+    } finally {
+      rmSync(dir, { recursive: true, force: true });
+    }
+  }
+});
+
+test("scene manifest source hash and render hashes detect source drift", () => {
+  const dir = isolatedTmp();
+  try {
+    const sceneDir = addScene(dir);
+    assert.equal(exportScene(sceneDir, "pair").ok, true);
+    const before = JSON.parse(readFileSync(join(sceneDir, "exports", "manifest.json"), "utf8"));
+    writeFileSync(join(sceneDir, "source.svg"), readFileSync(join(sceneDir, "source.svg"), "utf8").replace("#111111", "#333333"));
+    assert.equal(exportScene(sceneDir, "pair").ok, true);
+    const after = JSON.parse(readFileSync(join(sceneDir, "exports", "manifest.json"), "utf8"));
+    assert.notEqual(after.source.sha256, before.source.sha256);
+    assert.notEqual(after.sizes[0].sha256, before.sizes[0].sha256);
   } finally {
     rmSync(dir, { recursive: true, force: true });
   }

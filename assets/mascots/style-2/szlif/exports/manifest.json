@@ -15,6 +15,8 @@
     {
       "size": 512,
       "file": "export-512.png",
+      "width": 512,
+      "height": 512,
       "sha256": "d191a9e2a00ae59d8eabc2c9b0d03b64ea45f05c8f49fb9817b8ceeee9f01a50",
       "bytes": 19633,
       "opaquePixels": 62488,
@@ -31,6 +33,8 @@
     {
       "size": 256,
       "file": "export-256.png",
+      "width": 256,
+      "height": 256,
       "sha256": "b593952d2468bf8abe6fa844eb878513f28e90a6d12b598a65fde122d6c2b1e6",
       "bytes": 9754,
       "opaquePixels": 15803,
@@ -47,6 +51,8 @@
     {
       "size": 128,
       "file": "export-128.png",
+      "width": 128,
+      "height": 128,
       "sha256": "fa124f7035a5d8da0b18c1e39a91e1367c772ea999ed0249a098811e1364219e",
       "bytes": 4747,
       "opaquePixels": 4032,
@@ -63,6 +69,8 @@
     {
       "size": 64,
       "file": "export-64.png",
+      "width": 64,
+      "height": 64,
       "sha256": "e20a45bc9d73b5e6f39ea4c5ec16f8038e10f88394acb3e2e3199e413490fa61",
       "bytes": 2497,
       "opaquePixels": 1052,
@@ -79,6 +87,8 @@
     {
       "size": 32,
       "file": "export-32.png",
+      "width": 32,
+      "height": 32,
       "sha256": "a03fd85d9a0574b81bb033df59b7964d990daf83298e326109d3bb3676c63a19",
       "bytes": 1182,
       "opaquePixels": 286,
@@ -95,8 +105,8 @@
   ],
   "contactSheet": {
     "file": "contact-sheet.png",
-    "sha256": "630f9cdb8b82c10b9c66695c0aefce4cdee2079c83e58eb9002b227e87feeddc",
-    "bytes": 41310,
+    "sha256": "844b30eba3464e2c884cce274d16cbbd8542bc19c91f7bb717b689adbafbb056",
+    "bytes": 40788,
     "width": 1056,
     "height": 512
   }

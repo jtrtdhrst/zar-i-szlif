@@ -15,31 +15,41 @@
       },
       "manifest": {
         "file": "iskra/exports/manifest.json",
-        "sha256": "3d3dbc1a230c0b1e1af49aeff33c1fed7c6a597ca67b9020a4f6a8ea2e30e948"
+        "sha256": "a92a63e68aab6c82ed1b9d5228b3f252782037490b1e52a91ad4ab07009736a5"
       },
       "exports": [
         {
           "size": 512,
+          "width": 512,
+          "height": 512,
           "file": "iskra/exports/export-512.png",
           "sha256": "4061ec9982f057c368d1ee835b7be5ed31a70cf5ecdff1e64e57fbdd68076fa2"
         },
         {
           "size": 256,
+          "width": 256,
+          "height": 256,
           "file": "iskra/exports/export-256.png",
           "sha256": "a0d5b7ed032744d2fa6b53d233c23aa1babfe593c10728c4844eb8a05d9f21cd"
         },
         {
           "size": 128,
+          "width": 128,
+          "height": 128,
           "file": "iskra/exports/export-128.png",
           "sha256": "74d3f7c19d6520b6fea23c505cccfdb5bd1aa1f5f38478d5f75c0b3193242f4a"
         },
         {
           "size": 64,
+          "width": 64,
+          "height": 64,
           "file": "iskra/exports/export-64.png",
           "sha256": "928a9158d2ce65dc5ea1d75fda42fc5b291f9924ea0897e993026af18f9170a8"
         },
         {
           "size": 32,
+          "width": 32,
+          "height": 32,
           "file": "iskra/exports/export-32.png",
           "sha256": "4bcec4d33910b2b7d83a1ba23c0f4a8e0bde20b2b1758833d405f327a6b6ceb0"
         }
@@ -55,41 +65,54 @@
       },
       "manifest": {
         "file": "szlif/exports/manifest.json",
-        "sha256": "c5703550df519ec64e7a673f668785fd3d860942283919dcfba3078d714b6ec6"
+        "sha256": "7266d6806d45da3ca9de71944fcb318e9b8b4af779530d311b8540560444a5b8"
       },
       "exports": [
         {
           "size": 512,
+          "width": 512,
+          "height": 512,
           "file": "szlif/exports/export-512.png",
           "sha256": "d191a9e2a00ae59d8eabc2c9b0d03b64ea45f05c8f49fb9817b8ceeee9f01a50"
         },
         {
           "size": 256,
+          "width": 256,
+          "height": 256,
           "file": "szlif/exports/export-256.png",
           "sha256": "b593952d2468bf8abe6fa844eb878513f28e90a6d12b598a65fde122d6c2b1e6"
         },
         {
           "size": 128,
+          "width": 128,
+          "height": 128,
           "file": "szlif/exports/export-128.png",
           "sha256": "fa124f7035a5d8da0b18c1e39a91e1367c772ea999ed0249a098811e1364219e"
         },
         {
           "size": 64,
+          "width": 64,
+          "height": 64,
           "file": "szlif/exports/export-64.png",
           "sha256": "e20a45bc9d73b5e6f39ea4c5ec16f8038e10f88394acb3e2e3199e413490fa61"
         },
         {
           "size": 32,
+          "width": 32,
+          "height": 32,
           "file": "szlif/exports/export-32.png",
           "sha256": "a03fd85d9a0574b81bb033df59b7964d990daf83298e326109d3bb3676c63a19"
         }
       ]
     }
   ],
+  "scenes": [],
   "contactSheet": {
     "file": "contact-sheet.png",
     "sha256": "18c99ee50f5ba2ccd58040cc63b3394a7b2ba762ecc0bf67ca9b9476ce3a4c26",
-    "bytes": 40389
+    "bytes": 40389,
+    "width": 528,
+    "height": 528
   },
   "silhouettes": [
     {

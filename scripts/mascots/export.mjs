@@ -159,7 +159,7 @@ export function detachedParts(sizes) {
 }
 
 // ---- pixel analysis -------------------------------------------------------
-export function analyzePng(buf, expectedSize) {
+export function analyzePng(buf, expectedSize, expectedHeight = expectedSize) {
   const errors = [];
   let img;
   try {
@@ -167,8 +167,9 @@ export function analyzePng(buf, expectedSize) {
   } catch {
     return { errors: ["PNG decode failed"], img: null };
   }
-  if (img.width !== expectedSize || img.height !== expectedSize) {
-    fail(errors, `PNG is ${img.width}x${img.height}, expected ${expectedSize}x${expectedSize}`);
+  if (img.width !== expectedSize || (expectedHeight !== null && img.height !== expectedHeight)) {
+    const expected = expectedHeight === null ? `${expectedSize}px wide` : `${expectedSize}x${expectedHeight}`;
+    fail(errors, `PNG is ${img.width}x${img.height}, expected ${expected}`);
   }
   let transparent = 0;
   let opaque = 0;
@@ -202,25 +203,26 @@ export function analyzePng(buf, expectedSize) {
   return { errors, img, opaque, opaqueRatio: ratio, bbox, components };
 }
 
-// ---- per-character pipeline -----------------------------------------------
-export function exportCharacter(charDir, characterId) {
+function exportVectorAsset(assetDir, assetId, { kind = "character", validateMetadata, minComponentShare = null } = {}) {
   const errors = [];
-  const sourceSvgPath = join(charDir, "source.svg");
-  const characterJsonPath = join(charDir, "character.json");
-  if (!existsSync(characterJsonPath)) fail(errors, `${characterId}: missing character.json`);
-  if (!existsSync(sourceSvgPath)) fail(errors, `${characterId}: missing source.svg`);
+  const sourceSvgPath = join(assetDir, "source.svg");
+  const metadataPath = join(assetDir, kind === "scene" ? "scene.json" : "character.json");
+  if (!existsSync(metadataPath)) fail(errors, `${assetId}: missing ${kind === "scene" ? "scene.json" : "character.json"}`);
+  if (!existsSync(sourceSvgPath)) fail(errors, `${assetId}: missing source.svg`);
   if (errors.length > 0) return { ok: false, errors };
 
-  const { errors: jsonErrors, data: meta } = validateCharacterJson(readFileSync(characterJsonPath, "utf8"));
-  for (const e of jsonErrors) fail(errors, `${characterId}: ${e}`);
+  const metadata = readFileSync(metadataPath, "utf8");
+  const { errors: jsonErrors, data: meta } = validateMetadata(metadata);
+  for (const e of jsonErrors) fail(errors, `${assetId}: ${e}`);
   const svg = readFileSync(sourceSvgPath, "utf8");
-  for (const e of validateSvg(svg)) fail(errors, `${characterId}: ${e}`);
-  if (meta && meta.id !== characterId) fail(errors, `${characterId}: id mismatch in character.json (${meta.id})`);
+  for (const e of validateSvg(svg)) fail(errors, `${assetId}: ${e}`);
+  if (meta && meta.id !== assetId) fail(errors, `${assetId}: id mismatch in ${kind}.json (${meta.id})`);
   if (errors.length > 0) return { ok: false, errors };
 
-  const outDir = join(charDir, "exports");
+  const outDir = join(assetDir, "exports");
   mkdirSync(outDir, { recursive: true });
   const renderSvg = withSafeMargin(svg);
+  const viewBox = svg.match(/viewBox\s*=\s*["']([^"']+)["']/)[1].trim().split(/[\s,]+/).map(Number);
   const sizes = [];
   const rendered = [];
   for (const size of SIZES) {
@@ -228,26 +230,31 @@ export function exportCharacter(charDir, characterId) {
     try {
       png = Buffer.from(new Resvg(renderSvg, { fitTo: { mode: "width", value: size } }).render().asPng());
     } catch (err) {
-      fail(errors, `${characterId}@${size}: render failed: ${err.message}`);
+      fail(errors, `${assetId}@${size}: render failed: ${err.message}`);
       continue;
     }
-    const { errors: pxErrors, opaque, opaqueRatio, bbox, components } = analyzePng(png, size);
-    for (const e of pxErrors) fail(errors, `${characterId}@${size}: ${e}`);
+    const expectedHeight = Math.round(size * viewBox[3] / viewBox[2]);
+    const { errors: pxErrors, opaque, opaqueRatio, bbox, components, img } = analyzePng(png, size, expectedHeight);
+    for (const e of pxErrors) fail(errors, `${assetId}@${size}: ${e}`);
     // Gated at every exported size: a split that only shows up at 512 must not
     // slip through an ungated size (UI QA: iskra-c splits at 512 *and* 256).
-    const detached = detachedParts(components);
+    const detached = kind === "character"
+      ? detachedParts(components)
+      : components.filter((n) => n / components.reduce((sum, part) => sum + part, 0) < minComponentShare);
     if (detached.length > 0) {
       fail(
         errors,
-        `${characterId}@${size}: renders as ${components.length} disconnected pieces (sizes ${components.join(",")}; detached ${detached.join(",")}): a detached part (ear/hand/limb) is not shippable`,
+        `${assetId}@${size}: renders as ${components.length} disconnected pieces (sizes ${components.join(",")}; rejected ${detached.join(",")}): composition contains an undersized component`,
       );
     }
     const file = `export-${size}.png`;
     writeFileSync(join(outDir, file), png);
-    rendered.push({ size, file, png });
+    rendered.push({ size, file, png, width: img.width, height: img.height });
     sizes.push({
       size,
       file,
+      width: img.width,
+      height: img.height,
       sha256: sha256(png),
       bytes: png.length,
       opaquePixels: opaque,
@@ -260,19 +267,21 @@ export function exportCharacter(charDir, characterId) {
   if (errors.length > 0) return { ok: false, errors };
 
   // Contact sheet: horizontal strip of actual-size exports on transparency.
-  const sheetWidth = SIZES.reduce((a, s) => a + s, 0) + GAP * (SIZES.length - 1);
-  const sheet = new PNG({ width: sheetWidth, height: SIZES[0] });
+  const sheetWidth = rendered.reduce((a, s) => a + s.width, 0) + GAP * (rendered.length - 1);
+  const sheetHeight = Math.max(...rendered.map((s) => s.height));
+  const sheet = new PNG({ width: sheetWidth, height: sheetHeight });
   let dx = 0;
-  for (const { size, png } of rendered) {
-    PNG.bitblt(PNG.sync.read(png), sheet, 0, 0, size, size, dx, 0);
-    dx += size + GAP;
+  for (const { png, width, height } of rendered) {
+    PNG.bitblt(PNG.sync.read(png), sheet, 0, 0, width, height, dx, Math.floor((sheetHeight - height) / 2));
+    dx += width + GAP;
   }
   const sheetBuf = PNG.sync.write(sheet);
   writeFileSync(join(outDir, "contact-sheet.png"), sheetBuf);
 
   const manifest = {
-    character: characterId,
-    styleVersion: meta.styleVersion,
+    [kind]: assetId,
+    ...(meta.styleVersion ? { styleVersion: meta.styleVersion } : {}),
+    ...(kind === "scene" ? { composition: { minimumComponentShare: minComponentShare } } : {}),
     safeMargin: SAFE_MARGIN,
     source: { file: "source.svg", sha256: sha256(Buffer.from(svg)), bytes: Buffer.byteLength(svg) },
     renderer: {
@@ -293,9 +302,50 @@ export function exportCharacter(charDir, characterId) {
   // Fail on missing outputs: re-read every expected file from disk.
   const expected = [...SIZES.map((s) => `export-${s}.png`), "contact-sheet.png", "manifest.json"];
   for (const f of expected) {
-    if (!existsSync(join(outDir, f))) fail(errors, `${characterId}: missing output ${f}`);
+    if (!existsSync(join(outDir, f))) fail(errors, `${assetId}: missing output ${f}`);
   }
   return errors.length > 0 ? { ok: false, errors } : { ok: true, errors: [], manifest };
+}
+
+// ---- per-character and scene pipelines -----------------------------------
+export function exportCharacter(charDir, characterId) {
+  return exportVectorAsset(charDir, characterId, { validateMetadata: validateCharacterJson });
+}
+
+export function validateSceneJson(raw) {
+  const errors = [];
+  let data;
+  try { data = JSON.parse(raw); } catch { return { errors: ["scene.json is not valid JSON"], data: null }; }
+  if (!data || typeof data !== "object" || Array.isArray(data)) return { errors: ["scene.json must be a JSON object"], data: null };
+  if (typeof data.id !== "string" || !data.id.trim()) fail(errors, "scene.json id must be a non-empty string");
+  if (data.minimumComponentShare !== undefined &&
+      (typeof data.minimumComponentShare !== "number" || data.minimumComponentShare <= 0 || data.minimumComponentShare >= 1)) {
+    fail(errors, "scene.json minimumComponentShare must be greater than 0 and less than 1");
+  }
+  return { errors, data };
+}
+
+export const DEFAULT_SCENE_MINIMUM_COMPONENT_SHARE = 0.01;
+
+export function exportScene(sceneDir, sceneId) {
+  return exportVectorAsset(sceneDir, sceneId, {
+    kind: "scene",
+    validateMetadata: validateSceneJson,
+    minComponentShare: (() => {
+      try {
+        return JSON.parse(readFileSync(join(sceneDir, "scene.json"), "utf8")).minimumComponentShare ?? DEFAULT_SCENE_MINIMUM_COMPONENT_SHARE;
+      } catch { return DEFAULT_SCENE_MINIMUM_COMPONENT_SHARE; }
+    })(),
+  });
+}
+
+export function discoverScenes(root) {
+  const dir = join(root, "scenes");
+  if (!existsSync(dir)) return [];
+  return readdirSync(dir, { withFileTypes: true })
+    .filter((entry) => entry.isDirectory() && existsSync(join(dir, entry.name, "scene.json")))
+    .map((entry) => entry.name)
+    .sort();
 }
 
 // A directory is a character iff it carries a master source or metadata.
@@ -325,8 +375,7 @@ export function exportSilhouettes(root) {
   const dir = join(root, "silhouettes");
   const files = discoverSilhouettes(root);
   if (files.length === 0) {
-    fail(errors, "no silhouette SVGs found in silhouettes/");
-    return { ok: false, errors };
+    return { ok: true, errors: [], silhouettes: [], sheet: null };
   }
   const outDir = join(dir, "png");
   mkdirSync(outDir, { recursive: true });
@@ -408,27 +457,37 @@ export function exportSilhouettes(root) {
 }
 
 // Pair sheet: one row per size, every character side by side on transparency.
-export function buildSetContactSheet(root, ids) {
-  const width = ids.length * SHEET_SIZES[0] + GAP * (ids.length - 1);
-  const height = SHEET_SIZES.reduce((a, s) => a + s, 0) + GAP * (SHEET_SIZES.length - 1);
+export function buildSetContactSheet(root, ids, sceneIds = []) {
+  const assets = [...ids.map((id) => ({ id, dir: id })), ...sceneIds.map((id) => ({ id, dir: `scenes/${id}` }))];
+  const rows = SHEET_SIZES.map((size) => assets.map(({ id, dir }) => {
+    const file = join(root, dir, "exports", `export-${size}.png`);
+    const png = readFileSync(file);
+    const img = PNG.sync.read(png);
+    return { id, png, width: img.width, height: img.height };
+  }));
+  const rowWidths = rows.map((row) => row.reduce((sum, img) => sum + img.width, 0) + GAP * (row.length - 1));
+  const rowHeights = rows.map((row) => Math.max(...row.map((img) => img.height)));
+  const width = Math.max(...rowWidths);
+  const height = rowHeights.reduce((sum, rowHeight) => sum + rowHeight, 0) + GAP * (rows.length - 1);
   const sheet = new PNG({ width, height });
   let y = 0;
-  for (const size of SHEET_SIZES) {
+  for (const [rowIndex, row] of rows.entries()) {
     let x = 0;
-    for (const id of ids) {
-      const src = PNG.sync.read(readFileSync(join(root, id, "exports", `export-${size}.png`)));
-      PNG.bitblt(src, sheet, 0, 0, size, size, x, y);
-      x += size + GAP;
+    for (const { png, width: imageWidth, height: imageHeight } of row) {
+      const src = PNG.sync.read(png);
+      PNG.bitblt(src, sheet, 0, 0, imageWidth, imageHeight, x, y + Math.floor((rowHeights[rowIndex] - imageHeight) / 2));
+      x += imageWidth + GAP;
     }
-    y += size + GAP;
+    y += rowHeights[rowIndex] + GAP;
   }
   return PNG.sync.write(sheet);
 }
 
 // Set-level outputs: manifest index + pair contact sheet (one renderer, one SSOT).
-export function writeSetOutputs(root, ids, silhouettes = null) {
+export function writeSetOutputs(root, ids, silhouettes = null, sceneIds = []) {
   const errors = [];
-  const sheetBuf = buildSetContactSheet(root, ids);
+  const sheetBuf = buildSetContactSheet(root, ids, sceneIds);
+  const sheetImage = PNG.sync.read(sheetBuf);
   writeFileSync(join(root, "contact-sheet.png"), sheetBuf);
   const characters = ids.map((id) => {
     const manifestPath = join(root, id, "exports", "manifest.json");
@@ -438,8 +497,13 @@ export function writeSetOutputs(root, ids, silhouettes = null) {
       styleVersion: manifest.styleVersion,
       source: manifest.source,
       manifest: { file: `${id}/exports/manifest.json`, sha256: sha256(readFileSync(manifestPath)) },
-      exports: manifest.sizes.map((s) => ({ size: s.size, file: `${id}/exports/${s.file}`, sha256: s.sha256 })),
+      exports: manifest.sizes.map((s) => ({ size: s.size, width: s.width, height: s.height, file: `${id}/exports/${s.file}`, sha256: s.sha256 })),
     };
+  });
+  const scenes = sceneIds.map((id) => {
+    const manifestPath = join(root, "scenes", id, "exports", "manifest.json");
+    const manifest = JSON.parse(readFileSync(manifestPath, "utf8"));
+    return { id, source: { ...manifest.source, file: `scenes/${id}/${manifest.source.file}` }, manifest: { file: `scenes/${id}/exports/manifest.json`, sha256: sha256(readFileSync(manifestPath)) }, exports: manifest.sizes.map((s) => ({ size: s.size, width: s.width, height: s.height, file: `scenes/${id}/exports/${s.file}`, sha256: s.sha256 })) };
   });
   const setManifest = {
     generator: "scripts/mascots/export.mjs",
@@ -448,9 +512,10 @@ export function writeSetOutputs(root, ids, silhouettes = null) {
       pngjs: require("pngjs/package.json").version,
     },
     characters,
-    contactSheet: { file: "contact-sheet.png", sha256: sha256(sheetBuf), bytes: sheetBuf.length },
+    scenes,
+    contactSheet: { file: "contact-sheet.png", sha256: sha256(sheetBuf), bytes: sheetBuf.length, width: sheetImage.width, height: sheetImage.height },
   };
-  if (silhouettes) {
+  if (silhouettes?.silhouettes.length) {
     setManifest.silhouettes = silhouettes.silhouettes;
     setManifest.silhouetteSheet = silhouettes.sheet;
   }
@@ -464,20 +529,24 @@ export function writeSetOutputs(root, ids, silhouettes = null) {
 export function runAll(root = DEFAULT_ROOT, only = null) {
   const all = discoverCharacters(root);
   const ids = only ? all.filter((id) => id === only) : all;
+  const sceneIds = only ? [] : discoverScenes(root);
   if (only && ids.length === 0) return { ok: false, errors: [`unknown character: ${only}`] };
-  if (ids.length === 0) return { ok: false, errors: [`no characters found in root: ${root}`] };
+  if (ids.length === 0 && sceneIds.length === 0) return { ok: false, errors: [`no mascot assets found in root: ${root}`] };
   const errors = [];
   for (const id of ids) {
     const r = exportCharacter(join(root, id), id);
     if (!r.ok) errors.push(...r.errors);
   }
+  for (const id of sceneIds) {
+    const r = exportScene(join(root, "scenes", id), id);
+    if (!r.ok) errors.push(...r.errors);
+  }
   if (errors.length > 0) return { ok: false, errors };
   if (!only) {
     const sil = exportSilhouettes(root);
-    if (!sil.ok) {
-      errors.push(...sil.errors);
-    } else {
-      const set = writeSetOutputs(root, ids, sil);
+    if (!sil.ok) errors.push(...sil.errors);
+    else {
+      const set = writeSetOutputs(root, ids, sil, sceneIds);
       if (set.errors.length > 0) errors.push(...set.errors);
     }
   }
@@ -501,10 +570,10 @@ if (import.meta.url === `file://${process.argv[1]}`) {
   const result = runAll(root, only);
   if (result.ok) {
     console.log(`mascot export PASS (${Date.now() - t0}ms) root=${root}`);
-    for (const size of SIZES) console.log(`  verified PNG size ${size}x${size}`);
-    console.log("  manifest.json + contact-sheet.png written per character");
-    console.log("  silhouette exports + silhouettes/sheet.png written");
-    console.log("  set manifest.json + pair contact-sheet.png written at root");
+    for (const size of SIZES) console.log(`  verified PNG target width ${size}px (actual dimensions recorded)`);
+    console.log("  manifests + contact sheets written per asset");
+    console.log("  available silhouette exports + silhouettes/sheet.png written");
+    console.log("  set manifest.json + contact-sheet.png written at root");
   } else {
     console.error("mascot export FAIL:");
     for (const e of result.errors) console.error(`  - ${e}`);

@@ -89,6 +89,20 @@ command `npm run mascots` -> `scripts/mascots/export.mjs` (`@resvg/resvg-js` +
 this tree). Manifest validates dimensions, RGBA alpha, transparent corners,
 SHA256. Contact sheet pairs both characters at 256/128/64/32.
 
+Scenes and illustrations are separate inputs under `assets/mascots/style-2/scenes/<id>/`
+with editable `source.svg` and `scene.json`. They use the same canonical
+renderer, SVG safety checks, raster verification, hashes and set manifest, but
+do not use character metadata or the character-only palette and one-piece
+rules. `minimumComponentShare` in `scene.json` defaults to `0.01` of total
+opaque pixels; each component must meet that floor at every export size. This
+allows multiple co-characters while still rejecting isolated small artifacts.
+Exports preserve the SVG viewBox aspect ratio and record actual `width` and
+`height` per size; dimensions are not assumed square.
+
+An absent or empty `silhouettes/` directory is valid. The set manifest and
+contact sheet are still generated; silhouette entries are included only when
+silhouette sources exist.
+
 Silhouette sketches export at 256/128/64/32 (`silhouettes/png/<id>-<size>.png`)
 so the "reads as a single flat near-black tone at 64px and 32px" rule is
 testable, not asserted.
