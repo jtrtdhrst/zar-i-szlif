@@ -14,6 +14,12 @@ Zapis: `plasmic_create_page`, `plasmic_create_component`, `plasmic_insert`,
 `plasmic_use_component`.
 Operacyjne: `plasmic_validate`, `plasmic_get_changes`.
 
+Manifest deklaruje adnotacje MCP (`readOnlyHint`/`destructiveHint`/`idempotentHint`)
+zgodne z podziałem powyżej: odczyt i operacyjne `readOnlyHint:true`, zapis
+`readOnlyHint:false`; `destructiveHint:true` tam, gdzie zapis może nadpisać
+istniejący wpis (`plasmic_insert`, `plasmic_update`, `plasmic_delete`).
+Platforma klasyfikuje narzędzia zmieniające projekt właśnie po tych flagach.
+
 ## Mechaniki
 
 - Identyfikatory: stabilne `elementId` (iid bundle). Nazwy tylko do resolution;
