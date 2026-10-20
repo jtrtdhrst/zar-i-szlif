@@ -1,0 +1,40 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512" role="img" aria-labelledby="title desc">
+  <title id="title">Szlif direction C — tall sentinel</title>
+  <desc id="desc">Szlif the raven, direction C: graphic vertical construction. A tall upright sentinel raven with a long neck, a long dagger ochre bill angled slightly down, a crown of three sharp swept crest plates, a narrow body, a long banner fanned tail held behind, folded wings with long primary tips, long thin legs and a small turquoise notebook tucked against the breast.</desc>
+
+  <!-- CREST / sharp swept crest plate -->
+  <path id="szlif-c-crest-1" fill="#46536A" d="M 300 100 C 276 78 250 58 226 46 C 214 38 208 48 216 60 C 234 86 262 106 288 116 Z"/>
+  <!-- CREST / sharp swept crest plate -->
+  <path id="szlif-c-crest-2" fill="#46536A" d="M 290 122 C 266 104 238 88 214 80 C 202 75 199 86 208 95 C 228 114 254 128 278 136 Z"/>
+  <!-- CREST / sharp swept crest plate -->
+  <path id="szlif-c-crest-3" fill="#46536A" d="M 280 144 C 258 130 234 120 212 116 C 200 113 198 124 208 131 C 226 144 250 154 272 158 Z"/>
+  <!-- TAIL / long banner fan held behind -->
+  <path id="szlif-c-tail" fill="#232833" d="M 246 336 C 220 344 188 360 160 382 L 96 424 L 138 428 L 96 456 L 138 450 L 112 480 L 156 462 L 146 492 L 190 466 C 220 442 236 400 240 364 Z"/>
+  <!-- LEGS / long thin legs -->
+  <path id="szlif-c-legs" fill="#E2A03F" d="M 262 372 L 274 370 L 274 414 L 276 448 L 264 450 L 258 414 Z M 292 366 L 304 364 L 306 408 L 310 440 L 298 444 L 292 408 Z"/>
+  <!-- FEET / splayed toes -->
+  <path id="szlif-c-feet" fill="#E2A03F" d="M 256 440 L 270 440 L 272 449 L 294 454 L 291 463 L 276 458 L 284 470 L 276 475 L 266 462 L 254 472 L 247 468 L 251 458 L 239 460 L 236 453 L 252 449 Z M 292 432 L 306 432 L 308 441 L 330 446 L 327 455 L 312 450 L 320 462 L 312 467 L 302 454 L 290 464 L 283 460 L 287 450 L 275 452 L 272 445 L 288 441 Z"/>
+  <!-- BODY / narrow upright body -->
+  <path id="szlif-c-body" fill="#232833" d="M 268 230 C 296 236 314 262 316 300 C 318 334 306 366 286 384 C 268 400 242 398 232 382 C 220 362 224 330 230 298 C 236 262 246 234 262 228 C 264 228 266 229 268 230 Z"/>
+  <!-- WING / folded wing with long primary tips -->
+  <path id="szlif-c-wing" fill="#46536A" d="M 292 244 C 272 254 256 274 248 300 C 240 326 238 352 238 372 L 200 398 L 230 388 L 206 416 L 234 404 L 214 434 L 244 412 L 246 380 L 250 348 L 258 316 L 270 292 L 286 276 Z"/>
+  <!-- NECK / long neck -->
+  <path id="szlif-c-neck" fill="#232833" d="M 288 118 C 306 124 316 142 316 162 C 316 186 308 206 296 222 C 284 238 264 240 254 226 C 244 212 244 190 250 168 C 256 146 270 128 288 118 Z"/>
+  <!-- HEAD / angular wedge head -->
+  <path id="szlif-c-head" fill="#232833" d="M 348 138 L 322 118 L 282 122 L 262 142 L 264 174 L 286 194 L 322 198 L 350 180 L 356 154 Z"/>
+  <!-- BILL / long dagger bill angled slightly down -->
+  <path id="szlif-c-bill" fill="#E2A03F" d="M 350 148 L 396 160 L 442 180 L 452 198 L 442 214 L 424 206 L 388 188 L 350 176 Z"/>
+  <!-- BILL / mandible split -->
+  <path id="szlif-c-bill-mandible" fill="#46536A" d="M 352 164 L 402 180 L 408 190 L 352 174 Z"/>
+  <!-- EYE / narrow almond -->
+  <path id="szlif-c-eye" fill="#D7DCE3" d="M 292 148 C 292 144 298 142 306 142 C 314 142 320 144 320 148 C 320 152 314 155 306 155 C 298 155 292 152 292 148 Z"/>
+  <!-- EYE / dark pupil -->
+  <path id="szlif-c-pupil" fill="#232833" d="M 300 148 C 300 145 304 144 308 144 C 312 144 315 146 315 148 C 315 151 311 152 307 152 C 303 152 300 151 300 148 Z"/>
+  <!-- NOTEBOOK / small turquoise notebook tucked against the breast -->
+  <path id="szlif-c-notebook" fill="#2BB8A6" d="M 262 290 L 312 282 L 318 312 L 268 320 Z"/>
+  <!-- NOTEBOOK / page edge -->
+  <path id="szlif-c-notebook-pages" fill="#D7DCE3" d="M 312 282 L 318 281 L 324 310 L 318 312 Z"/>
+  <!-- TALON / holding the notebook -->
+  <path id="szlif-c-talon" fill="#E2A03F" d="M 250 308 L 268 304 L 274 312 L 268 324 L 250 324 L 242 316 Z"/>
+
+</svg>

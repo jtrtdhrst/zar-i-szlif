@@ -1,0 +1,51 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512" role="img" aria-labelledby="title desc">
+  <title id="title">Iskra — master fox vector (direction A selected and refined)</title>
+  <desc id="desc">Iskra the fox, selected master. Soft-round construction: compact upright torso with two clearly separated forelegs, a planted cream sock and a raised foreleg ending in a cream mitten that grips a large turquoise plan sheet, a narrow projecting muzzle, tall pointed ears, a rust lock of hair rooted on the crown that sweeps across the far eye and tapers below it, a separate cowlick flick, and a turquoise scarf wrapped round the neck with a bulky knot and a narrow end over the shoulder. Flat vector, five colours, twenty-two named paths.</desc>
+
+  <!-- TAIL / broad plume sweeping up-right from the haunch -->
+  <path id="tail" fill="#E2702D" d="M 318 402 C 342 382 372 354 396 324 C 418 296 434 266 442 236 C 450 208 452 180 444 162 C 436 144 418 142 408 154 C 398 166 396 186 388 208 C 378 236 360 260 340 284 C 318 310 300 338 294 366 C 288 392 296 414 318 402 Z"/>
+  <!-- TAIL / cream tip -->
+  <path id="tail-tip" fill="#F7E8D3" d="M 444 162 C 436 144 418 142 408 154 C 398 166 394 186 390 204 C 404 194 418 192 430 198 C 438 202 442 180 444 162 Z"/>
+  <!-- BODY / tapered chest-to-waist torso with the haunch bulge -->
+  <path id="torso" fill="#E2702D" d="M 292 206 C 314 224 326 254 328 288 C 330 320 322 348 314 372 C 306 396 288 410 268 412 C 248 414 230 402 226 382 C 222 362 226 340 228 318 C 230 286 234 250 246 224 C 258 198 274 194 292 206 Z"/>
+  <!-- HIND / cream sock on the folded hind paw -->
+  <path id="leg-far" fill="#E2702D" d="M 292 376 C 284 400 284 428 288 448 C 292 466 306 472 318 468 C 330 464 332 448 328 432 C 324 412 322 394 324 374 C 312 368 298 368 292 376 Z"/>
+  <!-- LEG / planted foreleg with a clear shoulder and ankle -->
+  <path id="leg-near" fill="#E2702D" d="M 218 380 C 208 402 206 430 210 452 C 214 470 230 476 244 472 C 258 468 262 452 258 436 C 254 414 252 394 254 378 C 242 372 224 372 218 380 Z"/>
+  <!-- LEG / cream sock on the planted forepaw -->
+  <path id="sock-near" fill="#F7E8D3" d="M 206 442 C 218 432 236 434 244 446 C 252 458 250 476 238 482 C 224 488 206 484 200 472 C 194 458 196 450 206 442 Z"/>
+  <!-- ARM / raised foreleg: shoulder, upper arm and forearm as one connected limb -->
+  <path id="arm" fill="#E2702D" d="M 276 250 C 272 276 254 296 232 308 C 214 318 196 326 180 330 C 166 334 152 326 148 314 C 144 302 152 288 166 286 C 180 284 194 288 208 284 C 226 279 242 266 252 250 C 258 240 272 236 276 250 Z"/>
+  <!-- PAW / cream mitten gripping the plan sheet -->
+  <path id="paw" fill="#F7E8D3" d="M 148 272 C 156 262 172 260 182 268 C 192 276 194 294 186 306 C 178 318 160 322 148 316 C 136 310 132 292 138 280 C 141 276 144 274 148 272 Z"/>
+  <!-- PLAN / turquoise plan sheet held up for the raven -->
+  <path id="plan" fill="#2BB8A6" d="M 44 236 L 142 224 L 156 306 L 58 318 L 44 262 Z"/>
+  <!-- HEAD / rounded skull tapering into a narrow projecting muzzle -->
+  <path id="head" fill="#E2702D" d="M 262 46 C 296 48 318 68 324 100 C 330 130 326 160 310 184 C 296 204 270 218 240 220 C 212 222 188 216 172 202 C 156 188 142 174 128 162 C 114 150 110 138 118 130 C 126 122 144 124 160 120 C 176 116 190 98 202 78 C 214 58 234 44 262 46 Z"/>
+  <!-- MUZZLE / cream jaw under the snout tip -->
+  <path id="muzzle" fill="#F7E8D3" d="M 124 138 C 134 137 146 146 154 154 C 162 162 170 170 170 178 C 170 186 160 196 150 196 C 140 196 128 190 120 180 C 112 170 110 148 116 142 C 118 140 121 138 124 138 Z"/>
+  <!-- NOSE -->
+  <path id="nose" fill="#2B2A33" d="M 104 130 C 106 126 112 122 118 122 C 124 122 130 126 130 130 C 130 135 124 140 117 140 C 110 140 102 136 104 130 Z"/>
+  <!-- EYE / far eye, small almond -->
+  <path id="eye-far" fill="#2B2A33" d="M 200 132 C 200 128 206 124 215 124 C 224 124 230 128 230 132 C 230 136 224 141 215 141 C 206 141 200 137 200 132 Z"/>
+  <!-- EYE / near eye, small almond -->
+  <path id="eye-near" fill="#2B2A33" d="M 250 122 C 250 119 255 115 264 115 C 273 115 278 119 278 122 C 278 126 273 130 264 130 C 255 130 250 126 250 122 Z"/>
+  <!-- FRINGE / rust lock sweeping from the far crown across the far eye, tip below eye level -->
+  <path id="fringe-lock" fill="#B94F1D" d="M 246 40 C 240 56 236 70 230 81 C 224 94 220 106 216 118 C 212 130 206 141 200 152 C 200 141 201 130 202 122 C 204 108 208 96 212 87 C 217 74 220 60 224 47 C 228 40 242 36 246 40 Z"/>
+  <!-- FRINGE / swept cowlick breaking the crown outline -->
+  <path id="fringe-tuft" fill="#B94F1D" d="M 178 74 C 172 54 166 32 170 20 C 174 10 186 14 186 26 C 186 42 182 60 186 76 Z"/>
+  <!-- SCARF / band wrapping round the neck -->
+  <path id="scarf" fill="#2BB8A6" d="M 210 208 C 228 220 250 226 272 222 C 292 218 308 208 318 200 C 326 194 334 200 332 210 C 330 220 320 232 302 240 C 282 249 258 252 238 248 C 218 244 202 234 202 222 C 202 214 204 210 210 208 Z"/>
+  <!-- SCARF / bulky knot where the band turns -->
+  <path id="scarf-knot" fill="#2BB8A6" d="M 300 186 C 312 180 328 184 334 194 C 340 204 336 220 326 226 C 316 232 300 230 292 222 C 284 214 288 192 300 186 Z"/>
+  <!-- SCARF / end flying over the shoulder -->
+  <path id="scarf-end" fill="#2BB8A6" d="M 322 212 C 332 206 342 214 344 228 C 346 244 342 268 336 284 C 330 300 318 308 310 302 C 302 296 304 278 308 262 C 312 246 312 220 322 212 Z"/>
+  <!-- EAR / far ear, tall pointed triangle -->
+  <path id="ear-far" fill="#E2702D" d="M 168 92 C 172 64 182 34 196 14 C 208 34 216 66 218 92 C 202 100 182 100 168 92 Z"/>
+  <!-- EAR / near ear, tall pointed triangle -->
+  <path id="ear-near" fill="#E2702D" d="M 272 86 C 278 56 292 24 310 6 C 324 26 334 58 336 86 C 316 96 290 96 272 86 Z"/>
+
+  <!-- PLAN / ink lines on the plan sheet -->
+  <path id="plan-lines" fill="#2B2A33" d="M 62 258 L 124 250 L 126 258 L 64 266 Z M 66 282 L 128 274 L 130 282 L 68 290 Z"/>
+
+</svg>

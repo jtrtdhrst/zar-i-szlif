@@ -1,0 +1,1232 @@
+{
+  "generatedBy": "render.mjs",
+  "resvg": "2.6.2",
+  "sizes": [
+    512,
+    256,
+    128,
+    64,
+    32
+  ],
+  "sources": [
+    {
+      "id": "iskra-a",
+      "group": "directions",
+      "file": "directions/iskra-a.svg",
+      "title": "Iskra direction A — workshop sitter",
+      "sourceSha256": "64cab9da09b75a606bb26c782290514c348a278b94e689c0d39c532518ae23c0",
+      "shapes": 22,
+      "colors": [
+        "#2B2A33",
+        "#2BB8A6",
+        "#B94F1D",
+        "#E2702D",
+        "#F7E8D3"
+      ],
+      "optical": [],
+      "outputs": [
+        {
+          "file": "exports/iskra-a-512.png",
+          "size": 512,
+          "sha256": "7712301f6cee9dde449ed92fd34fbb476e015a78b40dce86eee22b1421828823",
+          "sourceFile": "directions/iskra-a.svg",
+          "sourceSha256": "64cab9da09b75a606bb26c782290514c348a278b94e689c0d39c532518ae23c0",
+          "view": "full"
+        },
+        {
+          "file": "exports/iskra-a-256.png",
+          "size": 256,
+          "sha256": "136b17d2d6b6e4adc8aeff2c9d34ca4db4f10c03cf2c3793ca4b6f3bffbf9423",
+          "sourceFile": "directions/iskra-a.svg",
+          "sourceSha256": "64cab9da09b75a606bb26c782290514c348a278b94e689c0d39c532518ae23c0",
+          "view": "full"
+        },
+        {
+          "file": "exports/iskra-a-128.png",
+          "size": 128,
+          "sha256": "617e489245595ea8bebee5979c817a89dbe3d6ed8c6a21b12db92c7f00247cda",
+          "sourceFile": "directions/iskra-a.svg",
+          "sourceSha256": "64cab9da09b75a606bb26c782290514c348a278b94e689c0d39c532518ae23c0",
+          "view": "full"
+        },
+        {
+          "file": "exports/iskra-a-64.png",
+          "size": 64,
+          "sha256": "ba3cae3c1217c2e2cf25eb18b0b9605586461bfa239317503b8d66ff050dbf04",
+          "sourceFile": "directions/iskra-a.svg",
+          "sourceSha256": "64cab9da09b75a606bb26c782290514c348a278b94e689c0d39c532518ae23c0",
+          "view": "full"
+        },
+        {
+          "file": "exports/iskra-a-32.png",
+          "size": 32,
+          "sha256": "17e81e7567d4d9cca2e35073873cb81e1b7b42eeed1c499f0ad3f17cbf5f277e",
+          "sourceFile": "directions/iskra-a.svg",
+          "sourceSha256": "64cab9da09b75a606bb26c782290514c348a278b94e689c0d39c532518ae23c0",
+          "view": "full"
+        },
+        {
+          "file": "exports/iskra-a-sil-64.png",
+          "size": 64,
+          "silhouette": true,
+          "sha256": "10285471e4f5f07d331b632f1179274c3c83c38c25eb6d17b94a985c347d3839",
+          "sourceFile": "directions/iskra-a.svg",
+          "sourceSha256": "64cab9da09b75a606bb26c782290514c348a278b94e689c0d39c532518ae23c0",
+          "view": "full"
+        },
+        {
+          "file": "exports/iskra-a-sil-32.png",
+          "size": 32,
+          "silhouette": true,
+          "sha256": "5ddfebf73937325c45b66535fe232bc6fc4a0848e1aeb61d2c6ec2d4d7f29fb6",
+          "sourceFile": "directions/iskra-a.svg",
+          "sourceSha256": "64cab9da09b75a606bb26c782290514c348a278b94e689c0d39c532518ae23c0",
+          "view": "full"
+        },
+        {
+          "file": "exports/iskra-a-white-128.png",
+          "size": 128,
+          "background": "white",
+          "sha256": "00b3f11bfad153f45af42ad4287568e2201913b1658cdbd769c784b84d642661",
+          "sourceFile": "directions/iskra-a.svg",
+          "sourceSha256": "64cab9da09b75a606bb26c782290514c348a278b94e689c0d39c532518ae23c0",
+          "view": "full"
+        },
+        {
+          "file": "exports/iskra-a-white-64.png",
+          "size": 64,
+          "background": "white",
+          "sha256": "dbf4e3b5b1060820abcbd5fa938c2acb65ce104a743e9401e6b13b5909688864",
+          "sourceFile": "directions/iskra-a.svg",
+          "sourceSha256": "64cab9da09b75a606bb26c782290514c348a278b94e689c0d39c532518ae23c0",
+          "view": "full"
+        },
+        {
+          "file": "exports/iskra-a-dark-128.png",
+          "size": 128,
+          "background": "dark",
+          "sha256": "91808289f91fa4882b500c713dc46db2c01cac057721e0f1d1762888258a4b5a",
+          "sourceFile": "directions/iskra-a.svg",
+          "sourceSha256": "64cab9da09b75a606bb26c782290514c348a278b94e689c0d39c532518ae23c0",
+          "view": "full"
+        },
+        {
+          "file": "exports/iskra-a-dark-64.png",
+          "size": 64,
+          "background": "dark",
+          "sha256": "30e972d42d1e35c29e6ef8519b4590fac3e4a92abeb017447c915a6b0ebd74a4",
+          "sourceFile": "directions/iskra-a.svg",
+          "sourceSha256": "64cab9da09b75a606bb26c782290514c348a278b94e689c0d39c532518ae23c0",
+          "view": "full"
+        },
+        {
+          "file": "exports/iskra-a-camp-128.png",
+          "size": 128,
+          "background": "camp",
+          "sha256": "65a4d29f381b9d2103436630ed8087ae9be21d5e9f2241c6f91f16162cdf4dae",
+          "sourceFile": "directions/iskra-a.svg",
+          "sourceSha256": "64cab9da09b75a606bb26c782290514c348a278b94e689c0d39c532518ae23c0",
+          "view": "full"
+        },
+        {
+          "file": "exports/iskra-a-camp-64.png",
+          "size": 64,
+          "background": "camp",
+          "sha256": "18878e258e67e939a150f135d318439454009bd4ae9795e7bbf9f3954bb84557",
+          "sourceFile": "directions/iskra-a.svg",
+          "sourceSha256": "64cab9da09b75a606bb26c782290514c348a278b94e689c0d39c532518ae23c0",
+          "view": "full"
+        }
+      ]
+    },
+    {
+      "id": "iskra-b",
+      "group": "directions",
+      "file": "directions/iskra-b.svg",
+      "title": "Iskra direction B — courier prowler",
+      "sourceSha256": "e83e5038151d21c12c1ca8b1c44e889de30f62495f038c5319843808be155c5a",
+      "shapes": 21,
+      "colors": [
+        "#2B2A33",
+        "#2BB8A6",
+        "#B94F1D",
+        "#E2702D",
+        "#F7E8D3"
+      ],
+      "optical": [],
+      "outputs": [
+        {
+          "file": "exports/iskra-b-512.png",
+          "size": 512,
+          "sha256": "267287077e2e6a6a5cd26c222c94a2ac2d1b028e337f276efa104dd061e91224",
+          "sourceFile": "directions/iskra-b.svg",
+          "sourceSha256": "e83e5038151d21c12c1ca8b1c44e889de30f62495f038c5319843808be155c5a",
+          "view": "full"
+        },
+        {
+          "file": "exports/iskra-b-256.png",
+          "size": 256,
+          "sha256": "5d759a6383c69dfd0d0427934889464cef3aec6c7dc9b78425481f8dc1f605ab",
+          "sourceFile": "directions/iskra-b.svg",
+          "sourceSha256": "e83e5038151d21c12c1ca8b1c44e889de30f62495f038c5319843808be155c5a",
+          "view": "full"
+        },
+        {
+          "file": "exports/iskra-b-128.png",
+          "size": 128,
+          "sha256": "66d4dd4d966f4f6bc9cf8f7e2dddbdbb02ace6a0367da9aa65627b23a125abe4",
+          "sourceFile": "directions/iskra-b.svg",
+          "sourceSha256": "e83e5038151d21c12c1ca8b1c44e889de30f62495f038c5319843808be155c5a",
+          "view": "full"
+        },
+        {
+          "file": "exports/iskra-b-64.png",
+          "size": 64,
+          "sha256": "f0ef2c03ce62fcc279974064be8ab79353cbfb6e66dd69f10238bad0571adf06",
+          "sourceFile": "directions/iskra-b.svg",
+          "sourceSha256": "e83e5038151d21c12c1ca8b1c44e889de30f62495f038c5319843808be155c5a",
+          "view": "full"
+        },
+        {
+          "file": "exports/iskra-b-32.png",
+          "size": 32,
+          "sha256": "f493921db36ac5a7dab23476122df6fd33cb00ec6ec45ec329661cae4a1bcede",
+          "sourceFile": "directions/iskra-b.svg",
+          "sourceSha256": "e83e5038151d21c12c1ca8b1c44e889de30f62495f038c5319843808be155c5a",
+          "view": "full"
+        },
+        {
+          "file": "exports/iskra-b-sil-64.png",
+          "size": 64,
+          "silhouette": true,
+          "sha256": "519f46d848411bcbf4f3651cdafe50918ab4cf92882043a106bf4ef1b4543918",
+          "sourceFile": "directions/iskra-b.svg",
+          "sourceSha256": "e83e5038151d21c12c1ca8b1c44e889de30f62495f038c5319843808be155c5a",
+          "view": "full"
+        },
+        {
+          "file": "exports/iskra-b-sil-32.png",
+          "size": 32,
+          "silhouette": true,
+          "sha256": "7badab53e8f845dd414a6b67c228bb4efa34473a5cedbbe7eec9d3a7a0e72127",
+          "sourceFile": "directions/iskra-b.svg",
+          "sourceSha256": "e83e5038151d21c12c1ca8b1c44e889de30f62495f038c5319843808be155c5a",
+          "view": "full"
+        },
+        {
+          "file": "exports/iskra-b-white-128.png",
+          "size": 128,
+          "background": "white",
+          "sha256": "55fdc6054efb0597bfb986c6e4f395082d3792ccc7678cbdea3e9825aa786cc4",
+          "sourceFile": "directions/iskra-b.svg",
+          "sourceSha256": "e83e5038151d21c12c1ca8b1c44e889de30f62495f038c5319843808be155c5a",
+          "view": "full"
+        },
+        {
+          "file": "exports/iskra-b-white-64.png",
+          "size": 64,
+          "background": "white",
+          "sha256": "28bd5b3bddb3d4951bd8be3fba538f6b3e3c2febc1850ee07276426e0ad6d8a2",
+          "sourceFile": "directions/iskra-b.svg",
+          "sourceSha256": "e83e5038151d21c12c1ca8b1c44e889de30f62495f038c5319843808be155c5a",
+          "view": "full"
+        },
+        {
+          "file": "exports/iskra-b-dark-128.png",
+          "size": 128,
+          "background": "dark",
+          "sha256": "cbc726ffbfeffe3f7a3f80a4f5e8737a0402c8c9e53af43ce890589b6e2bbfb3",
+          "sourceFile": "directions/iskra-b.svg",
+          "sourceSha256": "e83e5038151d21c12c1ca8b1c44e889de30f62495f038c5319843808be155c5a",
+          "view": "full"
+        },
+        {
+          "file": "exports/iskra-b-dark-64.png",
+          "size": 64,
+          "background": "dark",
+          "sha256": "3a87d4a6623d9e7070489bad9a37e6dfe51fb64f8716a03504156827acfca939",
+          "sourceFile": "directions/iskra-b.svg",
+          "sourceSha256": "e83e5038151d21c12c1ca8b1c44e889de30f62495f038c5319843808be155c5a",
+          "view": "full"
+        },
+        {
+          "file": "exports/iskra-b-camp-128.png",
+          "size": 128,
+          "background": "camp",
+          "sha256": "5ffde0637e8190d1cc63bf6d7a0b67285d4326dc338f84c51e8450569cc75925",
+          "sourceFile": "directions/iskra-b.svg",
+          "sourceSha256": "e83e5038151d21c12c1ca8b1c44e889de30f62495f038c5319843808be155c5a",
+          "view": "full"
+        },
+        {
+          "file": "exports/iskra-b-camp-64.png",
+          "size": 64,
+          "background": "camp",
+          "sha256": "45db523bf1c902f55bddbcce849b14e98fca27663c16fdd210b5bd90edc33449",
+          "sourceFile": "directions/iskra-b.svg",
+          "sourceSha256": "e83e5038151d21c12c1ca8b1c44e889de30f62495f038c5319843808be155c5a",
+          "view": "full"
+        }
+      ]
+    },
+    {
+      "id": "iskra-c",
+      "group": "directions",
+      "file": "directions/iskra-c.svg",
+      "title": "Iskra direction C — emblem",
+      "sourceSha256": "b761fef0d8ab74259e6441b7d9d07b8451bab68ae2393a46142fc9e0cb118f42",
+      "shapes": 18,
+      "colors": [
+        "#2B2A33",
+        "#2BB8A6",
+        "#B94F1D",
+        "#E2702D",
+        "#F7E8D3"
+      ],
+      "optical": [],
+      "outputs": [
+        {
+          "file": "exports/iskra-c-512.png",
+          "size": 512,
+          "sha256": "fd0bb19220feb8cfb10bee88e043e1cc538c5e2f56b8cc624e75916a760c932c",
+          "sourceFile": "directions/iskra-c.svg",
+          "sourceSha256": "b761fef0d8ab74259e6441b7d9d07b8451bab68ae2393a46142fc9e0cb118f42",
+          "view": "full"
+        },
+        {
+          "file": "exports/iskra-c-256.png",
+          "size": 256,
+          "sha256": "162f2c315ee9b4869587bceee7973395d43bf6a86810da5ec0c48561663c144a",
+          "sourceFile": "directions/iskra-c.svg",
+          "sourceSha256": "b761fef0d8ab74259e6441b7d9d07b8451bab68ae2393a46142fc9e0cb118f42",
+          "view": "full"
+        },
+        {
+          "file": "exports/iskra-c-128.png",
+          "size": 128,
+          "sha256": "625e383c58a6b13652497e56afc7f8543f7ae06a97a8a722dd04e16b62de5051",
+          "sourceFile": "directions/iskra-c.svg",
+          "sourceSha256": "b761fef0d8ab74259e6441b7d9d07b8451bab68ae2393a46142fc9e0cb118f42",
+          "view": "full"
+        },
+        {
+          "file": "exports/iskra-c-64.png",
+          "size": 64,
+          "sha256": "761a4ba4b440e03cffc311f1d4d3613045cc2b733971d3792f8afeb5b6749b9e",
+          "sourceFile": "directions/iskra-c.svg",
+          "sourceSha256": "b761fef0d8ab74259e6441b7d9d07b8451bab68ae2393a46142fc9e0cb118f42",
+          "view": "full"
+        },
+        {
+          "file": "exports/iskra-c-32.png",
+          "size": 32,
+          "sha256": "41ada10aa161da0c28e37ae4be4c99740ef6c2a17ac826f2c44cb9bfa0633229",
+          "sourceFile": "directions/iskra-c.svg",
+          "sourceSha256": "b761fef0d8ab74259e6441b7d9d07b8451bab68ae2393a46142fc9e0cb118f42",
+          "view": "full"
+        },
+        {
+          "file": "exports/iskra-c-sil-64.png",
+          "size": 64,
+          "silhouette": true,
+          "sha256": "2a6b8dbecc44c431204022d0c35b62270044cfd22981fa151d451d7ed56ca6e3",
+          "sourceFile": "directions/iskra-c.svg",
+          "sourceSha256": "b761fef0d8ab74259e6441b7d9d07b8451bab68ae2393a46142fc9e0cb118f42",
+          "view": "full"
+        },
+        {
+          "file": "exports/iskra-c-sil-32.png",
+          "size": 32,
+          "silhouette": true,
+          "sha256": "e65e301f688024ec3e52f812ee5231125e926ed78bcabfcd76f4dfeaa702ddd3",
+          "sourceFile": "directions/iskra-c.svg",
+          "sourceSha256": "b761fef0d8ab74259e6441b7d9d07b8451bab68ae2393a46142fc9e0cb118f42",
+          "view": "full"
+        },
+        {
+          "file": "exports/iskra-c-white-128.png",
+          "size": 128,
+          "background": "white",
+          "sha256": "fb07f1ffa3d7469f6babed192bde6c2808f26a5a86520b3e9b61083a40ecd610",
+          "sourceFile": "directions/iskra-c.svg",
+          "sourceSha256": "b761fef0d8ab74259e6441b7d9d07b8451bab68ae2393a46142fc9e0cb118f42",
+          "view": "full"
+        },
+        {
+          "file": "exports/iskra-c-white-64.png",
+          "size": 64,
+          "background": "white",
+          "sha256": "277d8eef7162289d8fcae1c760dacc7117e451e53a43364e3614ba8f5eda4f70",
+          "sourceFile": "directions/iskra-c.svg",
+          "sourceSha256": "b761fef0d8ab74259e6441b7d9d07b8451bab68ae2393a46142fc9e0cb118f42",
+          "view": "full"
+        },
+        {
+          "file": "exports/iskra-c-dark-128.png",
+          "size": 128,
+          "background": "dark",
+          "sha256": "1b88868264478f47c2d292110f2e6edb944220192c7ebe5f88bb38e0adcbcbd0",
+          "sourceFile": "directions/iskra-c.svg",
+          "sourceSha256": "b761fef0d8ab74259e6441b7d9d07b8451bab68ae2393a46142fc9e0cb118f42",
+          "view": "full"
+        },
+        {
+          "file": "exports/iskra-c-dark-64.png",
+          "size": 64,
+          "background": "dark",
+          "sha256": "33b87156a37d1b6479f35d1968f87dd20a6be88e5a1e18d60958444ef5b60938",
+          "sourceFile": "directions/iskra-c.svg",
+          "sourceSha256": "b761fef0d8ab74259e6441b7d9d07b8451bab68ae2393a46142fc9e0cb118f42",
+          "view": "full"
+        },
+        {
+          "file": "exports/iskra-c-camp-128.png",
+          "size": 128,
+          "background": "camp",
+          "sha256": "22878c77030453f3b0a7728224ae2c087b62d55aa1c5bb947cbaaa68c4ec4d67",
+          "sourceFile": "directions/iskra-c.svg",
+          "sourceSha256": "b761fef0d8ab74259e6441b7d9d07b8451bab68ae2393a46142fc9e0cb118f42",
+          "view": "full"
+        },
+        {
+          "file": "exports/iskra-c-camp-64.png",
+          "size": 64,
+          "background": "camp",
+          "sha256": "0592b278b9b110a607a952296887e7370401d3de3545523823490ba9e4837728",
+          "sourceFile": "directions/iskra-c.svg",
+          "sourceSha256": "b761fef0d8ab74259e6441b7d9d07b8451bab68ae2393a46142fc9e0cb118f42",
+          "view": "full"
+        }
+      ]
+    },
+    {
+      "id": "szlif-a",
+      "group": "directions",
+      "file": "directions/szlif-a.svg",
+      "title": "Szlif direction A — standing analyst",
+      "sourceSha256": "9cd6b455dd55844344d8b4ad24647d8eb80f66d097b3845f9262f84cea3547ec",
+      "shapes": 18,
+      "colors": [
+        "#232833",
+        "#2BB8A6",
+        "#46536A",
+        "#D7DCE3",
+        "#E2A03F"
+      ],
+      "optical": [],
+      "outputs": [
+        {
+          "file": "exports/szlif-a-512.png",
+          "size": 512,
+          "sha256": "5ada2bc62a31457a00e6f02b7159da4fc58d6a579d139da40b1665b50b353bfd",
+          "sourceFile": "directions/szlif-a.svg",
+          "sourceSha256": "9cd6b455dd55844344d8b4ad24647d8eb80f66d097b3845f9262f84cea3547ec",
+          "view": "full"
+        },
+        {
+          "file": "exports/szlif-a-256.png",
+          "size": 256,
+          "sha256": "74fa6bf3666654fc9e6ff11cf0e6329eb56ba1fc91774207307a939c8cade2cf",
+          "sourceFile": "directions/szlif-a.svg",
+          "sourceSha256": "9cd6b455dd55844344d8b4ad24647d8eb80f66d097b3845f9262f84cea3547ec",
+          "view": "full"
+        },
+        {
+          "file": "exports/szlif-a-128.png",
+          "size": 128,
+          "sha256": "231dff4b672126e5517b8e2a6cee9a882194ca44e006bcbfd1bff91489252e06",
+          "sourceFile": "directions/szlif-a.svg",
+          "sourceSha256": "9cd6b455dd55844344d8b4ad24647d8eb80f66d097b3845f9262f84cea3547ec",
+          "view": "full"
+        },
+        {
+          "file": "exports/szlif-a-64.png",
+          "size": 64,
+          "sha256": "4b64a059f7fca57c2ff50645d014d4e1a700c7394c734175f4c525cc70a04d4c",
+          "sourceFile": "directions/szlif-a.svg",
+          "sourceSha256": "9cd6b455dd55844344d8b4ad24647d8eb80f66d097b3845f9262f84cea3547ec",
+          "view": "full"
+        },
+        {
+          "file": "exports/szlif-a-32.png",
+          "size": 32,
+          "sha256": "05373706898ab31755031fec2211f5830eb9effc7415ed6c4cf100b341e1cfca",
+          "sourceFile": "directions/szlif-a.svg",
+          "sourceSha256": "9cd6b455dd55844344d8b4ad24647d8eb80f66d097b3845f9262f84cea3547ec",
+          "view": "full"
+        },
+        {
+          "file": "exports/szlif-a-sil-64.png",
+          "size": 64,
+          "silhouette": true,
+          "sha256": "3f8e9dcfe85bff52684691a35d956ba67ad569547e17cb05c1f083f041ada461",
+          "sourceFile": "directions/szlif-a.svg",
+          "sourceSha256": "9cd6b455dd55844344d8b4ad24647d8eb80f66d097b3845f9262f84cea3547ec",
+          "view": "full"
+        },
+        {
+          "file": "exports/szlif-a-sil-32.png",
+          "size": 32,
+          "silhouette": true,
+          "sha256": "77e3fbe9e08bcf44b1ec87cacf7e585f7069944bbe589f239087e7e0cf27ec9c",
+          "sourceFile": "directions/szlif-a.svg",
+          "sourceSha256": "9cd6b455dd55844344d8b4ad24647d8eb80f66d097b3845f9262f84cea3547ec",
+          "view": "full"
+        },
+        {
+          "file": "exports/szlif-a-white-128.png",
+          "size": 128,
+          "background": "white",
+          "sha256": "09edce2a753ff291209217d48d43e3bc0d477c72789bc6286855370cd98b59a8",
+          "sourceFile": "directions/szlif-a.svg",
+          "sourceSha256": "9cd6b455dd55844344d8b4ad24647d8eb80f66d097b3845f9262f84cea3547ec",
+          "view": "full"
+        },
+        {
+          "file": "exports/szlif-a-white-64.png",
+          "size": 64,
+          "background": "white",
+          "sha256": "40f9c4ce60011a6e7223f89e89f19868b531af79ad9e8c475062a139e0e0b28e",
+          "sourceFile": "directions/szlif-a.svg",
+          "sourceSha256": "9cd6b455dd55844344d8b4ad24647d8eb80f66d097b3845f9262f84cea3547ec",
+          "view": "full"
+        },
+        {
+          "file": "exports/szlif-a-dark-128.png",
+          "size": 128,
+          "background": "dark",
+          "sha256": "d7d5fffa0f08c00498671e31b462ec36bce1c7f8c580c32f71af437a41139039",
+          "sourceFile": "directions/szlif-a.svg",
+          "sourceSha256": "9cd6b455dd55844344d8b4ad24647d8eb80f66d097b3845f9262f84cea3547ec",
+          "view": "full"
+        },
+        {
+          "file": "exports/szlif-a-dark-64.png",
+          "size": 64,
+          "background": "dark",
+          "sha256": "f107bf4d81ace8f167b4e23b458a23b5fc545c07cc00010a86a6bad02ef3151b",
+          "sourceFile": "directions/szlif-a.svg",
+          "sourceSha256": "9cd6b455dd55844344d8b4ad24647d8eb80f66d097b3845f9262f84cea3547ec",
+          "view": "full"
+        },
+        {
+          "file": "exports/szlif-a-camp-128.png",
+          "size": 128,
+          "background": "camp",
+          "sha256": "e680687ddf3d222667cad626a5f813a08c0224d29d37608062cf605ed24e6dbf",
+          "sourceFile": "directions/szlif-a.svg",
+          "sourceSha256": "9cd6b455dd55844344d8b4ad24647d8eb80f66d097b3845f9262f84cea3547ec",
+          "view": "full"
+        },
+        {
+          "file": "exports/szlif-a-camp-64.png",
+          "size": 64,
+          "background": "camp",
+          "sha256": "04d53c880612b0aee9cc4532ea4249f84c0db8c041714ef4123dc2deb40c1c70",
+          "sourceFile": "directions/szlif-a.svg",
+          "sourceSha256": "9cd6b455dd55844344d8b4ad24647d8eb80f66d097b3845f9262f84cea3547ec",
+          "view": "full"
+        }
+      ]
+    },
+    {
+      "id": "szlif-b",
+      "group": "directions",
+      "file": "directions/szlif-b.svg",
+      "title": "Szlif direction B — perched thinker",
+      "sourceSha256": "ff7b18413c9b5e1c3a8cb5fc67caf686477867c45c92a29f3d86267ea8ee64fa",
+      "shapes": 18,
+      "colors": [
+        "#232833",
+        "#2BB8A6",
+        "#46536A",
+        "#D7DCE3",
+        "#E2A03F"
+      ],
+      "optical": [],
+      "outputs": [
+        {
+          "file": "exports/szlif-b-512.png",
+          "size": 512,
+          "sha256": "5337dad6c5fa193fef2281cbf2848b46bbcd8846cbe5bffb0cfb64a4835a9060",
+          "sourceFile": "directions/szlif-b.svg",
+          "sourceSha256": "ff7b18413c9b5e1c3a8cb5fc67caf686477867c45c92a29f3d86267ea8ee64fa",
+          "view": "full"
+        },
+        {
+          "file": "exports/szlif-b-256.png",
+          "size": 256,
+          "sha256": "142673cebc574fbc5b596a1f19aa058b2539bab6a514798e544f2cc7d47e6601",
+          "sourceFile": "directions/szlif-b.svg",
+          "sourceSha256": "ff7b18413c9b5e1c3a8cb5fc67caf686477867c45c92a29f3d86267ea8ee64fa",
+          "view": "full"
+        },
+        {
+          "file": "exports/szlif-b-128.png",
+          "size": 128,
+          "sha256": "958fb8fb0058bd6d6f644b5bd02480804cc0368ccc63a0fbaec78263f1be12df",
+          "sourceFile": "directions/szlif-b.svg",
+          "sourceSha256": "ff7b18413c9b5e1c3a8cb5fc67caf686477867c45c92a29f3d86267ea8ee64fa",
+          "view": "full"
+        },
+        {
+          "file": "exports/szlif-b-64.png",
+          "size": 64,
+          "sha256": "434e448af3e7b366a3292146feb6963fb569405cbbc4df79e4fea67fca1e72ed",
+          "sourceFile": "directions/szlif-b.svg",
+          "sourceSha256": "ff7b18413c9b5e1c3a8cb5fc67caf686477867c45c92a29f3d86267ea8ee64fa",
+          "view": "full"
+        },
+        {
+          "file": "exports/szlif-b-32.png",
+          "size": 32,
+          "sha256": "2977169f6c0a932346456ad525f1491c3f16ef51332ab20c807f495978f21242",
+          "sourceFile": "directions/szlif-b.svg",
+          "sourceSha256": "ff7b18413c9b5e1c3a8cb5fc67caf686477867c45c92a29f3d86267ea8ee64fa",
+          "view": "full"
+        },
+        {
+          "file": "exports/szlif-b-sil-64.png",
+          "size": 64,
+          "silhouette": true,
+          "sha256": "a08a68103737a89bb975e36b8f6789961b9ca6a321f0a77dd2980d384b9b95e1",
+          "sourceFile": "directions/szlif-b.svg",
+          "sourceSha256": "ff7b18413c9b5e1c3a8cb5fc67caf686477867c45c92a29f3d86267ea8ee64fa",
+          "view": "full"
+        },
+        {
+          "file": "exports/szlif-b-sil-32.png",
+          "size": 32,
+          "silhouette": true,
+          "sha256": "79b203caf83bf96abda36e434b796c32ef8c49b9a04e1cbe1f6d76322a008dd7",
+          "sourceFile": "directions/szlif-b.svg",
+          "sourceSha256": "ff7b18413c9b5e1c3a8cb5fc67caf686477867c45c92a29f3d86267ea8ee64fa",
+          "view": "full"
+        },
+        {
+          "file": "exports/szlif-b-white-128.png",
+          "size": 128,
+          "background": "white",
+          "sha256": "00f862bef071935f8695112b96913a401f6f5c31d12b806e053d452167ed6477",
+          "sourceFile": "directions/szlif-b.svg",
+          "sourceSha256": "ff7b18413c9b5e1c3a8cb5fc67caf686477867c45c92a29f3d86267ea8ee64fa",
+          "view": "full"
+        },
+        {
+          "file": "exports/szlif-b-white-64.png",
+          "size": 64,
+          "background": "white",
+          "sha256": "039e4e2de74eb3b59ae383d7292f2f5e23abc84e4c5589a895f5c5ad75301dc5",
+          "sourceFile": "directions/szlif-b.svg",
+          "sourceSha256": "ff7b18413c9b5e1c3a8cb5fc67caf686477867c45c92a29f3d86267ea8ee64fa",
+          "view": "full"
+        },
+        {
+          "file": "exports/szlif-b-dark-128.png",
+          "size": 128,
+          "background": "dark",
+          "sha256": "5f8ed5f0ca8382c84d2bac36609eaef947cc9f961b8b00bb953e970088639c43",
+          "sourceFile": "directions/szlif-b.svg",
+          "sourceSha256": "ff7b18413c9b5e1c3a8cb5fc67caf686477867c45c92a29f3d86267ea8ee64fa",
+          "view": "full"
+        },
+        {
+          "file": "exports/szlif-b-dark-64.png",
+          "size": 64,
+          "background": "dark",
+          "sha256": "749bc95217b25d2a0b28fc3fa5c36b4c3ee395f7434905a2dff5d084a0a3fb26",
+          "sourceFile": "directions/szlif-b.svg",
+          "sourceSha256": "ff7b18413c9b5e1c3a8cb5fc67caf686477867c45c92a29f3d86267ea8ee64fa",
+          "view": "full"
+        },
+        {
+          "file": "exports/szlif-b-camp-128.png",
+          "size": 128,
+          "background": "camp",
+          "sha256": "df2095be37a9f9c2a52a3f879e83a806e0d974d187d52a0b5bd4151d2da91d54",
+          "sourceFile": "directions/szlif-b.svg",
+          "sourceSha256": "ff7b18413c9b5e1c3a8cb5fc67caf686477867c45c92a29f3d86267ea8ee64fa",
+          "view": "full"
+        },
+        {
+          "file": "exports/szlif-b-camp-64.png",
+          "size": 64,
+          "background": "camp",
+          "sha256": "f8dbb2578f759f77f3ee629ce1e8f5c8f6740db6bebd20528405015439fa2306",
+          "sourceFile": "directions/szlif-b.svg",
+          "sourceSha256": "ff7b18413c9b5e1c3a8cb5fc67caf686477867c45c92a29f3d86267ea8ee64fa",
+          "view": "full"
+        }
+      ]
+    },
+    {
+      "id": "szlif-c",
+      "group": "directions",
+      "file": "directions/szlif-c.svg",
+      "title": "Szlif direction C — tall sentinel",
+      "sourceSha256": "5eb7e0bd6278fe9917736567d91b46abc25cde82ce9ce88801fb978b47d1f330",
+      "shapes": 17,
+      "colors": [
+        "#232833",
+        "#2BB8A6",
+        "#46536A",
+        "#D7DCE3",
+        "#E2A03F"
+      ],
+      "optical": [],
+      "outputs": [
+        {
+          "file": "exports/szlif-c-512.png",
+          "size": 512,
+          "sha256": "8744b7336fe6549ec6d0446c24041bf0c70d08ad40fb4c410951bc67a31dcd41",
+          "sourceFile": "directions/szlif-c.svg",
+          "sourceSha256": "5eb7e0bd6278fe9917736567d91b46abc25cde82ce9ce88801fb978b47d1f330",
+          "view": "full"
+        },
+        {
+          "file": "exports/szlif-c-256.png",
+          "size": 256,
+          "sha256": "ffd043b2c050147285daf927a5d9ae2e6852029275733d2dd25a2bd3a5e51a7b",
+          "sourceFile": "directions/szlif-c.svg",
+          "sourceSha256": "5eb7e0bd6278fe9917736567d91b46abc25cde82ce9ce88801fb978b47d1f330",
+          "view": "full"
+        },
+        {
+          "file": "exports/szlif-c-128.png",
+          "size": 128,
+          "sha256": "ef3e7c46a9a20f9df3c0a6ac69ada2c48b7cbadf161d8c75e6bfb2cb8dacb331",
+          "sourceFile": "directions/szlif-c.svg",
+          "sourceSha256": "5eb7e0bd6278fe9917736567d91b46abc25cde82ce9ce88801fb978b47d1f330",
+          "view": "full"
+        },
+        {
+          "file": "exports/szlif-c-64.png",
+          "size": 64,
+          "sha256": "31e85a75382f1fa85ba4f54ba86c56f1c603e5383be896c87871263f823c3730",
+          "sourceFile": "directions/szlif-c.svg",
+          "sourceSha256": "5eb7e0bd6278fe9917736567d91b46abc25cde82ce9ce88801fb978b47d1f330",
+          "view": "full"
+        },
+        {
+          "file": "exports/szlif-c-32.png",
+          "size": 32,
+          "sha256": "38322c3dead1672790865fc1042331e9789dba521926f887bf4aa04d4bc00bd9",
+          "sourceFile": "directions/szlif-c.svg",
+          "sourceSha256": "5eb7e0bd6278fe9917736567d91b46abc25cde82ce9ce88801fb978b47d1f330",
+          "view": "full"
+        },
+        {
+          "file": "exports/szlif-c-sil-64.png",
+          "size": 64,
+          "silhouette": true,
+          "sha256": "ea02e1af24cfdcd63dd2ccd78594512c5e82c9e3a1482df8f295dbb55eb0375c",
+          "sourceFile": "directions/szlif-c.svg",
+          "sourceSha256": "5eb7e0bd6278fe9917736567d91b46abc25cde82ce9ce88801fb978b47d1f330",
+          "view": "full"
+        },
+        {
+          "file": "exports/szlif-c-sil-32.png",
+          "size": 32,
+          "silhouette": true,
+          "sha256": "6e7c5b91a799c3f2d258b565bcda61c774b07a35ed469677a770fdec16fe909e",
+          "sourceFile": "directions/szlif-c.svg",
+          "sourceSha256": "5eb7e0bd6278fe9917736567d91b46abc25cde82ce9ce88801fb978b47d1f330",
+          "view": "full"
+        },
+        {
+          "file": "exports/szlif-c-white-128.png",
+          "size": 128,
+          "background": "white",
+          "sha256": "797b49085a12dbbabf9963e32ecd028f29a79f829e6e6f21515a0d8a7c739c70",
+          "sourceFile": "directions/szlif-c.svg",
+          "sourceSha256": "5eb7e0bd6278fe9917736567d91b46abc25cde82ce9ce88801fb978b47d1f330",
+          "view": "full"
+        },
+        {
+          "file": "exports/szlif-c-white-64.png",
+          "size": 64,
+          "background": "white",
+          "sha256": "a4a446c799a827ac7c7ba1d9114e0af0254beb3eb1be1725a042a60fa727d770",
+          "sourceFile": "directions/szlif-c.svg",
+          "sourceSha256": "5eb7e0bd6278fe9917736567d91b46abc25cde82ce9ce88801fb978b47d1f330",
+          "view": "full"
+        },
+        {
+          "file": "exports/szlif-c-dark-128.png",
+          "size": 128,
+          "background": "dark",
+          "sha256": "1479b1c606489a26d5144e4c07bf044878ce88abdb304d3c37f6113475cc370c",
+          "sourceFile": "directions/szlif-c.svg",
+          "sourceSha256": "5eb7e0bd6278fe9917736567d91b46abc25cde82ce9ce88801fb978b47d1f330",
+          "view": "full"
+        },
+        {
+          "file": "exports/szlif-c-dark-64.png",
+          "size": 64,
+          "background": "dark",
+          "sha256": "037d62022453fe018b1fa20a1573d1759dc3894fe7d8c7864ed675593edc3bcf",
+          "sourceFile": "directions/szlif-c.svg",
+          "sourceSha256": "5eb7e0bd6278fe9917736567d91b46abc25cde82ce9ce88801fb978b47d1f330",
+          "view": "full"
+        },
+        {
+          "file": "exports/szlif-c-camp-128.png",
+          "size": 128,
+          "background": "camp",
+          "sha256": "956a73cf24bcce58b54810d4144ca6006bb9295fc04d9177f53447a6eed9fca3",
+          "sourceFile": "directions/szlif-c.svg",
+          "sourceSha256": "5eb7e0bd6278fe9917736567d91b46abc25cde82ce9ce88801fb978b47d1f330",
+          "view": "full"
+        },
+        {
+          "file": "exports/szlif-c-camp-64.png",
+          "size": 64,
+          "background": "camp",
+          "sha256": "a83fb91fc121d2900376d0bf6ee7de1d0925f5576fb12a1166b5d89214a700ab",
+          "sourceFile": "directions/szlif-c.svg",
+          "sourceSha256": "5eb7e0bd6278fe9917736567d91b46abc25cde82ce9ce88801fb978b47d1f330",
+          "view": "full"
+        }
+      ]
+    },
+    {
+      "id": "iskra-master",
+      "group": "masters",
+      "file": "masters/iskra-master.svg",
+      "title": "Iskra — master fox vector (direction A selected and refined)",
+      "sourceSha256": "e4970f59095d45f29ec4fcaa2b3888ffb1331a02fb49e95240957284676e7cd2",
+      "shapes": 22,
+      "colors": [
+        "#2B2A33",
+        "#2BB8A6",
+        "#B94F1D",
+        "#E2702D",
+        "#F7E8D3"
+      ],
+      "optical": [],
+      "outputs": [
+        {
+          "file": "exports/iskra-master-512.png",
+          "size": 512,
+          "sha256": "a3cb667e47e4d6952478ae99d1f30b5f2cfa589d61eacacce4d008470b06ee7b",
+          "sourceFile": "masters/iskra-master.svg",
+          "sourceSha256": "e4970f59095d45f29ec4fcaa2b3888ffb1331a02fb49e95240957284676e7cd2",
+          "view": "full"
+        },
+        {
+          "file": "exports/iskra-master-256.png",
+          "size": 256,
+          "sha256": "92e25ec4e71548984cb8d61d264d78b1df1735ebfe15385ffa2a04b0455ce444",
+          "sourceFile": "masters/iskra-master.svg",
+          "sourceSha256": "e4970f59095d45f29ec4fcaa2b3888ffb1331a02fb49e95240957284676e7cd2",
+          "view": "full"
+        },
+        {
+          "file": "exports/iskra-master-128.png",
+          "size": 128,
+          "sha256": "5ea12c426b9be9b8e7487f908a6dae30a8cb9558a78d472745e02e834c7cfd7f",
+          "sourceFile": "masters/iskra-master.svg",
+          "sourceSha256": "e4970f59095d45f29ec4fcaa2b3888ffb1331a02fb49e95240957284676e7cd2",
+          "view": "full"
+        },
+        {
+          "file": "exports/iskra-master-64.png",
+          "size": 64,
+          "sha256": "fa6d0dd84e6d388089ce338cf123af2ac902b8aaaca6f6eee4862ca8307c2349",
+          "sourceFile": "masters/iskra-master.svg",
+          "sourceSha256": "e4970f59095d45f29ec4fcaa2b3888ffb1331a02fb49e95240957284676e7cd2",
+          "view": "full"
+        },
+        {
+          "file": "exports/iskra-master-32.png",
+          "size": 32,
+          "sha256": "95949c850299a994b37288acf0997e41e14b0a9f280a299a30e4e767b246b85d",
+          "sourceFile": "masters/iskra-master.svg",
+          "sourceSha256": "e4970f59095d45f29ec4fcaa2b3888ffb1331a02fb49e95240957284676e7cd2",
+          "view": "full"
+        },
+        {
+          "file": "exports/iskra-master-sil-64.png",
+          "size": 64,
+          "silhouette": true,
+          "sha256": "baeeb6d9cfb00d416aea6ce13201de20633a17b506aa4dafabfd8e81a0e45ad2",
+          "sourceFile": "masters/iskra-master.svg",
+          "sourceSha256": "e4970f59095d45f29ec4fcaa2b3888ffb1331a02fb49e95240957284676e7cd2",
+          "view": "full"
+        },
+        {
+          "file": "exports/iskra-master-sil-32.png",
+          "size": 32,
+          "silhouette": true,
+          "sha256": "d004baed7bf66ac264548ae9f8c148683e3f7a432fa363b15e9550ff90ef6dab",
+          "sourceFile": "masters/iskra-master.svg",
+          "sourceSha256": "e4970f59095d45f29ec4fcaa2b3888ffb1331a02fb49e95240957284676e7cd2",
+          "view": "full"
+        },
+        {
+          "file": "exports/iskra-master-white-128.png",
+          "size": 128,
+          "background": "white",
+          "sha256": "7e5e7e231fdc81c111228731bb94af3335e400363dcfc02efde43a5cdb9b954b",
+          "sourceFile": "masters/iskra-master.svg",
+          "sourceSha256": "e4970f59095d45f29ec4fcaa2b3888ffb1331a02fb49e95240957284676e7cd2",
+          "view": "full"
+        },
+        {
+          "file": "exports/iskra-master-white-64.png",
+          "size": 64,
+          "background": "white",
+          "sha256": "3a4dfbdd3dc1ceb8344ff6528fca3ebb52e19000c08d38854b7e2d2cb6f038e3",
+          "sourceFile": "masters/iskra-master.svg",
+          "sourceSha256": "e4970f59095d45f29ec4fcaa2b3888ffb1331a02fb49e95240957284676e7cd2",
+          "view": "full"
+        },
+        {
+          "file": "exports/iskra-master-dark-128.png",
+          "size": 128,
+          "background": "dark",
+          "sha256": "9ce6ef89f9820346955ffa4b9654bf2bdaf814a67557bec68d8b32a57aea91ae",
+          "sourceFile": "masters/iskra-master.svg",
+          "sourceSha256": "e4970f59095d45f29ec4fcaa2b3888ffb1331a02fb49e95240957284676e7cd2",
+          "view": "full"
+        },
+        {
+          "file": "exports/iskra-master-dark-64.png",
+          "size": 64,
+          "background": "dark",
+          "sha256": "ad7cc2c686a5a06b1e611b63248f14f2ec6043e7123ba2fa5f6acdf32b05053a",
+          "sourceFile": "masters/iskra-master.svg",
+          "sourceSha256": "e4970f59095d45f29ec4fcaa2b3888ffb1331a02fb49e95240957284676e7cd2",
+          "view": "full"
+        },
+        {
+          "file": "exports/iskra-master-camp-128.png",
+          "size": 128,
+          "background": "camp",
+          "sha256": "52ef243a43e002f9c90fe3167878840b7c5be5351e72ace3b38538d24e299805",
+          "sourceFile": "masters/iskra-master.svg",
+          "sourceSha256": "e4970f59095d45f29ec4fcaa2b3888ffb1331a02fb49e95240957284676e7cd2",
+          "view": "full"
+        },
+        {
+          "file": "exports/iskra-master-camp-64.png",
+          "size": 64,
+          "background": "camp",
+          "sha256": "9c6793de0a5c38ea63303c04547588cc80b3fc608e795b18f8c1f279f163d621",
+          "sourceFile": "masters/iskra-master.svg",
+          "sourceSha256": "e4970f59095d45f29ec4fcaa2b3888ffb1331a02fb49e95240957284676e7cd2",
+          "view": "full"
+        }
+      ]
+    },
+    {
+      "id": "szlif-master",
+      "group": "masters",
+      "file": "masters/szlif-master.svg",
+      "title": "Szlif — master raven vector (direction A selected and refined)",
+      "sourceSha256": "155f4d1012df02f0fd469692d0997262feaaf16963c47883842fb703839d569f",
+      "shapes": 18,
+      "colors": [
+        "#232833",
+        "#2BB8A6",
+        "#46536A",
+        "#D7DCE3",
+        "#E2A03F"
+      ],
+      "optical": [],
+      "outputs": [
+        {
+          "file": "exports/szlif-master-512.png",
+          "size": 512,
+          "sha256": "5ada2bc62a31457a00e6f02b7159da4fc58d6a579d139da40b1665b50b353bfd",
+          "sourceFile": "masters/szlif-master.svg",
+          "sourceSha256": "155f4d1012df02f0fd469692d0997262feaaf16963c47883842fb703839d569f",
+          "view": "full"
+        },
+        {
+          "file": "exports/szlif-master-256.png",
+          "size": 256,
+          "sha256": "74fa6bf3666654fc9e6ff11cf0e6329eb56ba1fc91774207307a939c8cade2cf",
+          "sourceFile": "masters/szlif-master.svg",
+          "sourceSha256": "155f4d1012df02f0fd469692d0997262feaaf16963c47883842fb703839d569f",
+          "view": "full"
+        },
+        {
+          "file": "exports/szlif-master-128.png",
+          "size": 128,
+          "sha256": "231dff4b672126e5517b8e2a6cee9a882194ca44e006bcbfd1bff91489252e06",
+          "sourceFile": "masters/szlif-master.svg",
+          "sourceSha256": "155f4d1012df02f0fd469692d0997262feaaf16963c47883842fb703839d569f",
+          "view": "full"
+        },
+        {
+          "file": "exports/szlif-master-64.png",
+          "size": 64,
+          "sha256": "4b64a059f7fca57c2ff50645d014d4e1a700c7394c734175f4c525cc70a04d4c",
+          "sourceFile": "masters/szlif-master.svg",
+          "sourceSha256": "155f4d1012df02f0fd469692d0997262feaaf16963c47883842fb703839d569f",
+          "view": "full"
+        },
+        {
+          "file": "exports/szlif-master-32.png",
+          "size": 32,
+          "sha256": "05373706898ab31755031fec2211f5830eb9effc7415ed6c4cf100b341e1cfca",
+          "sourceFile": "masters/szlif-master.svg",
+          "sourceSha256": "155f4d1012df02f0fd469692d0997262feaaf16963c47883842fb703839d569f",
+          "view": "full"
+        },
+        {
+          "file": "exports/szlif-master-sil-64.png",
+          "size": 64,
+          "silhouette": true,
+          "sha256": "3f8e9dcfe85bff52684691a35d956ba67ad569547e17cb05c1f083f041ada461",
+          "sourceFile": "masters/szlif-master.svg",
+          "sourceSha256": "155f4d1012df02f0fd469692d0997262feaaf16963c47883842fb703839d569f",
+          "view": "full"
+        },
+        {
+          "file": "exports/szlif-master-sil-32.png",
+          "size": 32,
+          "silhouette": true,
+          "sha256": "77e3fbe9e08bcf44b1ec87cacf7e585f7069944bbe589f239087e7e0cf27ec9c",
+          "sourceFile": "masters/szlif-master.svg",
+          "sourceSha256": "155f4d1012df02f0fd469692d0997262feaaf16963c47883842fb703839d569f",
+          "view": "full"
+        },
+        {
+          "file": "exports/szlif-master-white-128.png",
+          "size": 128,
+          "background": "white",
+          "sha256": "09edce2a753ff291209217d48d43e3bc0d477c72789bc6286855370cd98b59a8",
+          "sourceFile": "masters/szlif-master.svg",
+          "sourceSha256": "155f4d1012df02f0fd469692d0997262feaaf16963c47883842fb703839d569f",
+          "view": "full"
+        },
+        {
+          "file": "exports/szlif-master-white-64.png",
+          "size": 64,
+          "background": "white",
+          "sha256": "40f9c4ce60011a6e7223f89e89f19868b531af79ad9e8c475062a139e0e0b28e",
+          "sourceFile": "masters/szlif-master.svg",
+          "sourceSha256": "155f4d1012df02f0fd469692d0997262feaaf16963c47883842fb703839d569f",
+          "view": "full"
+        },
+        {
+          "file": "exports/szlif-master-dark-128.png",
+          "size": 128,
+          "background": "dark",
+          "sha256": "d7d5fffa0f08c00498671e31b462ec36bce1c7f8c580c32f71af437a41139039",
+          "sourceFile": "masters/szlif-master.svg",
+          "sourceSha256": "155f4d1012df02f0fd469692d0997262feaaf16963c47883842fb703839d569f",
+          "view": "full"
+        },
+        {
+          "file": "exports/szlif-master-dark-64.png",
+          "size": 64,
+          "background": "dark",
+          "sha256": "f107bf4d81ace8f167b4e23b458a23b5fc545c07cc00010a86a6bad02ef3151b",
+          "sourceFile": "masters/szlif-master.svg",
+          "sourceSha256": "155f4d1012df02f0fd469692d0997262feaaf16963c47883842fb703839d569f",
+          "view": "full"
+        },
+        {
+          "file": "exports/szlif-master-camp-128.png",
+          "size": 128,
+          "background": "camp",
+          "sha256": "e680687ddf3d222667cad626a5f813a08c0224d29d37608062cf605ed24e6dbf",
+          "sourceFile": "masters/szlif-master.svg",
+          "sourceSha256": "155f4d1012df02f0fd469692d0997262feaaf16963c47883842fb703839d569f",
+          "view": "full"
+        },
+        {
+          "file": "exports/szlif-master-camp-64.png",
+          "size": 64,
+          "background": "camp",
+          "sha256": "04d53c880612b0aee9cc4532ea4249f84c0db8c041714ef4123dc2deb40c1c70",
+          "sourceFile": "masters/szlif-master.svg",
+          "sourceSha256": "155f4d1012df02f0fd469692d0997262feaaf16963c47883842fb703839d569f",
+          "view": "full"
+        }
+      ]
+    },
+    {
+      "id": "iskra-szlif-vignette",
+      "group": "scenes",
+      "file": "scenes/iskra-szlif-vignette.svg",
+      "title": "Iskra and Szlif — paired interaction vignette",
+      "sourceSha256": "e3fb2357af3d23d648b976e51f5f712b0dcf5157bd24a57a9309607bff9e5206",
+      "shapes": 41,
+      "colors": [
+        "#232833",
+        "#2B2A33",
+        "#2BB8A6",
+        "#3C4757",
+        "#46536A",
+        "#B94F1D",
+        "#D7DCE3",
+        "#E2702D",
+        "#E2A03F",
+        "#F7E8D3"
+      ],
+      "optical": [],
+      "outputs": [
+        {
+          "file": "exports/iskra-szlif-vignette-512.png",
+          "size": 512,
+          "sha256": "a189c33457922f58e7f810bc27614d3e5586033e2eda760108bbded096183444",
+          "sourceFile": "scenes/iskra-szlif-vignette.svg",
+          "sourceSha256": "e3fb2357af3d23d648b976e51f5f712b0dcf5157bd24a57a9309607bff9e5206",
+          "view": "full"
+        },
+        {
+          "file": "exports/iskra-szlif-vignette-256.png",
+          "size": 256,
+          "sha256": "678584c015b76a3c220261c69b45d778820afcb7621ad5cdf0b6c3a0b0840557",
+          "sourceFile": "scenes/iskra-szlif-vignette.svg",
+          "sourceSha256": "e3fb2357af3d23d648b976e51f5f712b0dcf5157bd24a57a9309607bff9e5206",
+          "view": "full"
+        },
+        {
+          "file": "exports/iskra-szlif-vignette-128.png",
+          "size": 128,
+          "sha256": "3de967e6f502c78378ff92c406971928c3455175be3c02c2f4bd1bce68465b1d",
+          "sourceFile": "scenes/iskra-szlif-vignette.svg",
+          "sourceSha256": "e3fb2357af3d23d648b976e51f5f712b0dcf5157bd24a57a9309607bff9e5206",
+          "view": "full"
+        },
+        {
+          "file": "exports/iskra-szlif-vignette-64.png",
+          "size": 64,
+          "sha256": "a390c016dcfded8196930c64e90d265b6cdf77cc977f75e97fc01646411c062c",
+          "sourceFile": "scenes/iskra-szlif-vignette.svg",
+          "sourceSha256": "e3fb2357af3d23d648b976e51f5f712b0dcf5157bd24a57a9309607bff9e5206",
+          "view": "full"
+        },
+        {
+          "file": "exports/iskra-szlif-vignette-32.png",
+          "size": 32,
+          "sha256": "75737a0a0853a669d462d0b67acdb81153057ad234e4ebaed284c0dd1265c5f1",
+          "sourceFile": "scenes/iskra-szlif-vignette.svg",
+          "sourceSha256": "e3fb2357af3d23d648b976e51f5f712b0dcf5157bd24a57a9309607bff9e5206",
+          "view": "full"
+        },
+        {
+          "file": "exports/iskra-szlif-vignette-sil-64.png",
+          "size": 64,
+          "silhouette": true,
+          "sha256": "d05408770024a7ce712f5792beb6eade4af3c3cc527b1d5f9591f1ea5e83c702",
+          "sourceFile": "scenes/iskra-szlif-vignette.svg",
+          "sourceSha256": "e3fb2357af3d23d648b976e51f5f712b0dcf5157bd24a57a9309607bff9e5206",
+          "view": "full"
+        },
+        {
+          "file": "exports/iskra-szlif-vignette-sil-32.png",
+          "size": 32,
+          "silhouette": true,
+          "sha256": "fb684fec76f92873aca7cf6715b1239ef9ccbe076b3e0ba6ede26e506b851510",
+          "sourceFile": "scenes/iskra-szlif-vignette.svg",
+          "sourceSha256": "e3fb2357af3d23d648b976e51f5f712b0dcf5157bd24a57a9309607bff9e5206",
+          "view": "full"
+        },
+        {
+          "file": "exports/iskra-szlif-vignette-white-128.png",
+          "size": 128,
+          "background": "white",
+          "sha256": "05e4144af6b23a9fb276a709011ae325787549665afbbc665531070325e0dc2d",
+          "sourceFile": "scenes/iskra-szlif-vignette.svg",
+          "sourceSha256": "e3fb2357af3d23d648b976e51f5f712b0dcf5157bd24a57a9309607bff9e5206",
+          "view": "full"
+        },
+        {
+          "file": "exports/iskra-szlif-vignette-white-64.png",
+          "size": 64,
+          "background": "white",
+          "sha256": "a084c193f9f8e017b2eb4822217e2df8a594183d7f9778a128dc80a9298a6b19",
+          "sourceFile": "scenes/iskra-szlif-vignette.svg",
+          "sourceSha256": "e3fb2357af3d23d648b976e51f5f712b0dcf5157bd24a57a9309607bff9e5206",
+          "view": "full"
+        },
+        {
+          "file": "exports/iskra-szlif-vignette-dark-128.png",
+          "size": 128,
+          "background": "dark",
+          "sha256": "6c69316f75ccc7d690f497cb1507e34b785d7c5250545fba4827e94231855f9f",
+          "sourceFile": "scenes/iskra-szlif-vignette.svg",
+          "sourceSha256": "e3fb2357af3d23d648b976e51f5f712b0dcf5157bd24a57a9309607bff9e5206",
+          "view": "full"
+        },
+        {
+          "file": "exports/iskra-szlif-vignette-dark-64.png",
+          "size": 64,
+          "background": "dark",
+          "sha256": "487908e3133dfb512795787fe8db80d843f278792af7c4a9aed3ae7db00c3e0a",
+          "sourceFile": "scenes/iskra-szlif-vignette.svg",
+          "sourceSha256": "e3fb2357af3d23d648b976e51f5f712b0dcf5157bd24a57a9309607bff9e5206",
+          "view": "full"
+        },
+        {
+          "file": "exports/iskra-szlif-vignette-camp-128.png",
+          "size": 128,
+          "background": "camp",
+          "sha256": "b3f14df83e317c35686060ce710296c295a3583741b8acedfb37aa00628613d4",
+          "sourceFile": "scenes/iskra-szlif-vignette.svg",
+          "sourceSha256": "e3fb2357af3d23d648b976e51f5f712b0dcf5157bd24a57a9309607bff9e5206",
+          "view": "full"
+        },
+        {
+          "file": "exports/iskra-szlif-vignette-camp-64.png",
+          "size": 64,
+          "background": "camp",
+          "sha256": "54486b29950a82dac01a8895cb0f6d02ed25c2f2a4d8513b9d1d1f2706decfcb",
+          "sourceFile": "scenes/iskra-szlif-vignette.svg",
+          "sourceSha256": "e3fb2357af3d23d648b976e51f5f712b0dcf5157bd24a57a9309607bff9e5206",
+          "view": "full"
+        }
+      ]
+    }
+  ],
+  "sheets": [
+    {
+      "file": "exports/sheet-directions.png",
+      "sha256": "555a5175b1b00fa0fbc258c4a8c76b77c38be7b0879a89c470b5eee9f966779f",
+      "width": 916,
+      "height": 3278,
+      "title": "DIRECTIONS 512 128 64 32 SIL64 SIL32"
+    },
+    {
+      "file": "exports/sheet-backgrounds.png",
+      "sha256": "8e2f11a641bbf1de84aa6e3ed4d09b1ea2c8892197322441f321d493b01d6c9e",
+      "width": 508,
+      "height": 974,
+      "title": "BACKGROUNDS WHITE DARK CAMP128 CAMP64"
+    },
+    {
+      "file": "exports/sheet-pair.png",
+      "sha256": "4551682ac3cb9a85f5e8cd826c159485384fb7f3f8ac5a60d048ee1d2efbf7a5",
+      "width": 1012,
+      "height": 1658,
+      "title": "MASTERS AND SCENE 512 128 64 32 SIL64 CAMP"
+    },
+    {
+      "file": "exports/sheet-proof.png",
+      "sha256": "c7106cdc292af4d08c5f2db7e8ed5bcb2065e59fcb87a2dc1909ad29e5b0c66c",
+      "width": 668,
+      "height": 890,
+      "title": "32PX ACTUAL - 32PX 8X ZOOM - 64PX ACTUAL - 64PX 4X ZOOM - ZOOM IS NOT ACTUAL SIZE"
+    },
+    {
+      "file": "exports/sheet-compare-v4.png",
+      "sha256": "698a47a654e022921c5e3bdde6a71f47b2f658d3c7f626619df07e2d4eb3389a",
+      "width": 872,
+      "height": 3278,
+      "title": "V4 REJECTED BASELINE VS V5 - EQUAL DIMENSIONS 512 128 64 32 SIL64"
+    },
+    {
+      "file": "exports/sheet-context.png",
+      "sha256": "15b0ebf9c406d4eeec3bd8708936c7e899a94c5a31a579961c8e0f606d6f6357",
+      "width": 924,
+      "height": 2270,
+      "title": "REAL UI CONTEXT 375 PHONE LIGHT / DARK - DESKTOP LIGHT / CAMP"
+    }
+  ]
+}

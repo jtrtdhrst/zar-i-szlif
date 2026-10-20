@@ -1,0 +1,42 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512" role="img" aria-labelledby="title desc">
+  <title id="title">Szlif direction B — perched thinker</title>
+  <desc id="desc">Szlif the raven, direction B: soft rounded construction. A hunched perched raven with a large heavy head tilted down over an open notebook, a shorter deep hooked ochre bill, two broad soft crest feathers laid back, a shaggy throat, a folded wing with three visible primary tips, a wide low fanned tail resting on the ground, one foot planted forward and one leg tucked, reading his plan in a talon.</desc>
+
+  <!-- CREST / broad soft feather laid back -->
+  <path id="szlif-b-crest-1" fill="#46536A" d="M 288 132 C 268 116 240 106 214 106 C 202 106 198 116 206 124 C 220 138 248 148 274 150 Z"/>
+  <!-- CREST / broad soft feather laid back -->
+  <path id="szlif-b-crest-2" fill="#46536A" d="M 276 152 C 258 140 234 132 212 134 C 200 135 197 145 205 152 C 219 163 244 168 266 168 Z"/>
+  <!-- TAIL / wide low fan resting on the ground -->
+  <path id="szlif-b-tail" fill="#232833" d="M 206 356 C 188 358 166 366 146 378 L 92 404 L 132 412 L 82 438 L 126 442 L 88 470 L 134 466 L 122 494 L 166 478 C 194 464 206 430 210 396 Z"/>
+  <!-- LEG / tucked leg folded under the body -->
+  <path id="szlif-b-leg-tucked" fill="#E2A03F" d="M 236 396 C 244 404 258 408 268 404 C 276 400 274 390 266 388 C 256 386 242 386 234 390 Z"/>
+  <!-- LEG / planted leg -->
+  <path id="szlif-b-leg" fill="#E2A03F" d="M 262 384 L 278 382 L 280 424 L 284 452 L 272 456 L 266 424 Z"/>
+  <!-- FEET / splayed toes -->
+  <path id="szlif-b-feet" fill="#E2A03F" d="M 264 444 L 278 444 L 280 453 L 302 458 L 299 467 L 284 462 L 292 474 L 284 479 L 274 466 L 262 476 L 255 472 L 259 462 L 247 464 L 244 457 L 260 453 Z"/>
+  <!-- BODY / hunched perched body with rounded shoulders -->
+  <path id="szlif-b-body" fill="#232833" d="M 276 224 C 306 232 326 258 330 296 C 334 332 322 368 300 390 C 282 408 254 412 232 400 C 208 386 196 356 200 320 C 204 284 220 248 244 232 C 254 226 266 222 276 224 Z"/>
+  <!-- WING / folded wing with three visible primary tips -->
+  <path id="szlif-b-wing" fill="#46536A" d="M 296 240 C 272 250 250 274 238 304 C 228 328 222 352 218 372 L 184 396 L 212 388 L 186 414 L 214 404 L 194 432 L 220 414 L 224 386 L 232 356 L 244 324 L 260 300 L 278 282 L 294 272 Z"/>
+  <!-- HEAD / large heavy head tilted down -->
+  <path id="szlif-b-head" fill="#232833" d="M 344 148 L 316 128 L 276 130 L 250 152 L 244 186 L 258 216 L 292 232 L 330 228 L 352 202 L 358 172 Z"/>
+  <!-- THROAT / shaggy throat hackles -->
+  <path id="szlif-b-hackle" fill="#232833" d="M 262 210 L 330 218 L 326 242 L 316 274 L 302 242 L 288 278 L 278 240 L 260 252 Z"/>
+  <!-- BILL / short deep hooked ochre bill angled down -->
+  <path id="szlif-b-bill" fill="#E2A03F" d="M 352 178 L 388 192 L 420 212 L 428 230 L 418 242 L 400 232 L 372 212 L 348 200 Z"/>
+  <!-- BILL / mandible split -->
+  <path id="szlif-b-bill-mandible" fill="#46536A" d="M 352 194 L 396 212 L 402 222 L 352 204 Z"/>
+  <!-- EYE / calm narrow almond -->
+  <path id="szlif-b-eye" fill="#D7DCE3" d="M 276 168 C 276 164 282 162 290 162 C 298 162 304 164 304 168 C 304 172 298 175 290 175 C 282 175 276 172 276 168 Z"/>
+  <!-- EYE / dark pupil -->
+  <path id="szlif-b-pupil" fill="#232833" d="M 284 168 C 284 165 288 164 292 164 C 296 164 299 166 299 168 C 299 171 295 172 291 172 C 287 172 284 171 284 168 Z"/>
+  <!-- NOTEBOOK / open turquoise plan -->
+  <path id="szlif-b-notebook" fill="#2BB8A6" d="M 300 300 L 372 288 L 404 322 L 330 336 Z"/>
+  <!-- NOTEBOOK / page edge -->
+  <path id="szlif-b-notebook-pages" fill="#D7DCE3" d="M 372 288 L 380 290 L 412 322 L 404 322 Z"/>
+  <!-- NOTEBOOK / plan lines -->
+  <path id="szlif-b-notebook-lines" fill="#232833" d="M 314 306 L 366 298 L 370 304 L 318 312 Z M 320 320 L 372 312 L 376 318 L 324 326 Z"/>
+  <!-- TALON / turning the page -->
+  <path id="szlif-b-talon" fill="#E2A03F" d="M 288 322 L 308 318 L 316 326 L 310 340 L 290 340 L 280 332 Z"/>
+
+</svg>

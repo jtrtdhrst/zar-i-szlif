@@ -1,0 +1,43 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512" role="img" aria-labelledby="title desc">
+  <title id="title">Iskra direction C — emblem</title>
+  <desc id="desc">Iskra the fox, direction C: reduced emblematic construction. A compact badge-like fox built from a few large primitives: a hexagonal skull with a triangular snout, two triangular ears, one oversized circular tail disc with a cream wedge, dot eyes, a single turquoise band wrapping the lower head as a scarf, a short bar arm and a square mitt holding a turquoise plan card up at the side.</desc>
+
+  <!-- TAIL / one oversized disc with a cream wedge -->
+  <path id="iskra-c-tail" fill="#E2702D" d="M 316 200 C 372 200 414 240 414 292 C 414 344 372 384 316 384 C 262 384 222 344 222 292 C 222 240 262 200 316 200 Z"/>
+  <!-- TAIL / cream wedge in the disc -->
+  <path id="iskra-c-tail-tip" fill="#F7E8D3" d="M 414 292 C 414 336 380 372 336 378 C 362 356 376 324 376 292 C 376 260 362 228 336 206 C 380 212 414 248 414 292 Z"/>
+  <!-- BODY / compact rounded trapezoid -->
+  <path id="iskra-c-body" fill="#E2702D" d="M 160 288 C 214 272 268 272 308 292 C 336 306 348 340 344 380 C 340 420 316 444 278 448 C 240 452 198 442 178 418 C 160 396 156 356 160 320 C 161 306 160 296 160 288 Z"/>
+  <!-- LEG / short stub leg -->
+  <path id="iskra-c-leg" fill="#E2702D" d="M 186 402 C 184 428 188 448 198 462 C 210 476 232 474 238 458 C 242 444 230 430 224 412 C 212 404 190 396 186 402 Z"/>
+  <!-- LEG / cream sock -->
+  <path id="iskra-c-sock" fill="#F7E8D3" d="M 190 448 C 204 440 224 444 230 458 C 236 472 230 488 216 492 C 200 496 186 488 182 474 C 178 460 182 452 190 448 Z"/>
+  <!-- ARM / short bar arm lifted at the side -->
+  <path id="iskra-c-arm" fill="#E2702D" d="M 168 300 C 146 302 124 312 108 328 C 96 340 100 356 114 358 C 132 360 150 344 170 330 C 182 322 180 298 168 300 Z"/>
+  <!-- PAW / square mitt -->
+  <path id="iskra-c-paw" fill="#F7E8D3" d="M 92 322 C 110 316 128 324 132 340 C 136 356 128 372 112 374 C 96 376 82 364 82 348 C 82 336 84 326 92 322 Z"/>
+  <!-- PLAN / square turquoise plan card held up -->
+  <path id="iskra-c-plan" fill="#2BB8A6" d="M 40 300 L 92 296 L 98 352 L 46 356 Z"/>
+  <!-- HEAD / hexagonal skull -->
+  <path id="iskra-c-head" fill="#E2702D" d="M 116 214 L 140 134 L 232 112 L 316 148 L 330 226 L 296 296 L 206 320 L 130 286 Z"/>
+  <!-- MUZZLE / triangular cream jaw -->
+  <path id="iskra-c-muzzle" fill="#F7E8D3" d="M 116 214 L 140 224 L 128 268 L 96 244 Z"/>
+  <!-- NOSE / ink triangle -->
+  <path id="iskra-c-nose" fill="#2B2A33" d="M 112 200 L 134 206 L 126 222 L 104 214 Z"/>
+  <!-- EYE / two dot eyes in one path -->
+  <path id="iskra-c-eyes" fill="#2B2A33" d="M 176 196 L 190 192 L 192 206 L 178 210 Z M 226 188 L 240 186 L 241 200 L 227 202 Z"/>
+  <!-- FRINGE / angular asymmetric wedge over the far eye -->
+  <path id="iskra-c-fringe" fill="#B94F1D" d="M 186 124 L 210 118 L 196 202 L 170 198 Z"/>
+  <!-- FRINGE / triangular cowlick -->
+  <path id="iskra-c-cowlick" fill="#B94F1D" d="M 208 116 L 232 78 L 244 112 L 224 124 Z"/>
+  <!-- SCARF / single band wrapping the lower head -->
+  <path id="iskra-c-scarf" fill="#2BB8A6" d="M 128 282 L 302 252 L 308 286 L 134 316 Z"/>
+  <!-- EAR / far ear triangle -->
+  <path id="iskra-c-ear-far" fill="#E2702D" d="M 138 138 L 150 74 L 190 124 Z"/>
+  <!-- EAR / near ear triangle -->
+  <path id="iskra-c-ear-near" fill="#E2702D" d="M 232 116 L 248 56 L 288 110 Z"/>
+
+  <!-- SCARF / knot where the band turns -->
+  <path id="iskra-c-scarf-knot" fill="#2BB8A6" d="M 282 240 L 310 232 L 322 258 L 294 266 Z"/>
+
+</svg>

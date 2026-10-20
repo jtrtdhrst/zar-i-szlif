@@ -1,0 +1,42 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512" role="img" aria-labelledby="title desc">
+  <title id="title">Szlif — master raven vector (direction A selected and refined)</title>
+  <desc id="desc">Szlif the raven, selected master. Angular construction: a heavy straight ochre bill with a down hook angled at the plan, a wedge head tilted down, three broad crest feathers raked back over the nape, shaggy throat hackles, a shouldered body tapering to a narrow rump, a slate folded wing whose stepped primary tips break the back outline, a wide open fanned tail, long thin legs with splayed feet, and a small turquoise plan notebook held in a talon. Flat vector, five colours, eighteen named paths.</desc>
+
+  <!-- CREST / broad feather raked back over the crown -->
+  <path id="crest-1" fill="#46536A" d="M 290 78 C 272 62 248 50 224 44 C 214 41 208 49 214 58 C 224 74 248 88 276 96 Z"/>
+  <!-- CREST / broad feather raked back over the crown -->
+  <path id="crest-2" fill="#46536A" d="M 274 94 C 256 80 234 68 212 62 C 202 60 198 68 204 76 C 214 90 236 102 260 110 Z"/>
+  <!-- CREST / broad feather raked back over the nape -->
+  <path id="crest-3" fill="#46536A" d="M 256 112 C 240 102 220 94 202 94 C 192 94 189 102 195 109 C 205 120 226 128 246 132 Z"/>
+  <!-- TAIL / wide open fan of separated feather tips -->
+  <path id="tail" fill="#232833" d="M 212 292 C 198 298 184 312 172 328 L 122 352 L 156 372 L 124 404 L 164 412 L 142 448 L 182 440 L 176 476 L 212 456 C 232 442 240 416 236 390 C 232 358 222 320 212 292 Z"/>
+  <!-- LEGS / long thin bird legs -->
+  <path id="legs" fill="#E2A03F" d="M 216 344 L 230 344 L 228 396 L 232 440 L 220 442 L 214 394 Z M 244 340 L 258 338 L 262 390 L 268 432 L 256 436 L 248 390 Z"/>
+  <!-- FEET / splayed toes, three forward and one back -->
+  <path id="feet" fill="#E2A03F" d="M 210 424 L 224 424 L 226 433 L 248 438 L 245 447 L 230 442 L 238 454 L 230 459 L 220 446 L 208 456 L 201 452 L 205 442 L 193 444 L 190 437 L 206 433 Z M 248 416 L 262 416 L 264 425 L 286 430 L 283 439 L 268 434 L 276 446 L 268 451 L 258 438 L 246 448 L 239 444 L 243 434 L 231 436 L 228 429 L 244 425 Z"/>
+  <!-- BODY / shouldered hunched body tapering to a narrow rump -->
+  <path id="body" fill="#232833" d="M 282 152 C 260 164 242 190 230 222 C 218 254 212 288 208 318 C 204 342 212 356 228 358 C 248 360 264 344 274 318 C 284 292 288 258 290 222 C 292 190 292 164 288 154 Z"/>
+  <!-- WING / folded wing whose stepped primary tips break the back outline -->
+  <path id="wing" fill="#46536A" d="M 280 168 C 258 180 240 202 228 230 C 216 254 210 280 206 302 L 172 328 L 200 320 L 178 350 L 204 340 L 186 368 L 212 346 L 218 318 L 224 288 L 234 258 L 248 230 L 264 208 L 280 196 Z"/>
+  <!-- HEAD / angular wedge tilted down toward the plan -->
+  <path id="head" fill="#232833" d="M 322 96 L 296 84 L 262 92 L 250 118 L 252 146 L 270 168 L 306 180 L 342 170 L 352 144 L 346 118 Z"/>
+  <!-- THROAT / shaggy hackle breaking the throat line -->
+  <path id="hackle" fill="#232833" d="M 268 164 L 344 164 L 338 188 L 328 222 L 314 190 L 300 226 L 290 188 L 272 200 Z"/>
+  <!-- BILL / heavy straight wedge with a down hook, angled at the plan -->
+  <path id="bill" fill="#E2A03F" d="M 346 116 L 392 138 L 430 162 L 440 180 L 432 196 L 414 190 L 380 172 L 348 150 Z"/>
+  <!-- BILL / mandible split -->
+  <path id="bill-mandible" fill="#46536A" d="M 350 138 L 402 158 L 410 168 L 352 150 Z"/>
+  <!-- EYE / small pale almond -->
+  <path id="eye" fill="#D7DCE3" d="M 286 116 C 286 113 291 111 297 111 C 303 111 308 113 308 116 C 308 119 303 121 297 121 C 291 121 286 119 286 116 Z"/>
+  <!-- EYE / dark pupil -->
+  <path id="pupil" fill="#232833" d="M 292 116 C 292 114 295 113 298 113 C 301 113 303 114 303 116 C 303 118 300 119 297 119 C 294 119 292 118 292 116 Z"/>
+  <!-- NOTEBOOK / small turquoise plan notebook -->
+  <path id="notebook" fill="#2BB8A6" d="M 262 300 L 330 288 L 338 320 L 270 332 Z"/>
+  <!-- NOTEBOOK / page edge -->
+  <path id="notebook-pages" fill="#D7DCE3" d="M 330 288 L 337 287 L 345 317 L 338 320 Z"/>
+  <!-- NOTEBOOK / plan lines -->
+  <path id="notebook-lines" fill="#232833" d="M 274 308 L 322 299 L 323 305 L 275 314 Z"/>
+  <!-- TALON / gripping the notebook -->
+  <path id="talon" fill="#E2A03F" d="M 248 320 L 268 316 L 276 324 L 270 336 L 250 336 L 240 328 Z"/>
+
+</svg>

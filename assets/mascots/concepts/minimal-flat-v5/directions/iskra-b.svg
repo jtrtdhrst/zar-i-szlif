@@ -1,0 +1,48 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512" role="img" aria-labelledby="title desc">
+  <title id="title">Iskra direction B — courier prowler</title>
+  <desc id="desc">Iskra the fox, direction B: angular editorial construction. A low forward-leaning fox in mid-dash, faceted planes and straight edges, a wedge head with a triangular muzzle and slit eyes, hard-edged angular fringe over the far eye, a sharp turquoise scarf banner streaming behind, one foreleg stretched forward presenting a turquoise plan tablet, a planted foreleg and a long low streaming tail with a cream tip.</desc>
+
+  <!-- TAIL / long low streaming plume -->
+  <path id="iskra-b-tail" fill="#E2702D" d="M 366 296 C 404 284 444 268 476 248 C 494 236 500 246 488 262 C 470 288 434 314 394 332 C 372 342 348 344 340 334 C 332 324 344 302 366 296 Z"/>
+  <!-- TAIL / cream tip -->
+  <path id="iskra-b-tail-tip" fill="#F7E8D3" d="M 476 248 C 494 236 500 246 488 262 C 480 273 468 284 456 292 C 464 276 472 262 476 248 Z"/>
+  <!-- BODY / low angular wedge leaning forward -->
+  <path id="iskra-b-body" fill="#E2702D" d="M 250 250 C 288 250 328 262 358 284 C 388 306 404 340 400 372 C 396 404 372 426 336 434 C 300 442 258 438 230 424 C 202 410 188 384 190 352 C 192 318 206 282 230 262 C 236 254 242 250 250 250 Z"/>
+  <!-- HAUNCH / angular rust thigh mass -->
+  <path id="iskra-b-haunch" fill="#B94F1D" d="M 322 306 C 354 302 378 318 384 344 C 390 370 376 396 352 404 C 328 412 302 402 294 382 C 286 362 296 312 322 306 Z"/>
+  <!-- LEG / planted foreleg -->
+  <path id="iskra-b-leg" fill="#E2702D" d="M 236 372 C 232 402 234 428 244 448 C 254 468 274 470 282 456 C 288 444 278 428 268 410 C 258 392 252 372 252 360 C 246 358 240 364 236 372 Z"/>
+  <!-- LEG / cream sock on the planted paw -->
+  <path id="iskra-b-sock" fill="#F7E8D3" d="M 244 434 C 258 426 278 430 286 444 C 294 458 290 476 276 482 C 262 488 244 482 238 468 C 232 454 234 442 244 434 Z"/>
+  <!-- ARM / foreleg stretched forward, presenting the plan -->
+  <path id="iskra-b-arm" fill="#E2702D" d="M 232 262 C 210 272 184 292 158 314 C 138 330 118 348 104 366 C 94 378 100 392 114 388 C 134 382 156 362 178 344 C 204 322 228 300 248 288 C 258 282 244 256 232 262 Z"/>
+  <!-- PAW / cream mitt gripping the plan tablet -->
+  <path id="iskra-b-paw" fill="#F7E8D3" d="M 100 352 C 112 342 130 344 138 356 C 146 368 142 386 130 394 C 118 402 100 400 92 388 C 84 376 88 362 100 352 Z"/>
+  <!-- PLAN / turquoise plan tablet -->
+  <path id="iskra-b-plan" fill="#2BB8A6" d="M 40 300 L 128 330 L 106 420 L 22 392 Z"/>
+  <!-- PLAN / ink lines on the tablet -->
+  <path id="iskra-b-plan-lines" fill="#2B2A33" d="M 56 330 L 118 352 L 114 362 L 52 340 Z M 48 356 L 110 378 L 106 388 L 44 366 Z"/>
+  <!-- HEAD / faceted wedge with a straight brow line -->
+  <path id="iskra-b-head" fill="#E2702D" d="M 258 158 L 206 132 L 150 146 L 96 190 L 70 224 L 104 250 L 150 266 L 204 272 L 246 252 L 264 206 Z"/>
+  <!-- MUZZLE / straight cream wedge under the snout -->
+  <path id="iskra-b-muzzle" fill="#F7E8D3" d="M 74 216 L 116 226 L 106 258 L 68 246 Z"/>
+  <!-- NOSE / angular ink wedge -->
+  <path id="iskra-b-nose" fill="#2B2A33" d="M 70 206 L 96 210 L 92 228 L 66 224 Z"/>
+  <!-- EYE / far eye, hard slit -->
+  <path id="iskra-b-eye-far" fill="#2B2A33" d="M 150 188 L 176 182 L 178 196 L 152 202 Z"/>
+  <!-- EYE / near eye, hard slit -->
+  <path id="iskra-b-eye-near" fill="#2B2A33" d="M 204 176 L 230 172 L 231 186 L 205 190 Z"/>
+  <!-- FRINGE / hard angular lock crossing the far eye -->
+  <path id="iskra-b-fringe-lock" fill="#B94F1D" d="M 214 138 L 232 140 L 186 216 L 168 212 Z"/>
+  <!-- FRINGE / hard cowlick spike breaking the crown -->
+  <path id="iskra-b-fringe-tuft" fill="#B94F1D" d="M 232 134 L 250 108 L 258 132 L 242 142 Z"/>
+  <!-- SCARF / sharp banner streaming behind the neck -->
+  <path id="iskra-b-scarf" fill="#2BB8A6" d="M 236 236 L 300 246 L 392 274 L 356 292 L 268 274 L 230 258 Z"/>
+  <!-- SCARF / knot where the banner folds at the neck -->
+  <path id="iskra-b-scarf-knot" fill="#2BB8A6" d="M 226 228 L 252 224 L 266 246 L 244 260 L 222 250 Z"/>
+  <!-- EAR / far ear, hard triangle -->
+  <path id="iskra-b-ear-far" fill="#E2702D" d="M 148 148 L 158 92 L 196 134 Z"/>
+  <!-- EAR / near ear, hard triangle -->
+  <path id="iskra-b-ear-near" fill="#E2702D" d="M 206 134 L 218 82 L 252 130 Z"/>
+
+</svg>
