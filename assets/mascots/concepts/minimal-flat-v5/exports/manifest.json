@@ -495,7 +495,7 @@
           "file": "exports/szlif-a-dark-128.png",
           "size": 128,
           "background": "dark",
-          "sha256": "d7d5fffa0f08c00498671e31b462ec36bce1c7f8c580c32f71af437a41139039",
+          "sha256": "91748b25d2ed9d86ed4b7bc3896320892a7effd9962ba5901b14f6a08cb4a9a7",
           "sourceFile": "directions/szlif-a.svg",
           "sourceSha256": "9cd6b455dd55844344d8b4ad24647d8eb80f66d097b3845f9262f84cea3547ec",
           "view": "full"
@@ -504,7 +504,7 @@
           "file": "exports/szlif-a-dark-64.png",
           "size": 64,
           "background": "dark",
-          "sha256": "f107bf4d81ace8f167b4e23b458a23b5fc545c07cc00010a86a6bad02ef3151b",
+          "sha256": "0ae1e1df120dd2003dd0974c286f8fe0e92e4c1a7d9b4508fd35260af65704e7",
           "sourceFile": "directions/szlif-a.svg",
           "sourceSha256": "9cd6b455dd55844344d8b4ad24647d8eb80f66d097b3845f9262f84cea3547ec",
           "view": "full"
@@ -513,7 +513,7 @@
           "file": "exports/szlif-a-camp-128.png",
           "size": 128,
           "background": "camp",
-          "sha256": "e680687ddf3d222667cad626a5f813a08c0224d29d37608062cf605ed24e6dbf",
+          "sha256": "c596aa05ceda0ee61563a92a469a291c566aa060c8364005d3b8b415f709a6e7",
           "sourceFile": "directions/szlif-a.svg",
           "sourceSha256": "9cd6b455dd55844344d8b4ad24647d8eb80f66d097b3845f9262f84cea3547ec",
           "view": "full"
@@ -522,7 +522,7 @@
           "file": "exports/szlif-a-camp-64.png",
           "size": 64,
           "background": "camp",
-          "sha256": "04d53c880612b0aee9cc4532ea4249f84c0db8c041714ef4123dc2deb40c1c70",
+          "sha256": "b9be59ec2f64abf79f20a0ed55facddcd45ddba6fb5860549d00ac1f9044a6b4",
           "sourceFile": "directions/szlif-a.svg",
           "sourceSha256": "9cd6b455dd55844344d8b4ad24647d8eb80f66d097b3845f9262f84cea3547ec",
           "view": "full"
@@ -625,7 +625,7 @@
           "file": "exports/szlif-b-dark-128.png",
           "size": 128,
           "background": "dark",
-          "sha256": "5f8ed5f0ca8382c84d2bac36609eaef947cc9f961b8b00bb953e970088639c43",
+          "sha256": "2d318ef66cc6049ddd31cdd690088ae951742f25674487bee4e60567c35cb605",
           "sourceFile": "directions/szlif-b.svg",
           "sourceSha256": "ff7b18413c9b5e1c3a8cb5fc67caf686477867c45c92a29f3d86267ea8ee64fa",
           "view": "full"
@@ -634,7 +634,7 @@
           "file": "exports/szlif-b-dark-64.png",
           "size": 64,
           "background": "dark",
-          "sha256": "749bc95217b25d2a0b28fc3fa5c36b4c3ee395f7434905a2dff5d084a0a3fb26",
+          "sha256": "ae0d5a5c1f63732eed47089c4ebccd2b62aa392c9ed9e2dbe0fa0141526b46fc",
           "sourceFile": "directions/szlif-b.svg",
           "sourceSha256": "ff7b18413c9b5e1c3a8cb5fc67caf686477867c45c92a29f3d86267ea8ee64fa",
           "view": "full"
@@ -643,7 +643,7 @@
           "file": "exports/szlif-b-camp-128.png",
           "size": 128,
           "background": "camp",
-          "sha256": "df2095be37a9f9c2a52a3f879e83a806e0d974d187d52a0b5bd4151d2da91d54",
+          "sha256": "d2c3590886fa2f58f561e5fb48d7a30c3012eac39d397d4bc6aa5c154c7ece44",
           "sourceFile": "directions/szlif-b.svg",
           "sourceSha256": "ff7b18413c9b5e1c3a8cb5fc67caf686477867c45c92a29f3d86267ea8ee64fa",
           "view": "full"
@@ -652,7 +652,7 @@
           "file": "exports/szlif-b-camp-64.png",
           "size": 64,
           "background": "camp",
-          "sha256": "f8dbb2578f759f77f3ee629ce1e8f5c8f6740db6bebd20528405015439fa2306",
+          "sha256": "ee0be644ab8317ba84e77c5db965fc5b0bf0942a4eea9c76c34feffc599a2e53",
           "sourceFile": "directions/szlif-b.svg",
           "sourceSha256": "ff7b18413c9b5e1c3a8cb5fc67caf686477867c45c92a29f3d86267ea8ee64fa",
           "view": "full"
@@ -755,7 +755,7 @@
           "file": "exports/szlif-c-dark-128.png",
           "size": 128,
           "background": "dark",
-          "sha256": "1479b1c606489a26d5144e4c07bf044878ce88abdb304d3c37f6113475cc370c",
+          "sha256": "16d7bb3a3984099d4565c29d15a013dd9b8672a53cba44be737420c69ad6b63b",
           "sourceFile": "directions/szlif-c.svg",
           "sourceSha256": "5eb7e0bd6278fe9917736567d91b46abc25cde82ce9ce88801fb978b47d1f330",
           "view": "full"
@@ -764,7 +764,7 @@
           "file": "exports/szlif-c-dark-64.png",
           "size": 64,
           "background": "dark",
-          "sha256": "037d62022453fe018b1fa20a1573d1759dc3894fe7d8c7864ed675593edc3bcf",
+          "sha256": "384ddb5676c58207bc8a48c5f2d4626da0852ce37a410a054ce57220abb107cd",
           "sourceFile": "directions/szlif-c.svg",
           "sourceSha256": "5eb7e0bd6278fe9917736567d91b46abc25cde82ce9ce88801fb978b47d1f330",
           "view": "full"
@@ -773,7 +773,7 @@
           "file": "exports/szlif-c-camp-128.png",
           "size": 128,
           "background": "camp",
-          "sha256": "956a73cf24bcce58b54810d4144ca6006bb9295fc04d9177f53447a6eed9fca3",
+          "sha256": "cc95ee2e5a288b7b9aad4a465f44df918dadad2210697e60ce1222211ea694b2",
           "sourceFile": "directions/szlif-c.svg",
           "sourceSha256": "5eb7e0bd6278fe9917736567d91b46abc25cde82ce9ce88801fb978b47d1f330",
           "view": "full"
@@ -782,7 +782,7 @@
           "file": "exports/szlif-c-camp-64.png",
           "size": 64,
           "background": "camp",
-          "sha256": "a83fb91fc121d2900376d0bf6ee7de1d0925f5576fb12a1166b5d89214a700ab",
+          "sha256": "9e6112d61682fe0e33dd367c19ffd64ff0c412d87476dccc7fec3cf9bad3f7c4",
           "sourceFile": "directions/szlif-c.svg",
           "sourceSha256": "5eb7e0bd6278fe9917736567d91b46abc25cde82ce9ce88801fb978b47d1f330",
           "view": "full"
@@ -1015,7 +1015,7 @@
           "file": "exports/szlif-master-dark-128.png",
           "size": 128,
           "background": "dark",
-          "sha256": "d7d5fffa0f08c00498671e31b462ec36bce1c7f8c580c32f71af437a41139039",
+          "sha256": "91748b25d2ed9d86ed4b7bc3896320892a7effd9962ba5901b14f6a08cb4a9a7",
           "sourceFile": "masters/szlif-master.svg",
           "sourceSha256": "155f4d1012df02f0fd469692d0997262feaaf16963c47883842fb703839d569f",
           "view": "full"
@@ -1024,7 +1024,7 @@
           "file": "exports/szlif-master-dark-64.png",
           "size": 64,
           "background": "dark",
-          "sha256": "f107bf4d81ace8f167b4e23b458a23b5fc545c07cc00010a86a6bad02ef3151b",
+          "sha256": "0ae1e1df120dd2003dd0974c286f8fe0e92e4c1a7d9b4508fd35260af65704e7",
           "sourceFile": "masters/szlif-master.svg",
           "sourceSha256": "155f4d1012df02f0fd469692d0997262feaaf16963c47883842fb703839d569f",
           "view": "full"
@@ -1033,7 +1033,7 @@
           "file": "exports/szlif-master-camp-128.png",
           "size": 128,
           "background": "camp",
-          "sha256": "e680687ddf3d222667cad626a5f813a08c0224d29d37608062cf605ed24e6dbf",
+          "sha256": "c596aa05ceda0ee61563a92a469a291c566aa060c8364005d3b8b415f709a6e7",
           "sourceFile": "masters/szlif-master.svg",
           "sourceSha256": "155f4d1012df02f0fd469692d0997262feaaf16963c47883842fb703839d569f",
           "view": "full"
@@ -1042,7 +1042,7 @@
           "file": "exports/szlif-master-camp-64.png",
           "size": 64,
           "background": "camp",
-          "sha256": "04d53c880612b0aee9cc4532ea4249f84c0db8c041714ef4123dc2deb40c1c70",
+          "sha256": "b9be59ec2f64abf79f20a0ed55facddcd45ddba6fb5860549d00ac1f9044a6b4",
           "sourceFile": "masters/szlif-master.svg",
           "sourceSha256": "155f4d1012df02f0fd469692d0997262feaaf16963c47883842fb703839d569f",
           "view": "full"
@@ -1150,7 +1150,7 @@
           "file": "exports/iskra-a-szlif-a-pair-dark-128.png",
           "size": 128,
           "background": "dark",
-          "sha256": "b567a260c0ca13e3cdd9e098b9ce419a6a6c76ccf7079f8af467716b19aa9718",
+          "sha256": "c10d9a9c07b097fc8397a86513398ea408433c4b82a166bd28fe02ff8292ecbf",
           "sourceFile": "scenes/iskra-a-szlif-a-pair.svg",
           "sourceSha256": "2257e38d14ad8c3ccfe4064956f8fb176b4aac315f54ecb81399eea21b68d9b1",
           "view": "full"
@@ -1159,7 +1159,7 @@
           "file": "exports/iskra-a-szlif-a-pair-dark-64.png",
           "size": 64,
           "background": "dark",
-          "sha256": "ddd5fa94b2b249721de510e425ae775d55bde55c18b08c52f517c6c99b46d944",
+          "sha256": "406d4c69445a13c9c117d14a860ff838690dc1c56bb50a0a8447bf891ee1a3d0",
           "sourceFile": "scenes/iskra-a-szlif-a-pair.svg",
           "sourceSha256": "2257e38d14ad8c3ccfe4064956f8fb176b4aac315f54ecb81399eea21b68d9b1",
           "view": "full"
@@ -1168,7 +1168,7 @@
           "file": "exports/iskra-a-szlif-a-pair-camp-128.png",
           "size": 128,
           "background": "camp",
-          "sha256": "cecee7a43fce2bad9f6100a082e9a40fe87fe7db4b98797ee0850b579470caf1",
+          "sha256": "fe54ded932b3bf1e7def96fe266e475418f4b10634344012cedbf21a5fb0c4c0",
           "sourceFile": "scenes/iskra-a-szlif-a-pair.svg",
           "sourceSha256": "2257e38d14ad8c3ccfe4064956f8fb176b4aac315f54ecb81399eea21b68d9b1",
           "view": "full"
@@ -1177,7 +1177,7 @@
           "file": "exports/iskra-a-szlif-a-pair-camp-64.png",
           "size": 64,
           "background": "camp",
-          "sha256": "6b9c1882db26adb293cdefba95612fbf64c6bd1006c21cca9fe7ef60fd058b03",
+          "sha256": "828e3474ab9ff331829557a5ddba1978051ad91844d1627e7cfba93524f0f37d",
           "sourceFile": "scenes/iskra-a-szlif-a-pair.svg",
           "sourceSha256": "2257e38d14ad8c3ccfe4064956f8fb176b4aac315f54ecb81399eea21b68d9b1",
           "view": "full"
@@ -1285,7 +1285,7 @@
           "file": "exports/iskra-b-szlif-b-pair-dark-128.png",
           "size": 128,
           "background": "dark",
-          "sha256": "8fac0f72f8c20117c2896751d5b0a2871bfbb68f33ddd384c138884a3231fb0d",
+          "sha256": "ad6509d348a959f7666f34b63f1b0aa2dbcc8ba3d54c7bc592819d7a876c3f0a",
           "sourceFile": "scenes/iskra-b-szlif-b-pair.svg",
           "sourceSha256": "452ff5fd5f36b16f44b299d60ee6fae0ad7725d5dad5e9b19e5d5494c6ab785e",
           "view": "full"
@@ -1294,7 +1294,7 @@
           "file": "exports/iskra-b-szlif-b-pair-dark-64.png",
           "size": 64,
           "background": "dark",
-          "sha256": "e7e795d152bfa32cea4303ff49dd71c5d921c0c909a86d44f3759a8d4b48ac87",
+          "sha256": "428d14f0b4226fbe3e596732d0ca72d9394253e94b7e7a8363c6c3e2ab8f01ae",
           "sourceFile": "scenes/iskra-b-szlif-b-pair.svg",
           "sourceSha256": "452ff5fd5f36b16f44b299d60ee6fae0ad7725d5dad5e9b19e5d5494c6ab785e",
           "view": "full"
@@ -1303,7 +1303,7 @@
           "file": "exports/iskra-b-szlif-b-pair-camp-128.png",
           "size": 128,
           "background": "camp",
-          "sha256": "aa9857cb2d003255b70232d1c73720bfdd22d17b218ee813fce399927a2abf72",
+          "sha256": "da2472798b56b63f3b8cfb79958c86066adb11d2f907a5755b7a44d76ee62e0a",
           "sourceFile": "scenes/iskra-b-szlif-b-pair.svg",
           "sourceSha256": "452ff5fd5f36b16f44b299d60ee6fae0ad7725d5dad5e9b19e5d5494c6ab785e",
           "view": "full"
@@ -1312,7 +1312,7 @@
           "file": "exports/iskra-b-szlif-b-pair-camp-64.png",
           "size": 64,
           "background": "camp",
-          "sha256": "05a5bb956065902d3ef22e283f2f97d5ecf30e1e16a48de88bfff11655f028fa",
+          "sha256": "6986f23c553b7c172edf2685aa80688042f7d1e193a660d325cbf72c7b697bba",
           "sourceFile": "scenes/iskra-b-szlif-b-pair.svg",
           "sourceSha256": "452ff5fd5f36b16f44b299d60ee6fae0ad7725d5dad5e9b19e5d5494c6ab785e",
           "view": "full"
@@ -1420,7 +1420,7 @@
           "file": "exports/iskra-c-szlif-c-pair-dark-128.png",
           "size": 128,
           "background": "dark",
-          "sha256": "30bebcb10d0f835bc46c3524ac711ec6765de8568d545c68d7b587367fb605a1",
+          "sha256": "1440a80ea7159c2a9f84d0c336bd8d7ebb86b009b79fe0a85f4286607e5fded6",
           "sourceFile": "scenes/iskra-c-szlif-c-pair.svg",
           "sourceSha256": "21ae639b339785e4396fd88f27ba7faff0796eae3ecbd3e9d8e17b4e44c0572d",
           "view": "full"
@@ -1429,7 +1429,7 @@
           "file": "exports/iskra-c-szlif-c-pair-dark-64.png",
           "size": 64,
           "background": "dark",
-          "sha256": "9d354f8a737214c28815d826836d0d2d25684dce8b471d2962d22ab80819ed33",
+          "sha256": "f9756c680bb0505f39d60e1234921c687d2d5e5f384277832694c9b2be3368cd",
           "sourceFile": "scenes/iskra-c-szlif-c-pair.svg",
           "sourceSha256": "21ae639b339785e4396fd88f27ba7faff0796eae3ecbd3e9d8e17b4e44c0572d",
           "view": "full"
@@ -1438,7 +1438,7 @@
           "file": "exports/iskra-c-szlif-c-pair-camp-128.png",
           "size": 128,
           "background": "camp",
-          "sha256": "d63cb1b1e2d1228aaea4d69f5ba0c42c6cb2daa5ce881b280a0f0657f8db0c45",
+          "sha256": "1bc314f2a7acbb3c5d48fa42731d0d9b04f37f2a92e6555e4b9439cb91e13e3c",
           "sourceFile": "scenes/iskra-c-szlif-c-pair.svg",
           "sourceSha256": "21ae639b339785e4396fd88f27ba7faff0796eae3ecbd3e9d8e17b4e44c0572d",
           "view": "full"
@@ -1447,7 +1447,7 @@
           "file": "exports/iskra-c-szlif-c-pair-camp-64.png",
           "size": 64,
           "background": "camp",
-          "sha256": "5240733f1d2ec2cc0d43c4cd3ce89bef7ed7309c54329cdd073a31b707f5275e",
+          "sha256": "ad9add99760448b1a33f248685ded42444da37f8f7cb169e4c712d8938d61cd1",
           "sourceFile": "scenes/iskra-c-szlif-c-pair.svg",
           "sourceSha256": "21ae639b339785e4396fd88f27ba7faff0796eae3ecbd3e9d8e17b4e44c0572d",
           "view": "full"
@@ -1555,7 +1555,7 @@
           "file": "exports/iskra-szlif-vignette-dark-128.png",
           "size": 128,
           "background": "dark",
-          "sha256": "6c69316f75ccc7d690f497cb1507e34b785d7c5250545fba4827e94231855f9f",
+          "sha256": "68afedbf298d227ca5d0d66362b91ef4ca6e292ecf1de45f17d89793e471316a",
           "sourceFile": "scenes/iskra-szlif-vignette.svg",
           "sourceSha256": "e3fb2357af3d23d648b976e51f5f712b0dcf5157bd24a57a9309607bff9e5206",
           "view": "full"
@@ -1564,7 +1564,7 @@
           "file": "exports/iskra-szlif-vignette-dark-64.png",
           "size": 64,
           "background": "dark",
-          "sha256": "487908e3133dfb512795787fe8db80d843f278792af7c4a9aed3ae7db00c3e0a",
+          "sha256": "b21f24c7fa6a35a18c0cdeb64ac64140e8fa6c3fb420dc74866aaf2e22681beb",
           "sourceFile": "scenes/iskra-szlif-vignette.svg",
           "sourceSha256": "e3fb2357af3d23d648b976e51f5f712b0dcf5157bd24a57a9309607bff9e5206",
           "view": "full"
@@ -1573,7 +1573,7 @@
           "file": "exports/iskra-szlif-vignette-camp-128.png",
           "size": 128,
           "background": "camp",
-          "sha256": "b3f14df83e317c35686060ce710296c295a3583741b8acedfb37aa00628613d4",
+          "sha256": "00d6975c3248dceea61488ad0828c5b5a5e87f91afdea001c098a4ab8ef3afe1",
           "sourceFile": "scenes/iskra-szlif-vignette.svg",
           "sourceSha256": "e3fb2357af3d23d648b976e51f5f712b0dcf5157bd24a57a9309607bff9e5206",
           "view": "full"
@@ -1582,7 +1582,7 @@
           "file": "exports/iskra-szlif-vignette-camp-64.png",
           "size": 64,
           "background": "camp",
-          "sha256": "54486b29950a82dac01a8895cb0f6d02ed25c2f2a4d8513b9d1d1f2706decfcb",
+          "sha256": "dee6f176fd183f942444bb97c5ed74a9e05984c7299516d9b48121add2fcf3c5",
           "sourceFile": "scenes/iskra-szlif-vignette.svg",
           "sourceSha256": "e3fb2357af3d23d648b976e51f5f712b0dcf5157bd24a57a9309607bff9e5206",
           "view": "full"
@@ -1600,14 +1600,14 @@
     },
     {
       "file": "exports/sheet-backgrounds.png",
-      "sha256": "8e2f11a641bbf1de84aa6e3ed4d09b1ea2c8892197322441f321d493b01d6c9e",
+      "sha256": "3469eba49b9efd246f57334e4d716f33896ad2ff9a9eabd4f3633fd388212564",
       "width": 508,
       "height": 974,
       "title": "BACKGROUNDS WHITE DARK CAMP128 CAMP64"
     },
     {
       "file": "exports/sheet-pair.png",
-      "sha256": "9d063fa73483578f728b43cf6544f8c666eea2d2093009ba4d63edc8031f0f7d",
+      "sha256": "0e065b174439e241b629ba22afe062bbbb38d10efb7a45a5eda1b1da1ca4563e",
       "width": 1012,
       "height": 3278,
       "title": "MASTERS AND SCENE 512 128 64 32 SIL64 CAMP"
@@ -1627,8 +1627,36 @@
       "title": "V4 REJECTED BASELINE VS V5 - EQUAL DIMENSIONS 512 128 64 32 SIL64"
     },
     {
+      "file": "exports/context-phone-375-light.png",
+      "sha256": "35579bfcc75bcfdaef31400f1cd864124c09fc82724b3e8d00185fbe84641ae8",
+      "width": 375,
+      "height": 640,
+      "title": "PHONE 375 LIGHT"
+    },
+    {
+      "file": "exports/context-phone-375-dark.png",
+      "sha256": "d26934194042daee4a4593384398c89b230dbc0e171a9fb854cbdb3c15a711b5",
+      "width": 375,
+      "height": 640,
+      "title": "PHONE 375 DARK"
+    },
+    {
+      "file": "exports/context-desktop-light.png",
+      "sha256": "7fc149afe8b0680cc7258d79d99f3060d5d5589d1c0ca431f8221cbbd6b96314",
+      "width": 900,
+      "height": 420,
+      "title": "DESKTOP LIGHT"
+    },
+    {
+      "file": "exports/context-desktop-camp.png",
+      "sha256": "723f5efd915739e33071d32872f5fdd173a9dcd50437023767255080279a1316",
+      "width": 900,
+      "height": 420,
+      "title": "DESKTOP CAMP"
+    },
+    {
       "file": "exports/sheet-context.png",
-      "sha256": "0e9c830abfceaa19f5ed8ca479a784a73c758d472bae4c6876062220d57be870",
+      "sha256": "f34b4e5041ac5f9baac2e8a11286fc6c68b5b5590beb92bb5caa7a0b507f483a",
       "width": 924,
       "height": 2270,
       "title": "REAL UI CONTEXT 375 PHONE LIGHT / DARK - DESKTOP LIGHT / CAMP"

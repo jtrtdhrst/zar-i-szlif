@@ -5,7 +5,7 @@
   "scripts": {
     "render": "node render.mjs",
     "verify": "node verify.mjs",
-    "test": "node --test *.test.mjs",
+    "test": "node --test *.node-test.mjs",
     "contrast": "node contrast-audit.mjs",
     "qa:technical": "npm run render && npm run verify && npm run test",
     "qa:release": "npm run qa:technical && node visual-controller.mjs",

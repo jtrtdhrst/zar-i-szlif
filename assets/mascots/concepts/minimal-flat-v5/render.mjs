@@ -76,8 +76,22 @@ function toBlack(svg) {
   return svg.replace(/fill="#[0-9a-fA-F]{6}"/g, 'fill="#000000"');
 }
 
+// Independent preview color layer. Does not alter source SVG masters.
+function themeRavenPaths(body) {
+  return body.replace(/<path\b[^>]*>/g, (tag) => {
+    const id = (tag.match(/\bid="([^"]+)"/) || [,''])[1];
+    const fill = (tag.match(/\bfill="(#[0-9a-fA-F]{6})"/) || [,''])[1].toUpperCase();
+    if (/^(?:szlif-[abc]-)?(?:pupil|notebook-lines|bill-mandible)$/.test(id)) return tag;
+    if (fill === '#232833') return tag.replace(/fill="#232833"/i, 'fill="#A4BED5"');
+    if (fill === '#46536A') return tag.replace(/fill="#46536A"/i, 'fill="#D2E1EF"');
+    return tag;
+  });
+}
+
 function backgroundWrap(svg, kind) {
-  const body = inner(svg);
+  // Match the same theme in exported sprites AND actual UI context panels.
+  const body = (kind === 'dark' || kind === 'camp')
+    ? themeRavenPaths(inner(svg)) : inner(svg);
   const vb = viewBoxOf(svg);
   const [vx, vy, vw, vh] = vb.split(' ').map(Number);
   const w = vw || 512;
@@ -168,6 +182,21 @@ function newCanvas(w, h, bg = [255, 255, 255]) {
 
 // ---- render ---------------------------------------------------------------------
 const sources = listSources();
+// A partially generated set must never silently render a smaller manifest.
+const requiredSourceIds = [
+  'iskra-a','iskra-b','iskra-c','szlif-a','szlif-b','szlif-c',
+  'iskra-master','szlif-master',
+  'iskra-a-szlif-a-pair','iskra-b-szlif-b-pair','iskra-c-szlif-c-pair',
+  'iskra-szlif-vignette',
+];
+for (const id of requiredSourceIds) {
+  if (!sources.some((s) => s.id === id)) {
+    throw new Error('REQUIRED_SOURCE_MISSING: ' + id);
+  }
+}
+if (new Set(sources.map((s) => s.id)).size !== sources.length) {
+  throw new Error('DUPLICATE_SOURCE_ID');
+}
 const manifest = { generatedBy: 'render.mjs', resvg: '2.6.2', sizes: SIZES, sources: [], sheets: [] };
 
 // resolve the SVG actually used for one source at one size
@@ -326,7 +355,10 @@ function readPngFile(f) {
 }
 function v4Raster(id, suffix) {
   const f = path.join(v4Dir, `${id}-${suffix}.png`);
-  return existsSync(f) ? readPngFile(f) : null;
+  if (!existsSync(f)) {
+    throw new Error('MISSING_V4_NEGATIVE_BASELINE: ' + id + '-' + suffix);
+  }
+  return readPngFile(f);
 }
 const byId = (id) => sources.find((x) => x.id === id);
 const cmpRows = [];
@@ -349,12 +381,14 @@ sheet('sheet-compare-v4.png', cmpRows, [0, 1, 2, 3, 4],
   'V4 REJECTED BASELINE VS V5 - EQUAL DIMENSIONS 512 128 64 32 SIL64');
 
 // ---- real UI context panels (phone + desktop, light / dark / camp) ---------
-const sceneSrc = sources.find((x) => x.group === 'scenes');
+const sceneSrc = sources.find((x) => x.id === 'iskra-szlif-vignette');
 const sceneInner = sceneSrc ? inner(readFileSync(sceneSrc.file, 'utf8')) : '';
 function panelSvg(w, h, bg, extra, sceneTx, sceneTy, sceneScale) {
+  const themedScene = (bg === "#16202E" || bg === "#22405C")
+    ? themeRavenPaths(sceneInner) : sceneInner;
   return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${w} ${h}" width="${w}" height="${h}">`
     + `<rect width="${w}" height="${h}" fill="${bg}"/>${extra}`
-    + `<g transform="translate(${sceneTx},${sceneTy}) scale(${sceneScale})">${sceneInner}</g></svg>`;
+    + `<g transform="translate(${sceneTx},${sceneTy}) scale(${sceneScale})">${themedScene}</g></svg>`;
 }
 const contexts = [];
 if (sceneInner) {
@@ -378,6 +412,18 @@ if (sceneInner) {
     + '<rect y="300" width="900" height="120" fill="#1E3D28"/><circle cx="780" cy="90" r="42" fill="#F2C97C"/>'
     + '<rect x="420" y="120" width="200" height="16" rx="8" fill="#F7E8D3"/><rect x="420" y="152" width="280" height="12" rx="6" fill="#4C6A88"/>',
     30, 60, 0.52), 900) });
+  // Export raw UI viewport samples as independently testable evidence. A contact
+  // sheet alone hides regressions in the actual 375px/900px context render.
+  for (const c of contexts) {
+    const slug = c.label.toLowerCase().replace(/\s+/g, '-');
+    const filename = 'context-' + slug + '.png';
+    const file = path.join(outDir, filename);
+    const buf = savePng(file, c.buf);
+    manifest.sheets.push({
+      file: path.relative(here, file), sha256: sha(buf),
+      width: c.buf.width, height: c.buf.height, title: c.label,
+    });
+  }
   sheet('sheet-context.png', contexts.map((c) => ({ label: c.label, cells: [{ buf: c.buf }] })), [0],
     'REAL UI CONTEXT 375 PHONE LIGHT / DARK - DESKTOP LIGHT / CAMP');
 }
