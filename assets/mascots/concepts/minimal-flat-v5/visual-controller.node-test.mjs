@@ -101,3 +101,23 @@ test('Szlif vector path consolidation preserves V6 art in actual pixels',()=>{
     assert.ok(rec.colors.length<=5,master+' exceeded 5 functional colors');
   }
 });
+
+test('real PNG byte-for-byte positive Pixelmatch path works with synthetic local export fixture',()=>{
+  const record={id:'iskra-master',size:512,path:'exports/iskra-master-512.png'};
+  record.sha256=sha256(readFileSync(path.join(root,record.path)));
+  const screenshot='exports/sheet-proof.png';
+  const proof={manifest:original,penpot:{exports:[record],screenshotPath:screenshot},
+    vision:{penpotScreenshotSha256:sha256(readFileSync(path.join(root,screenshot)))}};
+  assert.deepEqual(verifyRasterEvidence(proof,root),[]);
+  // This tests only byte equality; it does not assert Penpot owner authentication.
+});
+test('real PNG visually different from manifest canonical fails Pixelmatch despite valid SHA',()=>{
+  const wrongPath='exports/szlif-master-512.png';
+  const record={id:'iskra-master',size:512,path:wrongPath,
+    sha256:sha256(readFileSync(path.join(root,wrongPath)))};
+  const screenshot='exports/sheet-proof.png';
+  const proof={manifest:original,penpot:{exports:[record],screenshotPath:screenshot},
+    vision:{penpotScreenshotSha256:sha256(readFileSync(path.join(root,screenshot)))}};
+  const errors=verifyRasterEvidence(proof,root);
+  assert.ok(errors.some(x=>x.code==='RENDER_DRIFT'),JSON.stringify(errors));
+});
