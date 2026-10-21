@@ -1,5 +1,37 @@
 # Instrukcje dla agentów
 
+## Physical repository isolation — PRODUCT vs HOST HARNESS (mandatory)
+
+This Git repository is **the PRODUCT repository only**: `miloszspyrka-code/zar-i-szlif`.
+A separate **owner-controlled private Harness repository** must hold the owner's internal
+Paperclip MCP gateway, supervisor, OpenCode adapters, host MCP bridges, VPS/container
+deployment sources and host-only infrastructure. A `product/mcp` branch or an
+`app/mcp-worker` folder is NOT a substitute for a separate repository.
+
+**Keep the distinction explicit:**
+- `app/mcp-worker/**` is the user-facing Żar i Szlif PRODUCT MCP and remains here.
+- `app/web/**`, product APIs, `app/cloudflare-worker/**`, product Supabase, branding
+  and product frontend deployment under `ops/coolify/**` remain here.
+- `dev/integrations/**` and `ops/design-stack/**` contain legacy mixed/internal
+  integration material: do not add or modify host-related code in these directories;
+  inventory/backup and move it safely to the separate Harness repository.
+- Do not commit ANY owner-host gateway, supervisor, host MCP bridge, Paperclip/OpenCode
+  control-plane implementation or local VPS configuration in this repository.
+
+**Preflight before any task write:** determine whether it changes PRODUCT or HOST.
+For HOST work, verify canonical Harness repository URL, git root/realpath, branch,
+source SHA and live VPS source/service mapping. If cwd or git remote resolves to
+`miloszspyrka-code/zar-i-szlif` or `paperclipai/paperclip`, **STOP** — no
+commit, push or pretend deployment. Escalate repository provisioning/workspace
+reassignment to CTO/Harness through the existing task rather than writing to the wrong repo.
+Never equate a PR/worktree commit with a deployed VPS service. Never change an agent's
+model as part of repository routing.
+
+Product CI runs `scripts/assert-product-repo-boundary.mjs`. Deletion-only migration
+of legacy host code is allowed, but new/modified host infrastructure in reserved paths
+is blocked; additionally, all agents must respect this broader semantic rule.
+
+
 ## Zasada nadrzędna
 
 Ten plik zawiera tylko reguły wspólne dla repo. Szczegóły roli, domeny i workflow utrzymują skille. **Nie kopiuj REPO MAP, design rules ani test contract do wielu promptów.**
