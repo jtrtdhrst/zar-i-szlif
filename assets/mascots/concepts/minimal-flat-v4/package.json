@@ -1,0 +1,21 @@
+{
+  "name": "zar-i-szlif-mascot-visual-pipeline",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "render": "node render.mjs",
+    "verify": "node verify.mjs",
+    "test": "node --test *.test.mjs",
+    "contrast": "node contrast-audit.mjs",
+    "qa:technical": "npm run render && npm run verify && npm run test",
+    "qa:release": "npm run qa:technical && node visual-controller.mjs",
+    "capture:penpot": "node penpot-capture.mjs",
+    "vision": "node vision-review.mjs"
+  },
+  "dependencies": {
+    "@resvg/resvg-js": "2.6.2",
+    "pngjs": "7.0.0",
+    "pixelmatch": "6.0.0",
+    "playwright-core": "1.56.1"
+  }
+}

@@ -101,7 +101,15 @@ function toBlack(svg) {
 }
 
 function backgroundWrap(svg, kind) {
-  const body = inner(svg);
+  // On dark/camp backgrounds the raven's ink-filled silhouette nearly vanishes.
+  // Use an optical theme on PREVIEW exports only. Canonical SVG paths/palette stay unchanged.
+  // Preserve pupils/notebook ink so expression and details remain legible.
+  let body = inner(svg);
+  if (kind === 'dark' || kind === 'camp') {
+    body = body
+      .replace(/(<path id="szlif-(?:(?:b|c)-)?(?:head|hackle|body|primaries|tail)" fill=")#[0-9a-fA-F]{6}"/g, '$1#9AAFC4"')
+      .replace(/(<path id="szlif-(?:(?:b|c)-)?(?:crest(?:-[123])?|wing)" fill=")#[0-9a-fA-F]{6}"/g, '$1#C5D2E1"');
+  }
   const vb = viewBoxOf(svg);
   const [vx, vy, vw, vh] = vb.split(' ').map(Number);
   const w = vw || 512;
