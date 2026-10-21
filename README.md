@@ -1,4 +1,4 @@
-# Kompas Zbiórek
+# Żar i Szlif
 
 Aplikacja dla instruktorów Royal Rangers wspierająca cykl **Planowanie → Realizacja → Refleksja → Doskonalenie**. Główna wartość produktu to prostsze planowanie, brak pustej kartki i ciągłość pracy między aktywnościami. AI jest opcjonalnym interfejsem, nie źródłem decyzji domenowych.
 
@@ -7,8 +7,9 @@ Aplikacja dla instruktorów Royal Rangers wspierająca cykl **Planowanie → Rea
 ```text
 app/                       # jedyny katalog runtime aplikacji
 ├── web/                   # UI
-├── plugin/                # Wtyczka / MCP Kompasu Zbiórek
-└── cloudflare-worker/     # API/integracje/Cloudflare
+├── plugin/                # współdzielone/legacy MCP i moduły wiedzy
+├── mcp-worker/            # dedykowany product MCP (Cloudflare)
+└── cloudflare-worker/     # dotychczasowy panel/API/OAuth
 
 branding/                  # kanoniczny folder brandingu produktu; obecnie pusty
 
@@ -32,6 +33,8 @@ skills/                    # skille developerskie/agentowe
 ```
 
 Root repo pozostaje możliwie płaski: konfiguracja workspace, registry, tooling, dokumentacja oraz wydzielony `branding/`. Kod produkcyjny pozostaje w `app/`.
+
+**Podział MCP:** `app/mcp-worker/` to osobny Cloudflare Worker przeznaczony dla `https://mcp.zariszlif.pl/mcp` (jego dostępność produkcyjna wymaga oddzielnej weryfikacji). `app/plugin/` wciąż zawiera współdzielony/legacy kod, a `app/cloudflare-worker/` to dotychczasowy panel/API. Nie wdrażaj jednego Workera konfiguracją drugiego.
 
 ## Kanon architektury
 
@@ -93,10 +96,11 @@ Obecny `app/npm run test:all` wykonuje build, typecheck i istniejący targeted t
 | Style | `app/web/src/styles.css`, `app/web/src/extended.css` |
 | Build web | `app/web/scripts/build-static.mjs` |
 | Targeted test logiki | `app/web/scripts/skill-completion-task-test.mjs` |
-| MCP/API Worker | `app/cloudflare-worker/src/public-ui.ts` |
+| Dotychczasowy panel/API Worker | `app/cloudflare-worker/src/public-ui.ts` |
+| Dedykowany product MCP Worker | `app/mcp-worker/src/index.ts` |
 | OAuth | `app/cloudflare-worker/src/oauth.ts`, `google-handler.ts`, `widget-auth.ts` |
 | Build Worker | `app/cloudflare-worker/build-worker.mjs` |
-| Wtyczka / MCP Kompasu Zbiórek | `app/plugin/index.ts` |
+| Współdzielony/legacy MCP | `app/plugin/index.ts` |
 | Dodatkowe testy/pipeline | `dev/quality/` |
 | Branding produktu | `branding/` (obecnie pusty; jedyne kanoniczne miejsce na przyszłe źródła brandingu) |
 | Techniczny design system / tokeny | `dev/design-system/opendesign/design-systems/kompas-rrp/tokens/colors_and_type.css` |
