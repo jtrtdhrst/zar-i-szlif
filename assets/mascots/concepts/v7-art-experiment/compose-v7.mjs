@@ -7,11 +7,15 @@ const here=path.dirname(fileURLToPath(import.meta.url));
 function paths(filename,prefix){
   const source=fs.readFileSync(path.join(here,filename),'utf8');
   if(/<image\b|<foreignObject\b|<script\b|\bon[a-z]+=|url\(/i.test(source))throw Error('RASTER_OR_ACTIVE_SVG_FORBIDDEN');
-  const tags=[...source.matchAll(/<path\s+id="([^"]+)"\s+fill="(#[0-9a-fA-F]{6})"\s+d="([^"]+)"[^>]*\/>/g)];
+  const tags=[...source.matchAll(/<path\b[^>]*\/>/g)].map(x=>x[0]);
+  const ids=tags.map(tag=>tag.match(/\bid="([^"]+)"/)?.[1]);
+  const colors=tags.map(tag=>tag.match(/\bfill="(#[0-9a-fA-F]{6})"/)?.[1]);
+  const paths=tags.map(tag=>tag.match(/\bd="([^"]+)"/)?.[1]);
+  if(ids.some(x=>!x)||colors.some(x=>!x)||paths.some(x=>!x))throw Error('MALFORMED_NATIVE_SHAPE: '+filename);
   if((prefix==='ground' ? tags.length!==1 : (tags.length<15||tags.length>22)))throw Error('INVALID_SHAPE_BUDGET: '+filename);
-  if(new Set(tags.map(x=>x[2].toLowerCase())).size>5)throw Error('INVALID_PALETTE_BUDGET: '+filename);
-  if(new Set(tags.map(x=>x[1])).size!==tags.length)throw Error('DUPLICATE_MASTER_SHAPE_ID');
-  return tags.map(x=>x[0].replace(' id="',' id="'+prefix+'-')).join('\n');
+  if(new Set(colors.map(x=>x.toLowerCase())).size>5)throw Error('INVALID_PALETTE_BUDGET: '+filename);
+  if(new Set(ids).size!==tags.length)throw Error('DUPLICATE_MASTER_SHAPE_ID');
+  return tags.map(tag=>tag.replace(' id="',' id="'+prefix+'-')).join('\n');
 }
 const raven=paths('masters/szlif-master.svg','szlif');
 const fox=paths('masters/iskra-master.svg','iskra');
