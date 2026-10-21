@@ -1,15 +1,16 @@
-# Kompas Zbiórek — runtime produktu
+# Żar i Szlif — runtime produktu
 
-Katalog `app/` zawiera runtime produktu Kompas Zbiórek. Nie jest to osobny prototyp ani alternatywny produkt.
+Katalog `app/` zawiera runtime produktu Żar i Szlif. Część wewnętrznych nazw i modułów jest nadal historyczna; nie oznacza to osobnego produktu.
 
 ## Struktura
 
 - `web/` — interfejs produktu.
-- `plugin/` — **Wtyczka / MCP Kompasu Zbiórek**. Te nazwy oznaczają ten sam element produktu. Lokalny entrypoint MCP to `plugin/index.ts`, endpoint: `/mcp`.
-- `cloudflare-worker/` — produkcyjna warstwa API, OAuth i integracji Cloudflare.
+- `plugin/` — współdzielony/legacy MCP i moduły wiedzy; lokalny entrypoint `plugin/index.ts`, endpoint `/mcp`.
+- `mcp-worker/` — **dedykowany product MCP Worker**, przewidziany dla `https://mcp.zariszlif.pl/mcp`; odrębny Wrangler i release.
+- `cloudflare-worker/` — dotychczasowy panel/API/OAuth i integracje Cloudflare.
 - `documentation.md` — dokumentacja zachowania runtime.
 
-Nie twórz równoległego `server/`, `mcp/` ani drugiego katalogu „wtyczki”. Kanoniczną lokalizacją jest `app/plugin/`.
+Nie twórz kolejnej kopii product MCP. Kod dedykowanego Workera należy do `app/mcp-worker/`; kod współdzielony pozostaje w `app/plugin/` do czasu zweryfikowanej migracji.
 
 ## Uruchomienie lokalne
 
@@ -29,7 +30,7 @@ http://127.0.0.1:8787/mcp
 
 Root repo udostępnia również wspólny kontrakt `npm run lint`, `npm run typecheck`, `npm test` i `npm run build`.
 
-## Zmienne środowiskowe Wtyczki / MCP
+## Zmienne środowiskowe współdzielonego/legacy MCP
 
 | Zmienna | Wymagana | Opis |
 | --- | --- | --- |
@@ -47,6 +48,6 @@ Kontrakt i przykłady: `.env.example` (root repo) oraz `docs/production-release.
 
 ## Granice odpowiedzialności
 
-`app/plugin/` udostępnia powierzchnię ChatGPT/MCP produktu. `app/cloudflare-worker/` odpowiada za produkcyjne API, OAuth, integracje i bezpieczny dostęp do sekretów. Nie należy traktować lokalnego serwera MCP jako zamiennika produkcyjnego Workera.
+`app/plugin/` zawiera istniejący kod MCP i współdzielone moduły wiedzy, natomiast `app/mcp-worker/` to dedykowany Cloudflare product MCP. `app/cloudflare-worker/` obsługuje dotychczasowy panel/API/OAuth. Lokalny serwer MCP nie zastępuje produkcyjnego Workera. Ta mapa kodu nie stanowi dowodu udanego wdrożenia `mcp.zariszlif.pl`.
 
 Branding produktu ma osobny kanoniczny katalog `/branding` w root repo. Jest obecnie celowo pusty; techniczna implementacja design systemu pozostaje w `/dev/design-system`.
