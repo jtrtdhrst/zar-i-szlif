@@ -35,7 +35,7 @@ A/B/C differ in silhouette, proportion, pose and face language — not in hue.
 ## Selected pair and scene
 
 * `masters/iskra-master.svg` — direction A, refined (22 paths / 5 colours).
-* `masters/szlif-master.svg` — direction A, refined (18 paths / 5 colours).
+* `masters/szlif-master.svg` — direction A, refined (22 paths / 5 colours after V6 optical shape consolidation).
 * `scenes/iskra-szlif-vignette.svg` — composed **from the two masters** by `compose.mjs`
   (deterministic affine placement), so the scene can never drift from the masters.
 
@@ -70,8 +70,8 @@ with the SHA256 of every source and every export.
 | `directions/szlif-b.svg` | 18 | 5 |
 | `directions/szlif-c.svg` | 17 | 5 |
 | `masters/iskra-master.svg` | 22 | 5 |
-| `masters/szlif-master.svg` | 18 | 5 |
-| `scenes/iskra-szlif-vignette.svg` | 41 (two characters) | 10 (two characters) |
+| `masters/szlif-master.svg` | 22 | 5 |
+| `scenes/iskra-szlif-vignette.svg` | 45 (two characters + ground) | 10 (two characters) |
 
 Every character shape is a named `<path id="character-part">`. No raster, gradients,
 filters, scripts, external references or animation.
@@ -125,3 +125,7 @@ the final V6 art.
 * The scene's ground shadow is a flat ellipse — scene dressing, not a character element.
 * The scene file legitimately exceeds 22 paths / 5 colours because it composes two
   characters; the per-character masters stay inside the budget.
+
+## Shape budget regression guard (2026-10-21)
+
+The V6 anatomy pass initially introduced 24 instead of the documented maximum of 22 raven vector paths. The three adjacent slate wing-primary paths were consolidated into one editable compound path with three independent subpaths, retaining 22 native elements / 5 colors per master. A new release-gate assertion now checks both budgets. A pixel regression comparison against the preserved V6 iteration-2 images measured zero different pixels at 512px for Szlif and the scene, and 6/4096 at 64px plus 4/1024 at 32px for Szlif. This change preserves the large-size illustration while keeping independent feather geometry as separate subpaths within one Penpot-editable path. Do not claim independent per-feather edit handles.

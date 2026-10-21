@@ -2,6 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { PNG } from 'pngjs';
+import pixelmatch from 'pixelmatch';
 import { fileURLToPath } from 'node:url';
 import path from 'node:path';
 import { validateReview, verifyRasterEvidence, runGate, sha256, verifyGitProvenance, OWNER_TEAM_ID } from './visual-controller.mjs';
@@ -78,4 +79,25 @@ test('real dark phone and camp context reuse corrected raven theme',()=>{
 test('fake candidate Git SHA fails authentic repository readback',()=>{
   const errors=verifyGitProvenance({candidateSha:'0'.repeat(40)},root);
   assert.ok(errors.some(x=>x.code==='GIT_SHA_MISMATCH'),JSON.stringify(errors));
+});
+
+test('Szlif vector path consolidation preserves V6 art in actual pixels',()=>{
+  const checks=[
+    ['szlif-master-512.png','iter2-after-szlif-master-512.png',0],
+    ['szlif-master-64.png','iter2-after-szlif-master-64.png',0.01],
+    ['szlif-master-32.png','iter2-after-szlif-master-32.png',0.01],
+    ['iskra-szlif-vignette-512.png','iter2-after-iskra-szlif-vignette-512.png',0],
+  ];
+  for(const [name,reference,tolerance] of checks) {
+    const a=PNG.sync.read(readFileSync(path.join(root,'exports',name)));
+    const b=PNG.sync.read(readFileSync(path.join(root,'exports/iterations',reference)));
+    assert.equal(a.width,b.width);assert.equal(a.height,b.height);
+    const mismatched=pixelmatch(a.data,b.data,null,a.width,a.height,{threshold:0,includeAA:true});
+    assert.ok(mismatched/(a.width*a.height)<=tolerance,name+' pixel diff: '+mismatched);
+  }
+  for(const master of ['iskra-master','szlif-master']) {
+    const rec=original.sources.find(x=>x.id===master);
+    assert.ok(rec.shapes<=22,master+' exceeded 22 named paths');
+    assert.ok(rec.colors.length<=5,master+' exceeded 5 functional colors');
+  }
 });

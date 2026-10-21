@@ -13,11 +13,11 @@
   <!-- WING / broad folded wing over the shoulder -->
   <path id="wing" fill="#46536A" d="M 288 162 C 258 170 238 194 228 224 C 218 254 212 286 210 312 C 226 310 244 300 256 286 C 264 268 268 246 272 224 C 278 196 288 174 296 166 C 298 162 292 160 288 162 Z"/>
   <!-- WING / wide separated primary feather breaking the back outline -->
-  <path id="wing-primary-1" fill="#46536A" d="M 238 258 C 212 260 188 272 166 292 C 157 298 163 309 173 303 C 194 286 216 280 236 278 Z"/>
+  <path id="wing-primaries" fill="#46536A" d="M 238 258 C 212 260 188 272 166 292 C 157 298 163 309 173 303 C 194 286 216 280 236 278 Z M 230 280 C 204 286 178 302 154 326 C 145 333 153 342 162 335 C 184 314 206 302 228 298 Z M 222 300 C 198 312 174 332 152 358 C 144 365 153 373 161 366 C 181 342 202 326 220 318 Z"/>
   <!-- WING / wide separated primary feather breaking the back outline -->
-  <path id="wing-primary-2" fill="#46536A" d="M 230 280 C 204 286 178 302 154 326 C 145 333 153 342 162 335 C 184 314 206 302 228 298 Z"/>
+  
   <!-- WING / wide separated primary feather breaking the back outline -->
-  <path id="wing-primary-3" fill="#46536A" d="M 222 300 C 198 312 174 332 152 358 C 144 365 153 373 161 366 C 181 342 202 326 220 318 Z"/>
+  
   <!-- TAIL / open fan of three separated feather tips -->
   <path id="tail" fill="#232833" d="M 240 314 C 204 320 164 340 130 370 L 146 382 L 134 416 L 164 428 L 156 462 C 194 448 224 426 240 394 C 246 370 246 340 240 314 Z"/>
   <!-- LEG / far leg with a bent knee -->

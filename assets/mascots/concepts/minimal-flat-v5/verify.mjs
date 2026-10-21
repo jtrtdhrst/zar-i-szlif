@@ -51,6 +51,13 @@ for (const rec of manifest.sources) {
   const unnamed = paths.filter((p) => !/\sid="/.test(p));
   if (unnamed.length) bad('every shape is named', `${rec.file}: ${unnamed.length} unnamed path(s)`);
   else ok('every shape is named', `${rec.file}: ${paths.length} paths`);
+  if (rec.group === 'masters') {
+    const colors = [...new Set((svg.match(/fill="#[0-9a-fA-F]{6}"/gi)||[]).map(x=>x.slice(6,-1).toLowerCase()))];
+    if (paths.length > 22) bad('master shape budget <=22', `${rec.file}: ${paths.length}`);
+    else ok('master shape budget <=22', `${rec.file}: ${paths.length}`);
+    if (colors.length > 5) bad('master palette <=5', `${rec.file}: ${colors.length}`);
+    else ok('master palette <=5', `${rec.file}: ${colors.length}`);
+  }
 
   // canonical art must not be cropped by its own viewBox (optical views are crops on purpose)
   if (rec.group !== 'optical') {
