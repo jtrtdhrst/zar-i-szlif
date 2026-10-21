@@ -8,7 +8,7 @@ const style = `
 header{display:flex;align-items:center;justify-content:space-between;gap:16px;padding-top:26px;padding-bottom:26px}
 .brand{display:flex;align-items:center;gap:12px;font-weight:750;text-decoration:none;letter-spacing:-.03em}
 .symbol{display:grid;place-items:center;width:40px;height:40px;background:#d9ebd1;border-radius:13px;font-size:24px}
-nav{display:flex;gap:23px;flex-wrap:wrap}nav a{text-decoration:none;color:#4b6458;font-size:14px}nav a:hover{text-decoration:underline}
+nav{display:flex;gap:23px;flex-wrap:wrap}nav a{text-decoration:none;color:#4b6458;font-size:14px;padding:8px 0}nav a:hover{text-decoration:underline}
 .hero{display:grid;grid-template-columns:1.25fr 0.9fr;gap:54px;align-items:center;padding-top:76px;padding-bottom:65px}
 .eyebrow{display:inline-flex;align-items:center;gap:8px;background:#e9f0de;color:#336342;padding:9px 14px;border-radius:999px;font-weight:650;font-size:13px}
 h1{font-size:clamp(40px,5.5vw,70px);line-height:1.06;letter-spacing:-.052em;margin:25px 0 19px}
@@ -28,7 +28,7 @@ h1{font-size:clamp(40px,5.5vw,70px);line-height:1.06;letter-spacing:-.052em;marg
 .docs{margin-bottom:70px;padding:32px;border-radius:20px;border:1px solid #dfe8de;background:#fff}
 .docs code{display:block;font-family:ui-monospace,SFMono-Regular,Consolas,monospace;padding:17px;background:#edf3ec;border-radius:10px;overflow-wrap:anywhere;font-size:14px}
 .docs li{line-height:1.85;margin-bottom:12px}.docs a{color:#287449}
-footer{border-top:1px solid #dfe8de;padding-top:24px;padding-bottom:34px;color:#708379;font-size:13px}
+footer{border-top:1px solid #dfe8de;padding-top:24px;padding-bottom:34px;color:#5f7268;font-size:13px}
 @media(max-width:760px){header{align-items:flex-start;flex-direction:column}nav{gap:17px}.hero{grid-template-columns:1fr;gap:28px;padding-top:38px}.grid{grid-template-columns:1fr}.terminal{padding:24px}h1{font-size:43px}.section{padding-bottom:42px}.docs{padding:22px}}
 `;
 
@@ -39,7 +39,7 @@ function renderPage(origin: string, documentation: boolean): string {
 <title>${documentation ? "Jak podłączyć MCP" : "Żar i Szlif MCP — połącz swojego asystenta"}</title>
 <meta name="description" content="Podłącz Żar i Szlif do klienta MCP, zaloguj się bezpiecznie i korzystaj z wiedzy systemu.">
 <link rel="canonical" href="${origin}${documentation ? "/docs" : "/"}"><style>${style}</style></head><body>
-<header><a class="brand" href="/"><span class="symbol" aria-hidden="true">✦</span>Żar i Szlif <span style="font-weight:500;color:#658276">/ MCP</span></a>
+<header><a class="brand" href="/"><span class="symbol" aria-hidden="true">✦</span>Żar i Szlif <span style="font-weight:500;color:#5c7268">/ MCP</span></a>
 <nav aria-label="Nawigacja"><a href="https://zariszlif.pl">O systemie</a><a href="/docs">Instrukcja MCP</a><a href="https://panel.zariszlif.pl">Panel</a></nav></header>
 <main>
 <section class="hero" aria-labelledby="main-heading"><div>
