@@ -1,35 +1,47 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512" role="img" aria-labelledby="title desc">
   <title id="title">Szlif — master raven vector (direction A selected and refined)</title>
-  <desc id="desc">Szlif the raven, selected master. Angular construction: a heavy straight ochre bill with a down hook angled at the plan, a wedge head tilted down, three broad crest feathers raked back over the nape, shaggy throat hackles, a shouldered body tapering to a narrow rump, a slate folded wing whose stepped primary tips break the back outline, a wide open fanned tail, long thin legs with splayed feet, and a small turquoise plan notebook held in a talon. Flat vector, five colours, eighteen named paths.</desc>
+  <desc id="desc">Szlif the raven, selected master. Angular construction: a heavy straight ochre bill with a down hook and a thin mandible line, a wedge head tilted down with a low brow over a small eye, three slim crest feathers raked back over the nape, a short throat hackle, a shouldered body tapering to a narrow rump, a broad slate folded wing with three wide separated primary feathers breaking the back outline, an open four-point fanned tail, two ochre legs with a bent knee and splayed toes, and a small turquoise plan notebook held in a talon. Flat vector, five colours, twenty-two named paths.</desc>
 
-  <!-- CREST / broad feather raked back over the crown -->
-  <path id="crest-1" fill="#46536A" d="M 290 78 C 272 62 248 50 224 44 C 214 41 208 49 214 58 C 224 74 248 88 276 96 Z"/>
-  <!-- CREST / broad feather raked back over the crown -->
-  <path id="crest-2" fill="#46536A" d="M 274 94 C 256 80 234 68 212 62 C 202 60 198 68 204 76 C 214 90 236 102 260 110 Z"/>
-  <!-- CREST / broad feather raked back over the nape -->
-  <path id="crest-3" fill="#46536A" d="M 256 112 C 240 102 220 94 202 94 C 192 94 189 102 195 109 C 205 120 226 128 246 132 Z"/>
-  <!-- TAIL / wide open fan of separated feather tips -->
-  <path id="tail" fill="#232833" d="M 212 292 C 198 298 184 312 172 328 L 122 352 L 156 372 L 124 404 L 164 412 L 142 448 L 182 440 L 176 476 L 212 456 C 232 442 240 416 236 390 C 232 358 222 320 212 292 Z"/>
-  <!-- LEGS / long thin bird legs -->
-  <path id="legs" fill="#E2A03F" d="M 216 344 L 230 344 L 228 396 L 232 440 L 220 442 L 214 394 Z M 244 340 L 258 338 L 262 390 L 268 432 L 256 436 L 248 390 Z"/>
-  <!-- FEET / splayed toes, three forward and one back -->
-  <path id="feet" fill="#E2A03F" d="M 210 424 L 224 424 L 226 433 L 248 438 L 245 447 L 230 442 L 238 454 L 230 459 L 220 446 L 208 456 L 201 452 L 205 442 L 193 444 L 190 437 L 206 433 Z M 248 416 L 262 416 L 264 425 L 286 430 L 283 439 L 268 434 L 276 446 L 268 451 L 258 438 L 246 448 L 239 444 L 243 434 L 231 436 L 228 429 L 244 425 Z"/>
+  <!-- CREST / slim feather raked back over the crown -->
+  <path id="crest-1" fill="#46536A" d="M 300 88 C 274 64 234 48 196 42 C 188 41 186 49 194 52 C 228 60 264 76 292 98 Z"/>
+  <!-- CREST / slim feather raked back over the nape -->
+  <path id="crest-2" fill="#46536A" d="M 288 102 C 262 82 226 68 194 64 C 186 63 185 71 193 74 C 222 80 254 94 278 112 Z"/>
+  <!-- CREST / slim feather raked back over the nape -->
+  <path id="crest-3" fill="#46536A" d="M 276 116 C 254 100 224 90 196 90 C 188 90 189 98 197 100 C 222 106 248 116 268 128 Z"/>
   <!-- BODY / shouldered hunched body tapering to a narrow rump -->
-  <path id="body" fill="#232833" d="M 282 152 C 260 164 242 190 230 222 C 218 254 212 288 208 318 C 204 342 212 356 228 358 C 248 360 264 344 274 318 C 284 292 288 258 290 222 C 292 190 292 164 288 154 Z"/>
-  <!-- WING / folded wing whose stepped primary tips break the back outline -->
-  <path id="wing" fill="#46536A" d="M 280 168 C 258 180 240 202 228 230 C 216 254 210 280 206 302 L 172 328 L 200 320 L 178 350 L 204 340 L 186 368 L 212 346 L 218 318 L 224 288 L 234 258 L 248 230 L 264 208 L 280 196 Z"/>
+  <path id="body" fill="#232833" d="M 288 148 C 262 156 242 182 228 214 C 216 242 206 272 200 300 C 194 324 200 342 218 344 C 244 346 266 330 276 302 C 286 274 290 248 292 218 C 294 188 294 162 292 150 Z"/>
+  <!-- WING / broad folded wing over the shoulder -->
+  <path id="wing" fill="#46536A" d="M 288 162 C 258 170 238 194 228 224 C 218 254 212 286 210 312 C 226 310 244 300 256 286 C 264 268 268 246 272 224 C 278 196 288 174 296 166 C 298 162 292 160 288 162 Z"/>
+  <!-- WING / wide separated primary feather breaking the back outline -->
+  <path id="wing-primary-1" fill="#46536A" d="M 238 258 C 212 260 188 272 166 292 C 157 298 163 309 173 303 C 194 286 216 280 236 278 Z"/>
+  <!-- WING / wide separated primary feather breaking the back outline -->
+  <path id="wing-primary-2" fill="#46536A" d="M 230 280 C 204 286 178 302 154 326 C 145 333 153 342 162 335 C 184 314 206 302 228 298 Z"/>
+  <!-- WING / wide separated primary feather breaking the back outline -->
+  <path id="wing-primary-3" fill="#46536A" d="M 222 300 C 198 312 174 332 152 358 C 144 365 153 373 161 366 C 181 342 202 326 220 318 Z"/>
+  <!-- TAIL / open fan of three separated feather tips -->
+  <path id="tail" fill="#232833" d="M 240 314 C 204 320 164 340 130 370 L 146 382 L 134 416 L 164 428 L 156 462 C 194 448 224 426 240 394 C 246 370 246 340 240 314 Z"/>
+  <!-- LEG / far leg with a bent knee -->
+  <path id="leg-far" fill="#E2A03F" d="M 246 322 C 260 324 268 336 266 350 C 264 364 260 376 262 390 C 264 402 262 412 258 420 C 252 424 244 420 244 412 C 244 400 246 388 244 376 C 242 358 238 338 240 328 C 242 323 244 321 246 322 Z"/>
+  <!-- FOOT / far foot, splayed toes -->
+  <path id="foot-far" fill="#E2A03F" d="M 246 404 C 256 402 266 406 269 414 C 271 420 280 425 290 429 L 285 437 L 267 430 L 274 446 L 263 450 L 256 431 L 248 444 L 238 440 L 244 427 L 230 433 L 224 424 L 242 419 C 238 413 240 406 246 404 Z"/>
+  <!-- LEG / near leg with a bent knee -->
+  <path id="leg-near" fill="#E2A03F" d="M 226 330 C 240 332 248 344 246 358 C 244 372 240 384 242 398 C 244 410 242 420 238 428 C 232 432 224 428 224 420 C 224 408 226 396 224 384 C 222 366 218 346 220 336 C 222 331 224 329 226 330 Z"/>
+  <!-- FOOT / near foot, splayed toes -->
+  <path id="foot-near" fill="#E2A03F" d="M 228 410 C 238 407 250 411 253 420 C 255 427 264 432 274 436 L 269 444 L 252 437 L 259 454 L 248 457 L 241 439 L 234 452 L 224 447 L 230 434 L 214 439 L 208 430 L 227 424 C 222 417 223 412 228 410 Z"/>
   <!-- HEAD / angular wedge tilted down toward the plan -->
   <path id="head" fill="#232833" d="M 322 96 L 296 84 L 262 92 L 250 118 L 252 146 L 270 168 L 306 180 L 342 170 L 352 144 L 346 118 Z"/>
-  <!-- THROAT / shaggy hackle breaking the throat line -->
-  <path id="hackle" fill="#232833" d="M 268 164 L 344 164 L 338 188 L 328 222 L 314 190 L 300 226 L 290 188 L 272 200 Z"/>
+  <!-- THROAT / short hackle breaking the throat line -->
+  <path id="hackle" fill="#232833" d="M 270 164 L 342 164 L 338 182 L 326 196 L 318 180 L 306 196 L 296 180 L 282 194 L 274 178 Z"/>
   <!-- BILL / heavy straight wedge with a down hook, angled at the plan -->
   <path id="bill" fill="#E2A03F" d="M 346 116 L 392 138 L 430 162 L 440 180 L 432 196 L 414 190 L 380 172 L 348 150 Z"/>
-  <!-- BILL / mandible split -->
-  <path id="bill-mandible" fill="#46536A" d="M 350 138 L 402 158 L 410 168 L 352 150 Z"/>
-  <!-- EYE / small pale almond -->
-  <path id="eye" fill="#D7DCE3" d="M 286 116 C 286 113 291 111 297 111 C 303 111 308 113 308 116 C 308 119 303 121 297 121 C 291 121 286 119 286 116 Z"/>
+  <!-- BILL / thin mandible line -->
+  <path id="bill-mandible" fill="#232833" d="M 352 140 L 404 161 L 405 167 L 353 148 Z"/>
+  <!-- EYE / small amber almond, readable on the dark head in both themes -->
+  <path id="eye" fill="#E2A03F" d="M 290 116 C 290 114 293 112 297 112 C 301 112 304 114 304 116 C 304 118 301 120 297 120 C 293 120 290 118 290 116 Z"/>
   <!-- EYE / dark pupil -->
-  <path id="pupil" fill="#232833" d="M 292 116 C 292 114 295 113 298 113 C 301 113 303 114 303 116 C 303 118 300 119 297 119 C 294 119 292 118 292 116 Z"/>
+  <path id="pupil" fill="#232833" d="M 294 116 C 294 115 295 114 297 114 C 299 114 300 115 300 116 C 300 117 299 118 297 118 C 295 118 294 117 294 116 Z"/>
+  <!-- BROW / low slate brow ridge over the eye -->
+  <path id="brow" fill="#46536A" d="M 284 105 C 293 100 305 100 312 104 C 305 107 293 108 284 107 Z"/>
   <!-- NOTEBOOK / small turquoise plan notebook -->
   <path id="notebook" fill="#2BB8A6" d="M 262 300 L 330 288 L 338 320 L 270 332 Z"/>
   <!-- NOTEBOOK / page edge -->

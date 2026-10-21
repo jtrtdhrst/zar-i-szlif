@@ -86,14 +86,41 @@ filters, scripts, external references or animation.
   owner team in Penpot. Not satisfied by this repository set.
 * **RELEASE_GATE** — open, CTO. `assets/mascots/style-2/` (production) is untouched.
 
-## Known defects in this candidate
+## V6 anatomy rebuild (2026-10-21, this run)
 
-* Iskra's fringe lock crosses the far eye, but the lock is still a fairly upright
-  brown band; a lower, more diagonal sweep would read as hair even more clearly.
-* Iskra's scarf end is a simple ribbon; it does not yet flutter.
+The V5 art still carried the anatomy defects named in the review comment. This
+run rebuilt both masters and recomposed the scene from them.
+
+| Named defect (V5) | V6 fix in the source |
+| --- | --- |
+| Iskra body without articulated legs | `leg-near` / `leg-far` are thigh + bent knee + shin, each ending in a `sock-near` / `sock-far` cream sock; the torso ends in a rounded rump, so the legs read as legs and not as a hem |
+| Iskra scarf read as a blob | `scarf` is a thick band across the neck, `scarf-knot` a bulky knot at the throat, `scarf-end` a wide ribbon flying out behind the head |
+| Iskra fringe read as a facial stripe | `fringe-lock` is rooted on the crown, sweeps diagonally across the far eye and flicks out over the cheek; the far eye is drawn after the lock, so the eye stays readable |
+| Szlif crest and tail poor | `crest-1..3` are slim feathers raked back over the nape; `tail` is a three-tip fan instead of the torn-paper sawtooth; `wing-primary-1..3` are wide separated primaries |
+| Szlif legs poor | `leg-near` / `leg-far` are thicker with a visible knee bend, ending in `foot-near` / `foot-far` splayed toes |
+| Szlif eye read as a googly white dot | `eye` is a small amber almond with an ink `pupil` and a slate `brow` ridge; the amber survives the dark/camp theme, so the eye is readable on the dark head and on the light-blue dark-theme head |
+
+Three render / inspect / fix cycles were run against the real 512 px, 64 px and
+32 px exports, not against the source geometry. `exports/iterations/` keeps the
+real before/after rasters used as iteration proof: `before-*` is the
+owner-rejected V5 anatomy, `iter1-after-*` the first V6 rebuild, `iter2-after-*`
+the final V6 art.
+
+## Known defects in this candidate (after the V6 rebuild)
+
+* Iskra's head is still large relative to the body — a deliberate mascot
+  proportion, but the body reads soft next to it; a reviewer may want a smaller
+  head or a heavier chest.
+* Iskra's scarf end is a wide ribbon but it does not flutter.
+* Szlif's tail fan and the three wing primaries overlap into one dark mass at
+  the lower back; the fan tips are clear at 64 px and merge at 32 px.
+* At 32 px the fringe lock, the scarf knot and the toe separation are gone: the
+  32 px read is "fox with a scarf" and "bird with a bill", not the full detail.
 * Iskra direction B and direction C are exploration artifacts: B's head is oversized and
   C reads as an emblem rather than a character. Both are documented alternatives, **not**
-  proposed as masters.
+  proposed as masters. Their concept pair scenes keep the concept-level art; the
+  deliverable pair is `scenes/iskra-szlif-vignette.svg`, recomposed from the
+  refined masters.
 * Szlif direction C's crest plates still read slightly like antennae.
 * The scene's ground shadow is a flat ellipse — scene dressing, not a character element.
 * The scene file legitimately exceeds 22 paths / 5 colours because it composes two
