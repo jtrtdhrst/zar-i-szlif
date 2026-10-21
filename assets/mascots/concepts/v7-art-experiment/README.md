@@ -1,5 +1,8 @@
 # Żar i Szlif — V7 exploratory native-vector direction
 
+> **OWNER REJECTED — 2026-10-21. NEGATIVE ART REFERENCE ONLY.** The user personally inspected the actual mobile screenshot of this V7 output and rejected its aesthetics and the underlying shape-first pipeline. The 21-path/5-color checks do not establish creative quality. DO NOT treat this branch as an accepted mascot style, a reference to imitate, an approved Penpot master, or shipping source. New art must begin from a distinct intentional visual concept and independent actual-image art review. Company skill `mascot-style-2-pipeline` revision >=26 supersedes older "technically verified" claims.
+
+
 **STATUS: EXPERIMENTAL DESIGN CANDIDATE. NOT RELEASED, NOT OWNER-APPROVED, NOT IMPORTED INTO OWNER PENPOT.**
 
 This branch contains a non-destructive new native SVG art direction based on review of the real V6 master contact sheet. V6 in PR #61 remains unchanged.
