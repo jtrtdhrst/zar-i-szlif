@@ -1,0 +1,687 @@
+<!doctype html>
+<html lang="pl">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Żar i Szlif MCP — podłącz swojego asystenta</title>
+    <meta
+      name="description"
+      content="Podłącz Żar i Szlif do klienta MCP: adres serwera, logowanie OAuth, zakres uprawnień i odpowiedzi na podstawie źródeł."
+    />
+    <link rel="canonical" href="https://mcp.zariszlif.pl/" />
+    <style>
+      .mcp-connect {
+        --mc-bg: #f8f8f1;
+        --mc-surface: #ffffff;
+        --mc-ink: #21332c;
+        --mc-muted: #5b7167;
+        --mc-brand: #287449;
+        --mc-brand-soft: #d9ebd1;
+        --mc-brand-tint: #e9f0de;
+        --mc-brand-ink: #336342;
+        --mc-line: #dfe8de;
+        --mc-terminal: #203d31;
+        --mc-terminal-text: #d7f6ca;
+        --mc-terminal-muted: #acc1b4;
+        --mc-radius: 19px;
+        --mc-shell: 1120px;
+        box-sizing: border-box;
+        display: flex;
+        flex-direction: column;
+        min-height: 100vh;
+        margin: 0;
+        background-color: var(--mc-bg);
+        color: var(--mc-ink);
+        font-family: "Inter";
+        font-size: 16px;
+        line-height: 24px;
+      }
+
+      .mcp-connect *,
+      .mcp-connect *::before,
+      .mcp-connect *::after {
+        box-sizing: border-box;
+      }
+
+      .mcp-connect__shell {
+        width: 100%;
+        max-width: var(--mc-shell);
+        margin: 0 auto;
+        padding-left: clamp(18px, 4vw, 28px);
+        padding-right: clamp(18px, 4vw, 28px);
+      }
+
+      .mcp-connect__skip {
+        position: absolute;
+        left: -9999px;
+        top: 0;
+        padding: 12px 18px;
+        background-color: var(--mc-brand);
+        color: #ffffff;
+        font-weight: 700;
+        text-decoration: none;
+        border-radius: 0 0 12px 0;
+      }
+
+      .mcp-connect__skip:focus {
+        position: absolute;
+        left: 0;
+        top: 0;
+        z-index: 10;
+      }
+
+      .mcp-connect__header {
+        border-bottom: 1px solid var(--mc-line);
+        background-color: var(--mc-bg);
+      }
+
+      .mcp-connect__header__row {
+        display: flex;
+        flex-direction: row;
+        flex-wrap: wrap;
+        align-items: center;
+        justify-content: space-between;
+        gap: 16px;
+        padding-top: 26px;
+        padding-bottom: 26px;
+      }
+
+      .mcp-connect__brand {
+        display: flex;
+        flex-direction: row;
+        align-items: center;
+        gap: 12px;
+        color: var(--mc-ink);
+        font-weight: 700;
+        letter-spacing: -0.03em;
+        text-decoration: none;
+      }
+
+      .mcp-connect__brand__mark {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        width: 40px;
+        height: 40px;
+        border-radius: 13px;
+        background-color: var(--mc-brand-soft);
+        font-size: 24px;
+        line-height: 24px;
+      }
+
+      .mcp-connect__brand__suffix {
+        color: var(--mc-muted);
+        font-weight: 500;
+      }
+
+      .mcp-connect__nav {
+        display: flex;
+        flex-direction: row;
+        flex-wrap: wrap;
+        align-items: center;
+        gap: 23px;
+      }
+
+      .mcp-connect__nav__link {
+        color: var(--mc-muted);
+        font-size: 14px;
+        line-height: 20px;
+        text-decoration: underline;
+        text-underline-offset: 3px;
+      }
+
+      .mcp-connect__nav__link:hover {
+        color: var(--mc-ink);
+      }
+
+      .mcp-connect__main {
+        display: flex;
+        flex-direction: column;
+        flex-grow: 1;
+      }
+
+      .mcp-connect__hero {
+        padding-top: clamp(38px, 7vw, 76px);
+        padding-bottom: clamp(42px, 6vw, 65px);
+      }
+
+      .mcp-connect__hero__row {
+        display: flex;
+        flex-direction: row;
+        flex-wrap: wrap;
+        align-items: center;
+        gap: clamp(28px, 5vw, 54px);
+      }
+
+      .mcp-connect__hero__copy {
+        display: flex;
+        flex-direction: column;
+        flex: 1 1 460px;
+        min-width: 0;
+      }
+
+      .mcp-connect__eyebrow {
+        display: inline-flex;
+        flex-direction: row;
+        align-items: center;
+        align-self: flex-start;
+        gap: 8px;
+        margin: 0;
+        padding: 9px 14px;
+        border-radius: 999px;
+        background-color: var(--mc-brand-tint);
+        color: var(--mc-brand-ink);
+        font-size: 13px;
+        font-weight: 650;
+        line-height: 20px;
+      }
+
+      .mcp-connect__title {
+        margin: 25px 0 19px;
+        font-size: clamp(40px, 5.6vw, 68px);
+        font-weight: 800;
+        line-height: 1.06;
+        letter-spacing: -0.052em;
+      }
+
+      .mcp-connect__lede {
+        max-width: 610px;
+        margin: 0;
+        color: var(--mc-muted);
+        font-size: clamp(16px, 1.6vw, 18px);
+        line-height: 1.66;
+      }
+
+      .mcp-connect__actions {
+        display: flex;
+        flex-direction: row;
+        flex-wrap: wrap;
+        align-items: center;
+        gap: 14px;
+        margin-top: 30px;
+      }
+
+      .mcp-connect__button {
+        display: inline-flex;
+        flex-direction: row;
+        align-items: center;
+        justify-content: center;
+        min-height: 48px;
+        padding: 12px 21px;
+        border-radius: 13px;
+        font-size: 14px;
+        font-weight: 700;
+        line-height: 20px;
+        text-decoration: none;
+      }
+
+      .mcp-connect__button--primary {
+        background-color: var(--mc-brand);
+        color: #ffffff;
+      }
+
+      .mcp-connect__button--secondary {
+        background-color: var(--mc-surface);
+        border: 1px solid var(--mc-line);
+        color: #325a41;
+      }
+
+      .mcp-connect__terminal {
+        display: flex;
+        flex-direction: column;
+        flex: 1 1 380px;
+        min-width: 0;
+        padding: clamp(22px, 3vw, 30px);
+        border-radius: 24px;
+        background-color: var(--mc-terminal);
+        color: var(--mc-terminal-text);
+        overflow-wrap: break-word;
+      }
+
+      .mcp-connect__terminal__dots {
+        display: flex;
+        flex-direction: row;
+        gap: 7px;
+        margin-bottom: 32px;
+      }
+
+      .mcp-connect__dot {
+        width: 10px;
+        height: 10px;
+        border-radius: 50%;
+        background-color: #6b967b;
+      }
+
+      .mcp-connect__terminal__label {
+        margin: 0 0 16px;
+        color: var(--mc-terminal-muted);
+        font-size: 12px;
+        font-weight: 700;
+        letter-spacing: 0.12em;
+        line-height: 16px;
+        text-transform: uppercase;
+      }
+
+      .mcp-connect__terminal__endpoint {
+        margin: 0;
+        font-family: "Roboto Mono";
+        font-size: 16px;
+        font-weight: 700;
+        line-height: 26px;
+        color: var(--mc-terminal-text);
+      }
+
+      .mcp-connect__terminal__note {
+        margin: 22px 0 0;
+        color: var(--mc-terminal-muted);
+        font-size: 13px;
+        line-height: 22px;
+      }
+
+      .mcp-connect__section {
+        padding-top: clamp(26px, 4vw, 38px);
+        padding-bottom: clamp(44px, 7vw, 75px);
+      }
+
+      .mcp-connect__section__title {
+        margin: 0 0 12px;
+        font-size: clamp(24px, 3vw, 32px);
+        font-weight: 800;
+        line-height: 1.25;
+        letter-spacing: -0.035em;
+      }
+
+      .mcp-connect__section__intro {
+        max-width: 640px;
+        margin: 0;
+        color: var(--mc-muted);
+        font-size: 16px;
+        line-height: 26px;
+      }
+
+      .mcp-connect__cards {
+        display: flex;
+        flex-direction: row;
+        flex-wrap: wrap;
+        gap: 18px;
+        margin-top: 28px;
+      }
+
+      .mcp-connect__card {
+        display: flex;
+        flex-direction: column;
+        flex: 1 1 260px;
+        min-width: 0;
+        padding: clamp(20px, 2.4vw, 26px);
+        border: 1px solid var(--mc-line);
+        border-radius: var(--mc-radius);
+        background-color: var(--mc-surface);
+      }
+
+      .mcp-connect__card__number {
+        color: var(--mc-brand);
+        font-size: 14px;
+        font-weight: 800;
+        line-height: 20px;
+        letter-spacing: 0.06em;
+        text-transform: uppercase;
+      }
+
+      .mcp-connect__card__title {
+        margin: 14px 0 9px;
+        font-size: 19px;
+        font-weight: 800;
+        line-height: 26px;
+        letter-spacing: -0.03em;
+      }
+
+      .mcp-connect__card__text {
+        margin: 0;
+        color: var(--mc-muted);
+        font-size: 14px;
+        line-height: 22px;
+      }
+
+      .mcp-connect__steps {
+        margin: 28px 0 0;
+        padding-left: 22px;
+        color: var(--mc-muted);
+        font-size: 16px;
+        line-height: 28px;
+      }
+
+      .mcp-connect__steps__item {
+        margin-bottom: 12px;
+      }
+
+      .mcp-connect__code {
+        display: block;
+        margin: 20px 0;
+        padding: 17px;
+        border-radius: 10px;
+        background-color: #edf3ec;
+        color: #21332c;
+        font-family: "Roboto Mono";
+        font-size: 14px;
+        line-height: 22px;
+        overflow-wrap: break-word;
+      }
+
+      .mcp-connect__note {
+        max-width: 720px;
+        margin: 0;
+        color: var(--mc-muted);
+        font-size: 16px;
+        line-height: 26px;
+      }
+
+      .mcp-connect__faq {
+        margin: 28px 0 0;
+      }
+
+      .mcp-connect__faq__question {
+        margin: 0 0 8px;
+        font-size: 18px;
+        font-weight: 700;
+        line-height: 26px;
+      }
+
+      .mcp-connect__faq__answer {
+        margin: 0 0 24px;
+        max-width: 720px;
+        color: var(--mc-muted);
+        font-size: 16px;
+        line-height: 26px;
+      }
+
+      .mcp-connect__footer {
+        border-top: 1px solid var(--mc-line);
+        padding-top: 24px;
+        padding-bottom: 34px;
+        color: var(--mc-muted);
+        font-size: 13px;
+        line-height: 22px;
+      }
+
+      .mcp-connect__footer__row {
+        display: flex;
+        flex-direction: row;
+        flex-wrap: wrap;
+        align-items: center;
+        gap: 18px;
+      }
+
+      .mcp-connect__footer__link {
+        color: var(--mc-brand);
+        text-decoration: underline;
+        text-underline-offset: 3px;
+      }
+
+      .mcp-connect__footer__link:hover {
+        color: var(--mc-ink);
+      }
+
+      .mcp-connect p code,
+      .mcp-connect dd code {
+        padding: 2px 6px;
+        border-radius: 6px;
+        background-color: #edf3ec;
+        font-family: "Roboto Mono";
+        font-size: 14px;
+        line-height: 22px;
+      }
+
+      .mcp-connect strong {
+        font-weight: 700;
+      }
+
+      .mcp-connect :focus-visible {
+        outline: 3px solid #287449;
+        outline-offset: 3px;
+      }
+
+      @media (max-width: 600px) {
+        .mcp-connect__header__row {
+          flex-direction: column;
+          align-items: flex-start;
+        }
+
+        .mcp-connect__nav {
+          gap: 17px;
+        }
+
+        .mcp-connect__actions {
+          flex-direction: column;
+          align-items: stretch;
+        }
+
+        .mcp-connect__button {
+          width: 100%;
+        }
+      }
+    </style>
+  </head>
+
+  <body class="mcp-connect">
+    <a class="mcp-connect__skip" href="#tresc-glowna">Przejdź do treści</a>
+
+    <header class="mcp-connect__header">
+      <div class="mcp-connect__shell mcp-connect__header__row">
+        <a class="mcp-connect__brand" href="https://zariszlif.pl/">
+          <span class="mcp-connect__brand__mark" aria-hidden="true">✦</span>
+          <span class="mcp-connect__brand__name">Żar i Szlif</span>
+          <span class="mcp-connect__brand__suffix">/ MCP</span>
+        </a>
+        <nav class="mcp-connect__nav" aria-label="Nawigacja główna">
+          <a class="mcp-connect__nav__link" href="https://zariszlif.pl/">O systemie</a>
+          <a class="mcp-connect__nav__link" href="https://mcp.zariszlif.pl/docs">Instrukcja MCP</a>
+          <a class="mcp-connect__nav__link" href="https://panel.zariszlif.pl/">Panel</a>
+        </nav>
+      </div>
+    </header>
+
+    <main class="mcp-connect__main" id="tresc-glowna">
+      <section class="mcp-connect__hero" aria-labelledby="mcp-connect-tytul-glowny">
+        <div class="mcp-connect__shell mcp-connect__hero__row">
+          <div class="mcp-connect__hero__copy">
+            <p class="mcp-connect__eyebrow">
+              <span aria-hidden="true">✦</span>
+              Integracja przez Model Context Protocol
+            </p>
+            <h1 class="mcp-connect__title" id="mcp-connect-tytul-glowny">
+              Twój asystent. Twoje obozowisko.
+            </h1>
+            <p class="mcp-connect__lede">
+              Połącz asystenta AI z wiedzą Żar i Szlif. Wyszukuj informacje o systemie i otrzymuj
+              odpowiedzi na podstawie źródeł, do których masz dostęp.
+            </p>
+            <div class="mcp-connect__actions">
+              <a class="mcp-connect__button mcp-connect__button--primary" href="https://mcp.zariszlif.pl/docs">
+                Jak podłączyć MCP
+              </a>
+              <a class="mcp-connect__button mcp-connect__button--secondary" href="https://zariszlif.pl/">
+                Poznaj Żar i Szlif
+              </a>
+            </div>
+          </div>
+          <div
+            class="mcp-connect__terminal"
+            role="group"
+            aria-label="Adres serwera MCP do skonfigurowania w kliencie"
+          >
+            <div class="mcp-connect__terminal__dots" aria-hidden="true">
+              <span class="mcp-connect__dot"></span>
+              <span class="mcp-connect__dot"></span>
+              <span class="mcp-connect__dot"></span>
+            </div>
+            <p class="mcp-connect__terminal__label">Adres połączenia · HTTPS</p>
+            <p class="mcp-connect__terminal__endpoint">https://mcp.zariszlif.pl/mcp</p>
+            <p class="mcp-connect__terminal__note">
+              To adres zdalnego serwera MCP, nie zwykła strona internetowa. Przy podłączaniu klient
+              może poprosić o zalogowanie i zgodę na dostęp.
+            </p>
+          </div>
+        </div>
+      </section>
+
+      <section class="mcp-connect__section" aria-labelledby="mcp-connect-tytul-kroki">
+        <div class="mcp-connect__shell">
+          <h2 class="mcp-connect__section__title" id="mcp-connect-tytul-kroki">
+            Połączenie w trzech krokach
+          </h2>
+          <p class="mcp-connect__section__intro">
+            Bez kopiowania haseł i bez udostępniania tokenów.
+          </p>
+          <div class="mcp-connect__cards">
+            <article class="mcp-connect__card">
+              <span class="mcp-connect__card__number">01 / Adres</span>
+              <h3 class="mcp-connect__card__title">Dodaj serwer MCP</h3>
+              <p class="mcp-connect__card__text">
+                W kliencie obsługującym zdalne MCP dodaj nowe połączenie i wklej adres serwera podany
+                wyżej.
+              </p>
+            </article>
+            <article class="mcp-connect__card">
+              <span class="mcp-connect__card__number">02 / Dostęp</span>
+              <h3 class="mcp-connect__card__title">Zaloguj się bezpiecznie</h3>
+              <p class="mcp-connect__card__text">
+                Jeśli klient uruchomi autoryzację OAuth, zaloguj się przez oferowaną stronę i zapoznaj
+                z zakresem uprawnień.
+              </p>
+            </article>
+            <article class="mcp-connect__card">
+              <span class="mcp-connect__card__number">03 / Wiedza</span>
+              <h3 class="mcp-connect__card__title">Korzystaj z narzędzi</h3>
+              <p class="mcp-connect__card__text">
+                Po połączeniu zapytaj o Żar i Szlif. Dostęp do informacji zależy od rzeczywiście
+                przyznanych uprawnień.
+              </p>
+            </article>
+          </div>
+        </div>
+      </section>
+
+      <section class="mcp-connect__section" aria-labelledby="mcp-connect-tytul-instrukcja">
+        <div class="mcp-connect__shell">
+          <h2 class="mcp-connect__section__title" id="mcp-connect-tytul-instrukcja">
+            Instrukcja podłączenia
+          </h2>
+          <p class="mcp-connect__section__intro">
+            Pełna instrukcja wraz z opisem narzędzi i zakresem uprawnień znajduje się w sekcji
+            <a class="mcp-connect__footer__link" href="https://mcp.zariszlif.pl/docs">Dokumentacja MCP</a>.
+          </p>
+          <ol class="mcp-connect__steps">
+            <li class="mcp-connect__steps__item">
+              Otwórz ustawienia integracji lub konektorów w swoim kliencie AI (na przykład ChatGPT, jeśli
+              Twoje konto obsługuje własne zdalne serwery MCP).
+            </li>
+            <li class="mcp-connect__steps__item">
+              Wybierz dodanie niestandardowego serwera MCP typu zdalnego lub HTTP.
+            </li>
+            <li class="mcp-connect__steps__item">
+              W polu adresu serwera podaj:
+              <pre class="mcp-connect__code"><code>https://mcp.zariszlif.pl/mcp</code></pre>
+            </li>
+            <li class="mcp-connect__steps__item">
+              Rozpocznij połączenie i ukończ logowanie OAuth, jeśli klient o nie poprosi.
+            </li>
+            <li class="mcp-connect__steps__item">
+              Sprawdź przyznane uprawnienia i dostępność narzędzi wyszukiwania wiedzy.
+            </li>
+          </ol>
+          <p class="mcp-connect__note">
+            Nie wpisuj w formularzach połączenia kluczy administracyjnych ani haseł do infrastruktury.
+            Adres <strong>/mcp</strong> obsługuje protokół, dlatego bezpośrednie otwarcie go w
+            przeglądarce nie musi wyświetlić strony WWW. Metadane autoryzacji oraz endpointy OAuth
+            pozostają niezależne od tej instrukcji.
+          </p>
+        </div>
+      </section>
+
+      <section class="mcp-connect__section" aria-labelledby="mcp-connect-tytul-privacy">
+        <div class="mcp-connect__shell">
+          <h2 class="mcp-connect__section__title" id="mcp-connect-tytul-privacy">
+            Uprawnienia i prywatność
+          </h2>
+          <p class="mcp-connect__section__intro">
+            MCP udostępnia wyłącznie wiedzę systemu. Nie jest bramką do panelu ani do administracji.
+          </p>
+          <div class="mcp-connect__cards">
+            <article class="mcp-connect__card">
+              <span class="mcp-connect__card__number">Logowanie</span>
+              <h3 class="mcp-connect__card__title">Standardowy przepływ OAuth</h3>
+              <p class="mcp-connect__card__text">
+                Logowanie odbywa się na stronie autoryzacji w przeglądarce. Klient nigdy nie prosi o
+                hasło do Twojego konta ani o klucze administracyjne.
+              </p>
+            </article>
+            <article class="mcp-connect__card">
+              <span class="mcp-connect__card__number">Zakres</span>
+              <h3 class="mcp-connect__card__title">Tylko narzędzia wiedzy</h3>
+              <p class="mcp-connect__card__text">
+                Serwer udostępnia wyłącznie odczyt wiedzy: wyszukiwanie, pobieranie źródła i pobieranie
+                treści. Nie zapisuje danych i nie zmienia ustawień konta.
+              </p>
+            </article>
+            <article class="mcp-connect__card">
+              <span class="mcp-connect__card__number">Dane</span>
+              <h3 class="mcp-connect__card__title">Tylko to, do czego masz dostęp</h3>
+              <p class="mcp-connect__card__text">
+                Odpowiedzi opierają się na źródłach, do których Twoje konto ma uprawnienia. Dane
+                logowania i hasła nie są przekazywane do klienta ani do modelu.
+              </p>
+            </article>
+          </div>
+        </div>
+      </section>
+
+      <section class="mcp-connect__section" aria-labelledby="mcp-connect-tytul-faq">
+        <div class="mcp-connect__shell">
+          <h2 class="mcp-connect__section__title" id="mcp-connect-tytul-faq">Najczęstsze pytania</h2>
+          <div class="mcp-connect__faq">
+            <h3 class="mcp-connect__faq__question">
+              Czy adres /mcp otworzy się w przeglądarce?
+            </h3>
+            <p class="mcp-connect__faq__answer">
+              Nie. /mcp to adres protokołu obsługiwany przez klienta MCP, a nie strona WWW. Strony
+              publiczne serwisu znajdziesz w katalogu <code>/</code> oraz <code>/docs</code>.
+            </p>
+
+            <h3 class="mcp-connect__faq__question">Czy mogę używać ChatGPT?</h3>
+            <p class="mcp-connect__faq__answer">
+              Tak, o ile Twoje konto i wybrany klient obsługują własne zdalne serwery MCP. Wtedy
+              w ustawieniach konektorów dodajesz adres serwera i przechodzisz przez logowanie.
+            </p>
+
+            <h3 class="mcp-connect__faq__question">Czy muszę podać hasło do Żar i Szlif w kliencie?</h3>
+            <p class="mcp-connect__faq__answer">
+              Nie. Hasło wpisujesz wyłącznie na stronie autoryzacji, w przeglądarce. Klient otrzymuje
+              token dostępu, nie hasło.
+            </p>
+
+            <h3 class="mcp-connect__faq__question">Co, jeśli klient nie pyta o logowanie?</h3>
+            <p class="mcp-connect__faq__answer">
+              Połączenie działa wtedy w zakresie publicznej wiedzy. Aby uzyskać dostęp do treści
+              objętych uprawnieniami, zaloguj się na stronie autoryzacji i zatwierdź zakres dostępu.
+            </p>
+
+            <h3 class="mcp-connect__faq__question">Gdzie znajdę szczegółową listę narzędzi?</h3>
+            <p class="mcp-connect__faq__answer">
+              W sekcji <a class="mcp-connect__footer__link" href="https://mcp.zariszlif.pl/docs">Dokumentacja MCP</a>,
+              wraz z opisem zakresu uprawnień i ograniczeń.
+            </p>
+          </div>
+        </div>
+      </section>
+    </main>
+
+    <footer class="mcp-connect__footer">
+      <div class="mcp-connect__shell mcp-connect__footer__row">
+        <span>© Żar i Szlif</span>
+        <a class="mcp-connect__footer__link" href="https://mcp.zariszlif.pl/docs">Pomoc MCP</a>
+        <a class="mcp-connect__footer__link" href="https://zariszlif.pl/">O systemie</a>
+        <a class="mcp-connect__footer__link" href="https://panel.zariszlif.pl/">Panel produktu</a>
+      </div>
+    </footer>
+  </body>
+</html>
