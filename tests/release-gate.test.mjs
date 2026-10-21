@@ -112,6 +112,23 @@ test("self-hosted Coolify deployment files run the frontend gate, never the Work
   assert.equal(plan.unclassified.length, 0);
 });
 
+test("product MCP worker changes run the product-MCP gate, never the legacy Worker gate", () => {
+  const plan = classifyTargets(["app/mcp-worker/src/activities/contract.ts", "app/mcp-worker/src/index.ts"]);
+
+  assert.deepEqual(plan.scripts, ["validate:product-mcp"]);
+  assert.equal(plan.unclassified.length, 0);
+  assert.match(packageJson.scripts["validate:product-mcp"], /app\/mcp-worker/);
+  // Brama produktowego MCP nie uruchamia bramki legacy frontendu/Workera.
+  assert.doesNotMatch(packageJson.scripts["validate:product-mcp"], /validate:frontend|validate:worker/);
+});
+
+test("product MCP and frontend changes run both own gates", () => {
+  const plan = classifyTargets(["app/mcp-worker/src/index.ts", "app/web/src/styles.css"]);
+
+  assert.deepEqual(plan.scripts, ["validate:frontend", "validate:product-mcp"]);
+  assert.equal(plan.unclassified.length, 0);
+});
+
 test("docs-only changes run the minimum canonical gate, never a provider gate", () => {
   const plan = classifyTargets(["docs/production-release.md", "AGENTS.md", "archive/old/thing.txt"]);
 

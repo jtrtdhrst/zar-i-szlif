@@ -18,6 +18,9 @@ const RELEASE_RULES = [
   // closed, and an unclassified path would block the push.
   { re: /^vercel\.json$/, targets: ["frontend"] },
   { re: /^app\/web\//, targets: ["frontend"] },
+  // Produktowy MCP ma własny target (Cloudflare Worker `zar-i-szlif-mcp`
+  // deployowany z gałęzi main) i własną bramkę: typecheck + testy + bundle.
+  { re: /^app\/mcp-worker\//, targets: ["product-mcp"] },
   { re: /^app\/cloudflare-worker\//, targets: ["cloudflare"] },
   // app/plugin is compiled into the frontend build (tsc -p plugin/tsconfig.json)
   // and bundled into the Worker (src/mcp.ts -> ../../plugin/server.js), so it
@@ -74,6 +77,7 @@ export function classifyTargets(paths) {
   const scripts = [];
   if (targets.has("frontend")) scripts.push("validate:frontend");
   if (targets.has("cloudflare")) scripts.push("validate:worker");
+  if (targets.has("product-mcp")) scripts.push("validate:product-mcp");
   if (scripts.length === 0) {
     // Either docs-only or an empty diff. Minimum canonical repo validation,
     // never a provider gate: requirement 2 forbids inventing provider auth.
