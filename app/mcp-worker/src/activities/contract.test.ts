@@ -4,6 +4,8 @@ import { fileURLToPath } from "node:url";
 import { describe, it } from "vitest";
 
 import {
+  isCalendarDate,
+  isIanaTimeZone,
   parseGetActivityArgs,
   parseListActivitiesArgs,
   parseManageActivityArgs,
@@ -198,6 +200,89 @@ describe("adapter backendu aplikacji", () => {
     } as unknown as Parameters<typeof registerActivityTools>[0];
     registerActivityTools(fakeServer, {}, { googleSub: "sub" }, "https://mcp.example.test");
     assert.deepEqual(registered, []);
+  });
+});
+
+describe("walidacja daty kalendarzowej i strefy IANA", () => {
+  const IMPOSSIBLE_DATES = [
+    "2026-02-30",
+    "2026-04-31",
+    "2026-06-31",
+    "2026-09-31",
+    "2026-11-31",
+    "2025-02-29",
+    "1900-02-29",
+    "2026-13-01",
+    "2026-00-10",
+    "2026-01-00",
+    "2026-01-32",
+  ];
+
+  it("odrzucuje daty, które nie istnieją w kalendarzu", () => {
+    for (const date of IMPOSSIBLE_DATES) {
+      assert.equal(isCalendarDate(date), false, `${date} nie istnieje w kalendarzu`);
+      assert.throws(
+        () =>
+          parseManageActivityArgs({
+            action: "update",
+            activity_id: "act-1",
+            fields: { date },
+          }),
+        /poprawną datą kalendarzową/,
+        `manage_activity przyjął niemożliwą datę ${date}`,
+      );
+    }
+  });
+
+  it("dopuszcza daty, które istnieją, w tym dzień przestępny", () => {
+    for (const date of ["2026-10-24", "2024-02-29", "2000-02-29", "2026-01-31", "2026-12-31"]) {
+      assert.equal(isCalendarDate(date), true, `${date} istnieje w kalendarzu`);
+    }
+    const parsed = parseManageActivityArgs({
+      action: "update",
+      activity_id: "act-1",
+      fields: { date: "2024-02-29" },
+    });
+    assert.equal(parsed.fields.date, "2024-02-29");
+  });
+
+  it("odrzucuje niemożliwe daty w filtrach list_activities", () => {
+    assert.throws(
+      () => parseListActivitiesArgs({ date_from: "2026-02-30" }),
+      /poprawną datą kalendarzową/,
+    );
+    assert.throws(
+      () => parseListActivitiesArgs({ date_to: "2026-13-01" }),
+      /poprawną datą kalendarzową/,
+    );
+  });
+
+  it("odrzucuje strefy spoza IANA, mimo zgodności ze whitelistą znaków", () => {
+    for (const zone of ["Europe/Warsawa", "Mars/Phobos", "UTC+2", "GMT+5", "Europe/Warsaw/", "  ", "CET+1"]) {
+      assert.equal(isIanaTimeZone(zone), false, `${zone} nie jest strefą IANA`);
+      assert.throws(
+        () =>
+          parseManageActivityArgs({
+            action: "update",
+            activity_id: "act-1",
+            fields: { timezone: zone },
+          }),
+        /strefą czasu IANA/,
+        `manage_activity przyjął nieprawdziwą strefę ${zone}`,
+      );
+    }
+  });
+
+  it("dopuszcza prawdziwe strefy IANA", () => {
+    for (const zone of ["Europe/Warsaw", "UTC", "America/New_York", "Asia/Tokyo"]) {
+      assert.equal(isIanaTimeZone(zone), true, `${zone} jest strefą IANA`);
+      const parsed = parseManageActivityArgs({
+        action: "update",
+        activity_id: "act-1",
+        fields: { timezone: zone },
+      });
+      assert.equal(parsed.fields.timezone, zone);
+    }
   });
 });
 

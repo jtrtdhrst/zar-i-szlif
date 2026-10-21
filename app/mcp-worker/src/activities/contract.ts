@@ -43,7 +43,52 @@ export const MANAGE_ACTIVITY_ACTIONS = ["update"] as const;
 const CALENDAR_SYNC_STATUSES = ["not_connected", "pending", "synced", "error", "disabled"];
 
 const DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
-const TIMEZONE_RE = /^[A-Za-z0-9_+-]{1,64}$/;
+const TIMEZONE_RE = /^[A-Za-z0-9_+\-/]{1,64}$/;
+
+/**
+ * Prawdziwa data kalendarzowa, nie tylko format `YYYY-MM-DD`.
+ * `2026-02-30`, `2025-02-29` i `2026-13-01` są odrzucane; `2024-02-29` przechodzi.
+ */
+export function isCalendarDate(text: string): boolean {
+  if (!DATE_RE.test(text)) return false;
+  const year = Number(text.slice(0, 4));
+  const month = Number(text.slice(5, 7));
+  const day = Number(text.slice(8, 10));
+  if (month < 1 || month > 12 || day < 1) return false;
+  const leap = (year % 4 === 0 && year % 100 !== 0) || year % 400 === 0;
+  const daysInMonth = [31, leap ? 29 : 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31][month - 1];
+  return day <= daysInMonth;
+}
+
+/**
+ * Prawdziwa strefa IANA, nie tylko dozwolony zestaw znaków.
+ * `Europe/Warsawa`, `Mars/Phobos` i `UTC+2` są odrzucane; `Europe/Warsaw` przechodzi.
+ * Walidacja idzie przez `Intl` (stdlib, pełna baza stref), więc nazwa spoza IANA
+ * nie przejdzie, nawet jeśli przejdzie whitelistę znaków.
+ */
+export function isIanaTimeZone(text: string): boolean {
+  if (!TIMEZONE_RE.test(text)) return false;
+  try {
+    new Intl.DateTimeFormat("en-US", { timeZone: text });
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+/**
+ * Mapowanie pól nagłówka aktywności: panel (produkt) <-> DTO MCP.
+ * Panel jest właścicielem tych nazw (`app/web/src/static-app-v2.js`, model `S.activity`);
+ * MCP nigdy nie tworzy własnych nazw — DTO to projekcja tych samych pól.
+ * `timezone` nie ma odpowiednika w panelu (panel operuje czasem lokalnym),
+ * więc jest polem backendu aplikacji, a nie panelu.
+ */
+export const PANEL_FIELD_MAPPING = [
+  { panel: "title", mcp: "title" },
+  { panel: "date", mcp: "date" },
+  { panel: "startTime", mcp: "start_at" },
+  { panel: "endTime", mcp: "end_at" },
+] as const;
 
 export interface ActivityDto {
   activity_id: string;
@@ -106,7 +151,7 @@ function asInstant(raw: unknown): string | null {
 
 function asDate(raw: unknown): string | null {
   const text = asText(raw, 10);
-  if (!text || !DATE_RE.test(text)) return null;
+  if (!text || !isCalendarDate(text)) return null;
   return text;
 }
 
@@ -161,10 +206,10 @@ export function parseListActivitiesArgs(raw: unknown): ListActivitiesArgs {
   const dateFrom = asDate(args.date_from);
   const dateTo = asDate(args.date_to);
   if (args.date_from !== undefined && !dateFrom) {
-    throw new Error("Parametr \"date_from\" musi być datą YYYY-MM-DD.");
+    throw new Error("Parametr \"date_from\" musi być poprawną datą kalendarzową YYYY-MM-DD.");
   }
   if (args.date_to !== undefined && !dateTo) {
-    throw new Error("Parametr \"date_to\" musi być datą YYYY-MM-DD.");
+    throw new Error("Parametr \"date_to\" musi być poprawną datą kalendarzową YYYY-MM-DD.");
   }
   const result: ListActivitiesArgs = {};
   if (dateFrom) result.date_from = dateFrom;
@@ -212,7 +257,7 @@ export function parseManageActivityArgs(raw: unknown): ManageActivityArgs {
   if (title) fields.title = title;
   if (fieldsRaw.date !== undefined) {
     const date = asDate(fieldsRaw.date);
-    if (!date) throw new Error("Pole \"date\" musi być datą YYYY-MM-DD.");
+    if (!date) throw new Error("Pole \"date\" musi być poprawną datą kalendarzową YYYY-MM-DD.");
     fields.date = date;
   }
   if (fieldsRaw.start_at !== undefined) {
@@ -227,7 +272,9 @@ export function parseManageActivityArgs(raw: unknown): ManageActivityArgs {
   }
   if (fieldsRaw.timezone !== undefined) {
     const timezone = asText(fieldsRaw.timezone, 64);
-    if (!timezone || !TIMEZONE_RE.test(timezone)) throw new Error("Pole \"timezone\" musi być strefą IANA.");
+    if (!timezone || !isIanaTimeZone(timezone)) {
+      throw new Error("Pole \"timezone\" musi być poprawną strefą czasu IANA (np. Europe/Warsaw).");
+    }
     fields.timezone = timezone;
   }
   if (Object.keys(fields).length === 0) {

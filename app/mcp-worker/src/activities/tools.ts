@@ -17,6 +17,8 @@ import { canonicalUserId, type VerifiedGrant } from "../../../cloudflare-worker/
 import {
   MANAGE_ACTIVITY_ACTIONS,
   MANAGE_ACTIVITY_FIELDS,
+  isCalendarDate,
+  isIanaTimeZone,
   parseGetActivityArgs,
   parseListActivitiesArgs,
   parseManageActivityArgs,
@@ -79,8 +81,20 @@ export function registerActivityTools(
       description:
         "Zwraca autoryzowane aktywności drużyny (nagłówek: tytuł, data, czas, status, tryb) z kanonicznym activity_id. Zespół i uprawnienia wynikają z tokenu, nie z argumentów.",
       inputSchema: {
-        date_from: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional(),
-        date_to: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional(),
+        date_from: z
+          .string()
+          .trim()
+          .min(10)
+          .max(10)
+          .refine(isCalendarDate, "data musi być poprawną datą kalendarzową YYYY-MM-DD")
+          .optional(),
+        date_to: z
+          .string()
+          .trim()
+          .min(10)
+          .max(10)
+          .refine(isCalendarDate, "data musi być poprawną datą kalendarzową YYYY-MM-DD")
+          .optional(),
         status: z.string().trim().min(1).max(64).optional(),
         type: z.string().trim().min(1).max(64).optional(),
         limit: z.number().int().min(1).max(100).optional(),
@@ -135,10 +149,22 @@ export function registerActivityTools(
         fields: z
           .object({
             title: z.string().trim().min(1).max(200).optional(),
-            date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional(),
+            date: z
+              .string()
+              .trim()
+              .min(10)
+              .max(10)
+              .refine(isCalendarDate, "data musi być poprawną datą kalendarzową YYYY-MM-DD")
+              .optional(),
             start_at: z.string().trim().min(1).max(40).optional(),
             end_at: z.string().trim().min(1).max(40).optional(),
-            timezone: z.string().trim().min(1).max(64).optional(),
+            timezone: z
+              .string()
+              .trim()
+              .min(1)
+              .max(64)
+              .refine(isIanaTimeZone, "strefa musi być poprawną strefą czasu IANA")
+              .optional(),
           })
           .strict(),
         expected_version: z.union([z.number(), z.string()]).optional(),
