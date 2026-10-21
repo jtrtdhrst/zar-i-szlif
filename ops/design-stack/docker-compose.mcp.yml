@@ -1,10 +1,13 @@
 name: plasmic-mcp
 services:
   plasmic-mcp:
-    build:
-      context: /root/design-stack
-      dockerfile: Dockerfile.mcp
-    image: design-stack/plasmic-mcp:${IMAGE_TAG:-dev}
+    # Ten sam obraz co `opendesign-bridge-mcp`: `Dockerfile.mcp` zawiera oba serwery,
+    # a `command` wybiera serwer. Obraz buduje CI (push na `main`) i taguje SHA.
+    # IMAGE_TAG jest WYMAGANE (`:?`) — brak zmiennej przerywa deploy zamiast
+    # ciągnąć pływający tag `latest`, który łamie kontrakt "deploy = SHA z main"
+    # (docs/design-stack/operations.md) i nie pozwala odtworzyć wdrożenia.
+    image: ghcr.io/miloszspyrka-code/kompas-zbiorek-opendesign-mcp:${IMAGE_TAG:?IMAGE_TAG required: commit SHA from main (see docs/design-stack/operations.md)}
+    pull_policy: always
     command: ["node", "services/plasmic-mcp/server.ts"]
     environment:
       # Publiczny URL (nie wewnętrzny http): WAB stawia ciasteczko sesji
@@ -35,7 +38,9 @@ services:
       start_period: 20s
 
   opendesign-bridge-mcp:
-    image: ghcr.io/miloszspyrka-code/kompas-zbiorek-opendesign-mcp:${OPENDESIGN_MCP_IMAGE_TAG:-latest}
+    # Ten sam obraz i ten sam tag co `plasmic-mcp` (oba serwery w jednym obrazie CI,
+    # `command` wybiera serwer) — jeden kontrakt tagu, jeden rollback.
+    image: ghcr.io/miloszspyrka-code/kompas-zbiorek-opendesign-mcp:${IMAGE_TAG:?IMAGE_TAG required: commit SHA from main (see docs/design-stack/operations.md)}
     pull_policy: always
     command: ["node", "services/opendesign-bridge-mcp/server.ts"]
     environment:

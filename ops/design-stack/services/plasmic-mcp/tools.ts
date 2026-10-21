@@ -173,11 +173,38 @@ async function writeOp<T extends Record<string, unknown>>(
 const idKey = { idempotencyKey: z.string().optional().describe("Powtórka runa nie tworzy kopii") };
 const dry = { dryRun: z.boolean().optional().describe("true = tylko diff, bez zapisu") };
 
+// KOMAA-1001: adnotacje MCP (readOnlyHint/destructiveHint/idempotentHint).
+// Platforma klasyfikuje narzędzia właśnie po nich — bez adnotacji insert
+// i use_component (oba zapisują przez writeOp) były widziane jako read-only
+// i omijały politykę zatwierdzania zmian. destructiveHint=true tylko tam,
+// gdzie zapis może nadpisać istniejący wpis; idempotentHint=true tam, gdzie
+// powtórka z tym samym kluczem nie tworzy drugiego efektu.
+const A_READ = { readOnlyHint: true } as const;
+const A_WRITE = { readOnlyHint: false, destructiveHint: false, idempotentHint: true } as const;
+const A_OVERWRITE = { readOnlyHint: false, destructiveHint: true, idempotentHint: true } as const;
+const A_ADD = { readOnlyHint: false, destructiveHint: false, idempotentHint: false } as const;
+const A_DELETE = { readOnlyHint: false, destructiveHint: true, idempotentHint: false } as const;
+
+// KOMAA-1001: dryRun i live są semantycznie rozłączne. dryRun nigdy nie
+// czyta ani nie zapełnia cache idempotencji — inaczej dryRun pod tym samym
+// kluczem tłumiłby późniejszy live (replay bez zapisu). Live dostaje własną
+// przestrzeń `live:` (unieważnia też zatrute wpisy sprzed fixa).
+function idempotentLive<T>(
+  dir: string,
+  baseKey: string,
+  dryRun: boolean | undefined,
+  fn: () => Promise<T>,
+): Promise<{ result: T; deduped: boolean }> {
+  if (dryRun) return fn().then((result) => ({ result, deduped: false }));
+  return idempotent(dir, `live:${baseKey}`, fn);
+}
+
 export function plasmicTools(ctx: PlasmicCtx): ToolDef[] {
   const c = ctx.client;
   return [
     {
       name: "plasmic_get_project",
+      annotations: A_READ,
       description: "Meta projektu Plasmic + numer rewizji + liczniki stron/komponentów/tokenów.",
       schema: { projectId: z.string(), branchId: z.string().optional() },
       handler: async (a) => {
@@ -194,6 +221,7 @@ export function plasmicTools(ctx: PlasmicCtx): ToolDef[] {
     },
     {
       name: "plasmic_list_pages",
+      annotations: A_READ,
       description: "Strony projektu (stabilne id + nazwy).",
       schema: { projectId: z.string(), branchId: z.string().optional() },
       handler: async (a) => {
@@ -203,6 +231,7 @@ export function plasmicTools(ctx: PlasmicCtx): ToolDef[] {
     },
     {
       name: "plasmic_list_components",
+      annotations: A_READ,
       description: "Komponenty projektu (stabilne id + nazwy + typy).",
       schema: { projectId: z.string(), branchId: z.string().optional() },
       handler: async (a) => {
@@ -212,6 +241,7 @@ export function plasmicTools(ctx: PlasmicCtx): ToolDef[] {
     },
     {
       name: "plasmic_list_tokens",
+      annotations: A_READ,
       description: "Tokeny styli projektu.",
       schema: { projectId: z.string(), branchId: z.string().optional() },
       handler: async (a) => {
@@ -221,6 +251,7 @@ export function plasmicTools(ctx: PlasmicCtx): ToolDef[] {
     },
     {
       name: "plasmic_read_page",
+      annotations: A_READ,
       description: "Pełny wpis strony po id lub nazwie.",
       schema: { projectId: z.string(), pageId: z.string(), branchId: z.string().optional() },
       handler: async (a) => {
@@ -231,6 +262,7 @@ export function plasmicTools(ctx: PlasmicCtx): ToolDef[] {
     },
     {
       name: "plasmic_read_component",
+      annotations: A_READ,
       description: "Pełny wpis komponentu po id lub nazwie.",
       schema: { projectId: z.string(), componentId: z.string(), branchId: z.string().optional() },
       handler: async (a) => {
@@ -241,6 +273,7 @@ export function plasmicTools(ctx: PlasmicCtx): ToolDef[] {
     },
     {
       name: "plasmic_read_component_tree",
+      annotations: A_READ,
       description: "Komponent + wpisy referencjonowane (depth 1-2).",
       schema: {
         projectId: z.string(),
@@ -276,6 +309,7 @@ export function plasmicTools(ctx: PlasmicCtx): ToolDef[] {
     },
     {
       name: "plasmic_create_page",
+      annotations: A_WRITE,
       description:
         "Nowa strona z fixture wygenerowanego kodem WAB (podgraf Component+Arena+tpl + patch Site).",
       schema: {
@@ -288,7 +322,7 @@ export function plasmicTools(ctx: PlasmicCtx): ToolDef[] {
       },
       handler: async (a) => {
         const key = `create_page:${a.projectId}:${(a.idempotencyKey as string | undefined) ?? `${a.name}:${a.path}`}`;
-        const { result } = await idempotent(ctx.stateDir + "/idempotency", key, () =>
+        const { result } = await idempotentLive(ctx.stateDir + "/idempotency", key, a.dryRun as boolean | undefined, () =>
           writeOp(ctx, "plasmic_create_page", a.projectId as string, a.name as string,
             key,
             async () => {
@@ -329,6 +363,7 @@ export function plasmicTools(ctx: PlasmicCtx): ToolDef[] {
     },
     {
       name: "plasmic_create_component",
+      annotations: A_WRITE,
       description: "Nowy komponent z fixture wygenerowanego kodem WAB (podgraf + patch Site).",
       schema: {
         projectId: z.string(),
@@ -339,7 +374,7 @@ export function plasmicTools(ctx: PlasmicCtx): ToolDef[] {
       },
       handler: async (a) => {
         const key = `create_component:${a.projectId}:${(a.idempotencyKey as string | undefined) ?? (a.name as string)}`;
-        const { result } = await idempotent(ctx.stateDir + "/idempotency", key, () =>
+        const { result } = await idempotentLive(ctx.stateDir + "/idempotency", key, a.dryRun as boolean | undefined, () =>
           writeOp(ctx, "plasmic_create_component", a.projectId as string, a.name as string,
             key,
             async () => {
@@ -385,6 +420,7 @@ export function plasmicTools(ctx: PlasmicCtx): ToolDef[] {
     },
     {
       name: "plasmic_insert",
+      annotations: A_OVERWRITE,
       description: "Upsert surowego wpisu mapy bundle (tokeny, warianty, węzły). Wpięcie w rodzica przez plasmic_update.",
       schema: {
         projectId: z.string(),
@@ -399,7 +435,7 @@ export function plasmicTools(ctx: PlasmicCtx): ToolDef[] {
         if (!entry.__type) throw new Error("entry wymaga pola __type");
         const iid = (a.elementId as string | undefined) ?? (entry.uuid as string) ?? newIid();
         const key = `insert:${a.projectId}:${(a.idempotencyKey as string | undefined) ?? iid}`;
-        const { result } = await idempotent(ctx.stateDir + "/idempotency", key, () =>
+        const { result } = await idempotentLive(ctx.stateDir + "/idempotency", key, a.dryRun as boolean | undefined, () =>
           writeOp(ctx, "plasmic_insert", a.projectId as string, iid, key, () =>
             c.mutate(a.projectId as string, a.branchId as string | undefined, () => ({
               map: { [iid]: { ...entry } },
@@ -411,6 +447,7 @@ export function plasmicTools(ctx: PlasmicCtx): ToolDef[] {
     },
     {
       name: "plasmic_update",
+      annotations: A_OVERWRITE,
       description: "Scal pola wpisu (merge). Target odczytywany ponownie przed zapisem.",
       schema: {
         projectId: z.string(),
@@ -431,6 +468,7 @@ export function plasmicTools(ctx: PlasmicCtx): ToolDef[] {
     },
     {
       name: "plasmic_delete",
+      annotations: A_DELETE,
       description: "Usuń wpis. Bez force odmawia przy wiszących referencjach.",
       schema: {
         projectId: z.string(),
@@ -459,6 +497,7 @@ export function plasmicTools(ctx: PlasmicCtx): ToolDef[] {
     },
     {
       name: "plasmic_set_props",
+      annotations: A_ADD,
       description: "Scal props wpisu.",
       schema: {
         projectId: z.string(),
@@ -513,6 +552,7 @@ export function plasmicTools(ctx: PlasmicCtx): ToolDef[] {
     },
     {
       name: "plasmic_set_styles",
+      annotations: A_WRITE,
       description: "Scal style CSS (RuleSet.values) przez base VariantSetting węzła Tpl.",
       schema: {
         projectId: z.string(),
@@ -564,6 +604,7 @@ export function plasmicTools(ctx: PlasmicCtx): ToolDef[] {
     },
     {
       name: "plasmic_use_component",
+      annotations: A_WRITE,
       description: "Wstaw instancję komponentu przez klon istniejącej instancji.",
       schema: {
         projectId: z.string(),
@@ -574,7 +615,7 @@ export function plasmicTools(ctx: PlasmicCtx): ToolDef[] {
       },
       handler: async (a) => {
         const key = `use:${a.projectId}:${(a.idempotencyKey as string | undefined) ?? (a.componentId as string)}`;
-        const { result } = await idempotent(ctx.stateDir + "/idempotency", key, () =>
+        const { result } = await idempotentLive(ctx.stateDir + "/idempotency", key, a.dryRun as boolean | undefined, () =>
           writeOp(ctx, "plasmic_use_component", a.projectId as string, a.componentId as string,
             key,
             async () => {
@@ -605,6 +646,7 @@ export function plasmicTools(ctx: PlasmicCtx): ToolDef[] {
     },
     {
       name: "plasmic_validate",
+      annotations: A_READ,
       description: "Lokalna walidacja bundle: parsowanie, __type, dangling refs.",
       schema: { projectId: z.string(), branchId: z.string().optional() },
       handler: async (a) => {
@@ -639,6 +681,9 @@ export function plasmicTools(ctx: PlasmicCtx): ToolDef[] {
     },
     {
       name: "plasmic_get_changes",
+      // Tylko odczyt danych Plasmic — narzędzie cache'uje lokalny hash
+      // ostatnio widzianej rewizji, nie zmienia projektu.
+      annotations: A_READ,
       description: "Numer rewizji + hash vs ostatnio widziane (wykrywanie zmian).",
       schema: { projectId: z.string(), branchId: z.string().optional() },
       handler: async (a) => {
