@@ -15,7 +15,7 @@ Najważniejsze skille kontekstowe:
 
 ## Repo layout
 
-- `app/` — jedyny runtime aplikacji; `app/plugin/` to Wtyczka / MCP Kompasu Zbiórek.
+- `app/` — runtime: `app/web/` (UI), `app/plugin/` (współdzielony/legacy MCP i wiedza), `app/mcp-worker/` (dedykowany product MCP), `app/cloudflare-worker/` (dotychczasowy panel/API).
 - `branding/` — jedyne kanoniczne miejsce na źródła brandingu produktu; obecnie celowo puste.
 - `dev/` — techniczny design system, integracje developerskie i quality tooling.
 - `content/` — marketing i onboarding emails.
@@ -130,7 +130,7 @@ API/OAuth/MCP zostają na Cloudflare Worker. Zmiany `ops/coolify/**` są
 klasyfikowane w `scripts/release-targets.mjs` jako frontend, więc przechodzą gate
 frontendu.
 
-Cloudflare dotyczy wyłącznie `app/cloudflare-worker/` (API/integracje/OAuth). Jego release jest osobnym workflow `.github/workflows/cloudflare-worker-release.yml` i uruchamia się automatycznie tylko po zmianach w `app/cloudflare-worker/**` albo ręcznie przez workflow dispatch.
+Cloudflare ma dwa odrębne cele wdrożenia: `app/cloudflare-worker/` (dotychczasowy panel/API/OAuth, workflow `.github/workflows/cloudflare-worker-release.yml`) oraz `app/mcp-worker/` (dedykowany product MCP, własny `wrangler.jsonc`, build/deploy z katalogu `app/mcp-worker`). Nie używaj konfiguracji panelu do wdrożenia product MCP. Brak klasyfikacji nowego targetu przez `scripts/release-targets.mjs` pozostaje rzeczywistym gapem release-gate, nie dowodem wdrożenia.
 
 Dla zmian Workera:
 
