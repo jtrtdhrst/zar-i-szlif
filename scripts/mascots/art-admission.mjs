@@ -104,9 +104,24 @@ export function evaluateArtEvidence(evidence,{root=process.cwd(),mode='concept'}
   if(uniqueSource.size<3||uniquePairImage.size<3)fail('DIRECTIONS_NOT_DISTINCT','A/B/C source and real rendered pixels must differ; visual distinctness still requires human assessment');
   const optical=evidence.optical||{};
   for(const role of ART_ROLES.slice(0,2)){
-    const entry=optical[role];
-    if(!entry||!['purpose_drawn_bust','purpose_drawn_icon'].includes(entry.kind)||!HEX64.test(entry.sourceSha256||''))
-      fail('NO_PURPOSE_DRAWN_32PX',role+' cannot pass from uniformly scaled full-body image');
+    const entry=optical[role],master=sources[role];
+    if(!entry||!['purpose_drawn_bust','purpose_drawn_icon'].includes(entry.kind)
+       ||!entry.path||!HEX64.test(entry.sourceSha256||'')){
+      fail('NO_PURPOSE_DRAWN_32PX',role+' has no physically checked optical SVG source');
+      continue;
+    }
+    try{
+      const abs=path.resolve(root,entry.path);
+      if(!abs.startsWith(path.resolve(root)+path.sep))throw Error('PATH_ESCAPES_WORKSPACE');
+      const bytes=fs.readFileSync(abs),svg=bytes.toString('utf8');
+      if(!/<svg\b/i.test(svg)||!/<path\b/i.test(svg)
+         ||/<image\b|<foreignObject\b|data:image/i.test(svg))
+        fail('OPTICAL_NOT_NATIVE_VECTOR',role);
+      if(sha256(bytes)!==entry.sourceSha256)
+        fail('OPTICAL_SOURCE_HASH_MISMATCH',role);
+      if(entry.sourceSha256===master?.sha256)
+        fail('OPTICAL_IDENTICAL_TO_MASTER',role+' at 32px is same 512px art, not purpose designed');
+    }catch(err){fail('OPTICAL_SOURCE_UNREADABLE',role+': '+String(err.code||err.message));}
   }
   // This proves provenance of a reported visual inspection, not its truthfulness.
   const vision=evidence.vision;
@@ -132,4 +147,3 @@ if(self){
     if(result.status==='BLOCKED')process.exitCode=1;
   }catch(err){console.error('ART_EVIDENCE_ERROR '+String(err.message));process.exitCode=2;}
 }
-
