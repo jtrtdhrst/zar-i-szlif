@@ -7,14 +7,14 @@ import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { WebStandardStreamableHTTPServerTransport } from "@modelcontextprotocol/sdk/server/webStandardStreamableHttp.js";
 import { z } from "zod";
 
-import { createGoogleAuthHandler, type GoogleAuthHandlerEnv } from "../../cloudflare-worker/src/google-handler.js";
-import { dcrRedirectUriError } from "../../cloudflare-worker/src/dcr.js";
-import { resolveCanonicalScope, type VerifiedGrant } from "../../cloudflare-worker/src/identity.js";
-import { QdrantClient } from "../../plugin/knowledge/qdrant.js";
-import { workersAiEmbed } from "../../plugin/knowledge/embeddings.js";
-import { COLLECTION_NAME } from "../../plugin/knowledge/schema.js";
+import { createGoogleAuthHandler, type GoogleAuthHandlerEnv } from "./oauth/google-handler.js";
+import { dcrRedirectUriError } from "./oauth/dcr.js";
+import { resolveCanonicalScope, type VerifiedGrant } from "./oauth/identity.js";
+import { QdrantClient } from "./knowledge/qdrant.js";
+import { workersAiEmbed } from "./knowledge/embeddings.js";
+import { COLLECTION_NAME } from "./knowledge/schema.js";
 import { SEARCH_KNOWLEDGE_TOOL, GET_KNOWLEDGE_SOURCE_TOOL, COMPANY_SEARCH_TOOL, COMPANY_FETCH_TOOL,
-  searchKnowledge, getKnowledgeSource, companySearch, companyFetch } from "../../plugin/knowledge/mcp-tools.js";
+  searchKnowledge, getKnowledgeSource, companySearch, companyFetch } from "./knowledge/mcp-tools.js";
 import { canonicalOrigin, requestHostAllowed } from "./config.js";
 
 const READ_SCOPE = "knowledge.read";
@@ -123,9 +123,9 @@ function makeKnowledgeServer(env: Env, grant: VerifiedGrant | null | undefined, 
   return server;
 }
 
-// Reuse the audited Google OIDC consent, PKCE, and CSRF implementation, but expose
-// ONLY the login paths; NOT its legacy panel, UI or catalog proxies.
-const upstreamGoogle = createGoogleAuthHandler({ widgetHtml: "" });
+// Self-contained audited Google OIDC consent/state implementation. It serves only
+// login paths; the product worker never imports legacy panel, UI, or catalog modules.
+const upstreamGoogle = createGoogleAuthHandler();
 const loginHandler = {
   async fetch(request, env, ctx) {
     const url = new URL(request.url);
