@@ -1,28 +1,28 @@
 #!/usr/bin/env node
-/** Recompose editable V7 interaction scene from immutable native SVG masters.
- * Design-time only: NOT a shipping renderer or a replacement for scripts/mascots/export.mjs.
- * Run: node assets/mascots/concepts/v7-art-experiment/compose-v7.mjs
- */
-import {compose} from '../minimal-flat-v5/compose.mjs';
-import {fileURLToPath} from 'node:url';
-import {writeFileSync, mkdirSync} from 'node:fs';
+/** Native SVG layout only; not the application export renderer. */
+import fs from 'node:fs';
 import path from 'node:path';
-
+import {fileURLToPath} from 'node:url';
 const here=path.dirname(fileURLToPath(import.meta.url));
-const before=process.cwd();
-try {
-  process.chdir(here);
-  const document=compose([
-    'props/ground.svg:0,0,1',
-    'masters/szlif-master.svg:2,150,0.62',
-    'masters/iskra-master.svg:197,148,0.63'
-  ],{
-    viewBox:'0 0 512 512',
-    title:'Iskra and Szlif — V7 editable pair',
-    desc:'A native vector interaction scene derived from two five-colour mascot masters.'
-  });
-  mkdirSync(path.join(here,'scenes'),{recursive:true});
-  const filepath=path.join(here,'scenes/iskra-szlif-vignette.svg');
-  writeFileSync(filepath,document);
-  console.log('V7_PAIR_WRITTEN '+filepath);
-} finally {process.chdir(before)}
+function paths(filename,prefix){
+  const source=fs.readFileSync(path.join(here,filename),'utf8');
+  if(/<image\b|<foreignObject\b|<script\b|\bon[a-z]+=|url\(/i.test(source))throw Error('RASTER_OR_ACTIVE_SVG_FORBIDDEN');
+  const tags=[...source.matchAll(/<path\s+id="([^"]+)"\s+fill="(#[0-9a-fA-F]{6})"\s+d="([^"]+)"[^>]*\/>/g)];
+  if(tags.length<15||tags.length>22)throw Error('INVALID_SHAPE_BUDGET: '+filename);
+  if(new Set(tags.map(x=>x[2].toLowerCase())).size>5)throw Error('INVALID_PALETTE_BUDGET: '+filename);
+  if(new Set(tags.map(x=>x[1])).size!==tags.length)throw Error('DUPLICATE_MASTER_SHAPE_ID');
+  return tags.map(x=>x[0].replace(' id="',' id="'+prefix+'-')).join('\n');
+}
+const raven=paths('masters/szlif-master.svg','szlif');
+const fox=paths('masters/iskra-master.svg','iskra');
+const ground=paths('props/ground.svg','ground').replace('ground-ground-shadow','ground-shadow');
+const scene=`<svg xmlns="http://www.w3.org/2000/svg" width="512" height="512" viewBox="0 0 512 512" aria-label="Iskra and Szlif V7 pair">
+<title>Iskra and Szlif — V7 exploratory pair, editable vectors</title>
+${ground}
+<g id="szlif" transform="translate(2 150) scale(.62)">${raven}</g>
+<g id="iskra" transform="translate(197 148) scale(.63)">${fox}</g>
+</svg>`;
+const output=path.join(here,'scenes/iskra-szlif-vignette.svg');
+fs.mkdirSync(path.dirname(output),{recursive:true});
+fs.writeFileSync(output,scene,'utf8');
+console.log('EDITABLE_NATIVE_PAIR',output,'paths',1+21+21);
