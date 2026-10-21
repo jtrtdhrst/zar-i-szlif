@@ -8,11 +8,16 @@ It is the import payload for a project that must be created first.
 
 ## What these files are
 
-`landing-zar-i-szlif-mcp-connect.html` is a full HTML document that the Plasmic MCP
-compiles into a **native, editable** Studio page (native components, not a flattened
-screenshot). Public copy is Polish; the file carries no tracking, no script and no
-private data. This `.md` file is its handoff doc for the Studio session that owns
-the new project.
+- `content/marketing/landing-zar-i-szlif-mcp-connect.html` — the payload: a full
+  HTML document that the Plasmic MCP compiles into a **native, editable** Studio
+  page (native components, not a flattened screenshot). Public copy is Polish; the
+  file carries no tracking, no script and no private data. It lives in
+  `content/marketing/` next to the sibling Website payload, because that folder is
+  the public marketing source.
+- `docs/mcp-connect-plasmic-import.md` — this handoff doc, for the Studio session
+  that owns the new project. It is deliberately **not** in `content/marketing/`:
+  that folder is the indexed user-knowledge corpus, and internal handoff material
+  must stay out of it.
 
 Content is intentionally in parity with the credential-free fallback site in
 `app/mcp-worker/src/landing.ts` (PR #64), extended with the OAuth, privacy/scope
