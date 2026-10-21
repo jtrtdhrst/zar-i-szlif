@@ -36,6 +36,17 @@ jobs:
             esac
           fi
           node scripts/assert-git-identity.mjs --base="$base" --head=HEAD
+      - name: Enforce product vs owner Harness repository boundary
+        run: |
+          git fetch --no-tags origin main
+          base="origin/main"
+          if [ "${{ github.event_name }}" = "push" ]; then
+            case "${{ github.event.before }}" in
+              ""|0*) ;;
+              *) base="${{ github.event.before }}" ;;
+            esac
+          fi
+          node scripts/assert-product-repo-boundary.mjs "$base" HEAD
       - run: npm run validate:code
       - run: npm run build
       - name: Verify generated artifacts
