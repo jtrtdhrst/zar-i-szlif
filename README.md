@@ -22,9 +22,7 @@ content/                   # treści niebędące kodem runtime
 ├── marketing/
 └── onboarding-emails/
 
-archive/                   # materiały historyczne i audyty
-├── legacy/
-└── ui-audits/
+docs/legacy-artifacts-retired-20261021.md  # manifest wycofanych archiwaliów (dostępnych w historii Git)
 
 .paperclip-wiki/           # lokalny mirror wiedzy Paperclip
 registry/                  # kanoniczny rejestr UI @kompas

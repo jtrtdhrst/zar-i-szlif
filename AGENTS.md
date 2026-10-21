@@ -19,7 +19,7 @@ Najważniejsze skille kontekstowe:
 - `branding/` — jedyne kanoniczne miejsce na źródła brandingu produktu; obecnie celowo puste.
 - `dev/` — techniczny design system, integracje developerskie i quality tooling.
 - `content/` — marketing i onboarding emails.
-- `archive/` — materiały historyczne; nie są CURRENT.
+- Historyczne snapshoty i audyty zostały wycofane z drzewa roboczego; lista i odzyskiwanie w `docs/legacy-artifacts-retired-20261021.md`.
 - `skills/`, `registry/`, `scripts/`, `opencode.json` — tooling i kontrakty agentowe na root.
 
 Przed broad discovery użyj `kompas-technical-context`, który utrzymuje kanoniczne lokalizacje plików.
