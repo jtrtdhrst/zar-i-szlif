@@ -3,13 +3,11 @@ on:
   pull_request:
     paths:
       - "app/mcp-worker/**"
-      - "app/plugin/knowledge/**"
       - ".github/workflows/product-mcp-ci.yml"
   push:
     branches: [main]
     paths:
       - "app/mcp-worker/**"
-      - "app/plugin/knowledge/**"
       - ".github/workflows/product-mcp-ci.yml"
 permissions:
   contents: read
@@ -18,12 +16,29 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
       - uses: actions/setup-node@v4
         with:
           node-version: 24
           cache: npm
           cache-dependency-path: app/mcp-worker/package-lock.json
+      - name: Fail mixed-scope Product MCP PRs
+        if: github.event_name == 'pull_request'
+        env:
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+        run: |
+          git diff --name-only "$BASE_SHA" "$HEAD_SHA" > /tmp/product-mcp-changed-paths
+          while IFS= read -r changed; do
+            case "$changed" in
+              app/mcp-worker/*|.github/workflows/product-mcp-ci.yml) ;;
+              *) echo "Forbidden product MCP change outside app/mcp-worker: $changed"; exit 1 ;;
+            esac
+          done < /tmp/product-mcp-changed-paths
       - run: npm ci --prefix app/mcp-worker
+      - run: npm run verify:root
+        working-directory: app/mcp-worker
       - run: npm run build
         working-directory: app/mcp-worker
       - run: npx wrangler deploy --dry-run --config wrangler.jsonc
