@@ -8,7 +8,7 @@ function paths(filename,prefix){
   const source=fs.readFileSync(path.join(here,filename),'utf8');
   if(/<image\b|<foreignObject\b|<script\b|\bon[a-z]+=|url\(/i.test(source))throw Error('RASTER_OR_ACTIVE_SVG_FORBIDDEN');
   const tags=[...source.matchAll(/<path\s+id="([^"]+)"\s+fill="(#[0-9a-fA-F]{6})"\s+d="([^"]+)"[^>]*\/>/g)];
-  if(tags.length<15||tags.length>22)throw Error('INVALID_SHAPE_BUDGET: '+filename);
+  if((prefix==='ground' ? tags.length!==1 : (tags.length<15||tags.length>22)))throw Error('INVALID_SHAPE_BUDGET: '+filename);
   if(new Set(tags.map(x=>x[2].toLowerCase())).size>5)throw Error('INVALID_PALETTE_BUDGET: '+filename);
   if(new Set(tags.map(x=>x[1])).size!==tags.length)throw Error('DUPLICATE_MASTER_SHAPE_ID');
   return tags.map(x=>x[0].replace(' id="',' id="'+prefix+'-')).join('\n');
