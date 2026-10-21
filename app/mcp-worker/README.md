@@ -1,6 +1,6 @@
 # Żar i Szlif — separate Cloudflare product MCP
 
-This is an independent **knowledge-only** MCP deployment. It does not publish the legacy `app/cloudflare-worker/` panel or Paperclip administrative MCP.
+This is an independent **knowledge-first** MCP deployment (plus an optional activity slice that stays inactive until the application backend is configured). It does not publish the legacy `app/cloudflare-worker/` panel or Paperclip administrative MCP.
 
 ## Cloudflare Git integration
 
@@ -26,6 +26,27 @@ Build installs root workspace dependencies (shared MCP SDK and knowledge code) a
 6. Confirm reachability to Qdrant from the public Cloudflare Worker over **HTTPS** with scoped credentials. Cloudflare cannot directly call a Docker-only/private VPS service. Provision a secure public ingress or equivalent private connectivity.
 7. Run the complete authenticated login and MCP smoke test before registering in ChatGPT.
 
+## Calendar-D activity slice (KOMAA-1278)
+
+The product MCP exposes a **slice** of the TARGET activity contract: `list_activities`, `get_activity`, `manage_activity` (header fields only: title, date, start/end time, timezone). They are registered **only** when the application backend is configured (`APP_ACTIVITY_API_BASE` + `APP_ACTIVITY_API_TOKEN`, both Worker secrets). Without the backend the manifest stays at the four knowledge tools — the MCP never advertises a tool it cannot serve.
+
+Rules enforced by the contract (`src/activities/`):
+
+- Supabase/Postgres stays the single source of truth. The MCP stores no activity or event of its own and never calls the Google Calendar API — the backend (outbox) propagates changes to the linked calendar.
+- The canonical `activity_id` is echoed, never minted: `list_activities` and `get_activity` return the same id as the panel.
+- `manage_activity` accepts only header fields; every other field (Google event id, calendar sync state, team, participants, notes, reports) is rejected. The client cannot pass team/user scope — scope comes from the verified OAuth grant.
+- No Google OAuth, access/refresh tokens, calendar-private data or per-child data in tool input or output. Only a safe `calendar_sync_status` enum and public-safe header fields are returned.
+
+Expected application-backend interface (implementation owned by the application backend):
+
+```
+GET   {APP_ACTIVITY_API_BASE}/activities?date_from&date_to&status&type&limit&cursor
+GET   {APP_ACTIVITY_API_BASE}/activities/{activity_id}
+PATCH {APP_ACTIVITY_API_BASE}/activities/{activity_id}   body: { fields, expected_version?, idempotency_key? }
+```
+
+The MCP authenticates with the service credential and forwards the server-verified subject (`x-mcp-subject`); the backend resolves the internal user, the active team and the role, and owns the calendar outbox.
+
 ## Tooling and security
 
 OAuth 2.1 authorization code flow + PKCE/CSRF (reused audited implementation), DCR allowlist, separate OAuth KV, strict host/origin validation, only authorized tools: `search_knowledge`, `get_knowledge_source`, `search`, `fetch`. User/team scope is derived from verified OAuth grants, not tool arguments. Qdrant retrieval and embeddings are imported, **not reimplemented**. Supabase remains the application's source of truth.
@@ -40,6 +61,6 @@ Do NOT switch `MCP_PUBLIC_ORIGIN` to a different host without also updating DNS,
 - `POST /mcp` without token -> 401 + WWW-Authenticate
 - OAuth discovery advertises `https://mcp.zariszlif.pl/mcp`
 - DCR refuses unknown redirect URIs; Google callback finishes login
-- Authenticated `tools/list` has four knowledge tools, no legacy UI and no Paperclip admin tools
+- Authenticated `tools/list` has four knowledge tools (plus `list_activities`, `get_activity`, `manage_activity` only when the application backend is configured), no legacy UI and no Paperclip admin tools
 - Authenticated `search_knowledge` performs scoped Qdrant retrieval; wrong-user/team data never returned
 - Rollback uses Cloudflare Workers versions; legacy Worker never redeployed for this target.

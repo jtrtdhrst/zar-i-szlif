@@ -15,6 +15,7 @@ import { workersAiEmbed } from "../../plugin/knowledge/embeddings.js";
 import { COLLECTION_NAME } from "../../plugin/knowledge/schema.js";
 import { SEARCH_KNOWLEDGE_TOOL, GET_KNOWLEDGE_SOURCE_TOOL, COMPANY_SEARCH_TOOL, COMPANY_FETCH_TOOL,
   searchKnowledge, getKnowledgeSource, companySearch, companyFetch } from "../../plugin/knowledge/mcp-tools.js";
+import { registerActivityTools } from "./activities/tools.js";
 import { canonicalOrigin, requestHostAllowed } from "./config.js";
 
 const READ_SCOPE = "knowledge.read";
@@ -26,6 +27,9 @@ interface Env extends GoogleAuthHandlerEnv {
   MCP_ALLOWED_REDIRECT_URIS?: string;
   QDRANT_URL?: string;
   QDRANT_API_KEY?: string;
+  /** Backend aplikacji (SSOT aktywności). Bez tych zmiennych narzędzia aktywności nie są rejestrowane. */
+  APP_ACTIVITY_API_BASE?: string;
+  APP_ACTIVITY_API_TOKEN?: string;
   AI?: { run(model: string, input: { text: string[] }): Promise<{ data: number[][] }> };
 }
 type VerifiedContext = ExecutionContext & { props?: unknown };
@@ -114,6 +118,10 @@ function makeKnowledgeServer(env: Env, grant: VerifiedGrant | null | undefined, 
     const result = await companyFetch(b.client, scope, args);
     return { structuredContent: result, content: [{ type: "text", text: JSON.stringify(result) }] };
   });
+
+  // Wycinek calendar-D: narzędzia aktywności tylko przy skonfigurowanym backendzie
+  // aplikacji (SSOT + outbox do kalendarza). Bez backendu manifest pozostaje wiedzą.
+  registerActivityTools(server, env, grant, origin);
 
   // Imported descriptors are checked for names to keep the knowledge contract in sync.
   if (SEARCH_KNOWLEDGE_TOOL.name !== "search_knowledge" ||
