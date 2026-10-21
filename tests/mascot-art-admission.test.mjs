@@ -36,14 +36,21 @@ function withEvidence(run){
         pair512:copy('exports/iskra-'+low+'-szlif-'+low+'-pair-512.png','directions/'+letter+'.png')
       };
     }
+    const optical={};
+    for(const role of ['iskra','szlif']){
+      const file='optical/'+role+'-head.svg';
+      const target=path.join(tmp,file);
+      const original=fs.readFileSync(path.join(origin,sourceMaster[role]),'utf8');
+      const synthetic=original.replace('viewBox="0 0 512 512"','viewBox="88 16 240 240"');
+      fs.mkdirSync(path.dirname(target),{recursive:true});
+      fs.writeFileSync(target,synthetic,'utf8');
+      optical[role]={kind:role==='iskra'?'purpose_drawn_bust':'purpose_drawn_icon',
+        path:file,sourceSha256:sha256(Buffer.from(synthetic))};
+    }
     const evidence={
       candidate:{commit:'10f16de67f41f36f34c20333c9405fa8916c91a8',
         writerAgentId:'designer',visualReviewerAgentId:'cmo',sources},
-      images,directions,
-      optical:{
-        iskra:{kind:'purpose_drawn_bust',sourceSha256:'a'.repeat(64)},
-        szlif:{kind:'purpose_drawn_icon',sourceSha256:'b'.repeat(64)},
-      },
+      images,directions,optical,
       vision:{mock:false,inputType:'image_bytes',model:'fixture-model-not-real',
         invocationId:'fixture-invocation-not-real',screenshotSha256:images.pair_512.sha256,
         verdict:'provisionally_acceptable'}
@@ -178,3 +185,23 @@ test('EXACT rejected V7 fox/raven SVG blobs fail even after a later Git commit a
   });
 });
 
+test('lying optical metadata without an actual SVG file fails closed',()=>{
+  withEvidence(({tmp,evidence})=>{
+    evidence.optical.iskra.path='optical/imaginary-file.svg';
+    assert.ok(codes(evaluateArtEvidence(evidence,{root:tmp})).includes('OPTICAL_SOURCE_UNREADABLE'));
+  });
+});
+test('an untouched master reused as optical avatar is NOT independent 32px art',()=>{
+  withEvidence(({tmp,evidence})=>{
+    evidence.optical.iskra.path=evidence.candidate.sources.iskra.path;
+    evidence.optical.iskra.sourceSha256=evidence.candidate.sources.iskra.sha256;
+    const errors=codes(evaluateArtEvidence(evidence,{root:tmp}));
+    assert.ok(errors.includes('OPTICAL_IDENTICAL_TO_MASTER'));
+  });
+});
+test('same 32px source with metadata hash forged is rejected',()=>{
+  withEvidence(({tmp,evidence})=>{
+    evidence.optical.szlif.sourceSha256='a'.repeat(64);
+    assert.ok(codes(evaluateArtEvidence(evidence,{root:tmp})).includes('OPTICAL_SOURCE_HASH_MISMATCH'));
+  });
+});
