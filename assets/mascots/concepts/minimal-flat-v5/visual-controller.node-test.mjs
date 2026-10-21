@@ -78,7 +78,7 @@ test('real dark phone and camp context reuse corrected raven theme',()=>{
 
 test('fake candidate Git SHA fails authentic repository readback',()=>{
   const errors=verifyGitProvenance({candidateSha:'0'.repeat(40)},root);
-  assert.ok(errors.some(x=>x.code==='GIT_SHA_MISMATCH'),JSON.stringify(errors));
+  assert.ok(errors.some(x=>x.code==='CANDIDATE_NOT_IN_HISTORY'),JSON.stringify(errors));
 });
 
 test('Szlif vector path consolidation preserves V6 art in actual pixels',()=>{
@@ -120,4 +120,19 @@ test('real PNG visually different from manifest canonical fails Pixelmatch despi
     vision:{penpotScreenshotSha256:sha256(readFileSync(path.join(root,screenshot)))}};
   const errors=verifyRasterEvidence(proof,root);
   assert.ok(errors.some(x=>x.code==='RENDER_DRIFT'),JSON.stringify(errors));
+});
+
+test('art candidate remains valid after later documentation/test commits',()=>{
+  const artCommit='9b6665cc6620e4e20cdef1567998e9af7e6d8816';
+  assert.deepEqual(verifyGitProvenance({candidateSha:artCommit},root),[],
+    'Source art and manifest must match immutable ancestor commit');
+});
+test('older changed art candidate cannot be recycled after V6 rebuild',()=>{
+  const old='8beaaebe0f4b700429810aa195e6d414b9055198';
+  const errors=verifyGitProvenance({candidateSha:old},root);
+  assert.ok(errors.some(x=>x.code==='CANDIDATE_ASSETS_CHANGED'),JSON.stringify(errors));
+});
+test('invalid candidate sha is rejected before git shell invocation',()=>{
+  const errors=verifyGitProvenance({candidateSha:'not-a-commit'},root);
+  assert.ok(errors.some(x=>x.code==='CANDIDATE_SHA_INVALID'));
 });

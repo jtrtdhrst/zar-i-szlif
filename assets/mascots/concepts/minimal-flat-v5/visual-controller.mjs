@@ -107,25 +107,74 @@ export function verifyRasterEvidence(e, root) {
   return problems;
 }
 
-// The claimed Git SHA must be the actual HEAD that owns every raster, SVG,
-// manifest and evidence artifact. This rejects a stale signed-looking JSON blob
-// copied from another candidate and uncommitted hot edits.
+// Pin review to the exact immutable ART SOURCE commit, not to Git HEAD.
+// Evidence and reviews may be saved in subsequent commits without invalidating
+// the approved art SHA. All raster/vector bytes must still match the pinned SHA.
 export function verifyGitProvenance(e, root) {
   if (!e) return [];
   const errors = [];
   const fail = (code, message) => errors.push({code, message});
+  const sha = e.candidateSha;
+  if (!SHA40.test(sha??'')) {
+    fail('CANDIDATE_SHA_INVALID','Candidate must be full immutable 40-char Git SHA');
+    return errors;
+  }
   try {
     const repo = execFileSync('git',['rev-parse','--show-toplevel'],{cwd:root,encoding:'utf8',timeout:5000}).trim();
-    const head = execFileSync('git',['rev-parse','HEAD'],{cwd:repo,encoding:'utf8',timeout:5000}).trim();
     const rel = path.relative(repo,root).split(path.sep).join('/');
-    if(e.candidateSha !== head) fail('GIT_SHA_MISMATCH','Expected candidate SHA '+head+' but received '+String(e.candidateSha));
-    const dirty = execFileSync('git',['status','--porcelain','--untracked-files=all','--',rel],{cwd:repo,encoding:'utf8',timeout:5000}).trim();
-    if(dirty) fail('UNCOMMITTED_ART_ASSETS','Asset directory differs from the submitted Git commit');
-    // Hash-pin the generated manifest, because other review evidence depends on it.
-    const committed = execFileSync('git',['show','HEAD:'+rel+'/exports/manifest.json'],{cwd:repo,timeout:5000,maxBuffer:4*1024*1024});
-    const local = readFileSync(path.join(root,'exports','manifest.json'));
-    if(hash(committed)!==hash(local)) fail('MANIFEST_NOT_COMMITTED','Local manifest is not the one submitted in HEAD');
-  } catch(err) { fail('GIT_READBACK_FAILED',String(err.message).slice(0,200)); }
+    if(!rel || rel.startsWith('..'))throw Error('Asset folder outside Git worktree');
+    // Fail closed for SHA from an unrelated branch or history.
+    try {
+      execFileSync('git',['merge-base','--is-ancestor',sha,'HEAD'],{cwd:repo,timeout:5000,stdio:'pipe'});
+    } catch {
+      fail('CANDIDATE_NOT_IN_HISTORY','Art candidate SHA is not ancestor of this checkout HEAD');
+      return errors;
+    }
+    const ref=sha+':'+rel+'/exports/manifest.json';
+    let committedManifest;
+    try{
+      committedManifest=execFileSync('git',['show',ref],{cwd:repo,timeout:5000,maxBuffer:4*1024*1024});
+    }catch {
+      fail('PINNED_MANIFEST_MISSING','Candidate did not commit a canonical render manifest');
+      return errors;
+    }
+    const localManifest=readFileSync(path.join(root,'exports','manifest.json'));
+    if(hash(committedManifest)!==hash(localManifest)){
+      fail('CANDIDATE_ASSETS_CHANGED','Current manifest differs from exact candidate commit');
+      return errors;
+    }
+    // Pin all SVG source SHAs to manifest; a clean status alone is insufficient.
+    const manifest=JSON.parse(committedManifest.toString('utf8'));
+    for(const rec of manifest.sources??[]){
+      try {
+        const src=readFileSync(inRepo(root,rec.file));
+        if(hash(src)!==rec.sourceSha256)
+          fail('PINNED_SVG_CHANGED',rec.file+' changed from submitted candidate');
+        // Any generated raster passed to downstream Penpot must match the
+        // candidate's export manifest, not merely have a valid PNG signature.
+        for(const o of rec.outputs??[]){
+          try{
+            if(hash(readFileSync(inRepo(root,o.file)))!==o.sha256)
+              fail('PINNED_PNG_CHANGED',o.file+' no longer matches manifest');
+          }catch {fail('PINNED_PNG_MISSING',o.file);}
+        }
+      }catch {fail('PINNED_SVG_MISSING',rec.file);}
+    }
+    for(const sheet of manifest.sheets??[]){
+      try{
+        if(hash(readFileSync(inRepo(root,sheet.file)))!==sheet.sha256)
+          fail('PINNED_SHEET_CHANGED',sheet.file);
+      }catch{fail('PINNED_SHEET_MISSING',sheet.file);}
+    }
+    // Only the ART itself must be clean. New evidence/reviews may be persisted
+    // separately without changing an already-approved source revision.
+    const artPaths=['directions','masters','scenes','optical','props','exports/manifest.json','render.mjs','compose.mjs']
+      .map(x=>rel+'/'+x);
+    const dirty=execFileSync('git',['status','--porcelain','--untracked-files=all','--',...artPaths],{cwd:repo,encoding:'utf8',timeout:5000}).trim();
+    if(dirty)fail('UNCOMMITTED_ART_ASSETS','Canonical art/source/render files have uncommitted edits');
+  }catch(err){
+    fail('GIT_READBACK_FAILED',String(err.message).slice(0,180));
+  }
   return errors;
 }
 
