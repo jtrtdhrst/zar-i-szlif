@@ -1,4 +1,6 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
+// Worker OAuth module uses cloudflare:workers; mock only the error constructor for Node Vitest.
+vi.mock("@cloudflare/workers-oauth-provider", () => ({ AuthorizationError: class AuthorizationError extends Error {} }));
 import { createGoogleAuthHandler } from "./google-handler.js";
 
 // The public product MCP must not expose any routes of the legacy panel.
