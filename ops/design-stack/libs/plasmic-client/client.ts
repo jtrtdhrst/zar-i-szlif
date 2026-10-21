@@ -42,6 +42,35 @@ function isObj(v: unknown): v is Record<string, unknown> {
   return !!v && typeof v === "object" && !Array.isArray(v);
 }
 
+/**
+ * Błąd API WAB z rozwiniętym statusem i nazwą błędu upstream.
+ *
+ * WAB zwraca envelope `{error:{name,statusCode,message}}` — dla 412 przy
+ * niezgodności bundle'a `name` to `BundleTypeError`, a `message` bywa pusty.
+ * Bez rozpakowania tego envelope agent widział surowy JSON i nie odróżniał
+ * odrzucenia zawartości (412) od konfliktu rewizji (409) czy braku autoryzacji
+ * (401/403). KOMAA-1084: nazwa i status muszą być widoczne w komunikacie.
+ */
+export class PlasmicApiError extends Error {
+  readonly status: number;
+  readonly errorName: string;
+  readonly detail: string;
+  readonly body: string;
+  readonly path: string;
+
+  constructor(status: number, errorName: string, detail: string, body: string, path = "") {
+    super(
+      `Plasmic ${status} ${errorName}${path ? ` (${path})` : ""}: ${detail || body.slice(0, 300) || "(pusty body)"}`,
+    );
+    this.name = "PlasmicApiError";
+    this.status = status;
+    this.errorName = errorName;
+    this.detail = detail;
+    this.body = body;
+    this.path = path;
+  }
+}
+
 // Heurystyka typów bundle (Plasmic map: iid -> {__type, ...}).
 // Dokładne markery weryfikuje test integracyjny na żywym WAB.
 function entryType(raw: Record<string, unknown>): string {
@@ -100,9 +129,19 @@ export class PlasmicClient {
     });
     this.storeCookies(res);
     if (!res.ok) {
-      throw new Error(
-        `Plasmic ${res.status} ${path}: ${(await res.text()).slice(0, 300)}`,
-      );
+      const body = await res.text();
+      let errorName = `HTTP_${res.status}`;
+      let detail = "";
+      try {
+        const parsed = JSON.parse(body) as { error?: { name?: string; message?: string } };
+        if (parsed && typeof parsed === "object" && parsed.error) {
+          if (typeof parsed.error.name === "string") errorName = parsed.error.name;
+          if (typeof parsed.error.message === "string") detail = parsed.error.message;
+        }
+      } catch {
+        // Nie-JSON (np. proxy HTML) → zostaje nazwa HTTP_<status>.
+      }
+      throw new PlasmicApiError(res.status, errorName, detail, body, path);
     }
     const text = await res.text();
     return (text ? JSON.parse(text) : undefined) as T;

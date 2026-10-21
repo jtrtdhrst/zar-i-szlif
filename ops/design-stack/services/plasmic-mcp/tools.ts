@@ -12,6 +12,7 @@ import { readFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { z } from "zod";
+import { checkPatch, danglingRefs, entryProblems, formatProblems, problemKey } from "./contract.ts";
 
 export interface PlasmicCtx {
   client: PlasmicClient;
@@ -421,28 +422,67 @@ export function plasmicTools(ctx: PlasmicCtx): ToolDef[] {
     {
       name: "plasmic_insert",
       annotations: A_OVERWRITE,
-      description: "Upsert surowego wpisu mapy bundle (tokeny, warianty, węzły). Wpięcie w rodzica przez plasmic_update.",
+      description:
+        "Upsert surowych wpisów mapy bundle (tokeny, warianty, węzły). Wpięcie w rodzica przez plasmic_update. Wpisy są sprawdzane kontraktem WAB przed zapisem.",
       schema: {
         projectId: z.string(),
-        entry: z.record(z.string(), z.unknown()),
+        entry: z
+          .record(z.string(), z.unknown())
+          .optional()
+          .describe("jeden wpis bundle (iid = elementId)"),
+        entries: z
+          .record(z.string(), z.record(z.string(), z.unknown()))
+          .optional()
+          .describe("wiele wpisów w jednej rewizji (klucz = iid)"),
         elementId: z.string().optional().describe("iid; domyślnie generowane"),
         branchId: z.string().optional(),
         ...idKey,
         ...dry,
       },
       handler: async (a) => {
-        const entry = a.entry as Record<string, unknown>;
-        if (!entry.__type) throw new Error("entry wymaga pola __type");
-        const iid = (a.elementId as string | undefined) ?? (entry.uuid as string) ?? newIid();
-        const key = `insert:${a.projectId}:${(a.idempotencyKey as string | undefined) ?? iid}`;
+        const single = a.entry as Record<string, unknown> | undefined;
+        const batch = a.entries as Record<string, Record<string, unknown>> | undefined;
+        if (!single && !batch) throw new Error("entry wymaga pola __type");
+        if (single && batch) {
+          throw new Error("podaj entry albo entries (nie oba naraz)");
+        }
+        // iid -> surowy wpis; klucz mapy i pole uuid to osobne przestrzenie.
+        const rawEntries: Record<string, Record<string, unknown>> = {};
+        let singleIid: string | undefined;
+        if (single) {
+          if (!single.__type) throw new Error("entry wymaga pola __type");
+          singleIid =
+            (a.elementId as string | undefined) ??
+            (single.uuid as string) ??
+            newIid();
+          rawEntries[singleIid] = single;
+        } else {
+          for (const [iid, raw] of Object.entries(batch!)) {
+            if (!raw || typeof raw !== "object" || Array.isArray(raw)) {
+              throw new Error(`CONTRACT_INVALID: ${iid}: wpis musi być obiektem`);
+            }
+            rawEntries[iid] = raw;
+          }
+        }
+        const iids = Object.keys(rawEntries);
+        const key = `insert:${a.projectId}:${(a.idempotencyKey as string | undefined) ?? iids.join(",")}`;
         const { result } = await idempotentLive(ctx.stateDir + "/idempotency", key, a.dryRun as boolean | undefined, () =>
-          writeOp(ctx, "plasmic_insert", a.projectId as string, iid, key, () =>
-            c.mutate(a.projectId as string, a.branchId as string | undefined, () => ({
-              map: { [iid]: { ...entry } },
-            }), { dryRun: a.dryRun as boolean | undefined }),
+          writeOp(ctx, "plasmic_insert", a.projectId as string, iids.join(","), key, () =>
+            c.mutate(a.projectId as string, a.branchId as string | undefined, (bundle) => {
+              // Kontrakt WAB: normalizacja + walidacja PRZED zapisem.
+              // Wpis niezgodny z modelem WAB odrzuciłby cały patch 412
+              // (BundleTypeError) — tutaj zostaje złapany przed POST-em.
+              const checked = checkPatch(rawEntries, bundle.map);
+              if (checked.problems.length) {
+                throw new Error(`CONTRACT_INVALID: ${formatProblems(checked.problems)}`);
+              }
+              return { map: checked.map };
+            }, { dryRun: a.dryRun as boolean | undefined }),
           ),
         );
-        return { ...result, id: iid };
+        return singleIid
+          ? { ...result, id: singleIid }
+          : { ...result, ids: iids };
       },
     },
     {
@@ -462,7 +502,25 @@ export function plasmicTools(ctx: PlasmicCtx): ToolDef[] {
           () =>
             c.mutate(a.projectId as string, a.branchId as string | undefined, (bundle) => {
               const { iid, entry } = resolve(bundle, a.elementId as string);
-              return { map: { [iid]: { ...entry.raw, ...(a.patch as object) } } };
+              const merged = { ...entry.raw, ...(a.patch as object) };
+              // Update nie może WPROWADZIĆ nowego naruszenia kontraktu WAB
+              // (np. RuleSet.values zamienione na string selektora). Istniejące
+              // naruszenia w dokumencie nie blokują edycji.
+              const resolveType = (ref: string): string | undefined => {
+                const target = ref === iid ? merged : bundle.map[ref];
+                if (!target || typeof target !== "object") return undefined;
+                return String((target as Record<string, unknown>).__type ?? "");
+              };
+              const before = new Set(
+                entryProblems(iid, entry.raw, resolveType).map(problemKey),
+              );
+              const introduced = entryProblems(iid, merged, resolveType).filter(
+                (p) => !before.has(problemKey(p)),
+              );
+              if (introduced.length) {
+                throw new Error(`CONTRACT_INVALID: ${formatProblems(introduced)}`);
+              }
+              return { map: { [iid]: merged } };
             }, { dryRun: a.dryRun as boolean | undefined }),
         ),
     },
@@ -647,7 +705,8 @@ export function plasmicTools(ctx: PlasmicCtx): ToolDef[] {
     {
       name: "plasmic_validate",
       annotations: A_READ,
-      description: "Lokalna walidacja bundle: parsowanie, __type, dangling refs.",
+      description:
+        "Lokalna walidacja bundle: parsowanie, __type, kontrakt WAB (wymagane pola, typy, graf referencji), dangling refs.",
       schema: { projectId: z.string(), branchId: z.string().optional() },
       handler: async (a) => {
         const rev = await c.getProjectRev(a.projectId as string, a.branchId as string | undefined);
@@ -659,6 +718,23 @@ export function plasmicTools(ctx: PlasmicCtx): ToolDef[] {
             continue;
           }
           if (!("__type" in (v as object))) problems.push(`${iid}: missing __type`);
+        }
+        // Kontrakt WAB (KOMAA-1084): wymagane pola, typy pól i graf referencji.
+        // Ten sam kontrakt, którego wymaga serwer przy zapisie (412 BundleTypeError).
+        const typeOf = (ref: string): string | undefined => {
+          const target = rev.bundle.map[ref];
+          if (!target || typeof target !== "object") return undefined;
+          return String((target as Record<string, unknown>).__type ?? "");
+        };
+        const dangling = new Set<string>();
+        for (const [iid, v] of Object.entries(rev.bundle.map)) {
+          if (!v || typeof v !== "object") continue;
+          for (const p of entryProblems(iid, v as Record<string, unknown>, typeOf)) {
+            problems.push(`${p.code} ${p.iid}: ${p.detail}`);
+          }
+          for (const ref of danglingRefs(v as Record<string, unknown>, typeOf)) {
+            dangling.add(ref);
+          }
         }
         // Prosty skan wiszących referencji: wartości string równe iid, którego brak w mapie.
         const text = JSON.stringify(rev.bundle.map);
@@ -675,6 +751,7 @@ export function plasmicTools(ctx: PlasmicCtx): ToolDef[] {
           hash: sha256(text),
           problems: problems.slice(0, 50),
           suspectRefs: [...cands].slice(0, 20),
+          danglingRefs: [...dangling].slice(0, 20),
           valid: problems.length === 0,
         };
       },
