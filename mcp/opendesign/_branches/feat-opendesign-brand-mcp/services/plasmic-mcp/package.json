@@ -1,0 +1,19 @@
+{
+  "name": "@design-stack/plasmic-mcp",
+  "version": "0.1.0",
+  "type": "module",
+  "bin": {
+    "plasmic-mcp": "./server.ts"
+  },
+  "scripts": {
+    "start": "node ./server.ts",
+    "start:http": "MCP_HTTP_PORT=8091 node ./server.ts"
+  },
+  "dependencies": {
+    "@design-stack/contracts": "0.1.0",
+    "@design-stack/mcp-server": "0.1.0",
+    "@design-stack/plasmic-client": "0.1.0",
+    "@modelcontextprotocol/sdk": "1.30.0",
+    "zod": "4.6.5"
+  }
+}
