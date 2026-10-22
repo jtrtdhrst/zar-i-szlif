@@ -43,6 +43,10 @@ const NON_RELEASE_RULES = [
   /^branding\//,
   /^dev\//,
   /^ops\//,
+  // Standalone MCP services (own Dockerfiles, deployed by Coolify/Cloudflare, not
+  // by the frontend/worker pipelines). They own no provider gate here; their
+  // correctness is proven by their own image build + MCP handshake.
+  /^mcp\//,
   /^skills\//,
   /^supabase\//,
   /^registry\//,

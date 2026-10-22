@@ -1,0 +1,32 @@
+# Self-hosted Supabase MCP — standalone MCP server for a self-hosted Supabase.
+name: supabase-mcp
+
+services:
+  supabase-mcp:
+    build: .
+    env_file: .env
+    environment:
+      SUPABASE_URL: ${SUPABASE_URL:-http://kong:8000}
+      DATABASE_URL: ${DATABASE_URL}
+    command:
+      - bun
+      - run
+      - dist/index.js
+      - --transport
+      - http
+      - --port
+      - "3100"
+      - --host
+      - 0.0.0.0
+      - --url
+      - ${SUPABASE_URL:-http://kong:8000}
+    ports:
+      - "3100:3100"
+    # The Supabase stack (kong, db, postgrest) publishes this network.
+    networks:
+      - supabase_default
+    restart: unless-stopped
+
+networks:
+  supabase_default:
+    external: true

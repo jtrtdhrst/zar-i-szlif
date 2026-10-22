@@ -1,0 +1,67 @@
+# Plasmic MCP — self-hosted build (no CI image needed).
+#
+# Same image content as ops/design-stack/Dockerfile.mcp, built from this folder.
+name: plasmic-mcp
+
+services:
+  plasmic-mcp:
+    build: .
+    command: ["node", "services/plasmic-mcp/server.ts"]
+    env_file: .env
+    environment:
+      PLASMIC_BASE_URL: ${PLASMIC_BASE_URL}
+      PLASMIC_EMAIL: ${PLASMIC_EMAIL}
+      PLASMIC_PASSWORD: ${PLASMIC_PASSWORD}
+      PLASMIC_STATE_DIR: /state
+      MCP_HTTP_PORT: "8091"
+      MCP_AUTH_TOKEN: ${PLASMIC_MCP_TOKEN}
+      PAPERCLIP_AGENT_ID: ${PAPERCLIP_AGENT_ID:-}
+      PAPERCLIP_RUN_ID: ${PAPERCLIP_RUN_ID:-}
+    ports:
+      - "8091:8091"
+    volumes:
+      - plasmic_mcp_state:/state
+    mem_limit: 256m
+    cpus: "0.5"
+    pids_limit: 64
+    restart: unless-stopped
+    read_only: true
+    tmpfs: [/tmp]
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://127.0.0.1:8091/health >/dev/null"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 20s
+
+  opendesign-bridge-mcp:
+    build: .
+    command: ["node", "services/opendesign-bridge-mcp/server.ts"]
+    env_file: .env
+    environment:
+      OD_HOST: ${OD_HOST:-open-design}
+      OD_PORT: ${OD_PORT:-7456}
+      OD_API_TOKEN: ${OD_API_TOKEN}
+      MCP_HTTP_PORT: "8092"
+      MCP_AUTH_TOKEN: ${OPENDESIGN_BRIDGE_TOKEN}
+      BRAND_WRITE_ENABLED: ${OPENDESIGN_BRAND_WRITE_ENABLED:-true}
+      BRAND_ASSET_MAX_BYTES: ${OPENDESIGN_BRAND_ASSET_MAX_BYTES:-5000000}
+      MCP_MAX_BODY_BYTES: ${OPENDESIGN_MCP_MAX_BODY_BYTES:-7500000}
+    ports:
+      - "8092:8092"
+    mem_limit: 256m
+    cpus: "0.5"
+    pids_limit: 64
+    restart: unless-stopped
+    read_only: true
+    tmpfs: [/tmp]
+    stop_grace_period: 15s
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://127.0.0.1:8092/ready >/dev/null"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 20s
+
+volumes:
+  plasmic_mcp_state:

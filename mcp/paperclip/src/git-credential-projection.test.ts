@@ -1,0 +1,174 @@
+import { afterEach, describe, expect, it, vi } from "vitest";
+import { spawnSync } from "node:child_process";
+import { mkdtempSync, rmSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
+import { applyTransportGate, deriveTransportVerdict, hasGitHubTokenEnv } from "./p1-git.js";
+import { gitCredentialEnv, readBoundGitToken } from "./workspace-native.js";
+
+const PLACEHOLDER = "PAPERCLIP_GITHUB_WRITES_DISABLED";
+
+describe("git credential projection", () => {
+  afterEach(() => {
+    vi.unstubAllEnvs();
+  });
+
+  it("reads an operator placeholder as no credential at all", () => {
+    vi.stubEnv("GH_TOKEN", PLACEHOLDER);
+    vi.stubEnv("GITHUB_TOKEN", PLACEHOLDER);
+
+    expect(readBoundGitToken()).toBeNull();
+    expect(gitCredentialEnv()).toBeNull();
+    const probe = hasGitHubTokenEnv();
+    expect(probe.present).toBe(false);
+    expect(probe.kind).toBeNull();
+    expect(probe.reason).toContain("placeholder");
+  });
+
+  it("projects a bound token into git so the transport can authenticate", () => {
+    vi.stubEnv("GH_TOKEN", "ghp_bound_token_value");
+    vi.stubEnv("GITHUB_TOKEN", "");
+
+    const env = gitCredentialEnv();
+    expect(env).not.toBeNull();
+    expect(env?.PAPERCLIP_GIT_TOKEN).toBe("ghp_bound_token_value");
+    expect(env?.GIT_CONFIG_COUNT).toBe("3");
+    expect(env?.GIT_CONFIG_KEY_0).toBe("credential.helper");
+    expect(env?.GIT_CONFIG_VALUE_0).toBe("");
+    expect(env?.GIT_CONFIG_KEY_1).toBe("credential.https://github.com.helper");
+    expect(env?.GIT_CONFIG_KEY_2).toBe("credential.https://www.github.com.helper");
+    // The helper reads the token from the environment; the value itself is never
+    // embedded in a config value (it would land in argv and in process listings).
+    expect(env?.GIT_CONFIG_VALUE_1).toContain("PAPERCLIP_GIT_TOKEN");
+    expect(env?.GIT_CONFIG_VALUE_1).not.toContain("ghp_bound_token_value");
+    expect(env?.GIT_TERMINAL_PROMPT).toBe("0");
+  });
+
+  it("does not let a placeholder hide a real token in the other spelling", () => {
+    vi.stubEnv("GH_TOKEN", PLACEHOLDER);
+    vi.stubEnv("GITHUB_TOKEN", "ghp_real_token_value");
+
+    expect(readBoundGitToken()).toBe("ghp_real_token_value");
+    expect(hasGitHubTokenEnv().present).toBe(true);
+  });
+
+  it("answers `git credential fill` without prompting when a token is bound", () => {
+    vi.stubEnv("GH_TOKEN", "ghp_bound_token_value");
+    vi.stubEnv("GITHUB_TOKEN", "");
+
+    const env = gitCredentialEnv();
+    expect(env).not.toBeNull();
+    const result = spawnSync("git", ["credential", "fill"], {
+      input: "protocol=https\nhost=github.com\n\n",
+      encoding: "utf8",
+      env: { ...process.env, ...(env as Record<string, string>) },
+    });
+
+    expect(result.status).toBe(0);
+    expect(result.stdout).toContain("username=");
+    expect(result.stdout).toContain("password=ghp_bound_token_value");
+    expect(result.stderr).not.toContain("could not read Username");
+  });
+
+  it("fails closed at `git credential fill` when only a placeholder is bound", () => {
+    vi.stubEnv("GH_TOKEN", PLACEHOLDER);
+    vi.stubEnv("GITHUB_TOKEN", PLACEHOLDER);
+
+    expect(gitCredentialEnv()).toBeNull();
+    // No projection => no helper answers => git must refuse instead of prompting.
+    const result = spawnSync("git", ["credential", "fill"], {
+      input: "protocol=https\nhost=github.com\n\n",
+      encoding: "utf8",
+      env: {
+        ...process.env,
+        GIT_TERMINAL_PROMPT: "0",
+        GIT_CONFIG_COUNT: "1",
+        GIT_CONFIG_KEY_0: "credential.helper",
+        GIT_CONFIG_VALUE_0: "",
+      },
+    });
+
+    expect(result.status).not.toBe(0);
+    expect(result.stdout).not.toContain("password=");
+  });
+});
+
+describe("git transport agreement (probe result == transport result)", () => {
+  afterEach(() => {
+    vi.unstubAllEnvs();
+  });
+
+  it("treats an authenticated but EMPTY remote as an authenticated transport", () => {
+    const verdict = deriveTransportVerdict({ exitCode: 0, credentialProjected: true, remoteRefCount: 0 });
+
+    expect(verdict.transportAuthenticated).toBe(true);
+    expect(verdict.reason).toBeNull();
+    expect(verdict.remoteRefCount).toBe(0);
+  });
+
+  it("reports a denied transport as not authenticated", () => {
+    const verdict = deriveTransportVerdict({ exitCode: 128, credentialProjected: true, remoteRefCount: 0 });
+
+    expect(verdict.transportAuthenticated).toBe(false);
+    expect(verdict.reason).toContain("refused");
+  });
+
+  it("does not call an anonymous contact an authenticated transport, however many refs it lists", () => {
+    const verdict = deriveTransportVerdict({ exitCode: 0, credentialProjected: false, remoteRefCount: 3 });
+
+    expect(verdict.transportAuthenticated).toBe(false);
+    expect(verdict.reason).toContain("no usable GitHub credential");
+  });
+
+  it("never advertises push/create_pr while the transport is not authenticated", () => {
+    const denied = applyTransportGate(
+      ["read", "push", "create_pr"],
+      [],
+      { transportAuthenticated: false },
+    );
+    expect(denied.allowedOperations).toEqual(["read"]);
+    expect(denied.missingPermissions).toContain("transport:not-authenticated");
+
+    const allowed = applyTransportGate(
+      ["read", "push", "create_pr"],
+      [],
+      { transportAuthenticated: true },
+    );
+    expect(allowed.allowedOperations).toEqual(["read", "push", "create_pr"]);
+    expect(allowed.missingPermissions).toEqual([]);
+
+    const readOnly = applyTransportGate(["read"], ["contents:write"], { transportAuthenticated: false });
+    expect(readOnly.allowedOperations).toEqual(["read"]);
+    expect(readOnly.missingPermissions).toEqual(["contents:write"]);
+  });
+
+  it("reads an empty remote as authenticated and an unreachable one as denied (real git)", () => {
+    vi.stubEnv("GH_TOKEN", "ghp_bound_token_value");
+    vi.stubEnv("GITHUB_TOKEN", "");
+    const env = gitCredentialEnv() as Record<string, string>;
+    const dir = mkdtempSync(join(tmpdir(), "paperclip-transport-"));
+    try {
+      spawnSync("git", ["init", "--bare", join(dir, "empty.git")], { encoding: "utf8" });
+      const empty = spawnSync("git", ["ls-remote", "--heads", `file://${join(dir, "empty.git")}`], {
+        encoding: "utf8",
+        env: { ...process.env, ...env },
+      });
+      expect(empty.status).toBe(0);
+      expect(empty.stdout.trim()).toBe("");
+      expect(
+        deriveTransportVerdict({ exitCode: empty.status, credentialProjected: true, remoteRefCount: 0 }).transportAuthenticated,
+      ).toBe(true);
+
+      const denied = spawnSync("git", ["ls-remote", "--heads", `file://${join(dir, "missing.git")}`], {
+        encoding: "utf8",
+        env: { ...process.env, ...env },
+      });
+      expect(denied.status).not.toBe(0);
+      expect(
+        deriveTransportVerdict({ exitCode: denied.status, credentialProjected: true, remoteRefCount: 0 }).transportAuthenticated,
+      ).toBe(false);
+    } finally {
+      rmSync(dir, { recursive: true, force: true });
+    }
+  });
+});
