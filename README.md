@@ -12,6 +12,15 @@ app/                       # jedyny katalog runtime aplikacji
 
 branding/                  # kanoniczny folder brandingu produktu; obecnie pusty
 
+mcp/                       # samodzielne serwery MCP (własny Dockerfile, własny katalog budowania)
+├── mantic/                # Mautic 7 MCP (stdio + HTTP bridge)
+├── qdrant/                # hybrydowy MCP Qdrant (dense + sparse)
+├── penpot/                # Penpot MCP (headless + router)
+├── plasmic/               # Plasmic MCP (+ opendesign bridge)
+├── supabase/              # self-hosted Supabase MCP
+├── ubuntu/                # ubuntu-operations MCP (mcp-ssh-manager)
+└── paperclip/             # warstwa MCP Paperclipa (core zostaje w upstream image)
+
 dev/                       # kod wspierający rozwój aplikacji
 ├── design-system/         # OpenDesign/design tokens
 ├── integrations/          # Paperclip/OpenCode MCP i integracje developerskie
@@ -97,6 +106,7 @@ Obecny `app/npm run test:all` wykonuje build, typecheck i istniejący targeted t
 | OAuth | `app/cloudflare-worker/src/oauth.ts`, `google-handler.ts`, `widget-auth.ts` |
 | Build Worker | `app/cloudflare-worker/build-worker.mjs` |
 | Wtyczka / MCP Kompasu Zbiórek | `app/plugin/index.ts` |
+| Serwery MCP (deployment) | `mcp/<usługa>/` (Dockerfile w katalogu usługi) |
 | Dodatkowe testy/pipeline | `dev/quality/` |
 | Branding produktu | `branding/` (obecnie pusty; jedyne kanoniczne miejsce na przyszłe źródła brandingu) |
 | Techniczny design system / tokeny | `dev/design-system/opendesign/design-systems/kompas-rrp/tokens/colors_and_type.css` |
