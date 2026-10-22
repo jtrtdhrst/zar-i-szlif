@@ -78,3 +78,21 @@ Wszystkie wybierają **TO SAMO** repo GitHub i **TYLKO zatwierdzone main**. `Bas
 - `Monorepo MCP and website source CI`: walidacja, testy Mantic i Plasmic, obraz strony; zielone CI != wdrożenie na VPS.
 
 **Nie zmieniono agentowych przypisań modeli.**
+
+## Role-specific branch/workspace router — 2026-10-22
+
+**One repo** `miloszspyrka-code/zar-i-szlif`; **one integration branch** `main`. Different code roots, not different permanent release branches. Each issue starts from fresh `origin/main` in its own `KOMAA-<number>` worktree (optionally an issue/service suffix if supported). Production is never released from an agent branch. The current Paperclip native project configuration does not automatically enforce role-specific folder permissions for every agent; instructions, per-issue native workspace bindings and CI must all be checked.
+
+| Agent | Default project / source | Code scope | Reviewer |
+|---|---|---|---|
+| Engineer | `01 · Produkt / Panel aplikacji`, main | `app/web/**`, `app/cloudflare-worker/**`, `supabase/**`; website issue `01 · Produkt / Strona główna` / `app/website/**` | CTO |
+| MCP Engineer | `02 · MCP / Product MCP`, main | `app/mcp-worker/**`; explicit-grant shared `app/plugin/knowledge/**` | CTO |
+| Harness Agent | `04 · Operations / Release & Reliability`, main | `mcp/{mantic,qdrant,penpot,plasmic,supabase,ubuntu,paperclip}/**`, scoped `ops/coolify/**` | CTO |
+| CTO | `01 · Produkt / Panel aplikacji`, main for default product review | Independent review across allowed service branches; CTO implementation requires correct service workspace and non-self reviewer | COO/qualified independent |
+| COO | Paperclip issue and project dispatcher | Native DAG, reviewer and watchdog; no app/MCP editing by default | As assigned |
+
+**Native binding fixes in Paperclip:** issue `KOMAA-1333/1336/1344/1337/1338/1339` project -> `04 · Operations / Release & Reliability`, project workspace `31b86f9a-0564-4f8b-af9c-7b5f9966471c`, isolated worktree strategy based on `main`. Previously bound upstream issue execution workspaces were cleared; the old dirty `paperclipai/paperclip` workspace was NOT deleted/reset. Plasmic `KOMAA-1084` owner -> Harness, reviewer -> CTO, source historical branch SHA retained.
+
+**Remaining project-default risks:** Product website project `workspaceStrategy.baseRef=product/www` is stale. Qdrant Hybrid project references a separate local directory. Paperclip Ops project defaults to upstream `paperclipai/paperclip/master`. Without a native project-policy edit mechanism, these defaults remain and are not guaranteed to auto-correct on future tasks. Do NOT call this whole workflow fail-closed merely because it is documented. COO/receiver must explicitly check and rebind each affected issue before execution. The PR #74 folder segmentation has not yet been merged to `main` as of this decision.
+
+**Required issue preflight:** confirm remote URL, project and source workspace, intended branch, `git status`, `git rev-parse --show-toplevel`, source SHA, `git fetch origin main` and whether fresh issue worktree descends from `origin/main`. If wrong or dirty unrelated workspace, stop writes and reroute; preserve unmerged commits/worktree. For stale branches save original SHA, reconcile onto a fresh branch, rerun tests; never force-rebase or discard unknown changes. Owner/CTO-independent review must approve exact candidate SHA, then CI merge to main; deploy only matching Coolify service and verify digest, health, authenticated MCP initialization/tool listing and rollback.
