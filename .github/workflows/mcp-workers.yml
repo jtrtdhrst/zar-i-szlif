@@ -41,7 +41,7 @@ jobs:
           CLOUDFLARE_ACCOUNT_ID: c056821a7ee2aabdcf0a6dc447490184
         run: |
           set -e
-          for env in emailens langfuse paperclip penpot plasmic qdrant supabase ubuntu probe; do
+          for env in emailens langfuse paperclip penpot plasmic qdrant supabase ubuntu probe probe2; do
             echo "--- deploy $env"
             npx wrangler deploy --env "$env"
           done
