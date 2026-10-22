@@ -1,72 +1,79 @@
 # Serwery MCP — wdrożenie, synchronizacja i odzyskiwanie
 
 Wszystkie MCP tego repo są wystawione jako **Cloudflare Workers** (`*.zariszlif.pl`).
-Deploymenty w repo są dwa: `mcp/worker-edge/` (8 usług, jedna wspólna krawędź, każda
-usługa jako `wrangler deploy --env <usługa>`) i `mcp/mantic/worker/` (natywny Worker).
-Repozytorium jest jedynym źródłem prawdy: push do `main` = build + deploy.
+Kod i konfiguracje w repo:
+
+- `mcp/worker-edge/` — 8 usług na wspólnej krawędzi; jedna instalacja zależności,
+  jeden `src/index.ts`, a każda usługa ma **własny plik konfiguracji**
+  `wrangler.<usługa>.jsonc` (nazwa, domena, `UPSTREAM_URL`).
+- `mcp/mantic/worker/` — natywny Worker (Mautic API, KV na refresh token).
+
+Deploymenty robi **Cloudflare Workers Builds** podpięte do tego repo (bez
+GitHub Actions i bez crona). Repozytorium jest jedynym źródłem prawdy.
 
 ## Mapa usług
 
-| Endpoint | Worker | Deployment | Silnik |
+| Endpoint | Worker | Katalog / konfiguracja | Silnik |
 |---|---|---|---|
-| `mantic-mcp.zariszlif.pl/mcp` | `mantic-mcp` | `/mcp/mantic/worker` | Mautic API (natywny Worker + KV) |
-| `qdrant-mcp.zariszlif.pl/mcp` | `qdrant-mcp` | `/mcp/worker-edge` env `qdrant` | `mcp-qdrant` (Docker) |
-| `supabase-mcp.zariszlif.pl/mcp` | `supabase-mcp` | `/mcp/worker-edge` env `supabase` | `supabase-mcp` (Docker) |
-| `ubuntu-mcp.zariszlif.pl/mcp` | `ubuntu-mcp` | `/mcp/worker-edge` env `ubuntu` | `ubuntu-mcp-bridge` (Docker) |
-| `penpot-mcp.zariszlif.pl/mcp/stream` | `penpot-mcp` | `/mcp/worker-edge` env `penpot` | Penpot (Docker) |
-| `plasmic-mcp.zariszlif.pl/mcp` | `plasmic-mcp` | `/mcp/worker-edge` env `plasmic` | `plasmic-mcp` (Docker) |
-| `paperclip-mcp.zariszlif.pl/mcp` | `paperclip-mcp` | `/mcp/worker-edge` env `paperclip` | Paperclip (Docker, auth po stronie silnika) |
-| `emailens-mcp.zariszlif.pl/mcp` | `emailens-mcp` | `/mcp/worker-edge` env `emailens` | `emailens-mcp-bridge` (Docker) |
-| `langfuse-mcp.zariszlif.pl/api/public/mcp` | `langfuse-mcp` | `/mcp/worker-edge` env `langfuse` | `langfuse-basic-shim` (Python, Docker) |
+| `mantic-mcp.zariszlif.pl/mcp` | `mantic-mcp` | `mcp/mantic/worker` | Mautic API (natywny Worker + KV) |
+| `qdrant-mcp.zariszlif.pl/mcp` | `qdrant-mcp` | `mcp/worker-edge/wrangler.qdrant.jsonc` | `mcp-qdrant` (Docker) |
+| `supabase-mcp.zariszlif.pl/mcp` | `supabase-mcp` | `mcp/worker-edge/wrangler.supabase.jsonc` | `supabase-mcp` (Docker) |
+| `ubuntu-mcp.zariszlif.pl/mcp` | `ubuntu-mcp` | `mcp/worker-edge/wrangler.ubuntu.jsonc` | `ubuntu-mcp-bridge` (Docker) |
+| `penpot-mcp.zariszlif.pl/mcp/stream` | `penpot-mcp` | `mcp/worker-edge/wrangler.penpot.jsonc` | Penpot (Docker) |
+| `plasmic-mcp.zariszlif.pl/mcp` | `plasmic-mcp` | `mcp/worker-edge/wrangler.plasmic.jsonc` | `plasmic-mcp` (Docker) |
+| `paperclip-mcp.zariszlif.pl/mcp` | `paperclip-mcp` | `mcp/worker-edge/wrangler.paperclip.jsonc` | Paperclip (Docker, auth po stronie silnika) |
+| `emailens-mcp.zariszlif.pl/mcp` | `emailens-mcp` | `mcp/worker-edge/wrangler.emailens.jsonc` | `emailens-mcp-bridge` (Docker) |
+| `langfuse-mcp.zariszlif.pl/api/public/mcp` | `langfuse-mcp` | `mcp/worker-edge/wrangler.langfuse.jsonc` | `langfuse-basic-shim` (Python, Docker) |
 
 Silniki (Docker) są za krawędzią Workerów pod hostami `*-engine.zariszlif.pl`
 (Cloudflare Tunnel). Workers nie uruchomią Pythona / TCP / SSH — dlatego te
 usługi mają warstwę Worker + silnik.
 
-## Synchronizacja repo → Cloudflare
+## Synchronizacja repo → Cloudflare (Workers Builds)
 
-**A) GitHub Actions (działa od razu, źródło prawdy = repo)**
+Dla **każdego** Workera: Workers & Pages → Worker → **Settings → Builds →
+Connect to repository** i ustaw:
 
-`.github/workflows/mcp-workers.yml`: przy pushu na `main` buduje i wdraża wszystkie
-workery (`wrangler deploy`, token CF ze środowiska `Production`). To jest obecny
-mechanizm — repo → produkcja bez udziału człowieka.
+| Pole | `*-mcp` (8 usług) | `mantic-mcp` |
+|---|---|---|
+| Repository | `miloszspyrka-code/zar-i-szlif` | to samo |
+| Production branch | `main` | `main` |
+| Root directory | `mcp/worker-edge` | `mcp/mantic/worker` |
+| Build command | `npm ci` | `npm ci && npm run build` |
+| Deploy command | `npx wrangler deploy --config wrangler.<usługa>.jsonc` | `npx wrangler deploy` |
 
-**B) Panel Cloudflare (Workers Builds — natywna integracja git)**
+`<usługa>` to `emailens`, `langfuse`, `paperclip`, `penpot`, `plasmic`,
+`qdrant`, `supabase` albo `ubuntu` (kolumna „Katalog / konfiguracja” wyżej).
 
-Workers & Pages → Worker → **Settings → Builds → Connect to repository**:
+Sekrety runtime (`MCP_AUTH_TOKEN`, `UPSTREAM_TOKEN`, `MAUTIC_*`) są w
+**Settings → Variables and Secrets** i nie znikają przy zmianie root directory.
+Cloudflare nie pozwala ich odczytać — przy rotacji ustawia się nową wartość po
+obu stronach (Worker + Paperclip).
 
-| Pole | Wartość |
-|---|---|
-| Repository | `miloszspyrka-code/zar-i-szlif` (GitHub App ma już dostęp ✓) |
-| Production branch | `main` |
-| Root directory | `/mcp/<usługa>/worker` (tabela wyżej) |
-| Build command | `npm run build` |
-| Deploy command | `npm run deploy` |
+Ręczny deploy awaryjny (z tokenem CF w `CLOUDFLARE_API_TOKEN`):
 
-Sekrety runtime są w **Settings → Variables and Secrets** i nie znikają przy
-zmianie root directory. Nie kasuj ich (wartości są też w vaultcie Paperclipa —
-poza sekretami `MCP_AUTH_TOKEN` workerów edge, które trzymamy tylko w CF).
+```bash
+cd mcp/worker-edge && npm ci
+npx wrangler deploy --config wrangler.qdrant.jsonc
+```
 
-## Watchdog (samonaprawa)
+## Zdrowie i testy
 
-`.github/workflows/mcp-health.yml` — co 15 minut:
-
-1. `node scripts/check-mcp-endpoints.mjs` → sprawdza, czy wszystkie 9 endpointów
-   odpowiada (401 = żyje i pilnuje tokena, 200 = odpowiada);
-2. przy błędzie → **automatyczny redeploy** wszystkich workerów i ponowna
-   weryfikacja.
-
-Pełną funkcjonalność (token + `tools/list`) sprawdzają health-checky połączeń
-w Paperclipie (9 połączeń, status `ok`).
+- Każdy Worker ma `GET /health` → `{"ok":true,"upstream":"<host>","auth":true}`
+  bez tokena (mantic: `405`, bo nie ma tej ścieżki).
+- `node scripts/check-mcp-endpoints.mjs` — czy 9 endpointów odpowiada.
+- `node scripts/test-mcp-tools.mjs` — pełny test: `initialize` → `tools/list` →
+  jedno wywołanie narzędzia; tokeny z `MCP_TOKEN_< USŁUGA>`.
 
 ## Odzyskiwanie po awarii
 
 | Objaw | Akcja |
 |---|---|
-| endpoint nie odpowiada | `workflow MCP Health` redeployuje automatycznie; ręcznie: `cd mcp/worker-edge && npm ci && npx wrangler deploy --env <usługa>` (albo `cd mcp/mantic/worker && npx wrangler deploy`) |
+| endpoint nie odpowiada | Cloudflare → Worker → Deployments → redeploy ostatniej wersji; lokalnie: `npx wrangler deploy --config wrangler.<usługa>.jsonc` |
+| **522 / 523 na domenie Workera** | sprawdź, czy `src/index.ts` ma **tylko** `export default` — named export funkcji jest brany jako entrypoint RPC i HTTP przestaje działać (objaw: 522 na wszystkich hostach danej krawędzi) |
 | zły token na Workera | Cloudflare → Worker → Settings → Variables and Secrets → podmień → Deploy |
-| Paperclip: `health: error` | przycisk „Health check" przy połączeniu; przy 401 sprawdź token w sekretach Workera |
-| silnik (Docker) nie wstaje | `docker ps -a` → kontener zatrzymany → `docker start <nazwa>`; kod silnika jest w `mcp/<usługa>/` |
+| Paperclip: `health: error` | „Health check” przy połączeniu; przy 401 sprawdź token w sekretach Workera |
+| silnik (Docker) nie wstaje | `docker ps -a` → `docker start <nazwa>`; kod silnika jest w `mcp/<usługa>/` |
 
 ## Mautic MCP — autoryzacja (OAuth 2, flow authorization_code + refresh token)
 

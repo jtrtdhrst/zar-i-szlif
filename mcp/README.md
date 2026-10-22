@@ -21,12 +21,19 @@ Każdy MCP jest wystawiony jako **Cloudflare Worker** (`*.zariszlif.pl`). Deploy
 w repo są dwa:
 
 - `mcp/worker-edge/` — 8 usług na **jednej wspólnej krawędzi**: jeden `package.json`,
-  jeden build, a każda usługa to środowisko (`wrangler deploy --env <usługa>`) z własną
-  nazwą skryptu, domeną i sekretami w CF. Dodanie usługi = jeden wpis w `wrangler.jsonc`.
+  jeden `src/index.ts`, a każda usługa ma własny plik konfiguracji
+  `wrangler.<usługa>.jsonc` (nazwa skryptu, domena, `UPSTREAM_URL`). Dodanie usługi =
+  jeden plik konfiguracji i jedna linia w `src/index.ts` nie jest potrzebna.
 - `mcp/mantic/worker/` — natywny Worker (Mautic API, KV na refresh token).
 
-CI (`.github/workflows/mcp-workers.yml`) buduje i wdraża oba deploymenty tokenem CF
-ze środowiska `Production`.
+Deploye robi **Cloudflare Workers Builds** podpięte do repo (root directory
+`mcp/worker-edge`, deploy `npx wrangler deploy --config wrangler.<usługa>.jsonc`;
+dla mantic: root `mcp/mantic/worker`, `npx wrangler deploy`). Bez GitHub Actions
+i bez crona — szczegóły w `docs/mcp-services.md`.
+
+⚠️ W `src/index.ts` krawędzi **nie dodawaj named exportów** — Cloudflare traktuje
+`export function` jako entrypoint RPC i przestaje dispatchować HTTP (objaw: 522 na
+wszystkich hostach). Zostaje wyłącznie `export default createEdgeWorker()`.
 
 | Publiczny endpoint | Worker | Typ | Silnik |
 |---|---|---|---|
@@ -71,10 +78,11 @@ docker build -t <name>:local .          # or: docker compose up -d --build
 curl -s http://127.0.0.1:<port>/mcp     # JSON-RPC initialize
 ```
 
-## Znany problem (nie z Workerów)
+## Mautic MCP — autoryzacja
 
-**Mautic API: `POST /api/oauth/token` → 401 „API authorization denied"** — klient
-OAuth `mantic-mcp` istnieje w bazie Mautica (grant `client_credentials` ✓,
-`api_oauth2 => true` w configu ✓), ale token nie jest wydawany. Dlatego `tools/list`
-działa, a wywołania narzędzi (kontakty, kampanie) zwracają błąd autoryzacji.
-Naprawa po stronie Mautica (konfiguracja API/OAuth), nie Workerów.
+`client_credentials` jest odrzucany przez API Mautica (401 „API authorization
+denied”), a panel oferuje tylko klienty OAuth 2 → Worker `mantic-mcp` używa flow
+`authorization_code` → `refresh_token` (redirect
+`https://mantic-mcp.zariszlif.pl/oauth/callback`, token w KV). Dopóki autoryzacja
+nie zostanie kliknięta, `tools/list` działa, a wywołania narzędzi zwracają
+`Mautic authentication failed`. Instrukcja: `docs/mcp-services.md`.
