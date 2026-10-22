@@ -178,11 +178,25 @@ export class PlasmicClient {
 
   async createProject(name: string, workspaceId?: string): Promise<ApiProject> {
     await this.ensureAuth();
-    const res = await this.req<{ project: ApiProject }>(`/api/v1/projects`, {
+    const res = await this.req<{ project?: ApiProject } & ApiProject>(`/api/v1/projects`, {
       method: "POST",
       body: JSON.stringify(workspaceId ? { name, workspaceId } : { name }),
     });
-    return res.project;
+    return (res.project ?? res) as ApiProject;
+  }
+
+  async listWorkspaces(): Promise<{ id: string; name: string }[] | null> {
+    await this.ensureAuth();
+    try {
+      const res = await this.req<{ workspaces?: unknown[] } | unknown[]>(`/api/v1/workspaces`);
+      const arr = Array.isArray(res) ? res : (res.workspaces ?? []);
+      return arr.map((w) => {
+        const o = (w ?? {}) as Record<string, unknown>;
+        return { id: String(o.id ?? o.uuid ?? ""), name: String(o.name ?? "") };
+      });
+    } catch {
+      return null;
+    }
   }
 
   async getProjectRev(
