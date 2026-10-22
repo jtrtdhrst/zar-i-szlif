@@ -45,3 +45,14 @@ test("verified Board credential takes precedence over a matching service-token l
   assert.equal(p.agentId,null);
   assert.equal(p.boardApiKey,"BOARD");
 });
+
+test("rejects Board credential paired with an unbound run ID", async () => {
+  const p = await resolvePrincipal(dep,{token:"BOARD",rawRunId:"33333333-3333-4333-8333-333333333333"});
+  assert.equal(p.ok,false);
+  assert.equal(p.reason,"ambiguous_credential_scope");
+});
+test("rejects a service credential paired with an unbound run ID", async () => {
+  const p = await resolvePrincipal(dep,{token:"SERVICE",rawRunId:"33333333-3333-4333-8333-333333333333"});
+  assert.equal(p.ok,false);
+  assert.equal(p.reason,"ambiguous_credential_scope");
+});
