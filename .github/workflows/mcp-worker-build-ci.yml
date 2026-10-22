@@ -1,0 +1,76 @@
+name: MCP Worker source and build checks
+
+on:
+  pull_request:
+    paths:
+      - 'mcp/**'
+      - 'scripts/check-mcp-worker-roots.mjs'
+      - '.github/workflows/mcp-worker-build-ci.yml'
+  push:
+    branches: [main]
+    paths:
+      - 'mcp/**'
+      - 'scripts/check-mcp-worker-roots.mjs'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  source-contract:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+      - run: node scripts/check-mcp-worker-roots.mjs
+
+  build-each-worker:
+    needs: source-contract
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        service: [mantic, qdrant, supabase, ubuntu, penpot, plasmic, paperclip, emailens, langfuse]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+      - name: Build and typecheck standalone Worker root
+        working-directory: mcp/${{ matrix.service }}/worker
+        run: npm run build
+
+  mautic-7-contracts:
+    needs: source-contract
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: mcp/mantic
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+      - run: npm ci --ignore-scripts
+      - run: npm run build
+      - run: npm test
+
+  plasmic-entry-contract:
+    needs: source-contract
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: mcp/plasmic
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+      - run: npm ci --ignore-scripts
+      - run: npm run typecheck
+      - run: node --test tests/plasmic-entry-contract.test.ts
+
+# Deliberately no deployment from GitHub Actions.
+# Cloudflare Builds uses each service's mcp/<service>/worker path and local npm run deploy.

@@ -17,16 +17,20 @@ containers that run in production today.
 The product MCP (`app/mcp-worker`, Cloudflare Worker) stays in `app/mcp-worker/`.
 ## Publiczne endpointy — Cloudflare Workers
 
-Każdy MCP jest wystawiony jako **Cloudflare Worker** (`*.zariszlif.pl`). Deploymenty
-w repo są dwa:
+Każdy z dziewięciu MCP ma teraz **własny katalog Cloudflare Workers Builds**:
+`mcp/<service>/worker/`, lokalny `package.json`, `package-lock.json`,
+`tsconfig.json`, `wrangler.jsonc` i `src/index.ts`. Cloudflare Builds:
+Advanced settings → Path = `mcp/<service>/worker`, Build = `npm run build`,
+Deploy = `npm run deploy`. Production branch = `main` dopiero po zatwierdzonym PR.
 
-- `mcp/worker-edge/` — 8 usług na **jednej wspólnej krawędzi**: jeden `package.json`,
-  jeden build, a każda usługa to środowisko (`wrangler deploy --env <usługa>`) z własną
-  nazwą skryptu, domeną i sekretami w CF. Dodanie usługi = jeden wpis w `wrangler.jsonc`.
-- `mcp/mantic/worker/` — natywny Worker (Mautic API, KV na refresh token).
+- `mcp/mantic/worker/` — natywne narzędzia Mautic + OAuth KV.
+- Pozostałe osiem — niezależne jednostki deploymentu, współdzielące **wyłącznie
+  kod proxy** `mcp/worker-edge/src/index.ts` za pomocą lokalnego importu. Każdy
+  Worker ma własną domenę i sekrety; silnik Docker pozostaje w `mcp/<service>/`.
 
-CI (`.github/workflows/mcp-workers.yml`) buduje i wdraża oba deploymenty tokenem CF
-ze środowiska `Production`.
+`.github/workflows/mcp-worker-build-ci.yml` sprawdza dziewięć buildów i kontrakty;
+**nie wdraża** usług. Jedyny deploy to konfiguracja Cloudflare Builds danej usługi
+(zachować aktualne sekrety Cloudflare, nie zapisywać ich w repo).
 
 | Publiczny endpoint | Worker | Typ | Silnik |
 |---|---|---|---|
