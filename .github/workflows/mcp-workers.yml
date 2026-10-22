@@ -1,0 +1,43 @@
+name: MCP Workers
+
+# Każdy MCP jako Cloudflare Worker: kod leży w mcp/<usługa>/worker/ w tym repo,
+# build+deploy robi wrangler (token z sekretów repo, konto podane jawnie).
+on:
+  push:
+    branches: [main, feat/mcp-services-in-repo]
+    paths:
+      - "mcp/*/worker/**"
+      - "mcp/*/src/**"
+      - ".github/workflows/mcp-workers.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: mcp-workers-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - dir: mcp/mantic/worker
+            name: mantic-mcp
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+      - name: Build (typecheck + instalacja pakietu współdzielonego)
+        working-directory: ${{ matrix.dir }}
+        run: npm run build
+      - name: Deploy Worker
+        working-directory: ${{ matrix.dir }}
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: c056821a7ee2aabdcf0a6dc447490184
+        run: npx wrangler deploy
