@@ -32,7 +32,8 @@ jobs:
       - name: Detect whether the original workflow has already been fixed by Studio
         id: original
         run: |
-          if git show origin/main:.github/workflows/plasmic.yml 2>/dev/null | grep -q 'Fix CLI codegen origin selection for self-hosted Studio'; then
+          if git show origin/main:.github/actions/plasmic-action/selfhost.cjs >/dev/null 2>&1 \
+            || git show origin/main:.github/workflows/plasmic.yml 2>/dev/null | grep -q 'Fix CLI codegen origin selection for self-hosted Studio'; then
             echo 'run_fallback=false' >> "$GITHUB_OUTPUT"
             echo 'Studio generated workflow is patched; skipping duplicate sync.'
           else
