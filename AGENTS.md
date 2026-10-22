@@ -23,16 +23,20 @@ Najważniejsze skille kontekstowe:
 - iteracyjne UI: `skills/advanced-ui/SKILL.md`;
 - Paperclip control-plane: aktualny core skill `paperclip`.
 
-## Repo layout
+## Repo layout — canonical Żar i Szlif source ownership
 
-- `app/` — jedyny runtime aplikacji; `app/plugin/` to Wtyczka / MCP Kompasu Zbiórek.
-- `branding/` — jedyne kanoniczne miejsce na źródła brandingu produktu; obecnie celowo puste.
-- `dev/` — techniczny design system, integracje developerskie i quality tooling.
-- `content/` — marketing i onboarding emails.
-- `archive/` — materiały historyczne; nie są CURRENT.
-- `skills/`, `registry/`, `scripts/`, `opencode.json` — tooling i kontrakty agentowe na root.
+- `app/web/**` — product application (Engineer).
+- `app/website/**` — public website (Engineer/website owner).
+- `app/mcp-worker/**` — product MCP, OAuth, tools, retrieval and RAG (MCP Engineer). No first-party runtime imports escaping this root.
+- `app/cloudflare-worker/**` and `app/plugin/**` — other product API/shared code, not host MCP.
+- `mcp/mantic/**`, `mcp/qdrant/**`, `mcp/penpot/**`, `mcp/plasmic/**`, `mcp/supabase/**`, `mcp/ubuntu/**`, `mcp/paperclip/**` — host services (Harness Agent, independent CTO review).
+- `supabase/**` — product DB migrations, not host Supabase MCP.
+- `ops/coolify/**`, `docs/architecture/**` — deployment targets, release policy and branch inventory.
+- `branding/**`, `dev/**`, `content/**`, `registry/**`, `scripts/**`, `skills/**` — supporting sources only when authorized by the actual task.
 
-Przed broad discovery użyj `kompas-technical-context`, który utrzymuje kanoniczne lokalizacje plików.
+**Deprecated MCP servers:** no `mcp/opendesign/**` or `mcp/opencode/**`. Do not remove OpenCode itself or change any configured agent models. The historical `_branches/**` directories are never runtime/build targets.
+
+Read `wiki/concepts/mcp-github-branch-migration-20261022.md` in Paperclip and `docs/architecture/monorepo-branches-and-deploy.md` on the candidate branch before structural changes.
 
 ## CONTEXT-FIRST
 
@@ -60,7 +64,7 @@ Po zmianie `main` przed finalnym handoff/review powtórz gate. Candidate SHA jes
 
 Dopiero przy niezgodności workspace/brancha rozszerz diagnostykę.
 
-Po udanej mutacji nie wykonuj potwierdzającego GET bez potrzeby następnej decyzji.
+Po mutacji wykonaj celowy readback wymagany przez Definition of Done (zwłaszcza Git SHA, native Paperclip policy, artefakt release i runtime); unikaj wyłącznie zbędnych duplikatów odczytu.
 
 ## MCP / narzędzia
 
@@ -128,56 +132,26 @@ W `app/` istnieją:
 
 Aktualizuj dokumentację tylko wtedy, gdy zmiana rzeczywiście modyfikuje jej kontrakt. Nie edytuj wielu dokumentów przy czystym CSS, refactorze lub zmianie bez wpływu na publiczne zachowanie.
 
-## Deployment targets
+## Deployment targets — per-service, status-aware
 
-Frontend/statyczny panel jest hostowany self-hosted przez **Coolify**
-(`ops/coolify/Dockerfile` — Node 24 + nginx; build `npm --prefix app run build`,
-publish `app/web/dist`; deploy z `main` przez webhook GitHub App). Platforma SaaS
-nie jest używana. Zwykły frontend release nie wymaga żadnych sekretów
-Cloudflare w GitHub Actions.
+**Not all source roots are deployable.** `main` is the only integration/release ref. The monorepo source split is still **draft PR #74**, not a production deployment.
 
-API/OAuth/MCP zostają na Cloudflare Worker. Zmiany `ops/coolify/**` są
-klasyfikowane w `scripts/release-targets.mjs` jako frontend, więc przechodzą gate
-frontendu.
+| Target | Build / runtime | State |
+| --- | --- | --- |
+| Product app `app/web/` | Coolify; root Docker build `ops/coolify/Dockerfile`, port 80 | Existing target; verify live SHA |
+| Public website `app/website/` | Candidate `app/website/Dockerfile` | PR #74 candidate; not production-verified |
+| Product MCP `app/mcp-worker/` | Cloudflare Worker / KV / Workers AI | **Not** a ready Coolify/Node container |
+| Mantic `mcp/mantic/` | Current entrypoint stdio | No verified HTTP wrapper |
+| Plasmic `mcp/plasmic/` | Independent Docker image, port 8091 | Requires live WAB E2E |
+| Qdrant, Penpot, Supabase, Ubuntu, Paperclip host MCP | Incomplete source/runtime evidence | Not deployable without proven build and live verification |
 
-Cloudflare dotyczy wyłącznie `app/cloudflare-worker/` (API/integracje/OAuth). Jego release jest osobnym workflow `.github/workflows/cloudflare-worker-release.yml` i uruchamia się automatycznie tylko po zmianach w `app/cloudflare-worker/**` albo ręcznie przez workflow dispatch.
+For exact per-service directories, Dockerfiles, build triggers and readiness flags use `ops/coolify/targets.json`. No single universal Cloudflare deployment rule exists for every MCP.
 
-Dla zmian Workera:
+**Git workflow:** one canonical issue-owned branch, preserve active worktrees and unmatched commits, scoped changes and tests, candidate SHA, independent native CTO review, approved PR merge to `main`, then release only the affected service. No direct main push; no `--no-verify`; no automatic broad rebuild. The pre-push target classifier is defense-in-depth, not proof of production readiness. A branch deletion is maintenance, not a product release, but must still preserve active work and pass authorization.
 
-1. `npm run validate:worker`;
-2. fail-closed asercja provenance (`GITHUB_SHA`, `refs/heads/main`);
-3. Cloudflare `production-preflight`;
-4. `wrangler deploy --keep-vars` dopiero po poprawnej autoryzacji produkcyjnej.
+**Post-deploy:** verify immutable source SHA, artifact digest, build path, service health, authorized MCP `initialize`/`tools/list` when relevant, negative auth tests and a tested rollback. Only mark the Paperclip issue done after readback and accepted evidence. Watchdog on every real task; no fabricated dependency or reviewer decision.
 
-Nie dokładaj Cloudflare credential gate do ogólnego CI ani do frontendowego release.
-
-### Target-aware release gate
-
-`npm run validate:release` to dispatcher `scripts/release-targets.mjs`, **nie** alias `validate:frontend`. Klasyfikuje zmienione ścieżki względem `origin/main` i uruchamia gate'y tylko dla touched targetów: worker-only → `validate:worker` (bez gate'u frontendu), frontend-only → `validate:frontend` (bez `CLOUDFLARE_*`), mixed → oba, docs-only → `validate:code`. Niezklasyfikowana ścieżka **fail-closed** (`exit 2`), nigdy ciche pominięcie walidacji.
-
-`--no-verify` nie jest normalną ścieżką żadnego targetu. Push do `main` pozostaje zablokowany.
-
-### Provenance produkcji
-
-Produkcja (frontend i Cloudflare) wdraża **jeden dokładnie zweryfikowany SHA na `origin/main`**. `scripts/assert-release-provenance.mjs` jest wspólną fail-closed asercją dla ścieżki lokalnej i CI: ref musi być `refs/heads/main`, wyrenderowany HEAD musi równać się kandydatowi SHA, a SHA musi być osiągalny z `origin/main` (przy `push` być tipem). Mutacja produkcji z lokalnego, zmiennego checkoutu jest niemożliwa.
-
-`Cloudflare Worker Release` jest zserializowany (`concurrency: cloudflare-worker-production`, `cancel-in-progress: false`); build jest robiony raz w `verify-worker`, a `deploy-production` konsumuje ten sam artefakt z tego samego SHA.
-
-## Git / review
-
-Normalny repo-write powinien być wykonany na branchu/isolated worktree. Implementer dostarcza exact candidate SHA; niezależny review dotyczy tego SHA. Późniejszy commit wymaga ponownej weryfikacji.
-
-Release: branch → PR → CI → merge do `main` → target-specific deploy. Push do `main` jest zablokowany lokalnie i niezalecany.
-
-### Target-specific release gates
-
-Przed merge do `main` standardowy workflow `CI` musi być PASS. Lokalny hook pre-push jest defense-in-depth i nie zastępuje CI.
-
-Dla frontendu dodatkowym sygnałem release jest deployment Coolify (status aplikacji + obraz oznaczony SHA). Cloudflare readiness **nie jest** warunkiem frontendowego merge/release, chyba że kandydat zmienia `app/cloudflare-worker/**`.
-
-Dla zmian Workera workflow `Cloudflare Worker Release` jest osobnym gate'em wdrożeniowym. Brak `CLOUDFLARE_API_TOKEN` lub `CLOUDFLARE_ACCOUNT_ID` blokuje tylko release Workera, nie release frontendu.
-
-Merge/release prowadzi CTO/reviewer zgodnie z aktualną polityką repo, chyba że operator jawnie zdecyduje inaczej.
+**Safety:** GitHub/About metadata and Coolify UI configuration are separate from repo files. Never report a README commit as an updated GitHub repository description, or a candidate Dockerfile as a deployed service.
 
 ## Windows / encoding
 
