@@ -1,5 +1,7 @@
 node_modules/
 dist/
+__pycache__/
+*.pyc
 .wrangler/
 .npm-cache/
 .tmp.driveupload/
