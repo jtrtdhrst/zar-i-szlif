@@ -1,0 +1,102 @@
+name: Monorepo MCP and website source CI
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - 'mcp/**'
+      - 'app/website/**'
+      - 'ops/coolify/targets.json'
+      - 'scripts/check-coolify-targets.mjs'
+      - '.github/workflows/monorepo-service-ci.yml'
+  push:
+    branches: [main]
+    paths:
+      - 'mcp/**'
+      - 'app/website/**'
+      - 'ops/coolify/targets.json'
+      - 'scripts/check-coolify-targets.mjs'
+      - '.github/workflows/monorepo-service-ci.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  classify-and-layout:
+    runs-on: ubuntu-latest
+    outputs:
+      mantic: ${{ steps.changed.outputs.mantic }}
+      plasmic: ${{ steps.changed.outputs.plasmic }}
+      website: ${{ steps.changed.outputs.website }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+      - name: Check exact Coolify source-root contracts
+        run: node scripts/check-coolify-targets.mjs
+      - id: changed
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [ "${{ github.event_name }}" = "pull_request" ]; then
+            git fetch --no-tags origin ${{ github.event.pull_request.base.ref }}
+            base="${{ github.event.pull_request.base.sha }}"
+          elif [ "${{ github.event_name }}" = "push" ] && [ "${{ github.event.before }}" != "0000000000000000000000000000000000000000" ]; then
+            base="${{ github.event.before }}"
+          else
+            base="HEAD^"
+          fi
+          git diff --name-only "$base" HEAD > "$RUNNER_TEMP/changed-paths"
+          for service in mantic plasmic; do
+            if grep -q "^mcp/$service/" "$RUNNER_TEMP/changed-paths"; then
+              echo "$service=true" >> "$GITHUB_OUTPUT"
+            else
+              echo "$service=false" >> "$GITHUB_OUTPUT"
+            fi
+          done
+          if grep -q "^app/website/" "$RUNNER_TEMP/changed-paths"; then
+            echo "website=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "website=false" >> "$GITHUB_OUTPUT"
+          fi
+  mantic-tests:
+    needs: classify-and-layout
+    if: needs.classify-and-layout.outputs.mantic == 'true'
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: mcp/mantic
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+      - run: npm ci --include=dev --ignore-scripts
+      - run: npm run build
+      - run: npm test
+  plasmic-tests:
+    needs: classify-and-layout
+    if: needs.classify-and-layout.outputs.plasmic == 'true'
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: mcp/plasmic
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+      - run: npm ci --include=dev --ignore-scripts
+      - run: npm test
+      - run: npm run typecheck
+  website-build:
+    needs: classify-and-layout
+    if: needs.classify-and-layout.outputs.website == 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - run: docker build -f app/website/Dockerfile .
