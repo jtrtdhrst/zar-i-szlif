@@ -43,6 +43,8 @@ jobs:
             name: paperclip-mcp
           - dir: mcp/emailens/worker
             name: emailens-mcp
+          - dir: mcp/langfuse/worker
+            name: langfuse-mcp
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4

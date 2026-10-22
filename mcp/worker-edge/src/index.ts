@@ -48,7 +48,14 @@ export function createEdgeWorker() {
         );
       }
 
-      const upstream = new URL(env.UPSTREAM_URL);
+      // Ścieżka z żądania idzie do upstreamu (Langfuse: /api/public/mcp,
+      // pozostałe: /mcp); pochodzenie z UPSTREAM_URL.
+      const upstreamBase = new URL(env.UPSTREAM_URL);
+      const upstream = new URL(upstreamBase.origin + (incoming.pathname === "/" ? upstreamBase.pathname : incoming.pathname));
+      for (const [key, value] of incoming.searchParams) {
+        if (env.UPSTREAM_TOKEN_PARAM && key === env.UPSTREAM_TOKEN_PARAM) continue;
+        upstream.searchParams.set(key, value);
+      }
       if (env.UPSTREAM_TOKEN_PARAM && env.UPSTREAM_TOKEN) {
         upstream.searchParams.set(env.UPSTREAM_TOKEN_PARAM, env.UPSTREAM_TOKEN);
       }
