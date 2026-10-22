@@ -27,12 +27,12 @@ jobs:
         with:
           ref: product/www
           fetch-depth: 0
-          persist-credentials: false
+          persist-credentials: true
 
       - name: Detect whether the original workflow has already been fixed by Studio
         id: original
         run: |
-          if git show origin/main:.github/workflows/plasmic.yml 2>/dev/null | grep -q 'npm install --global pnpm@12'; then
+          if git show origin/main:.github/workflows/plasmic.yml 2>/dev/null | grep -q 'Fix CLI codegen origin selection for self-hosted Studio'; then
             echo 'run_fallback=false' >> "$GITHUB_OUTPUT"
             echo 'Studio generated workflow is patched; skipping duplicate sync.'
           else
@@ -53,36 +53,58 @@ jobs:
           test -f app/website/package.json || { echo "::error::Missing website package.json"; exit 1; }
           test "$(git branch --show-current)" = "product/www" || { echo "::error::Wrong branch"; exit 1; }
 
-      - name: Initialize Plasmic Website
-        id: init
+      - name: Install Plasmic CLI for deterministic self-hosted export
         if: ${{ steps.original.outputs.run_fallback == 'true' }}
-        uses: plasmicapp/plasmic-action@master
-        with:
-          run: init
-          github_token: ${{ secrets.GITHUB_TOKEN }}
-          branch: product/www
-          directory: app/website
-          project_id: ${{ github.event.client_payload.data.projectId }}
-          project_api_token: ${{ github.event.client_payload.data.projectApiToken }}
-          platform: nextjs
-          language: ts
-          scheme: codegen
-          title: ${{ github.event.client_payload.data.title }}
-          description: ${{ github.event.client_payload.data.description }}
+        working-directory: app/website
+        run: |
+          pnpm install --ignore-scripts
+          pnpm add --ignore-scripts @plasmicapp/react-web
+          pnpm add -D --ignore-scripts @plasmicapp/cli@0.1.381
 
-      - name: Sync and commit Plasmic components
-        if: ${{ steps.original.outputs.run_fallback == 'true' && steps.init.outputs.synced != 'true' }}
-        uses: plasmicapp/plasmic-action@master
-        with:
-          run: sync
-          github_token: ${{ secrets.GITHUB_TOKEN }}
-          branch: product/www
-          directory: app/website
-          project_id: ${{ github.event.client_payload.data.projectId }}
-          project_api_token: ${{ github.event.client_payload.data.projectApiToken }}
-          sync_action: commit
-          title: ${{ github.event.client_payload.data.title }}
-          description: ${{ github.event.client_payload.data.description }}
+      - name: Fix CLI codegen origin selection for self-hosted Studio
+        if: ${{ steps.original.outputs.run_fallback == 'true' }}
+        run: |
+          node --input-type=commonjs - <<'NODE'
+          const fs = require("fs");
+          const file = "app/website/node_modules/@plasmicapp/cli/dist/index.js";
+          if (!fs.existsSync(file)) throw new Error("Plasmic CLI binary missing");
+          const original = fs.readFileSync(file, "utf8");
+          const matcher = /this\.auth\.host\s*===\s*DEFAULT_HOST\d*/g;
+          const matches = [...original.matchAll(matcher)];
+          if (matches.length !== 1) {
+            throw new Error("CLI host routing signature changed: expected exactly one match, got " + matches.length);
+          }
+          const patched = original.replace(matcher, 'this.auth.host === "https://studio.plasmic.app"');
+          fs.writeFileSync(file, patched);
+          console.log("Patched CLI to use custom self-hosted API for project resolution.");
+          NODE
+
+      - name: Sync Plasmic components from self-hosted Studio
+        if: ${{ steps.original.outputs.run_fallback == 'true' }}
+        working-directory: app/website
+        env:
+          PLASMIC_PROJECT_ID: ${{ github.event.client_payload.data.projectId }}
+          PLASMIC_PROJECT_API_TOKEN: ${{ github.event.client_payload.data.projectApiToken }}
+        run: |
+          pnpm exec plasmic sync --yes --projects "$PLASMIC_PROJECT_ID:$PLASMIC_PROJECT_API_TOKEN"
+
+      - name: Commit and push generated site to product/www
+        if: ${{ steps.original.outputs.run_fallback == 'true' }}
+        run: |
+          rm -f app/website/.plasmic.auth
+          git add -A -- app/website
+          if git diff --cached --name-only | grep -E '(^|/)(\.plasmic\.auth|\.env($|\.))'; then
+            echo "::error::Refusing to commit private Plasmic credentials or environment files"
+            exit 1
+          fi
+          if git diff --cached --quiet; then
+            echo "No generated change after Plasmic sync"
+            exit 0
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git commit -m "chore(website): sync Plasmic visual components"
+          git push origin HEAD:product/www
 
       - name: Verify website branch commit is available
         if: ${{ always() && steps.original.outputs.run_fallback == 'true' }}
