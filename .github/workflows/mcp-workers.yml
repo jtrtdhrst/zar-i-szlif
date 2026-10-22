@@ -33,7 +33,7 @@ jobs:
           CLOUDFLARE_ACCOUNT_ID: c056821a7ee2aabdcf0a6dc447490184
         run: |
           set -e
-          for svc in emailens langfuse paperclip penpot plasmic qdrant supabase ubuntu zzprobe; do
+          for svc in emailens langfuse paperclip penpot plasmic qdrant supabase ubuntu; do
             echo "--- deploy $svc"
             npx wrangler deploy --config "wrangler.$svc.jsonc"
           done
