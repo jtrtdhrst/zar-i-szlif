@@ -1,0 +1,16 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "ubuntu-mcp",
+  "main": "src/index.ts",
+  "compatibility_date": "2026-10-22",
+  "workers_dev": false,
+  "routes": [
+    {
+      "pattern": "ubuntu-mcp.zariszlif.pl",
+      "custom_domain": true
+    }
+  ],
+  "vars": {
+    "UPSTREAM_URL": "https://ubuntu-engine.zariszlif.pl/mcp"
+  }
+}
