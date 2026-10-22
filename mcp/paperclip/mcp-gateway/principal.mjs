@@ -102,6 +102,10 @@ export async function resolvePrincipal(deps, input) {
 
   const presentedBoard = normalizeCredential(input?.rawBoardToken);
   const isService = serviceTokens.some((candidate) => candidate && candidate === token);
+  const suppliedRunId = normalizeCredential(input?.rawRunId);
+  if (suppliedRunId && (presentedBoard || isService)) {
+    return { ok: false, reason: "ambiguous_credential_scope" };
+  }
 
   // Board authentication wins over any overlapping service token label.
   // A legitimately presented owner Board key must always receive Board scope.
@@ -112,6 +116,7 @@ export async function resolvePrincipal(deps, input) {
     boardAuthenticated = false;
   }
   if (boardAuthenticated) {
+    if (suppliedRunId) return { ok: false, reason: "ambiguous_credential_scope" };
     return {
       ok: true,
       kind: PRINCIPAL_KIND.BOARD,
