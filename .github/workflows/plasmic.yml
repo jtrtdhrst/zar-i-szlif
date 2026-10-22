@@ -50,6 +50,11 @@ jobs:
           if [ -n "$PLASMIC_PROJECT_API_TOKEN" ]; then
             echo "::add-mask::$PLASMIC_PROJECT_API_TOKEN"
           fi
+      - id: debug-env
+        name: Debug env
+        run: |
+          echo "PLASMIC_DEFAULT_HOST=$PLASMIC_DEFAULT_HOST"
+          node -e "console.log('node env:', process.env.PLASMIC_DEFAULT_HOST)"
       - id: verify-plasmic-target
         name: Verify branch and project directory
         env:
@@ -60,6 +65,8 @@ jobs:
           test -f "$PLASMIC_DIRECTORY/package.json" || { echo "::error::Missing package.json in Plasmic project directory"; exit 1; }
       - id: init
         name: Initializing Plasmic app...
+        env:
+          PLASMIC_DEFAULT_HOST: https://plasmic.kompaszbiorek.pl
         uses: plasmicapp/plasmic-action@master
         with:
           run: init
