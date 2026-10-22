@@ -50,6 +50,15 @@ jobs:
           grep -q 'PLASMIC_DEFAULT_HOST' upstream/platform/wab/src/wab/server/github/plasmic.yml
           grep -q 'npm install --global pnpm@12' upstream/platform/wab/src/wab/server/github/plasmic.yml
 
+      - name: Restore optional shared workspace directory for pinned upstream
+        run: |
+          # The pinned Plasmic commit lacks platform/shared/, yet its Dockerfile
+          # copies /platform/shared from the builder into the runtime image.
+          if [ ! -d upstream/platform/shared ]; then
+            mkdir -p upstream/platform/shared
+            printf '%s\n' 'Placeholder for upstream release without platform/shared.' > upstream/platform/shared/.keep
+          fi
+
       - id: upstream
         run: echo "sha=$(git -C upstream rev-parse HEAD)" >> "$GITHUB_OUTPUT"
 
