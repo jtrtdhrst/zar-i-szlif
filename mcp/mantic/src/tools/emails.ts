@@ -1,10 +1,18 @@
+import { ErrorCode } from '@modelcontextprotocol/sdk/types.js';
 import type { MauticApiClient } from '../api/client.js';
 import type { ToolDefinition, ToolHandler } from '../types/index.js';
+import {
+  buildEmailCreatePayload,
+  extractProviderMessage,
+  findEmailsByExactName,
+  MauticContractError,
+} from './mautic-contract.js';
 
 export const toolDefinitions: ToolDefinition[] = [
   // Existing email tools
   {
     name: 'send_email',
+    annotations: { readOnlyHint: false, destructiveHint: true, openWorldHint: true },
     description: 'Send an email to specific contacts',
     inputSchema: {
       type: 'object',
@@ -17,6 +25,7 @@ export const toolDefinitions: ToolDefinition[] = [
   },
   {
     name: 'list_emails',
+    annotations: { readOnlyHint: true, openWorldHint: true },
     description: 'Get all email templates and campaigns',
     inputSchema: {
       type: 'object',
@@ -30,6 +39,7 @@ export const toolDefinitions: ToolDefinition[] = [
   },
   {
     name: 'get_email',
+    annotations: { readOnlyHint: true, openWorldHint: true },
     description: 'Get detailed email information',
     inputSchema: {
       type: 'object',
@@ -41,7 +51,9 @@ export const toolDefinitions: ToolDefinition[] = [
   },
   {
     name: 'create_email_template',
-    description: 'Create a new email template',
+    annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: true, openWorldHint: true },
+    description:
+      'Create a new email template (draft by default, idempotent on the exact email name)',
     inputSchema: {
       type: 'object',
       properties: {
@@ -53,13 +65,18 @@ export const toolDefinitions: ToolDefinition[] = [
         customHtml: { type: 'string', description: 'HTML content' },
         plainText: { type: 'string', description: 'Plain text content' },
         emailType: { type: 'string', enum: ['template', 'list'], description: 'Email type' },
-        isPublished: { type: 'boolean', description: 'Publish immediately' },
+        isPublished: {
+          type: 'boolean',
+          description:
+            'Publish immediately (boolean). Converted to the Mautic 7 wire value "1"/"0"; omitted means draft.',
+        },
       },
       required: ['name', 'subject'],
     },
   },
   {
     name: 'get_email_stats',
+    annotations: { readOnlyHint: true, openWorldHint: true },
     description: 'Get email performance statistics',
     inputSchema: {
       type: 'object',
@@ -73,6 +90,7 @@ export const toolDefinitions: ToolDefinition[] = [
   // NEW Mautic 7 email tools
   {
     name: 'send_email_to_segment',
+    annotations: { readOnlyHint: false, destructiveHint: true, openWorldHint: true },
     description: 'Send email to its assigned segment(s) with real-time audience adaptation (Mautic 7)',
     inputSchema: {
       type: 'object',
@@ -84,6 +102,7 @@ export const toolDefinitions: ToolDefinition[] = [
   },
   {
     name: 'record_email_reply',
+    annotations: { readOnlyHint: false, destructiveHint: false, openWorldHint: true },
     description: 'Record an email reply by tracking hash (Mautic 7)',
     inputSchema: {
       type: 'object',
@@ -95,6 +114,7 @@ export const toolDefinitions: ToolDefinition[] = [
   },
   {
     name: 'get_email_graph_stats',
+    annotations: { readOnlyHint: true, openWorldHint: true },
     description: 'Get email graph statistics for a date range (Mautic 7)',
     inputSchema: {
       type: 'object',
@@ -144,10 +164,65 @@ export const toolHandlers: Record<string, ToolHandler> = {
   },
 
   async create_email_template(client: MauticApiClient, args: any) {
-    const response = await client.v1.post('/emails/new', args);
-    return {
-      content: [{ type: 'text', text: `Email template created successfully:\n${JSON.stringify(response.data.email, null, 2)}` }],
-    };
+    // Validate and normalize BEFORE any provider call: bad input must never reach Mautic.
+    // isPublished is a boolean here and the STRING "0"/"1" on the wire (Mautic 7 / Symfony
+    // ChoiceToValueTransformer rejects non-strings and answers HTTP 500).
+    const payload = buildEmailCreatePayload(args);
+
+    // Idempotent create: an email with this exact name already exists -> reuse it,
+    // never write a duplicate.
+    const existing = await findEmailsByExactName(client, payload.name);
+    if (existing.length === 1) {
+      return {
+        content: [
+          {
+            type: 'text',
+            text: `Email template already exists (idempotent create, nothing written):\n${JSON.stringify(existing[0], null, 2)}`,
+          },
+        ],
+      };
+    }
+    if (existing.length > 1) {
+      throw new MauticContractError(
+        'ambiguous_existing_template',
+        `Found ${existing.length} existing emails named "${payload.name}". Refusing to create a duplicate; resolve them with list_emails/get_email first.`,
+        'name',
+        ErrorCode.InvalidRequest,
+      );
+    }
+
+    try {
+      const response = await client.v1.post('/emails/new', payload);
+      return {
+        content: [{ type: 'text', text: `Email template created successfully:\n${JSON.stringify(response.data.email, null, 2)}` }],
+      };
+    } catch (error: any) {
+      const status = error?.response?.status;
+      if (typeof status === 'number' && status >= 500) {
+        // Ambiguous outcome: reconcile by exact name before any retry so we never duplicate.
+        const reconciled = await findEmailsByExactName(client, payload.name);
+        if (reconciled.length === 1) {
+          return {
+            content: [
+              {
+                type: 'text',
+                text: `Mautic API returned ${status} but the template exists (reconciled by exact name, no duplicate written):\n${JSON.stringify(reconciled[0], null, 2)}`,
+              },
+            ],
+          };
+        }
+        throw new MauticContractError(
+          'mautic_server_error',
+          `Mautic API Error ${status}: server error while creating email template "${payload.name}". ` +
+            'No email with this exact name exists after the failure, so nothing was created. ' +
+            'Do not blind-retry — reconcile with list_emails first. ' +
+            `Provider message: ${extractProviderMessage(error)}`,
+          undefined,
+          ErrorCode.InternalError,
+        );
+      }
+      throw error;
+    }
   },
 
   async get_email_stats(client: MauticApiClient, args: any) {

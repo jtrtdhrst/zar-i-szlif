@@ -1,0 +1,1212 @@
+{
+ "source": {
+  "provider": "plasmic",
+  "project": "ew9Zg1DsRBmoU5D99kLXHZ",
+  "page": "mcpmvfk4pspr05tqexp",
+  "pageUuid": "mcpmvfk4psq28xdj02t",
+  "pagePath": "/mcp-smoke/login",
+  "root": "mcpmvfk4psphr7pf3vr",
+  "baseVariant": "mcpmvfk4psprats96kk",
+  "revision": 106,
+  "projectEntries": 435,
+  "bundleHash": "9bd8f9b921ca2332",
+  "validate": {
+   "ok": true,
+   "valid": true,
+   "problems": []
+  }
+ },
+ "entries": {
+  "mcpmvfk4pspbse7yak8": {
+   "variants": [
+    {
+     "__ref": "mcpmvfk4psprats96kk"
+    }
+   ],
+   "args": [],
+   "attrs": {},
+   "rs": {
+    "__ref": "mcpmvfk4pspkeq3vt4r"
+   },
+   "dataCond": null,
+   "dataRep": null,
+   "text": null,
+   "columnsConfig": null,
+   "__type": "VariantSetting"
+  },
+  "mcpmvfk4psphr7pf3vr": {
+   "tag": "div",
+   "name": null,
+   "children": [
+    {
+     "__ref": "zl26_tpl_grid"
+    }
+   ],
+   "type": "other",
+   "codeGenType": null,
+   "columnsSetting": null,
+   "uuid": "mcpmvfk4psp0wxm0978",
+   "parent": null,
+   "locked": null,
+   "vsettings": [
+    {
+     "__ref": "mcpmvfk4pspbse7yak8"
+    }
+   ],
+   "__type": "TplTag"
+  },
+  "mcpmvfk4pspkeq3vt4r": {
+   "values": {
+    "display": "flex",
+    "flex-direction": "column",
+    "position": "relative",
+    "width": "stretch",
+    "height": "stretch"
+   },
+   "mixins": [],
+   "animations": null,
+   "__type": "RuleSet"
+  },
+  "mcpmvfk4pspr05tqexp": {
+   "uuid": "mcpmvfk4psq28xdj02t",
+   "name": "MCP Smoke — Logowanie Żar i Szlif",
+   "params": [],
+   "states": [],
+   "tplTree": {
+    "__ref": "mcpmvfk4psphr7pf3vr"
+   },
+   "editableByContentEditor": true,
+   "hiddenFromContentEditor": false,
+   "variants": [
+    {
+     "__ref": "mcpmvfk4psprats96kk"
+    }
+   ],
+   "variantGroups": [],
+   "codeComponentMeta": null,
+   "type": "page",
+   "subComps": [],
+   "superComp": null,
+   "plumeInfo": null,
+   "templateInfo": null,
+   "metadata": {},
+   "dataQueries": [],
+   "serverQueries": [],
+   "figmaMappings": [],
+   "alwaysAutoName": false,
+   "trapsFocus": false,
+   "updatedAt": 1789398825641,
+   "__type": "Component",
+   "pageMeta": {
+    "__ref": "mcpmvfk4pspz2zgzkij"
+   }
+  },
+  "mcpmvfk4psprats96kk": {
+   "uuid": "mcpmvfk4psp59oql1f2",
+   "name": "base",
+   "selectors": null,
+   "codeComponentName": null,
+   "codeComponentVariantKeys": null,
+   "parent": null,
+   "mediaQuery": null,
+   "description": null,
+   "forTpl": null,
+   "__type": "Variant"
+  },
+  "mcpmvfk4pspz2zgzkij": {
+   "path": "/mcp-smoke/login",
+   "params": {},
+   "query": {},
+   "title": "Żar i Szlif — Logowanie",
+   "description": "Zaloguj się do swojego obozowiska Żar i Szlif i wróć do planowania kolejnego turnusu.",
+   "canonical": null,
+   "roleId": null,
+   "openGraphImage": null,
+   "__type": "PageMeta"
+  },
+  "zarlogin26_rs_grid": {
+   "__type": "RuleSet",
+   "values": {
+    "display": "grid",
+    "grid-template-columns": "repeat(auto-fit, minmax(min(100%, 380px), 1fr))",
+    "min-height": "100vh",
+    "width": "100%",
+    "background": "#f8f5ee"
+   },
+   "mixins": [],
+   "animations": null
+  },
+  "zl26_expr_button_disabled": {
+   "__type": "CustomCode",
+   "code": "true",
+   "fallback": null
+  },
+  "zl26_expr_button_title": {
+   "__type": "CustomCode",
+   "code": "\"Tryb demonstracyjny — logowanie nieaktywne\"",
+   "fallback": null
+  },
+  "zl26_expr_button_type": {
+   "__type": "CustomCode",
+   "code": "\"button\"",
+   "fallback": null
+  },
+  "zl26_expr_emailInput_disabled": {
+   "__type": "CustomCode",
+   "code": "true",
+   "fallback": null
+  },
+  "zl26_expr_emailInput_id": {
+   "__type": "CustomCode",
+   "code": "\"smoke-email\"",
+   "fallback": null
+  },
+  "zl26_expr_emailInput_placeholder": {
+   "__type": "CustomCode",
+   "code": "\"twoj@email.pl\"",
+   "fallback": null
+  },
+  "zl26_expr_emailInput_type": {
+   "__type": "CustomCode",
+   "code": "\"email\"",
+   "fallback": null
+  },
+  "zl26_expr_emailLabel_htmlFor": {
+   "__type": "CustomCode",
+   "code": "\"smoke-email\"",
+   "fallback": null
+  },
+  "zl26_expr_passInput_disabled": {
+   "__type": "CustomCode",
+   "code": "true",
+   "fallback": null
+  },
+  "zl26_expr_passInput_id": {
+   "__type": "CustomCode",
+   "code": "\"smoke-password\"",
+   "fallback": null
+  },
+  "zl26_expr_passInput_placeholder": {
+   "__type": "CustomCode",
+   "code": "\"••••••••\"",
+   "fallback": null
+  },
+  "zl26_expr_passInput_type": {
+   "__type": "CustomCode",
+   "code": "\"password\"",
+   "fallback": null
+  },
+  "zl26_expr_passLabel_htmlFor": {
+   "__type": "CustomCode",
+   "code": "\"smoke-password\"",
+   "fallback": null
+  },
+  "zl26_rs_brand": {
+   "__type": "RuleSet",
+   "values": {
+    "font-size": "22px",
+    "font-weight": "850",
+    "letter-spacing": "-0.025em",
+    "color": "#fff8e6",
+    "margin-bottom": "24px"
+   },
+   "mixins": [],
+   "animations": null
+  },
+  "zl26_rs_button": {
+   "__type": "RuleSet",
+   "values": {
+    "display": "block",
+    "width": "100%",
+    "max-width": "480px",
+    "background": "#2e7758",
+    "color": "#ffffff",
+    "border": "0",
+    "border-radius": "14px",
+    "padding": "17px 24px",
+    "font-size": "16px",
+    "font-weight": "800",
+    "text-align": "center",
+    "cursor": "not-allowed",
+    "opacity": "0.78",
+    "margin-bottom": "24px"
+   },
+   "mixins": [],
+   "animations": null
+  },
+  "zl26_rs_card": {
+   "__type": "RuleSet",
+   "values": {
+    "background": "#fffdf8",
+    "min-height": "100vh",
+    "padding": "clamp(34px,6vw,96px)",
+    "display": "flex",
+    "flex-direction": "column",
+    "justify-content": "center",
+    "color": "#153a2b"
+   },
+   "mixins": [],
+   "animations": null
+  },
+  "zl26_rs_desc": {
+   "__type": "RuleSet",
+   "values": {
+    "font-size": "15px",
+    "line-height": "1.65",
+    "color": "#607169",
+    "margin-top": "0",
+    "margin-bottom": "31px",
+    "max-width": "435px"
+   },
+   "mixins": [],
+   "animations": null
+  },
+  "zl26_rs_emailInput": {
+   "__type": "RuleSet",
+   "values": {
+    "font-size": "16px",
+    "width": "100%",
+    "max-width": "480px",
+    "height": "54px",
+    "padding": "0 16px",
+    "color": "#455a50",
+    "border": "1px solid #dce5dc",
+    "border-radius": "13px",
+    "background": "#f8faf7",
+    "margin-bottom": "20px",
+    "box-sizing": "border-box"
+   },
+   "mixins": [],
+   "animations": null
+  },
+  "zl26_rs_emailLabel": {
+   "__type": "RuleSet",
+   "values": {
+    "font-size": "13px",
+    "font-weight": "750",
+    "color": "#264a3b",
+    "margin-bottom": "8px"
+   },
+   "mixins": [],
+   "animations": null
+  },
+  "zl26_rs_eyebrow": {
+   "__type": "RuleSet",
+   "values": {
+    "font-size": "12px",
+    "font-weight": "800",
+    "letter-spacing": "0.16em",
+    "color": "#44836b",
+    "text-transform": "uppercase",
+    "margin-bottom": "14px"
+   },
+   "mixins": [],
+   "animations": null
+  },
+  "zl26_rs_footer": {
+   "__type": "RuleSet",
+   "values": {
+    "font-size": "13px",
+    "line-height": "1.6",
+    "color": "#637268",
+    "margin-top": "0"
+   },
+   "mixins": [],
+   "animations": null
+  },
+  "zl26_rs_passInput": {
+   "__type": "RuleSet",
+   "values": {
+    "font-size": "16px",
+    "width": "100%",
+    "max-width": "480px",
+    "height": "54px",
+    "padding": "0 16px",
+    "color": "#455a50",
+    "border": "1px solid #dce5dc",
+    "border-radius": "13px",
+    "background": "#f8faf7",
+    "margin-bottom": "17px",
+    "box-sizing": "border-box"
+   },
+   "mixins": [],
+   "animations": null
+  },
+  "zl26_rs_passLabel": {
+   "__type": "RuleSet",
+   "values": {
+    "font-size": "13px",
+    "font-weight": "750",
+    "color": "#264a3b",
+    "margin-bottom": "8px"
+   },
+   "mixins": [],
+   "animations": null
+  },
+  "zl26_rs_remember": {
+   "__type": "RuleSet",
+   "values": {
+    "font-size": "13px",
+    "color": "#607169",
+    "margin-bottom": "23px"
+   },
+   "mixins": [],
+   "animations": null
+  },
+  "zl26_rs_scene": {
+   "__type": "RuleSet",
+   "values": {
+    "background": "linear-gradient(145deg,#173e32 0%,#235a43 58%,#337a56 100%)",
+    "color": "#fff9ed",
+    "padding": "clamp(28px,5vw,76px)",
+    "min-height": "430px",
+    "display": "flex",
+    "flex-direction": "column",
+    "justify-content": "space-between",
+    "position": "relative",
+    "overflow": "hidden"
+   },
+   "mixins": [],
+   "animations": null
+  },
+  "zl26_rs_sceneCopy": {
+   "__type": "RuleSet",
+   "values": {
+    "font-size": "17px",
+    "line-height": "1.65",
+    "color": "#dcebdc",
+    "max-width": "480px",
+    "margin-top": "0"
+   },
+   "mixins": [],
+   "animations": null
+  },
+  "zl26_rs_sceneTitle": {
+   "__type": "RuleSet",
+   "values": {
+    "font-size": "clamp(42px,5vw,70px)",
+    "line-height": "1.03",
+    "font-weight": "850",
+    "letter-spacing": "-0.045em",
+    "color": "#fff8e8",
+    "max-width": "520px",
+    "margin-top": "36px",
+    "margin-bottom": "18px"
+   },
+   "mixins": [],
+   "animations": null
+  },
+  "zl26_rs_tent": {
+   "__type": "RuleSet",
+   "values": {
+    "width": "190px",
+    "height": "150px",
+    "margin": "20px auto 0",
+    "background": "#efaf68",
+    "clip-path": "polygon(50% 0%, 99% 100%, 1% 100%)",
+    "filter": "drop-shadow(0 12px 12px rgba(0,0,0,.16))",
+    "flex-shrink": "0"
+   },
+   "mixins": [],
+   "animations": null
+  },
+  "zl26_rs_title": {
+   "__type": "RuleSet",
+   "values": {
+    "font-size": "clamp(32px,4vw,46px)",
+    "font-weight": "850",
+    "line-height": "1.1",
+    "letter-spacing": "-0.035em",
+    "color": "#153a2b",
+    "margin-top": "0",
+    "margin-bottom": "14px"
+   },
+   "mixins": [],
+   "animations": null
+  },
+  "zl26_text_brand": {
+   "__type": "RawText",
+   "markers": [],
+   "text": "✦ Żar i Szlif"
+  },
+  "zl26_text_button": {
+   "__type": "RawText",
+   "markers": [],
+   "text": "Zaloguj się"
+  },
+  "zl26_text_desc": {
+   "__type": "RawText",
+   "markers": [],
+   "text": "Zaloguj się, aby wrócić do swojej drużyny i wspólnego obozowiska."
+  },
+  "zl26_text_emailLabel": {
+   "__type": "RawText",
+   "markers": [],
+   "text": "Adres e-mail"
+  },
+  "zl26_text_eyebrow": {
+   "__type": "RawText",
+   "markers": [],
+   "text": "TWOJA PRZYGODA TRWA"
+  },
+  "zl26_text_footer": {
+   "__type": "RawText",
+   "markers": [],
+   "text": "Nie masz konta? Rozpocznij przygodę · Tryb demonstracyjny"
+  },
+  "zl26_text_passLabel": {
+   "__type": "RawText",
+   "markers": [],
+   "text": "Hasło"
+  },
+  "zl26_text_remember": {
+   "__type": "RawText",
+   "markers": [],
+   "text": "☐  Zapamiętaj mnie · Nie pamiętasz hasła?"
+  },
+  "zl26_text_sceneCopy": {
+   "__type": "RawText",
+   "markers": [],
+   "text": "Małe kroki zmieniają wielkie wyprawy. Twoja drużyna już czeka na kolejny rozdział."
+  },
+  "zl26_text_sceneTitle": {
+   "__type": "RawText",
+   "markers": [],
+   "text": "Wróć do obozowiska."
+  },
+  "zl26_text_title": {
+   "__type": "RawText",
+   "markers": [],
+   "text": "Witaj ponownie!"
+  },
+  "zl26_tpl_brand": {
+   "__type": "TplTag",
+   "tag": "p",
+   "name": "zs-login-brand",
+   "children": [],
+   "type": "text",
+   "codeGenType": null,
+   "columnsSetting": null,
+   "uuid": "zluuid26brand",
+   "parent": {
+    "__ref": "zl26_tpl_scene"
+   },
+   "locked": null,
+   "vsettings": [
+    {
+     "__ref": "zl26_vs_brand"
+    }
+   ]
+  },
+  "zl26_tpl_button": {
+   "__type": "TplTag",
+   "tag": "button",
+   "name": "zs-login-button",
+   "children": [],
+   "type": "text",
+   "codeGenType": null,
+   "columnsSetting": null,
+   "uuid": "zluuid26button",
+   "parent": {
+    "__ref": "zl26_tpl_card"
+   },
+   "locked": null,
+   "vsettings": [
+    {
+     "__ref": "zl26_vs_button"
+    }
+   ]
+  },
+  "zl26_tpl_card": {
+   "__type": "TplTag",
+   "tag": "section",
+   "name": "zs-login-card",
+   "children": [
+    {
+     "__ref": "zl26_tpl_eyebrow"
+    },
+    {
+     "__ref": "zl26_tpl_title"
+    },
+    {
+     "__ref": "zl26_tpl_desc"
+    },
+    {
+     "__ref": "zl26_tpl_emailLabel"
+    },
+    {
+     "__ref": "zl26_tpl_emailInput"
+    },
+    {
+     "__ref": "zl26_tpl_passLabel"
+    },
+    {
+     "__ref": "zl26_tpl_passInput"
+    },
+    {
+     "__ref": "zl26_tpl_remember"
+    },
+    {
+     "__ref": "zl26_tpl_button"
+    },
+    {
+     "__ref": "zl26_tpl_footer"
+    }
+   ],
+   "type": "other",
+   "codeGenType": null,
+   "columnsSetting": null,
+   "uuid": "zluuid26card",
+   "parent": {
+    "__ref": "zl26_tpl_grid"
+   },
+   "locked": null,
+   "vsettings": [
+    {
+     "__ref": "zl26_vs_card"
+    }
+   ]
+  },
+  "zl26_tpl_desc": {
+   "__type": "TplTag",
+   "tag": "p",
+   "name": "zs-login-desc",
+   "children": [],
+   "type": "text",
+   "codeGenType": null,
+   "columnsSetting": null,
+   "uuid": "zluuid26desc",
+   "parent": {
+    "__ref": "zl26_tpl_card"
+   },
+   "locked": null,
+   "vsettings": [
+    {
+     "__ref": "zl26_vs_desc"
+    }
+   ]
+  },
+  "zl26_tpl_emailInput": {
+   "__type": "TplTag",
+   "tag": "input",
+   "name": "zs-login-emailInput",
+   "children": [],
+   "type": "other",
+   "codeGenType": null,
+   "columnsSetting": null,
+   "uuid": "zluuid26emailInput",
+   "parent": {
+    "__ref": "zl26_tpl_card"
+   },
+   "locked": null,
+   "vsettings": [
+    {
+     "__ref": "zl26_vs_emailInput"
+    }
+   ]
+  },
+  "zl26_tpl_emailLabel": {
+   "__type": "TplTag",
+   "tag": "label",
+   "name": "zs-login-emailLabel",
+   "children": [],
+   "type": "text",
+   "codeGenType": null,
+   "columnsSetting": null,
+   "uuid": "zluuid26emailLabel",
+   "parent": {
+    "__ref": "zl26_tpl_card"
+   },
+   "locked": null,
+   "vsettings": [
+    {
+     "__ref": "zl26_vs_emailLabel"
+    }
+   ]
+  },
+  "zl26_tpl_eyebrow": {
+   "__type": "TplTag",
+   "tag": "p",
+   "name": "zs-login-eyebrow",
+   "children": [],
+   "type": "text",
+   "codeGenType": null,
+   "columnsSetting": null,
+   "uuid": "zluuid26eyebrow",
+   "parent": {
+    "__ref": "zl26_tpl_card"
+   },
+   "locked": null,
+   "vsettings": [
+    {
+     "__ref": "zl26_vs_eyebrow"
+    }
+   ]
+  },
+  "zl26_tpl_footer": {
+   "__type": "TplTag",
+   "tag": "p",
+   "name": "zs-login-footer",
+   "children": [],
+   "type": "text",
+   "codeGenType": null,
+   "columnsSetting": null,
+   "uuid": "zluuid26footer",
+   "parent": {
+    "__ref": "zl26_tpl_card"
+   },
+   "locked": null,
+   "vsettings": [
+    {
+     "__ref": "zl26_vs_footer"
+    }
+   ]
+  },
+  "zl26_tpl_grid": {
+   "__type": "TplTag",
+   "tag": "div",
+   "name": "zs-login-grid",
+   "children": [
+    {
+     "__ref": "zl26_tpl_scene"
+    },
+    {
+     "__ref": "zl26_tpl_card"
+    }
+   ],
+   "type": "other",
+   "codeGenType": null,
+   "columnsSetting": null,
+   "uuid": "zluuid26grid",
+   "parent": {
+    "__ref": "mcpmvfk4psphr7pf3vr"
+   },
+   "locked": null,
+   "vsettings": [
+    {
+     "__ref": "zl26_vs_grid"
+    }
+   ]
+  },
+  "zl26_tpl_passInput": {
+   "__type": "TplTag",
+   "tag": "input",
+   "name": "zs-login-passInput",
+   "children": [],
+   "type": "other",
+   "codeGenType": null,
+   "columnsSetting": null,
+   "uuid": "zluuid26passInput",
+   "parent": {
+    "__ref": "zl26_tpl_card"
+   },
+   "locked": null,
+   "vsettings": [
+    {
+     "__ref": "zl26_vs_passInput"
+    }
+   ]
+  },
+  "zl26_tpl_passLabel": {
+   "__type": "TplTag",
+   "tag": "label",
+   "name": "zs-login-passLabel",
+   "children": [],
+   "type": "text",
+   "codeGenType": null,
+   "columnsSetting": null,
+   "uuid": "zluuid26passLabel",
+   "parent": {
+    "__ref": "zl26_tpl_card"
+   },
+   "locked": null,
+   "vsettings": [
+    {
+     "__ref": "zl26_vs_passLabel"
+    }
+   ]
+  },
+  "zl26_tpl_remember": {
+   "__type": "TplTag",
+   "tag": "p",
+   "name": "zs-login-remember",
+   "children": [],
+   "type": "text",
+   "codeGenType": null,
+   "columnsSetting": null,
+   "uuid": "zluuid26remember",
+   "parent": {
+    "__ref": "zl26_tpl_card"
+   },
+   "locked": null,
+   "vsettings": [
+    {
+     "__ref": "zl26_vs_remember"
+    }
+   ]
+  },
+  "zl26_tpl_scene": {
+   "__type": "TplTag",
+   "tag": "aside",
+   "name": "zs-login-scene",
+   "children": [
+    {
+     "__ref": "zl26_tpl_brand"
+    },
+    {
+     "__ref": "zl26_tpl_sceneTitle"
+    },
+    {
+     "__ref": "zl26_tpl_sceneCopy"
+    },
+    {
+     "__ref": "zl26_tpl_tent"
+    }
+   ],
+   "type": "other",
+   "codeGenType": null,
+   "columnsSetting": null,
+   "uuid": "zluuid26scene",
+   "parent": {
+    "__ref": "zl26_tpl_grid"
+   },
+   "locked": null,
+   "vsettings": [
+    {
+     "__ref": "zl26_vs_scene"
+    }
+   ]
+  },
+  "zl26_tpl_sceneCopy": {
+   "__type": "TplTag",
+   "tag": "p",
+   "name": "zs-login-sceneCopy",
+   "children": [],
+   "type": "text",
+   "codeGenType": null,
+   "columnsSetting": null,
+   "uuid": "zluuid26sceneCopy",
+   "parent": {
+    "__ref": "zl26_tpl_scene"
+   },
+   "locked": null,
+   "vsettings": [
+    {
+     "__ref": "zl26_vs_sceneCopy"
+    }
+   ]
+  },
+  "zl26_tpl_sceneTitle": {
+   "__type": "TplTag",
+   "tag": "h1",
+   "name": "zs-login-sceneTitle",
+   "children": [],
+   "type": "text",
+   "codeGenType": null,
+   "columnsSetting": null,
+   "uuid": "zluuid26sceneTitle",
+   "parent": {
+    "__ref": "zl26_tpl_scene"
+   },
+   "locked": null,
+   "vsettings": [
+    {
+     "__ref": "zl26_vs_sceneTitle"
+    }
+   ]
+  },
+  "zl26_tpl_tent": {
+   "__type": "TplTag",
+   "tag": "div",
+   "name": "zs-login-tent",
+   "children": [],
+   "type": "other",
+   "codeGenType": null,
+   "columnsSetting": null,
+   "uuid": "zluuid26tent",
+   "parent": {
+    "__ref": "zl26_tpl_scene"
+   },
+   "locked": null,
+   "vsettings": [
+    {
+     "__ref": "zl26_vs_tent"
+    }
+   ]
+  },
+  "zl26_tpl_title": {
+   "__type": "TplTag",
+   "tag": "h2",
+   "name": "zs-login-title",
+   "children": [],
+   "type": "text",
+   "codeGenType": null,
+   "columnsSetting": null,
+   "uuid": "zluuid26title",
+   "parent": {
+    "__ref": "zl26_tpl_card"
+   },
+   "locked": null,
+   "vsettings": [
+    {
+     "__ref": "zl26_vs_title"
+    }
+   ]
+  },
+  "zl26_vs_brand": {
+   "__type": "VariantSetting",
+   "variants": [
+    {
+     "__ref": "mcpmvfk4psprats96kk"
+    }
+   ],
+   "args": [],
+   "attrs": {},
+   "rs": {
+    "__ref": "zl26_rs_brand"
+   },
+   "dataCond": null,
+   "dataRep": null,
+   "text": {
+    "__ref": "zl26_text_brand"
+   },
+   "columnsConfig": null
+  },
+  "zl26_vs_button": {
+   "__type": "VariantSetting",
+   "variants": [
+    {
+     "__ref": "mcpmvfk4psprats96kk"
+    }
+   ],
+   "args": [],
+   "attrs": {
+    "type": {
+     "__ref": "zl26_expr_button_type"
+    },
+    "disabled": {
+     "__ref": "zl26_expr_button_disabled"
+    },
+    "title": {
+     "__ref": "zl26_expr_button_title"
+    }
+   },
+   "rs": {
+    "__ref": "zl26_rs_button"
+   },
+   "dataCond": null,
+   "dataRep": null,
+   "text": {
+    "__ref": "zl26_text_button"
+   },
+   "columnsConfig": null
+  },
+  "zl26_vs_card": {
+   "__type": "VariantSetting",
+   "variants": [
+    {
+     "__ref": "mcpmvfk4psprats96kk"
+    }
+   ],
+   "args": [],
+   "attrs": {},
+   "rs": {
+    "__ref": "zl26_rs_card"
+   },
+   "dataCond": null,
+   "dataRep": null,
+   "text": null,
+   "columnsConfig": null
+  },
+  "zl26_vs_desc": {
+   "__type": "VariantSetting",
+   "variants": [
+    {
+     "__ref": "mcpmvfk4psprats96kk"
+    }
+   ],
+   "args": [],
+   "attrs": {},
+   "rs": {
+    "__ref": "zl26_rs_desc"
+   },
+   "dataCond": null,
+   "dataRep": null,
+   "text": {
+    "__ref": "zl26_text_desc"
+   },
+   "columnsConfig": null
+  },
+  "zl26_vs_emailInput": {
+   "__type": "VariantSetting",
+   "variants": [
+    {
+     "__ref": "mcpmvfk4psprats96kk"
+    }
+   ],
+   "args": [],
+   "attrs": {
+    "type": {
+     "__ref": "zl26_expr_emailInput_type"
+    },
+    "id": {
+     "__ref": "zl26_expr_emailInput_id"
+    },
+    "placeholder": {
+     "__ref": "zl26_expr_emailInput_placeholder"
+    },
+    "disabled": {
+     "__ref": "zl26_expr_emailInput_disabled"
+    }
+   },
+   "rs": {
+    "__ref": "zl26_rs_emailInput"
+   },
+   "dataCond": null,
+   "dataRep": null,
+   "text": null,
+   "columnsConfig": null
+  },
+  "zl26_vs_emailLabel": {
+   "__type": "VariantSetting",
+   "variants": [
+    {
+     "__ref": "mcpmvfk4psprats96kk"
+    }
+   ],
+   "args": [],
+   "attrs": {
+    "htmlFor": {
+     "__ref": "zl26_expr_emailLabel_htmlFor"
+    }
+   },
+   "rs": {
+    "__ref": "zl26_rs_emailLabel"
+   },
+   "dataCond": null,
+   "dataRep": null,
+   "text": {
+    "__ref": "zl26_text_emailLabel"
+   },
+   "columnsConfig": null
+  },
+  "zl26_vs_eyebrow": {
+   "__type": "VariantSetting",
+   "variants": [
+    {
+     "__ref": "mcpmvfk4psprats96kk"
+    }
+   ],
+   "args": [],
+   "attrs": {},
+   "rs": {
+    "__ref": "zl26_rs_eyebrow"
+   },
+   "dataCond": null,
+   "dataRep": null,
+   "text": {
+    "__ref": "zl26_text_eyebrow"
+   },
+   "columnsConfig": null
+  },
+  "zl26_vs_footer": {
+   "__type": "VariantSetting",
+   "variants": [
+    {
+     "__ref": "mcpmvfk4psprats96kk"
+    }
+   ],
+   "args": [],
+   "attrs": {},
+   "rs": {
+    "__ref": "zl26_rs_footer"
+   },
+   "dataCond": null,
+   "dataRep": null,
+   "text": {
+    "__ref": "zl26_text_footer"
+   },
+   "columnsConfig": null
+  },
+  "zl26_vs_grid": {
+   "__type": "VariantSetting",
+   "variants": [
+    {
+     "__ref": "mcpmvfk4psprats96kk"
+    }
+   ],
+   "args": [],
+   "attrs": {},
+   "rs": {
+    "__ref": "zarlogin26_rs_grid"
+   },
+   "dataCond": null,
+   "dataRep": null,
+   "text": null,
+   "columnsConfig": null
+  },
+  "zl26_vs_passInput": {
+   "__type": "VariantSetting",
+   "variants": [
+    {
+     "__ref": "mcpmvfk4psprats96kk"
+    }
+   ],
+   "args": [],
+   "attrs": {
+    "type": {
+     "__ref": "zl26_expr_passInput_type"
+    },
+    "id": {
+     "__ref": "zl26_expr_passInput_id"
+    },
+    "placeholder": {
+     "__ref": "zl26_expr_passInput_placeholder"
+    },
+    "disabled": {
+     "__ref": "zl26_expr_passInput_disabled"
+    }
+   },
+   "rs": {
+    "__ref": "zl26_rs_passInput"
+   },
+   "dataCond": null,
+   "dataRep": null,
+   "text": null,
+   "columnsConfig": null
+  },
+  "zl26_vs_passLabel": {
+   "__type": "VariantSetting",
+   "variants": [
+    {
+     "__ref": "mcpmvfk4psprats96kk"
+    }
+   ],
+   "args": [],
+   "attrs": {
+    "htmlFor": {
+     "__ref": "zl26_expr_passLabel_htmlFor"
+    }
+   },
+   "rs": {
+    "__ref": "zl26_rs_passLabel"
+   },
+   "dataCond": null,
+   "dataRep": null,
+   "text": {
+    "__ref": "zl26_text_passLabel"
+   },
+   "columnsConfig": null
+  },
+  "zl26_vs_remember": {
+   "__type": "VariantSetting",
+   "variants": [
+    {
+     "__ref": "mcpmvfk4psprats96kk"
+    }
+   ],
+   "args": [],
+   "attrs": {},
+   "rs": {
+    "__ref": "zl26_rs_remember"
+   },
+   "dataCond": null,
+   "dataRep": null,
+   "text": {
+    "__ref": "zl26_text_remember"
+   },
+   "columnsConfig": null
+  },
+  "zl26_vs_scene": {
+   "__type": "VariantSetting",
+   "variants": [
+    {
+     "__ref": "mcpmvfk4psprats96kk"
+    }
+   ],
+   "args": [],
+   "attrs": {},
+   "rs": {
+    "__ref": "zl26_rs_scene"
+   },
+   "dataCond": null,
+   "dataRep": null,
+   "text": null,
+   "columnsConfig": null
+  },
+  "zl26_vs_sceneCopy": {
+   "__type": "VariantSetting",
+   "variants": [
+    {
+     "__ref": "mcpmvfk4psprats96kk"
+    }
+   ],
+   "args": [],
+   "attrs": {},
+   "rs": {
+    "__ref": "zl26_rs_sceneCopy"
+   },
+   "dataCond": null,
+   "dataRep": null,
+   "text": {
+    "__ref": "zl26_text_sceneCopy"
+   },
+   "columnsConfig": null
+  },
+  "zl26_vs_sceneTitle": {
+   "__type": "VariantSetting",
+   "variants": [
+    {
+     "__ref": "mcpmvfk4psprats96kk"
+    }
+   ],
+   "args": [],
+   "attrs": {},
+   "rs": {
+    "__ref": "zl26_rs_sceneTitle"
+   },
+   "dataCond": null,
+   "dataRep": null,
+   "text": {
+    "__ref": "zl26_text_sceneTitle"
+   },
+   "columnsConfig": null
+  },
+  "zl26_vs_tent": {
+   "__type": "VariantSetting",
+   "variants": [
+    {
+     "__ref": "mcpmvfk4psprats96kk"
+    }
+   ],
+   "args": [],
+   "attrs": {},
+   "rs": {
+    "__ref": "zl26_rs_tent"
+   },
+   "dataCond": null,
+   "dataRep": null,
+   "text": null,
+   "columnsConfig": null
+  },
+  "zl26_vs_title": {
+   "__type": "VariantSetting",
+   "variants": [
+    {
+     "__ref": "mcpmvfk4psprats96kk"
+    }
+   ],
+   "args": [],
+   "attrs": {},
+   "rs": {
+    "__ref": "zl26_rs_title"
+   },
+   "dataCond": null,
+   "dataRep": null,
+   "text": {
+    "__ref": "zl26_text_title"
+   },
+   "columnsConfig": null
+  }
+ }
+}

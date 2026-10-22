@@ -12,6 +12,8 @@
   ],
   "scripts": {
     "build": "tsc && node -e \"require('fs').chmodSync('build/index.js', '755')\"",
+    "test": "node --test \"test/**/*.test.mjs\"",
+    "verify": "npm run build && npm test",
     "prepare": "npm run build",
     "watch": "tsc --watch",
     "inspector": "npx @modelcontextprotocol/inspector build/index.js"
