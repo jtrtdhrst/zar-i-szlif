@@ -2,8 +2,8 @@
  * Wspólna krawędź MCP dla usług, których silnika nie da się uruchomić w runtime
  * Cloudflare Workers (Python, TCP/Postgres, surowe SSH, plugin websocket).
  *
- * Jeden Worker = 9 publicznych endpointów. Każda usługa to środowisko
- * (`wrangler deploy --env <usługa>`) z własną nazwą skryptu, domeną i sekretami;
+ * Ten moduł obsługuje 8 osobnych Workerów z własną konfiguracją
+ * (`wrangler.<usługa>.jsonc`), nazwą, domeną i sekretami;
  * kod i zależności są wspólne. Źródła silników leżą w repo w `mcp/<usługa>/`.
  *
  * Worker: sprawdza Bearer token → przekazuje JSON-RPC do silnika (UPSTREAM_URL,
