@@ -23,6 +23,8 @@ jobs:
         with:
           persist-credentials: false
           fetch-depth: 0
+          # repository_dispatch is dispatched on main, but the target app is on the selected branch.
+          ref: ${{ github.event.client_payload.data.branch }}
       - id: node
         name: Setting up node v24...
         uses: actions/setup-node@v6
@@ -40,6 +42,22 @@ jobs:
       - id: ensure_dir
         name: Ensuring target directory...
         run: mkdir -p ${{ github.event.client_payload.data.directory }}
+      - id: mask-plasmic-token
+        name: Mask project token before invoking Plasmic action
+        env:
+          PLASMIC_PROJECT_API_TOKEN: ${{ github.event.client_payload.data.projectApiToken }}
+        run: |
+          if [ -n "$PLASMIC_PROJECT_API_TOKEN" ]; then
+            echo "::add-mask::$PLASMIC_PROJECT_API_TOKEN"
+          fi
+      - id: verify-plasmic-target
+        name: Verify branch and project directory
+        env:
+          PLASMIC_DIRECTORY: ${{ github.event.client_payload.data.directory }}
+          PLASMIC_BRANCH: ${{ github.event.client_payload.data.branch }}
+        run: |
+          test "$(git branch --show-current)" = "$PLASMIC_BRANCH" || { echo "::error::Wrong Plasmic branch checked out"; exit 1; }
+          test -f "$PLASMIC_DIRECTORY/package.json" || { echo "::error::Missing package.json in Plasmic project directory"; exit 1; }
       - id: init
         name: Initializing Plasmic app...
         uses: plasmicapp/plasmic-action@master
