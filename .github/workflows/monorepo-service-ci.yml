@@ -37,7 +37,7 @@ jobs:
         with:
           node-version: '24'
       - name: Check exact Coolify source-root contracts
-        run: node scripts/check-coolify-targets.mjs
+        run: node scripts/check-coolify-targets.mjs && node scripts/check-retired-mcp.mjs
       - id: changed
         shell: bash
         run: |

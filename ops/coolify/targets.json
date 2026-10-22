@@ -76,20 +76,7 @@
       "triggerPaths": [
         "mcp/plasmic/**"
       ],
-      "notes": "Original ops/design-stack grouped image also starts OpenDesign: split service before independently activating; preserve 412 fix snapshot under _branches/KOMAA-1084."
-    },
-    {
-      "id": "opendesign-mcp",
-      "sourceDirectory": "mcp/opendesign/",
-      "coolifyBaseDirectory": null,
-      "buildContext": null,
-      "dockerfile": null,
-      "containerPort": null,
-      "status": "candidate-snapshot-only",
-      "triggerPaths": [
-        "mcp/opendesign/**"
-      ],
-      "notes": "Legacy bridge is shared with original design-stack image; no isolated runner in this directory yet."
+      "notes": "Standalone Plasmic ONLY. Owner retired OpenDesign and OpenCode MCP. Tag image ghcr.io/miloszspyrka-code/zar-i-szlif-plasmic-mcp:<approved main SHA>; requires WAB real E2E/readback."
     },
     {
       "id": "qdrant-mcp",
@@ -142,19 +129,6 @@
         "mcp/ubuntu/**"
       ],
       "notes": "Recover host bridge source; production privilege/security review mandatory."
-    },
-    {
-      "id": "opencode-mcp",
-      "sourceDirectory": "mcp/opencode/",
-      "coolifyBaseDirectory": null,
-      "buildContext": null,
-      "dockerfile": null,
-      "containerPort": null,
-      "status": "imported-code-not-validated-for-standalone-deploy",
-      "triggerPaths": [
-        "mcp/opencode/**"
-      ],
-      "notes": "OpenCode MCP integrations, no edits to OpenCode Core."
     },
     {
       "id": "paperclip-mcp",
