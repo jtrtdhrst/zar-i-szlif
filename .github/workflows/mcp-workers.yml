@@ -29,6 +29,18 @@ jobs:
         include:
           - dir: mcp/mantic/worker
             name: mantic-mcp
+          - dir: mcp/qdrant/worker
+            name: qdrant-mcp
+          - dir: mcp/supabase/worker
+            name: supabase-mcp
+          - dir: mcp/ubuntu/worker
+            name: ubuntu-mcp
+          - dir: mcp/penpot/worker
+            name: penpot-mcp
+          - dir: mcp/plasmic/worker
+            name: plasmic-mcp
+          - dir: mcp/paperclip/worker
+            name: paperclip-mcp
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
