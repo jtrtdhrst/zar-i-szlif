@@ -5,6 +5,12 @@
   "compatibility_date": "2026-10-22",
   "workers_dev": false,
   "env": {
+    "probe": {
+      "name": "probe-mcp",
+      "main": "src/probe.ts",
+      "workers_dev": false,
+      "routes": [{ "pattern": "probe-mcp.zariszlif.pl", "custom_domain": true }]
+    },
     "emailens": {
       "name": "emailens-mcp",
       "workers_dev": false,
