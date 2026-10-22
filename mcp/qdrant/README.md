@@ -32,6 +32,14 @@ the server on stdio for `docker run --rm -i` clients.
 
 See `.env.example`. `QDRANT_URL` and `COLLECTION_NAME` are the required ones.
 
+`QDRANT_MCP_TOKEN` switches on the bearer gate for the HTTP transport (401 without
+it). Set it for every publicly reachable deployment — the public endpoint
+`https://qdrant-mcp.zariszlif.pl/mcp` is protected by exactly this token.
+
+If Qdrant itself is unreachable at start-up, the server now stays up (the MCP
+endpoint still answers `tools/list`) and the data tools fail with a readable
+"Qdrant is not reachable" error instead of the container dying.
+
 ## Provenance
 
 Source of the running container `mcp-qdrant-hybrid:latest` on the production host.

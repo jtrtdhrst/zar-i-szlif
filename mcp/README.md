@@ -16,6 +16,28 @@ containers that run in production today.
 
 The product MCP (`app/mcp-worker`, Cloudflare Worker) stays in `app/mcp-worker/`.
 
+## Publiczne endpointy (Cloudflare)
+
+Każdy MCP jest wystawiony przez **Cloudflare Tunnel** (`0fa7a5f6-70c6-495a-b6a7-7e9c6e3e9285`,
+strefa `zariszlif.pl`). DNS: CNAME `<nazwa>-mcp.zariszlif.pl` →
+`0fa7a5f6-70c6-495a-b6a7-7e9c6e3e9285.cfargotunnel.com` (proxied). Ingress w tunelu:
+`<nazwa>-mcp.zariszlif.pl` → `http://<usługa>:<port>`.
+
+| Publiczny endpoint | Usługa | Auth |
+|---|---|---|
+| `https://mantic-mcp.zariszlif.pl/mcp` | Mantic HTTP bridge | `Authorization: Bearer` (BRIDGE_TOKEN) |
+| `https://qdrant-mcp.zariszlif.pl/mcp` | Qdrant hybrid | `Authorization: Bearer` (QDRANT_MCP_TOKEN) |
+| `https://penpot-mcp.zariszlif.pl/mcp/stream` | Penpot native MCP | `?userToken=<token>` |
+| `https://plasmic-mcp.zariszlif.pl/mcp` | Plasmic MCP | `Authorization: Bearer` (MCP_AUTH_TOKEN) |
+| `https://supabase-mcp.zariszlif.pl/mcp` | Supabase MCP | `Authorization: Bearer` (JWT) |
+| `https://ubuntu-mcp.zariszlif.pl/mcp` | Ubuntu operations | `Authorization: Bearer` (bridge token) |
+| `https://paperclip-mcp.zariszlif.pl/mcp` | Paperclip MCP (core) | Bearer / OAuth 2.1 |
+| `https://emailens-mcp.zariszlif.pl/mcp` | Emailens MCP bridge | `Authorization: Bearer` (bridge token) |
+
+**Każdy publiczny endpoint ma własną autoryzację** — Qdrant wymaga
+`QDRANT_MCP_TOKEN` (dodał tę bramkę ten folder), Mantic wymaga `BRIDGE_TOKEN`,
+Penpot tokenu w query, reszta tokenu Bearer. Nie wystawiaj usługi bez tokenu.
+
 ## Rules for this folder
 
 1. **Secrets never enter the repo.** Every service has an `.env.example`; real values

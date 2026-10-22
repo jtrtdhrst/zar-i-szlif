@@ -10,6 +10,7 @@ llama-index-vector-stores-qdrant==0.1.4, fastembed==0.8.0,
 qdrant-client==1.19.0.
 """
 
+import hmac
 import logging
 import os
 import sys
@@ -41,10 +42,21 @@ SPARSE_MODEL = os.getenv("SPARSE_MODEL", "Qdrant/bm25")
 MCP_TRANSPORT = os.getenv("MCP_TRANSPORT", "stdio")
 MCP_HOST = os.getenv("MCP_HOST", "0.0.0.0")
 MCP_PORT = int(os.getenv("MCP_PORT", "8000"))
+# Optional bearer token for the HTTP transport. Required when the server is
+# reachable from the internet (the public endpoint is behind the tunnel).
+MCP_AUTH_TOKEN = os.getenv("QDRANT_MCP_TOKEN", "").strip()
 
 mcp = MCPServer("qdrant-hybrid")
 _index: VectorStoreIndex | None = None
 _client: QdrantClient | None = None
+_qdrant_error: str | None = None
+
+
+def _require_qdrant() -> None:
+    """Data tools need a reachable Qdrant; fail with a readable message."""
+    if _qdrant_error:
+        raise ToolError(f"Qdrant is not reachable: {_qdrant_error}")
+
 
 
 class FastEmbedDenseEmbedding(BaseEmbedding):
@@ -199,6 +211,7 @@ def startup() -> VectorStoreIndex:
 
 @mcp.tool()
 def query(text: str, top_k: int = 5) -> list[dict]:
+    _require_qdrant()
     """Hybrid dense+sparse search. Returns [{doc_id, node_id, score, text, metadata}]."""
     retriever = _index.as_retriever(
         similarity_top_k=top_k,
@@ -229,6 +242,7 @@ def query(text: str, top_k: int = 5) -> list[dict]:
 
 @mcp.tool()
 def insert_document(text: str, metadata: dict | None = None) -> str:
+    _require_qdrant()
     """Insert one document. Returns its doc_id."""
     if not text or not text.strip():
         raise ValueError("text must not be empty")
@@ -239,6 +253,7 @@ def insert_document(text: str, metadata: dict | None = None) -> str:
 
 @mcp.tool()
 def insert_documents_bulk(items: list[dict]) -> list[str]:
+    _require_qdrant()
     """Insert many documents at once. Each item: {"text": str, "metadata"?: dict}."""
     docs = []
     for i, item in enumerate(items):
@@ -259,6 +274,7 @@ def insert_documents_bulk(items: list[dict]) -> list[str]:
 
 @mcp.tool()
 def delete_document(doc_id: str) -> bool:
+    _require_qdrant()
     """Delete a document (all its chunks) by doc_id. Returns True if gone."""
     doc_id = _validate_doc_id(doc_id)
     points = _scroll_by_doc_id(doc_id)
@@ -289,6 +305,7 @@ def delete_document(doc_id: str) -> bool:
 
 @mcp.tool()
 def get_document(doc_id: str) -> dict:
+    _require_qdrant()
     """Get full text + metadata of a document by doc_id."""
     doc_id = _validate_doc_id(doc_id)
     points = _scroll_by_doc_id(doc_id)
@@ -328,6 +345,7 @@ def get_document(doc_id: str) -> dict:
 
 @mcp.tool()
 def list_collection_info() -> dict:
+    _require_qdrant()
     """Collection stats: point count, dense/sparse vector config, status."""
     info = _client.get_collection(COLLECTION_NAME)
     params = info.config.params
@@ -346,6 +364,35 @@ def list_collection_info() -> dict:
     }
 
 
+class _BearerAuth:
+    """Pure-ASGI bearer gate (no buffering, so SSE responses stream through)."""
+
+    def __init__(self, app, token):
+        self.app = app
+        self.token = token
+
+    async def __call__(self, scope, receive, send):
+        if scope.get("type") == "http":
+            headers = {k.lower(): v for k, v in (scope.get("headers") or [])}
+            raw = headers.get(b"authorization", b"").decode("latin-1")
+            supplied = raw[7:] if raw[:7].lower() == "bearer " else ""
+            if not supplied or not hmac.compare_digest(supplied, self.token):
+                body = b'{"error":"unauthorized"}'
+                await send(
+                    {
+                        "type": "http.response.start",
+                        "status": 401,
+                        "headers": [
+                            (b"content-type", b"application/json"),
+                            (b"content-length", str(len(body)).encode()),
+                        ],
+                    }
+                )
+                await send({"type": "http.response.body", "body": body})
+                return
+        await self.app(scope, receive, send)
+
+
 def main() -> None:
     if MCP_TRANSPORT not in ("stdio", "streamable-http"):
         raise SystemExit(
@@ -354,15 +401,27 @@ def main() -> None:
         )
     try:
         globals()["_index"] = startup()
-    except SystemExit:
-        raise
+    except SystemExit as exc:
+        # Qdrant unreachable (e.g. the cloud cluster is down): keep the MCP
+        # endpoint alive so tools/list still works, and fail the data tools loudly.
+        globals()["_qdrant_error"] = str(exc)
+        log.error("%s (server stays up; data tools fail until Qdrant is back)", exc)
     except Exception as exc:
-        raise SystemExit(f"ERROR during startup: {exc}")
+        globals()["_qdrant_error"] = f"ERROR during startup: {exc}"
+        log.error("%s (server stays up; data tools fail until Qdrant is back)", exc)
     log.info("serving transport=%s collection=%s", MCP_TRANSPORT, COLLECTION_NAME)
     if MCP_TRANSPORT == "stdio":
         mcp.run(transport="stdio")
     else:
-        mcp.run(transport="streamable-http", host=MCP_HOST, port=MCP_PORT, stateless_http=True)
+        import uvicorn
+
+        app = mcp.streamable_http_app(
+            streamable_http_path="/mcp", stateless_http=True, host=MCP_HOST
+        )
+        if MCP_AUTH_TOKEN:
+            app.add_middleware(_BearerAuth, token=MCP_AUTH_TOKEN)
+            log.info("bearer auth enabled")
+        uvicorn.run(app, host=MCP_HOST, port=MCP_PORT, log_level="info")
 
 
 if __name__ == "__main__":
