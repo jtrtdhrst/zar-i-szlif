@@ -1,5 +1,5 @@
 import axios, { AxiosInstance, AxiosError } from 'axios';
-import { ErrorCode, McpError } from '@modelcontextprotocol/sdk/types.js';
+import { ErrorCode, McpError } from '../errors.js';
 import type { OAuth2Token } from '../types/index.js';
 
 export class MauticApiClient {

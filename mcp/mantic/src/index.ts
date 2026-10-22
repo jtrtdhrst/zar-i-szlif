@@ -22,6 +22,7 @@ import {
   ErrorCode,
   McpError,
 } from "@modelcontextprotocol/sdk/types.js";
+import { McpError as ToolError } from './errors.js';
 import axios from 'axios';
 
 import { MauticApiClient } from './api/client.js';
@@ -83,8 +84,8 @@ class MauticServer {
           request.params.arguments,
         );
       } catch (error) {
-        if (error instanceof McpError) {
-          throw error;
+        if (error instanceof ToolError) {
+          throw new McpError(error.code, error.message, error.data);
         }
         if (axios.isAxiosError(error)) {
           const message = MauticApiClient.extractErrorMessage(error);

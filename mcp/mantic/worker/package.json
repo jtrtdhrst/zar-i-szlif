@@ -8,10 +8,7 @@
     "typecheck": "tsc --noEmit -p tsconfig.json",
     "deploy": "wrangler deploy"
   },
-  "dependencies": {
-    "@modelcontextprotocol/sdk": "^1.30.0",
-    "axios": "^1.10.0"
-  },
+  "dependencies": {},
   "devDependencies": {
     "@cloudflare/workers-types": "^5.20260730.1",
     "typescript": "^5.8.3",
