@@ -1,13 +1,16 @@
 name: MCP Workers
 
-# Każdy MCP jako Cloudflare Worker: kod leży w mcp/<usługa>/worker/ w tym repo,
-# build+deploy robi wrangler (token z sekretów repo, konto podane jawnie).
+# Każdy MCP jako Cloudflare Worker. Kod jest w repo:
+#  - mcp/worker-edge/       — 8 usług na wspólnej krawędzi, każda jako --env
+#  - mcp/mantic/worker/     — natywny Worker (Mautic API)
+# Wdrożenie: wrangler (token z sekretów środowiska Production).
 on:
   push:
     branches: [main, feat/mcp-services-in-repo]
     paths:
-      - "mcp/*/worker/**"
-      - "mcp/*/src/**"
+      - "mcp/worker-edge/**"
+      - "mcp/mantic/worker/**"
+      - "mcp/mantic/src/**"
       - ".github/workflows/mcp-workers.yml"
   workflow_dispatch:
 
@@ -19,42 +22,43 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
-  deploy:
+  edge:
     runs-on: ubuntu-latest
     # Token Cloudflare żyje w sekretach środowiska Production (nie w repo).
     environment: Production
-    strategy:
-      fail-fast: false
-      matrix:
-        include:
-          - dir: mcp/mantic/worker
-            name: mantic-mcp
-          - dir: mcp/qdrant/worker
-            name: qdrant-mcp
-          - dir: mcp/supabase/worker
-            name: supabase-mcp
-          - dir: mcp/ubuntu/worker
-            name: ubuntu-mcp
-          - dir: mcp/penpot/worker
-            name: penpot-mcp
-          - dir: mcp/plasmic/worker
-            name: plasmic-mcp
-          - dir: mcp/paperclip/worker
-            name: paperclip-mcp
-          - dir: mcp/emailens/worker
-            name: emailens-mcp
-          - dir: mcp/langfuse/worker
-            name: langfuse-mcp
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with:
           node-version: 24
-      - name: Build (typecheck + instalacja pakietu współdzielonego)
-        working-directory: ${{ matrix.dir }}
+      - name: Build (jedna instalacja dla wszystkich usług)
+        working-directory: mcp/worker-edge
+        run: npm run build
+      - name: Deploy 8 usług krawędzi
+        working-directory: mcp/worker-edge
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: c056821a7ee2aabdcf0a6dc447490184
+        run: |
+          set -e
+          for env in emailens langfuse paperclip penpot plasmic qdrant supabase ubuntu; do
+            echo "--- deploy $env"
+            npx wrangler deploy --env "$env"
+          done
+
+  mantic:
+    runs-on: ubuntu-latest
+    environment: Production
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+      - name: Build
+        working-directory: mcp/mantic/worker
         run: npm run build
       - name: Deploy Worker
-        working-directory: ${{ matrix.dir }}
+        working-directory: mcp/mantic/worker
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           CLOUDFLARE_ACCOUNT_ID: c056821a7ee2aabdcf0a6dc447490184

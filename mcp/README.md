@@ -17,10 +17,16 @@ containers that run in production today.
 The product MCP (`app/mcp-worker`, Cloudflare Worker) stays in `app/mcp-worker/`.
 ## Publiczne endpointy — Cloudflare Workers
 
-Każdy MCP jest wystawiony jako **Cloudflare Worker** (`*.zariszlif.pl`), a kod workera
-leży w tym repo w katalogu usługi (`mcp/<usługa>/worker/`) — to on jest źródłem
-wdrażanym przez CI (`.github/workflows/mcp-workers.yml`: build + `wrangler deploy`
-tokenem CF ze środowiska `Production`).
+Każdy MCP jest wystawiony jako **Cloudflare Worker** (`*.zariszlif.pl`). Deploymenty
+w repo są dwa:
+
+- `mcp/worker-edge/` — 8 usług na **jednej wspólnej krawędzi**: jeden `package.json`,
+  jeden build, a każda usługa to środowisko (`wrangler deploy --env <usługa>`) z własną
+  nazwą skryptu, domeną i sekretami w CF. Dodanie usługi = jeden wpis w `wrangler.jsonc`.
+- `mcp/mantic/worker/` — natywny Worker (Mautic API, KV na refresh token).
+
+CI (`.github/workflows/mcp-workers.yml`) buduje i wdraża oba deploymenty tokenem CF
+ze środowiska `Production`.
 
 | Publiczny endpoint | Worker | Typ | Silnik |
 |---|---|---|---|
@@ -36,8 +42,9 @@ tokenem CF ze środowiska `Production`).
 
 **Krawędź** (`mcp/worker-edge/`) to Worker, który sprawdza Bearer token i przekazuje
 JSON-RPC do silnika (przez Cloudflare Tunnel) — używana tam, gdzie silnika **nie da się
-uruchomić w runtime Workers**: Python (qdrant), TCP/Postgres (supabase), surowe SSH
-(ubuntu), istniejące obrazy Dockera (penpot, plasmic, paperclip, emailens), Python (langfuse).
+uruchomić w runtime Workers**: Python (qdrant, langfuse), TCP/Postgres (supabase),
+surowe SSH (ubuntu), pluginy/websockety (penpot, plasmic, paperclip, emailens).
+Wystawia też `GET /health` (200, bez tokena) dla watchdogów.
 
 Dla `mantic` Worker jest natywny (`mcp/mantic/worker/src/index.ts`): te same moduły
 narzędzi co wersja stdio, transport MCP Streamable HTTP (Web Standard) — dlatego

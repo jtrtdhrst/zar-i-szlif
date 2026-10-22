@@ -11,7 +11,8 @@ on:
   push:
     branches: [main]
     paths:
-      - "mcp/*/worker/**"
+      - "mcp/worker-edge/**"
+      - "mcp/mantic/worker/**"
       - "scripts/check-mcp-endpoints.mjs"
       - ".github/workflows/mcp-health.yml"
 
@@ -27,6 +28,9 @@ jobs:
     runs-on: ubuntu-latest
     # Token CF jest sekretem środowiska Production (jak w mcp-workers.yml).
     environment: Production
+    env:
+      CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+      CLOUDFLARE_ACCOUNT_ID: c056821a7ee2aabdcf0a6dc447490184
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -36,14 +40,13 @@ jobs:
         run: node scripts/check-mcp-endpoints.mjs
       - name: Redeploy workerów (self-healing)
         if: failure()
-        env:
-          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
-          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
         run: |
           set -e
-          for dir in mcp/*/worker; do
-            echo "--- redeploy $dir"
-            ( cd "$dir" && npm ci --no-audit --no-fund && npx wrangler deploy ) || true
+          ( cd mcp/mantic/worker && npm run build && npx wrangler deploy ) || true
+          ( cd mcp/worker-edge && npm run build )
+          for env in emailens langfuse paperclip penpot plasmic qdrant supabase ubuntu; do
+            echo "--- redeploy $env"
+            ( cd mcp/worker-edge && npx wrangler deploy --env "$env" ) || true
           done
       - name: Ponowna weryfikacja po redeployu
         if: failure()

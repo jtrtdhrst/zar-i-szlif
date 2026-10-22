@@ -1,0 +1,60 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "mcp-edge",
+  "main": "src/index.ts",
+  "compatibility_date": "2026-10-22",
+  "workers_dev": false,
+  "env": {
+    "emailens": {
+      "name": "emailens-mcp",
+      "workers_dev": false,
+      "routes": [{ "pattern": "emailens-mcp.zariszlif.pl", "custom_domain": true }],
+      "vars": { "UPSTREAM_URL": "https://emailens-engine.zariszlif.pl/mcp" }
+    },
+    "langfuse": {
+      "name": "langfuse-mcp",
+      "workers_dev": false,
+      "routes": [{ "pattern": "langfuse-mcp.zariszlif.pl", "custom_domain": true }],
+      "vars": { "UPSTREAM_URL": "https://langfuse-engine.zariszlif.pl/api/public/mcp" }
+    },
+    "paperclip": {
+      "name": "paperclip-mcp",
+      "workers_dev": false,
+      "routes": [{ "pattern": "paperclip-mcp.zariszlif.pl", "custom_domain": true }],
+      "vars": { "UPSTREAM_URL": "https://paperclip-engine.zariszlif.pl/mcp" }
+    },
+    "penpot": {
+      "name": "penpot-mcp",
+      "workers_dev": false,
+      "routes": [{ "pattern": "penpot-mcp.zariszlif.pl", "custom_domain": true }],
+      "vars": {
+        "UPSTREAM_URL": "https://penpot-engine.zariszlif.pl/mcp/stream",
+        "UPSTREAM_TOKEN_PARAM": "userToken"
+      }
+    },
+    "plasmic": {
+      "name": "plasmic-mcp",
+      "workers_dev": false,
+      "routes": [{ "pattern": "plasmic-mcp.zariszlif.pl", "custom_domain": true }],
+      "vars": { "UPSTREAM_URL": "https://plasmic-engine.zariszlif.pl/mcp" }
+    },
+    "qdrant": {
+      "name": "qdrant-mcp",
+      "workers_dev": false,
+      "routes": [{ "pattern": "qdrant-mcp.zariszlif.pl", "custom_domain": true }],
+      "vars": { "UPSTREAM_URL": "https://qdrant-engine.zariszlif.pl/mcp" }
+    },
+    "supabase": {
+      "name": "supabase-mcp",
+      "workers_dev": false,
+      "routes": [{ "pattern": "supabase-mcp.zariszlif.pl", "custom_domain": true }],
+      "vars": { "UPSTREAM_URL": "https://supabase-engine.zariszlif.pl/mcp" }
+    },
+    "ubuntu": {
+      "name": "ubuntu-mcp",
+      "workers_dev": false,
+      "routes": [{ "pattern": "ubuntu-mcp.zariszlif.pl", "custom_domain": true }],
+      "vars": { "UPSTREAM_URL": "https://ubuntu-engine.zariszlif.pl/mcp" }
+    }
+  }
+}

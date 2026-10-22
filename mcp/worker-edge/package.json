@@ -1,5 +1,5 @@
 {
-  "name": "supabase-mcp-worker",
+  "name": "mcp-worker-edge",
   "version": "1.0.0",
   "private": true,
   "type": "module",
