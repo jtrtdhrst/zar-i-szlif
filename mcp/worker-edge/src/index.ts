@@ -69,7 +69,7 @@ function createEdgeWorker() {
             status: 401,
             headers: {
               "content-type": "application/json",
-              "www-authenticate": "Bearer",
+              "www-authenticate": `Bearer resource_metadata="${incoming.origin}/.well-known/oauth-protected-resource/mcp", scope="mcp"`,
               "cache-control": "no-store",
             },
           },
@@ -92,15 +92,34 @@ function createEdgeWorker() {
       const headers = new Headers();
       headers.set("content-type", request.headers.get("content-type") ?? "application/json");
       headers.set("accept", request.headers.get("accept") ?? "application/json, text/event-stream");
-      if (env.UPSTREAM_TOKEN && !env.UPSTREAM_TOKEN_PARAM) {
+      // Caller identity is authoritative whenever the edge itself is not the
+      // credential gate. Replacing a real OAuth/agent/board bearer with the
+      // shared UPSTREAM_TOKEN silently collapses every caller into one service
+      // identity and makes per-caller principal binding impossible.
+      const callerCarriesUpstreamCredential = Boolean(bearer) && !env.MCP_AUTH_TOKEN && !env.UPSTREAM_TOKEN_PARAM;
+      if (callerCarriesUpstreamCredential) {
+        headers.set("authorization", `Bearer ${bearer}`);
+      } else if (env.UPSTREAM_TOKEN && !env.UPSTREAM_TOKEN_PARAM) {
         headers.set("authorization", `Bearer ${env.UPSTREAM_TOKEN}`);
-      } else if (!env.UPSTREAM_TOKEN && bearer) {
+      } else if (bearer) {
         headers.set("authorization", `Bearer ${bearer}`);
       }
       // Nagłówki protokołu MCP (sesja + wersja) muszą przejść w obie strony.
       for (const name of ["mcp-session-id", "mcp-protocol-version"]) {
         const value = request.headers.get(name);
         if (value) headers.set(name, value);
+      }
+      // Identity/run headers are part of the caller's credential scope. They
+      // are forwarded only with the caller's own credential: attaching a run id
+      // to a service-owned UPSTREAM_TOKEN would be an ambiguous binding (and
+      // the gateway correctly rejects it). Dropping X-Paperclip-Run-Id entirely
+      // turns every run-scoped agent call into a deterministic
+      // 403 unresolved_identity.
+      if (callerCarriesUpstreamCredential) {
+        for (const name of ["x-paperclip-run-id", "x-paperclip-board-api-key", "x-paperclip-agent-id"]) {
+          const value = request.headers.get(name);
+          if (value) headers.set(name, value);
+        }
       }
 
       const body = request.method === "GET" || request.method === "HEAD" ? undefined : await request.arrayBuffer();
@@ -129,7 +148,9 @@ function createEdgeWorker() {
       }
 
       const out = new Headers();
-      for (const name of ["content-type", "mcp-session-id", "mcp-protocol-version"]) {
+      // OAuth discovery/authorize needs the challenge and redirect hop; the
+      // client cannot re-authenticate if the edge strips them.
+      for (const name of ["content-type", "mcp-session-id", "mcp-protocol-version", "www-authenticate", "location", "cache-control"]) {
         const value = res.headers.get(name);
         if (value) out.set(name, value);
       }
