@@ -48,7 +48,7 @@ jobs:
       - name: Install pnpm and verify target
         if: ${{ steps.original.outputs.run_fallback == 'true' }}
         run: |
-          npm install --global pnpm@12
+          npm install --global pnpm@9.10.0
           pnpm --version
           test -f app/website/package.json || { echo "::error::Missing website package.json"; exit 1; }
           test "$(git branch --show-current)" = "product/www" || { echo "::error::Wrong branch"; exit 1; }
@@ -57,9 +57,7 @@ jobs:
         if: ${{ steps.original.outputs.run_fallback == 'true' }}
         working-directory: app/website
         run: |
-          pnpm install --ignore-scripts
-          pnpm add --ignore-scripts @plasmicapp/react-web
-          pnpm add -D --ignore-scripts @plasmicapp/cli@0.1.381
+          pnpm install --ignore-scripts --ignore-workspace
 
       - name: Fix CLI codegen origin selection for self-hosted Studio
         if: ${{ steps.original.outputs.run_fallback == 'true' }}
@@ -86,7 +84,7 @@ jobs:
           PLASMIC_PROJECT_ID: ${{ github.event.client_payload.data.projectId }}
           PLASMIC_PROJECT_API_TOKEN: ${{ github.event.client_payload.data.projectApiToken }}
         run: |
-          pnpm exec plasmic sync --yes --projects "$PLASMIC_PROJECT_ID:$PLASMIC_PROJECT_API_TOKEN"
+          pnpm --ignore-workspace exec plasmic sync --yes --projects "$PLASMIC_PROJECT_ID:$PLASMIC_PROJECT_API_TOKEN"
 
       - name: Commit and push generated site to product/www
         if: ${{ steps.original.outputs.run_fallback == 'true' }}
