@@ -63,6 +63,8 @@ lokalnego), `COLLECTION_NAME=long_term_memory`, `MCP_TRANSPORT=streamable-http`,
 Dane z chmury **nie są migrowane** (klaster nieosiągalny) — kolekcja startuje
 pusta.
 
+## Provenance
+
 Source of the running container `mcp-qdrant-hybrid:latest` on the production host.
 Related upstream projects: `allfunc/mcp-qdrant`, `qdrant/mcp-server-qdrant` — the
 deployed server here is the hybrid variant, this folder is its source of truth.
