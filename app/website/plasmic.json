@@ -69,6 +69,20 @@
           "scheme": "blackbox",
           "componentType": "component",
           "plumeType": "checkbox"
+        },
+        {
+          "id": "nmT_4rzkM1nr",
+          "name": "Switch",
+          "type": "managed",
+          "projectId": "dE4b3DdZMeQM5wj8QqR9Ny",
+          "renderModuleFilePath": "plasmic/strona_internetowa/PlasmicSwitch.tsx",
+          "importSpec": {
+            "modulePath": "Switch.tsx"
+          },
+          "cssFilePath": "plasmic/strona_internetowa/PlasmicSwitch.module.css",
+          "scheme": "blackbox",
+          "componentType": "component",
+          "plumeType": "switch"
         }
       ],
       "icons": [

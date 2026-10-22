@@ -62,7 +62,7 @@ import {
 } from "@plasmicapp/host";
 
 import * as pp from "@plasmicapp/react-web";
-
+import Switch from "../../Switch"; // plasmic-import: nmT_4rzkM1nr/component
 import { _useGlobalVariants } from "./plasmic"; // plasmic-import: dE4b3DdZMeQM5wj8QqR9Ny/projectModule
 import { _useStyleTokens } from "./PlasmicStyleTokensProvider"; // plasmic-import: dE4b3DdZMeQM5wj8QqR9Ny/styleTokensProvider
 
@@ -119,6 +119,7 @@ export type PlasmicCheckbox__OverridesType = {
   freeBox?: Flex__<"div">;
   svg?: Flex__<"svg">;
   labelContainer?: Flex__<"div">;
+  _switch?: Flex__<typeof Switch>;
 };
 
 export interface DefaultCheckboxProps extends pp.CheckboxProps {
@@ -194,6 +195,12 @@ function PlasmicCheckbox__RenderFunc(props: {
         variableType: "variant",
         initFunc: ({ $props, $state, $queries, $q, $ctx }) =>
           $props.isIndeterminate
+      },
+      {
+        path: "_switch.isChecked",
+        type: "private",
+        variableType: "boolean",
+        initFunc: ({ $props, $state, $queries, $q, $ctx }) => undefined
       }
     ],
     [$props, $ctx, $refs]
@@ -339,6 +346,30 @@ function PlasmicCheckbox__RenderFunc(props: {
           })}
         </div>
       ) : null}
+      <Switch
+        data-plasmic-name={"_switch"}
+        data-plasmic-override={overrides._switch}
+
+        className={classNames("__wab_instance", sty._switch)}
+        isChecked={
+          generateStateValueProp($state, ["_switch", "isChecked"]) ?? false
+        }
+        onChange={async (...eventArgs: any) => {
+          ((...eventArgs) => {
+            generateStateOnChangeProp($state, ["_switch", "isChecked"])(
+              eventArgs[0]
+            );
+          }).apply(null, eventArgs);
+
+          if (
+            eventArgs.length > 1 &&
+            eventArgs[1] &&
+            eventArgs[1]._plasmic_state_init_
+          ) {
+            return;
+          }
+        }}
+      />
     </div>
   ) as React.ReactElement | null;
 }
@@ -373,10 +404,11 @@ function useBehavior<P extends pp.CheckboxProps>(
 }
 
 const PlasmicDescendants = {
-  root: ["root", "freeBox", "svg", "labelContainer"],
+  root: ["root", "freeBox", "svg", "labelContainer", "_switch"],
   freeBox: ["freeBox", "svg"],
   svg: ["svg"],
-  labelContainer: ["labelContainer"]
+  labelContainer: ["labelContainer"],
+  _switch: ["_switch"]
 } as const;
 type NodeNameType = keyof typeof PlasmicDescendants;
 type DescendantsType<T extends NodeNameType> =
@@ -386,6 +418,7 @@ type NodeDefaultElementType = {
   freeBox: "div";
   svg: "svg";
   labelContainer: "div";
+  _switch: typeof Switch;
 };
 
 type ReservedPropsType = "variants" | "args" | "overrides";
@@ -453,6 +486,7 @@ export const PlasmicCheckbox = Object.assign(
     freeBox: makeNodeComponent("freeBox"),
     svg: makeNodeComponent("svg"),
     labelContainer: makeNodeComponent("labelContainer"),
+    _switch: makeNodeComponent("_switch"),
 
     // Metadata about props expected for PlasmicCheckbox
     internalVariantProps: PlasmicCheckbox__VariantProps,
