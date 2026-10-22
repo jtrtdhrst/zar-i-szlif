@@ -102,22 +102,13 @@ export async function resolvePrincipal(deps, input) {
 
   const presentedBoard = normalizeCredential(input?.rawBoardToken);
   const isService = serviceTokens.some((candidate) => candidate && candidate === token);
-
-  if (isService) {
-    // Gateway's own credential (OAuth default flow). Keep today's behaviour so
-    // the product channel is untouched, but never ignore a board credential
-    // the caller explicitly presented.
-    return {
-      ok: true,
-      kind: PRINCIPAL_KIND.SERVICE,
-      agentId: serviceAgentId,
-      runId: null,
-      agentApiKey: serviceAgentKey,
-      boardApiKey: presentedBoard || serviceBoardKey,
-      source: "service",
-    };
+  const suppliedRunId = normalizeCredential(input?.rawRunId);
+  if (suppliedRunId && (presentedBoard || isService)) {
+    return { ok: false, reason: "ambiguous_credential_scope" };
   }
 
+  // Board authentication wins over any overlapping service token label.
+  // A legitimately presented owner Board key must always receive Board scope.
   let boardAuthenticated = false;
   try {
     boardAuthenticated = Boolean(await authenticateBoard(token));
@@ -125,14 +116,39 @@ export async function resolvePrincipal(deps, input) {
     boardAuthenticated = false;
   }
   if (boardAuthenticated) {
+    if (suppliedRunId) return { ok: false, reason: "ambiguous_credential_scope" };
     return {
       ok: true,
       kind: PRINCIPAL_KIND.BOARD,
+      agentId: null,
+      runId: null,
+      agentApiKey: null,
+      boardApiKey: token,
+      source: "caller",
+    };
+  }
+
+
+  if (isService) {
+    // A service-key OAuth grant is an agent/service principal, NEVER an owner.
+    // Most importantly, do not project the gateway's server board key into an
+    // arbitrary client session. An explicit, validated caller-presented board
+    // credential remains the only opt-in way to add board authority.
+    let explicitBoard = null;
+    if (presentedBoard) {
+      let valid = false;
+      try { valid = Boolean(await authenticateBoard(presentedBoard)); } catch { valid = false; }
+      if (!valid) return { ok: false, reason: "invalid_board_credential" };
+      explicitBoard = presentedBoard;
+    }
+    return {
+      ok: true,
+      kind: PRINCIPAL_KIND.SERVICE,
       agentId: serviceAgentId,
       runId: null,
       agentApiKey: serviceAgentKey,
-      boardApiKey: token,
-      source: "caller",
+      boardApiKey: explicitBoard,
+      source: "service",
     };
   }
 
@@ -184,4 +200,18 @@ export function describePrincipal(principal) {
     boardAuthorized: Boolean(principal.boardApiKey),
     credentialSource: principal.source,
   };
+}
+
+/**
+ * Fail-closed validation for owner OAuth grants. A caller must supply
+ * a Board credential that belongs to the current company; server
+ * credentials do not confer permissions on the caller.
+ */
+export async function isVerifiedOwnerBoardGrant(token, validateBoard) {
+  if (typeof token !== "string" || !token.trim()) return false;
+  try {
+    return Boolean(await validateBoard(token.trim()));
+  } catch {
+    return false;
+  }
 }

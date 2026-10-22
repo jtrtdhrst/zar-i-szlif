@@ -6,7 +6,7 @@ import { StreamableHTTPServerTransport } from "/app/packages/mcp-server/node_mod
 import { createPaperclipMcpServer } from "/paperclip/mcp-patch/src/index.ts";
 import { allLiveToolNames } from "/paperclip/mcp-patch/src/live-verify.ts";
 import { profileToolNames } from "/paperclip/mcp-patch/src/execution-broker.ts";
-import { resolvePrincipal, describePrincipal, jwtRunId } from "./principal.mjs";
+import { resolvePrincipal, describePrincipal, jwtRunId, isVerifiedOwnerBoardGrant } from "./principal.mjs";
 
 const HOST = process.env.MCP_HOST || "0.0.0.0";
 const PORT = Number(process.env.MCP_PORT || 3101);
@@ -185,12 +185,12 @@ function authorizePage({ error, defaults, hasDefault }) {
   return `<!doctype html><html lang="pl"><head><meta charset="utf-8" /><meta name="viewport" content="width=device-width,initial-scale=1" />`
     + `<title>Paperclip MCP — autoryzacja</title><style>body{font-family:system-ui,sans-serif;background:#0f1115;color:#e8eaf0;display:flex;justify-content:center;padding:32px;margin:0}a{color:#8ab4ff}form{background:#171a21;border:1px solid #2a2f3a;border-radius:12px;padding:24px;max-width:520px;width:100%}input[type=text],input[type=password]{width:100%;padding:10px;border-radius:8px;border:1px solid #333a47;background:#0f1115;color:#fff;box-sizing:border-box}button{background:#4f7cff;color:#fff;border:0;border-radius:8px;padding:10px 16px;cursor:pointer;font-weight:600}button.secondary{background:#2a2f3a}.err{background:#3a1d1d;border:1px solid #7a2f2f;border-radius:8px;padding:10px;margin-bottom:12px}code{word-break:break-all}</style></head><body>`
     + `<form method="post" action="/oauth/authorize"><h2>Paperclip MCP — połącz Claude Web</h2>`
-    + `<p>Wklej swój klucz Paperclip (<code>pcp_...</code> z <code>/root/.paperclip-agent-key</code>). Klucz jest walidowany przez <code>GET /api/companies/:id</code> dla jednej firmy — nie musisz wpisywać Company ID, jest uzupełniane automatycznie — i wiązany z tokenem OAuth.</p>`
+    + `<p>Wklej własny klucz Paperclip Board lub klucz uprawnionego agenta. Sesja OAuth zachowa tożsamość i uprawnienia wybranego klucza; nie przejmie tożsamości serwera.</p>`
     + (error ? `<div class="err">${escapeHtml(error)}</div>` : "")
     + hidden
     + `<label>Paperclip API key<br /><input type="password" name="paperclip_token" placeholder="pcp_..." autocomplete="off" required /></label><br /><br />`
     + `<button type="submit">Autoryzuj i wróć do Claude</button>`
-    + (hasDefault ? ` <button class="secondary" type="submit" name="use_default" value="1">Użyj klucza serwera</button>` : "")
+    // No shared server-key OAuth consent button: each external caller authenticates individually.
     + `<p style="opacity:.7;font-size:13px">client_id: <code>${escapeHtml(d.client_id || "")}</code><br />redirect_uri: <code>${escapeHtml(d.redirect_uri || "")}</code></p>`
     + `</form></body></html>`;
 }
@@ -444,9 +444,8 @@ async function resolveAgentContext(token, rawBoardToken, rawRunId) {
 // into every caller-authenticated session, so two different agents executed
 // under one shared identity. Every MCP session is now bound to the principal
 // that the caller actually presented.
-const PRINCIPAL_MODE = (process.env.PAPERCLIP_MCP_PRINCIPAL_MODE || "enforce").trim() === "observe"
-  ? "observe"
-  : "enforce";
+// Production MCP never runs the legacy shared-credential observation mode.
+const PRINCIPAL_MODE = "enforce";
 const SERVICE_TOKENS = [
   SERVER_AGENT_API_KEY,
   process.env.PAPERCLIP_API_KEY,
@@ -566,6 +565,7 @@ async function handleMcp(req, res, token, bodyOverride, agentContext = null, pri
     companyId: COMPANY_ID,
     agentId: session.agentId,
     runId: session.runId,
+    principalKind: session.principalKind ?? null,
   }, toolAllowlist ? { toolAllowlist } : undefined);
   console.log(
     `[paperclip-mcp] session principal kind=${session.principalKind || "legacy"} agentId=${session.agentId || "none"} `
@@ -679,17 +679,23 @@ async function handleOAuthAuthorize(req, res, url) {
   }
   let paperclipToken = (params.paperclip_token || "").trim();
   if (params.use_default) {
-    paperclipToken = (process.env.PAPERCLIP_API_KEY || process.env.OAUTH_DEFAULT_PAPERCLIP_TOKEN || "").trim();
+    return sendHtml(res, 403, authorizePage({
+      error: "Shared server credentials cannot authorize an external OAuth owner session. Use your own Paperclip credential.",
+      defaults: params,
+      hasDefault: false,
+    }));
   }
   if (!paperclipToken) {
     const hasDefault = Boolean(process.env.PAPERCLIP_API_KEY || process.env.OAUTH_DEFAULT_PAPERCLIP_TOKEN);
-    return sendHtml(res, 400, authorizePage({ error: "Wklej klucz pcp_... albo użyj klucza serwera.", defaults: params, hasDefault }));
+    return sendHtml(res, 400, authorizePage({ error: "Wprowadź własny klucz Paperclip Board dla tej firmy.", defaults: params, hasDefault: false }));
   }
-  let ok = false;
-  try { ok = await authenticate(paperclipToken); } catch { ok = false; }
+  // External OAuth for this owner-facing endpoint grants Board authority by
+  // default only when the caller's OWN key already has Board authority.
+  // Agent/service keys still work through their separate direct MCP channels.
+  const ok = await isVerifiedOwnerBoardGrant(paperclipToken, authenticateBoard);
   if (!ok) {
     const hasDefault = Boolean(process.env.PAPERCLIP_API_KEY || process.env.OAUTH_DEFAULT_PAPERCLIP_TOKEN);
-    return sendHtml(res, 401, authorizePage({ error: "Klucz odrzucony przez Paperclip API (GET /companies/:id != 200).", defaults: params, hasDefault }));
+    return sendHtml(res, 403, authorizePage({ error: "To połączenie OAuth wymaga własnego klucza z uprawnieniami Board do bieżącej firmy. Klucze agentów nie nadają uprawnień Board.", defaults: params, hasDefault: false }));
   }
   const code = newOpaque("pcmc_", 24);
   oauthCodes.set(code, {
@@ -883,6 +889,16 @@ const httpServer = createServer((req, res) => {
     if (!effective || !(await authenticate(effective))) {
       unauthorizedMcp(res, req);
       return;
+    }
+    // Existing OAuth access/refresh credentials are grandfathered only as
+    // credentials, not as Board grants. Agent-key OAuth tokens must reconnect
+    // with the owner's verified Board key before invoking any tool.
+    if (oauthPaperclip && oauthAccess.has(presented)) {
+      const boardAuthorized = await isVerifiedOwnerBoardGrant(effective, authenticateBoard);
+      if (!boardAuthorized) {
+        sendJson(res, 403, { error: "Board authorization required for the owner OAuth MCP connection" });
+        return;
+      }
     }
 
     // --- Principal binding: one session, one identity -------------------------

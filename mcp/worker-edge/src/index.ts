@@ -18,6 +18,8 @@ export interface EdgeEnv {
   UPSTREAM_TOKEN?: string;
   /** Nazwa parametru query dla tokenu (np. userToken dla Penpot). */
   UPSTREAM_TOKEN_PARAM?: string;
+  /** Paperclip-only identity-preserving OAuth/auth proxy; NEVER combine with shared edge credentials. */
+  PAPERCLIP_AUTH_PROXY?: string;
 }
 
 /** Górna granica na odpowiedź silnika; dłuższe wywołania i tak nie mają sensu. */
@@ -41,6 +43,10 @@ function createEdgeWorker() {
   return {
     async fetch(request: Request, env: EdgeEnv): Promise<Response> {
       const incoming = new URL(request.url);
+      const paperclipAuthProxy = env.PAPERCLIP_AUTH_PROXY === "1";
+      const invalidPaperclipAuth = paperclipAuthProxy && Boolean(
+        env.MCP_AUTH_TOKEN || env.UPSTREAM_TOKEN || env.UPSTREAM_TOKEN_PARAM,
+      );
 
       // Bez tokena i bez ruchu do silnika — dla watchdoga i monitoringu.
       if (incoming.pathname === "/health") {
@@ -50,7 +56,14 @@ function createEdgeWorker() {
         } catch {
           /* zostaje "invalid" */
         }
-        return json({ ok: true, upstream, auth: Boolean(env.MCP_AUTH_TOKEN) });
+        return json({ ok: !invalidPaperclipAuth, upstream, auth: Boolean(env.MCP_AUTH_TOKEN) }, invalidPaperclipAuth ? 503 : 200);
+      }
+
+      // A single shared credential would collapse every OAuth caller into the same
+      // Paperclip principal. The upstream Paperclip gateway must authenticate the
+      // original caller and validate any supplied board/run context itself.
+      if (invalidPaperclipAuth) {
+        return json({ error: "Paperclip identity proxy misconfigured" }, 503);
       }
 
       const header = request.headers.get("authorization") ?? "";
@@ -97,6 +110,18 @@ function createEdgeWorker() {
       } else if (!env.UPSTREAM_TOKEN && bearer) {
         headers.set("authorization", `Bearer ${bearer}`);
       }
+      if (paperclipAuthProxy) {
+        // Never trust incoming X-Forwarded-* values from the client. Derive the
+        // OAuth issuer and resource origin from the actual Worker request URL.
+        headers.set("x-forwarded-host", incoming.host);
+        headers.set("x-forwarded-proto", incoming.protocol.slice(0, -1));
+        // The gateway binds run IDs to signed caller credentials and validates
+        // board credentials. Forward their inputs; do NOT grant authority here.
+        for (const name of ["x-paperclip-run-id", "x-paperclip-board-api-key"]) {
+          const value = request.headers.get(name);
+          if (value) headers.set(name, value);
+        }
+      }
       // Nagłówki protokołu MCP (sesja + wersja) muszą przejść w obie strony.
       for (const name of ["mcp-session-id", "mcp-protocol-version"]) {
         const value = request.headers.get(name);
@@ -132,6 +157,15 @@ function createEdgeWorker() {
       for (const name of ["content-type", "mcp-session-id", "mcp-protocol-version"]) {
         const value = res.headers.get(name);
         if (value) out.set(name, value);
+      }
+      if (paperclipAuthProxy) {
+        // OAuth requires 302 Location and RFC 9728 WWW-Authenticate challenges.
+        // Neither Set-Cookie nor arbitrary upstream headers cross the boundary.
+        for (const name of ["location", "www-authenticate"]) {
+          const value = res.headers.get(name);
+          if (value) out.set(name, value);
+        }
+        out.set("cache-control", "no-store");
       }
       return new Response(res.body, { status: res.status, headers: out });
     },

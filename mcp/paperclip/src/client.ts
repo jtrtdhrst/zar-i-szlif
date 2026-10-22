@@ -252,6 +252,7 @@ export class PaperclipApiClient {
       agentId: this.config.agentId,
       runId: this.config.runId,
       operatorRunId: (this.config as { operatorRunId?: string | null }).operatorRunId ?? null,
+      principalKind: this.config.principalKind ?? null,
     };
   }
 
@@ -299,6 +300,12 @@ export class PaperclipApiClient {
     let credentialClass = options.callerKey
       ? "caller"
       : resolveCredentialClass(method, path, { body: options.body, callerAgentId: this.config.agentId, runId });
+    // The externally authenticated Board principal has no agent key. Every
+    // route must use the Board credential, including /agents/:id/wakeup and
+    // other agent-prefixed operations. Never pretend it is the server COO.
+    if (this.config.principalKind === "board") {
+      credentialClass = "board";
+    }
     // A route proven at runtime to need Board authority keeps using it.
     if (!options.callerKey && promotedBoardRoutes.has(shape)) {
       credentialClass = "board";
