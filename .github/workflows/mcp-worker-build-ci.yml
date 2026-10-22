@@ -70,7 +70,7 @@ jobs:
           node-version: '24'
       - run: npm ci --ignore-scripts
       - run: npm run typecheck
-      - run: node --test tests/plasmic-entry-contract.test.ts
+      - run: node --test tests/plasmic-entry-contract.test.ts tests/plasmic-project-tools.test.ts
 
 # Deliberately no deployment from GitHub Actions.
 # Cloudflare Builds uses each service's mcp/<service>/worker path and local npm run deploy.
