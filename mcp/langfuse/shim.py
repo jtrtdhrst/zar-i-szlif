@@ -276,21 +276,34 @@ class H(BaseHTTPRequestHandler):
         }).encode("utf-8")
         self._send(200, body)
 
+    # Naglowki przenoszone do upstreamu. Lista jest zamknieta: przenoszenie
+    # naglowkow klienta (Host, Origin, cf-*, X-Forwarded-*) powodowalo, ze
+    # Langfuse odrzucal zadanie ("Access forbidden"). Do upstreamu idzie tylko
+    # to, co MCP wymaga.
+    UPSTREAM_HEADERS = ("content-type", "accept", "mcp-session-id", "last-event-id",
+                        "x-langfuse-mcp-profile")
+
     def _upstream_headers(self):
         out = {}
         for k, v in self.headers.items():
             kl = k.lower()
-            if kl in HOP or kl == "content-length":
+            if kl not in self.UPSTREAM_HEADERS:
                 continue
-            if kl == "authorization" and v[:7].lower() == "bearer ":
-                v = "Basic " + v[7:]
             out[k] = v
-        if "authorization" not in {k.lower() for k in out}:
-            if not INJECT_BASIC:
-                return None
+        # Kredencja upstreamu jest wstrzykiwana po stronie serwera (INJECT_BASIC)
+        # i ma pierwszenstwo: token klienta (Bearer MCP) NIE jest kredencjalem
+        # Langfuse - przekazanie go jako Basic dalo "Authentication failed".
+        if INJECT_BASIC:
             out["Authorization"] = "Basic " + INJECT_BASIC
-        if self.headers.get("Host"):
-            out["Host"] = self.headers.get("Host")
+        else:
+            auth = self.headers.get("Authorization")
+            if not auth:
+                return None
+            if auth[:7].lower() == "bearer ":
+                auth = "Basic " + auth[7:]
+            out["Authorization"] = auth
+        out.setdefault("Content-Type", "application/json")
+        out.setdefault("Accept", "application/json, text/event-stream")
         return out
 
     def _call_upstream(self, path, body):

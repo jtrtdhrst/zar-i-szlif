@@ -32,11 +32,12 @@ tokenem CF ze środowiska `Production`).
 | `https://plasmic-mcp.zariszlif.pl/mcp` | `plasmic-mcp` | krawędź Worker | `plasmic-mcp` (Docker) przez `plasmic-engine.zariszlif.pl` |
 | `https://paperclip-mcp.zariszlif.pl/mcp` | `paperclip-mcp` | krawędź Worker (weryfikacja po stronie silnika) | Paperclip (Docker) przez `paperclip-engine.zariszlif.pl` |
 | `https://emailens-mcp.zariszlif.pl/mcp` | `emailens-mcp` | krawędź Worker | `emailens-mcp-bridge` (Docker) przez `emailens-engine.zariszlif.pl` |
+| `https://langfuse-mcp.zariszlif.pl/api/public/mcp` | `langfuse-mcp` | krawędź Worker | `langfuse-basic-shim` (Python, contract gateway) przez `langfuse-engine.zariszlif.pl` |
 
 **Krawędź** (`mcp/worker-edge/`) to Worker, który sprawdza Bearer token i przekazuje
 JSON-RPC do silnika (przez Cloudflare Tunnel) — używana tam, gdzie silnika **nie da się
 uruchomić w runtime Workers**: Python (qdrant), TCP/Postgres (supabase), surowe SSH
-(ubuntu), istniejące obrazy Dockera (penpot, plasmic, paperclip, emailens).
+(ubuntu), istniejące obrazy Dockera (penpot, plasmic, paperclip, emailens), Python (langfuse).
 
 Dla `mantic` Worker jest natywny (`mcp/mantic/worker/src/index.ts`): te same moduły
 narzędzi co wersja stdio, transport MCP Streamable HTTP (Web Standard) — dlatego
