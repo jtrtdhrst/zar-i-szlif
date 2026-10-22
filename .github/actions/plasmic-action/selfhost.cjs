@@ -28,6 +28,17 @@ function setOutput(key, value) {
   if (process.env.GITHUB_OUTPUT) fs.appendFileSync(process.env.GITHUB_OUTPUT, `${key}=${value}\n`);
 }
 
+function checkoutBranch() {
+  const current = execFileSync("git", ["rev-parse", "--abbrev-ref", "HEAD"], {
+    cwd: workspace,
+    encoding: "utf8",
+  }).trim();
+  if (current === branch) return;
+  // Studio dispatches with the default branch checked out; the app directory
+  // usually lives on the project's publish branch (e.g. product/www).
+  sh("git", ["checkout", branch], { cwd: workspace });
+}
+
 function ensureWorkspace() {
   if (fs.existsSync(cwd)) return;
   throw new Error(`Directory ${directory} does not exist in branch ${branch}`);
@@ -72,6 +83,7 @@ function commitAndPush() {
 }
 
 try {
+  checkoutBranch();
   ensureWorkspace();
   if (run === "init") {
     const hasApp = fs.existsSync(path.join(cwd, "package.json"));
