@@ -5,6 +5,9 @@ permissions:
   contents: write
   pull-requests: write
 
+env:
+  PLASMIC_DEFAULT_HOST: https://plasmic.kompaszbiorek.pl
+
 on:
   repository_dispatch:
     types: [plasmic]
