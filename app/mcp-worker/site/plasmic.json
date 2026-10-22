@@ -25,6 +25,20 @@
       "cssFilePath": "plasmic/strona_o_mcp/plasmic.css",
       "components": [
         {
+          "id": "yIVkGSjh0aIp",
+          "name": "Switch",
+          "type": "managed",
+          "projectId": "tb1j8aEH6vjGoVtS6rGrv7",
+          "renderModuleFilePath": "plasmic/strona_o_mcp/PlasmicSwitch.tsx",
+          "importSpec": {
+            "modulePath": "Switch.tsx"
+          },
+          "cssFilePath": "plasmic/strona_o_mcp/PlasmicSwitch.module.css",
+          "scheme": "blackbox",
+          "componentType": "component",
+          "plumeType": "switch"
+        },
+        {
           "id": "5jvvpBEak3V1",
           "name": "NewPage",
           "type": "managed",
@@ -41,20 +55,6 @@
             "serverModulePath": "plasmic/strona_o_mcp/PlasmicNewPageServer.tsx",
             "clientModulePath": "../app/page-client.tsx"
           }
-        },
-        {
-          "id": "yIVkGSjh0aIp",
-          "name": "Switch",
-          "type": "managed",
-          "projectId": "tb1j8aEH6vjGoVtS6rGrv7",
-          "renderModuleFilePath": "plasmic/strona_o_mcp/PlasmicSwitch.tsx",
-          "importSpec": {
-            "modulePath": "Switch.tsx"
-          },
-          "cssFilePath": "plasmic/strona_o_mcp/PlasmicSwitch.module.css",
-          "scheme": "blackbox",
-          "componentType": "component",
-          "plumeType": "switch"
         }
       ],
       "icons": [],
