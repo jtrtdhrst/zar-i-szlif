@@ -5,11 +5,12 @@
   "type": "module",
   "description": "Independent product MCP for Żar i Szlif (Cloudflare Workers)",
   "scripts": {
-    "build": "npm ci --prefix ../.. --ignore-scripts && npm run validate",
+    "build": "npm ci --prefix ../.. --ignore-scripts && npm run validate && npm run build:site",
     "validate": "npm run typecheck && npm run test",
     "typecheck": "tsc --noEmit -p tsconfig.json",
     "test": "vitest run",
-    "deploy": "node scripts/deploy.mjs"
+    "deploy": "node scripts/deploy.mjs",
+    "build:site": "cd site && pnpm install --frozen-lockfile && pnpm run build && rm -rf ../public && cp -R out ../public"
   },
   "dependencies": {
     "@cloudflare/workers-oauth-provider": "^0.10.3"

@@ -57,3 +57,6 @@ opencode-mcp/.runtime/
 mcp/**/.env
 mcp/**/secrets/
 mcp/**/.secrets/
+
+# MCP landing site build output (Worker assets)
+app/mcp-worker/public/
