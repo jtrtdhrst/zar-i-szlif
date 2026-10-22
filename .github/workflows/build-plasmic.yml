@@ -11,6 +11,7 @@ on:
     branches: [main]
     paths:
       - .github/workflows/build-plasmic.yml
+      - mcp/plasmic/studio-overrides/plasmic.yml
 
 permissions:
   contents: read
@@ -35,6 +36,20 @@ jobs:
           path: upstream
           fetch-depth: 1
 
+      - name: Checkout local repository with managed Plasmic publish template
+        uses: actions/checkout@v4
+        with:
+          path: repository
+          persist-credentials: false
+
+      - name: Apply self-hosted GitHub publishing template
+        run: |
+          test -f repository/mcp/plasmic/studio-overrides/plasmic.yml
+          test -f upstream/platform/wab/src/wab/server/github/plasmic.yml
+          cp repository/mcp/plasmic/studio-overrides/plasmic.yml upstream/platform/wab/src/wab/server/github/plasmic.yml
+          grep -q 'PLASMIC_DEFAULT_HOST' upstream/platform/wab/src/wab/server/github/plasmic.yml
+          grep -q 'npm install --global pnpm@12' upstream/platform/wab/src/wab/server/github/plasmic.yml
+
       - id: upstream
         run: echo "sha=$(git -C upstream rev-parse HEAD)" >> "$GITHUB_OUTPUT"
 
@@ -52,7 +67,7 @@ jobs:
           file: upstream/platform/wab/Dockerfile
           push: true
           tags: |
-            ${{ env.IMAGE }}:${{ steps.upstream.outputs.sha }}
+            ${{ env.IMAGE }}:${{ steps.upstream.outputs.sha }}-overlay-${{ github.sha }}
             ${{ env.IMAGE }}:stable
           cache-from: type=registry,ref=${{ env.IMAGE }}:buildcache
           cache-to: type=registry,ref=${{ env.IMAGE }}:buildcache,mode=max
