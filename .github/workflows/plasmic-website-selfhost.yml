@@ -1,0 +1,80 @@
+name: Plasmic Website — isolated self-hosted Codegen
+on:
+  repository_dispatch:
+    types: [plasmic]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  pull-requests: write
+
+concurrency:
+  group: plasmic-website-product-www
+  cancel-in-progress: false
+
+jobs:
+  website-codegen:
+    if: ${{ github.event_name == 'repository_dispatch' && github.event.client_payload.data.branch == 'product/www' && github.event.client_payload.data.directory == 'app/website' && github.event.client_payload.data.scheme == 'codegen' }}
+    runs-on: ubuntu-latest
+    env:
+      PLASMIC_DEFAULT_HOST: https://plasmic.kompaszbiorek.pl
+    steps:
+      - name: Mask event payload project API token before third-party actions
+        run: |
+          node -e 'const p=require(process.env.GITHUB_EVENT_PATH).client_payload?.data?.projectApiToken;if(!p){console.error("Missing Plasmic token in dispatch");process.exit(1)};console.log("::add-mask::"+p)'
+
+      - name: Checkout exact authorized website branch
+        uses: actions/checkout@v6
+        with:
+          ref: product/www
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Setup Node 24
+        uses: actions/setup-node@v6
+        with:
+          node-version: '24'
+
+      - name: Install pnpm and verify target
+        run: |
+          npm install --global pnpm@12
+          pnpm --version
+          test -f app/website/package.json || { echo "::error::Missing website package.json"; exit 1; }
+          test "$(git branch --show-current)" = "product/www" || { echo "::error::Wrong branch"; exit 1; }
+
+      - name: Initialize Plasmic Website
+        id: init
+        uses: plasmicapp/plasmic-action@master
+        with:
+          run: init
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          branch: product/www
+          directory: app/website
+          project_id: ${{ github.event.client_payload.data.projectId }}
+          project_api_token: ${{ github.event.client_payload.data.projectApiToken }}
+          platform: nextjs
+          language: ts
+          scheme: codegen
+          title: ${{ github.event.client_payload.data.title }}
+          description: ${{ github.event.client_payload.data.description }}
+
+      - name: Sync and commit Plasmic components
+        if: ${{ steps.init.outputs.synced != 'true' }}
+        uses: plasmicapp/plasmic-action@master
+        with:
+          run: sync
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          branch: product/www
+          directory: app/website
+          project_id: ${{ github.event.client_payload.data.projectId }}
+          project_api_token: ${{ github.event.client_payload.data.projectApiToken }}
+          sync_action: commit
+          title: ${{ github.event.client_payload.data.title }}
+          description: ${{ github.event.client_payload.data.description }}
+
+      - name: Verify website branch commit is available
+        if: always()
+        run: |
+          echo "Target branch: product/www"
+          echo "Repository: ${{ github.repository }}"
+          git status --short
