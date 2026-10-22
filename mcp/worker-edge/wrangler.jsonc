@@ -5,6 +5,26 @@
   "compatibility_date": "2026-10-22",
   "workers_dev": false,
   "env": {
+    "probe7": {
+      "name": "probe7-mcp",
+      "main": "src/probe7.ts",
+      "workers_dev": false,
+      "routes": [{ "pattern": "probe7-mcp.zariszlif.pl", "custom_domain": true }],
+      "vars": { "UPSTREAM_URL": "https://qdrant-engine.zariszlif.pl/mcp" },
+    },
+    "probe8": {
+      "name": "probe8-mcp",
+      "main": "src/probe8.ts",
+      "workers_dev": false,
+      "routes": [{ "pattern": "probe8-mcp.zariszlif.pl", "custom_domain": true }]
+    },
+    "probe9": {
+      "name": "probe9-mcp",
+      "main": "src/probe9.ts",
+      "workers_dev": false,
+      "routes": [{ "pattern": "probe9-mcp.zariszlif.pl", "custom_domain": true }],
+      "vars": { "UPSTREAM_URL": "https://qdrant-engine.zariszlif.pl/mcp", "MCP_AUTH_TOKEN": "test-token" },
+    },
     "probe3": {
       "name": "probe3-mcp",
       "main": "src/probe3.ts",
