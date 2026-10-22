@@ -55,9 +55,14 @@ function patchCli() {
   if (!fs.existsSync(file)) throw new Error("Plasmic CLI binary missing after install");
   const original = fs.readFileSync(file, "utf8");
   const matcher = /this\.auth\.host\s*===\s*DEFAULT_HOST\d*/g;
+  const patchedMarker = 'this.auth.host === "https://studio.plasmic.app"';
   const matches = [...original.matchAll(matcher)];
+  if (matches.length === 0 && original.includes(patchedMarker)) {
+    console.log("CLI already patched (restored from node_modules cache).");
+    return;
+  }
   if (matches.length !== 1) throw new Error(`CLI host routing signature changed: ${matches.length} matches`);
-  fs.writeFileSync(file, original.replace(matcher, 'this.auth.host === "https://studio.plasmic.app"'));
+  fs.writeFileSync(file, original.replace(matcher, patchedMarker));
   console.log("Patched CLI to use the self-hosted codegen API.");
 }
 
