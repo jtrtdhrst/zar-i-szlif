@@ -1,0 +1,55 @@
+{
+  "version": 6,
+  "policy": "ZERO_EAGER_DOWNSTREAM_TOOL_SURFACE. Ten plik NIE jest autorytetem dla SaaS App actions. Jest wyłącznie lokalnym envelope'em: mapuje zautentykowanego principala na natywny agent CTB oraz na lokalne execution capabilities (git, shadcn, storybook, playwright) przyznawane wyłącznie wtedy, gdy zadanie ich wymaga. Autoryzacja zewnetrznych SaaS (Cloudflare, GitHub, Gmail, Sender, Slack, itp.) pochodzi z Paperclip Apps v2: App -> Connection -> Catalog -> Profile (binding: issue>routine>agent>project>company) -> Policies -> resource filters -> credential broker. OpenCode nie utrzymuje rownoleglego SaaS permission systemu. connected/authorized != exposedToModel. Agent startuje z zerowa liczba downstream App/MCP tool schemas nie wymaganych przez biezace zadanie.",
+  "contract": {
+    "localCapabilitiesOnly": true,
+    "saasAuthority": "paperclip_apps_v2",
+    "nativeAgentResolution": "server_authoritative",
+    "exposedToModelDefault": "zero_eager",
+    "invariant": "ZERO_EAGER_DOWNSTREAM_TOOL_SURFACE"
+  },
+  "profiles": {
+    "engineer": ["git"],
+    "designer": ["shadcn", "storybook"],
+    "ui-qa": ["playwright"],
+    "cto": [],
+    "ceo": [],
+    "coo": [],
+    "cmo": []
+  },
+  "stageRules": {
+    "engineer": [
+      { "matchTaskClasses": ["ui_implementation", "ui_qa", "frontend"], "grant": [], "note": "Git pozostaje eager; UI-specific narzedzia tylko gdy zadanie ich wymaga." },
+      { "matchTaskClasses": ["backend_runtime", "backend"], "grant": [] }
+    ],
+    "designer": [
+      { "matchTaskClasses": ["repo_context"], "grant": ["git"], "note": "Git tylko gdy wymagany kontekst/zmiana repo." }
+    ],
+    "ui-qa": [
+      { "matchTaskClasses": ["repo_inspection"], "grant": ["git"], "note": "Git tylko przy jawnym inspekcjonowaniu repozytorium." }
+    ],
+    "cto": [
+      { "matchStages": ["code_review"], "grant": ["git"] },
+      { "matchStages": ["infra", "deploy"], "grant": ["cloudflare"], "note": "Cloudflare jest eager wyłącznie dla serwerowo zweryfikowanych zadań CTO infra/deploy." },
+      { "matchStages": ["release", "integration"], "grant": ["git"], "note": "KOMAA-260: scoped CTO release path. Git (git+gh) jest eager wyłącznie dla serwerowo zweryfikowanego etapu release/integration: push accepted branch, PR create/update, merge, verify default-branch SHA, delete feature branch. Credential pochodzi wyłącznie z secret binding (GH_TOKEN/GITHUB_PERSONAL_ACCESS_TOKEN via credential broker), nigdy z plaintext. Nie łączyć ze stage infra/deploy w jednym runie: kombinacja git+cloudflare jest celowo unenforceable (fail closed) — release i deploy to osobne runy. Rozdzielczość używa istniejącego agenta ctb-engineer; nie utworzono nowego agenta." },
+      { "matchStages": ["architecture"], "grant": [], "note": "Architektura: brak eager Cloudflare." }
+    ],
+    "cmo": [
+      { "matchTaskClasses": ["campaign", "audience", "sender_integration"], "matchStages": ["campaign", "sender_integration"], "grant": ["sender"], "note": "Sender jest eager wyłącznie dla serwerowo zweryfikowanych kampanii i integracji Sender." }
+    ]
+  },
+  "notes": {
+    "cmo": "Sender jest eager wyłącznie dla serwerowo zweryfikowanej kampanii lub integracji Sender; poza tym pozostaje deferred.",
+    "ceo": "Brak dev MCP. Control-plane Paperclip nie jest liczony jako dev MCP.",
+    "coo": "Brak dev MCP. Control-plane Paperclip nie jest liczony jako dev MCP.",
+    "cto": "Cloudflare jest eager wyłącznie dla CTO przy serwerowo zweryfikowanym etapie infra/deploy; git jest eager wyłącznie dla serwerowo zweryfikowanego etapu release/integration (KOMAA-260, scoped, credential tylko z secret binding); wszystkie pozostałe zadania pozostają bez eager capabilities.",
+    "migration": "Wersja 4 przywraca eager Cloudflare wyłącznie dla CTO infra/deploy; pozostałe role i etapy korzystają z deferred surface. Wersja 5 dodaje wyłącznie scoped eager git dla CTO release/integration (KOMAA-260) bez nowego agenta — egzekucja przez istniejącego ctb-engineer; Engineer/UI QA bez zmian (Engineer: lokalny git bez GitHub credential binding; UI QA: brak git). Wersja 6 bez zmian capability: precyzuje single-authority model (CTO decyduje; Git Integrator tylko technicznym service executorem po acceptance; jeden aktywny write credential path) oraz osobny least-privilege READ binding dla fetch/provisioning.",
+    "singleAuthority": "Dokładnie jedna aktywna write authority (addendum KOMAA-260): CTO jest jedynym decydentem release. Company-agent Git Integrator nie ma roli w tym profilu (nieznany principal = fail-closed baseline, ctb-executor bez capabilities) i wolno mu działać wyłącznie jako technicznemu service executorowi po CTO acceptance, bez autonomicznej roli decyzyjnej. Dokładnie jeden aktywny credential path do write; fetch/provisioning (host-side origin/main refresh) na osobnym least-privilege READ bindingu (contents:read) — write token nigdy nie służy samemu fetchowi.",
+    "releaseGate": "Release gate (kompas-technical-domain-lead, controlled integration): candidate_sha jawny i == intended branch HEAD; QA/review PASS dotyczy exact SHA; acceptance PASS; brak unresolved blockers; DOC_IMPACT YES+canonical update albo NO+reason. Po merge: verify final SHA na main/default, evidence, delete feature branch, dopiero potem teardown sandboxu."
+  },
+  "issueScopedOverrides": {
+    "KOMAA-126": ["git"],
+    "KOMAA-96": ["git"],
+    "KOMAA-136": ["cloudflare"]
+  }
+}
