@@ -503,5 +503,61 @@
       "routingGroup": "product-design",
       "disposition": "retain-original-branch-review-before-merging"
     }
-  ]
+  ],
+  "cleanup20261022": {
+    "status": "VERIFIED_REMOTE_DELETE",
+    "snapshotIsHistorical": true,
+    "liveBranchCountAfterCleanup": 77,
+    "retiredRefs": [
+      {
+        "ref": "chore/remove-vercel",
+        "headSha": "fa7af362f16370ed15fa0aaefb1c691ef09a8c57",
+        "reason": "confirmed ancestry in origin/main; no open PR head; obsolete integration/release branch"
+      },
+      {
+        "ref": "docs/coolify-deployment-target",
+        "headSha": "e77de0e08014eb8098d03ad94c4836bb27852daa",
+        "reason": "confirmed ancestry in origin/main; no open PR head; obsolete integration/release branch"
+      },
+      {
+        "ref": "docs/coolify-github-app-source",
+        "headSha": "b70b3ef2dc50b9e14640baac86ea1847479f80fc",
+        "reason": "confirmed ancestry in origin/main; no open PR head; obsolete integration/release branch"
+      },
+      {
+        "ref": "feat/coolify-frontend-deployment",
+        "headSha": "cab45c06b2fe0def44fb8326e3d7f7f08212aa09",
+        "reason": "confirmed ancestry in origin/main; no open PR head; obsolete integration/release branch"
+      },
+      {
+        "ref": "fix/first-registration-onboarding-guard-20261013",
+        "headSha": "a7bf26b29ca97c49a2efbb81424f0bb79d24651d",
+        "reason": "confirmed ancestry in origin/main; no open PR head; obsolete integration/release branch"
+      },
+      {
+        "ref": "product/app",
+        "headSha": "b3282da1a7d83bbfe460b41419345541b5a377ce",
+        "reason": "confirmed ancestry in origin/main; no open PR head; obsolete integration/release branch"
+      },
+      {
+        "ref": "product/mcp",
+        "headSha": "b3282da1a7d83bbfe460b41419345541b5a377ce",
+        "reason": "confirmed ancestry in origin/main; no open PR head; obsolete integration/release branch"
+      }
+    ],
+    "additionalLiveRefsSinceSnapshot": [
+      {
+        "ref": "feat/mcp-services-in-repo",
+        "headSha": "05cc76154f9c7980326cc35f46f923116434dddc",
+        "reason": "live branch absent from historical 83-ref inventory; preserve until unmerged-content review"
+      }
+    ],
+    "prRetargeted": {
+      "number": 57,
+      "from": "product/mcp",
+      "to": "main",
+      "status": "open_draft"
+    },
+    "safety": "No unmerged branch, open PR head, or currently required issue workspace intentionally removed. Original SHAs retained. Deletion-only push hook fixed on PR #74; not yet merged to main."
+  }
 }
