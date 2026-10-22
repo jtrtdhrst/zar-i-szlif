@@ -29,6 +29,13 @@ export interface ToolDefinition {
     properties: Record<string, any>;
     required?: string[];
   };
+  annotations?: {
+    title?: string;
+    readOnlyHint?: boolean;
+    destructiveHint?: boolean;
+    idempotentHint?: boolean;
+    openWorldHint?: boolean;
+  };
 }
 
 export interface ToolResult {
