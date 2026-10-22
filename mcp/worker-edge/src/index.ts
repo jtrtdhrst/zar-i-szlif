@@ -1,13 +1,11 @@
 /**
- * Wspólna krawędź MCP dla usług, których silnika nie da się uruchomić w runtime
- * Cloudflare Workers (Python, TCP/Postgres, surowe SSH, plugin websocket).
- *
- * Jeden Worker = 9 publicznych endpointów. Każda usługa to środowisko
- * (`wrangler deploy --env <usługa>`) z własną nazwą skryptu, domeną i sekretami;
- * kod i zależności są wspólne. Źródła silników leżą w repo w `mcp/<usługa>/`.
+ * Wspólna krawędź MCP dla usług, których silnik nie da się uruchomić w runtime
+ * Cloudflare Workers (Python, TCP/Postgres, surowe SSH).
  *
  * Worker: sprawdza Bearer token → przekazuje JSON-RPC do silnika (UPSTREAM_URL,
- * przez Cloudflare Tunnel) → zwraca odpowiedź strumieniowo (SSE).
+ * zwykle przez Cloudflare Tunnel) → zwraca odpowiedź strumieniowo (SSE).
+ * Kod silnika zostaje w repo w katalogu usługi (mcp/<usługa>/), publiczny
+ * endpoint usługi jest Workera.
  */
 export interface EdgeEnv {
   /** Token wymagany od klienta (pusty = weryfikacja po stronie silnika). */
@@ -20,9 +18,6 @@ export interface EdgeEnv {
   UPSTREAM_TOKEN_PARAM?: string;
 }
 
-/** Górna granica na odpowiedź silnika; dłuższe wywołania i tak nie mają sensu. */
-const UPSTREAM_TIMEOUT_MS = 120_000;
-
 function safeEqual(a: string, b: string): boolean {
   if (a.length !== b.length) return false;
   let diff = 0;
@@ -30,31 +25,12 @@ function safeEqual(a: string, b: string): boolean {
   return diff === 0;
 }
 
-function json(payload: unknown, status = 200): Response {
-  return new Response(JSON.stringify(payload), {
-    status,
-    headers: { "content-type": "application/json", "cache-control": "no-store" },
-  });
-}
-
 export function createEdgeWorker() {
   return {
     async fetch(request: Request, env: EdgeEnv): Promise<Response> {
-      const incoming = new URL(request.url);
-
-      // Bez tokena i bez ruchu do silnika — dla watchdoga i monitoringu.
-      if (incoming.pathname === "/health") {
-        let upstream = "invalid";
-        try {
-          upstream = new URL(env.UPSTREAM_URL).host;
-        } catch {
-          /* zostaje "invalid" */
-        }
-        return json({ ok: true, upstream, auth: Boolean(env.MCP_AUTH_TOKEN) });
-      }
-
       const header = request.headers.get("authorization") ?? "";
       const bearer = header.toLowerCase().startsWith("bearer ") ? header.slice(7).trim() : "";
+      const incoming = new URL(request.url);
       const queryToken = env.UPSTREAM_TOKEN_PARAM ? incoming.searchParams.get(env.UPSTREAM_TOKEN_PARAM) ?? "" : "";
       const supplied = bearer || queryToken;
 
@@ -67,11 +43,7 @@ export function createEdgeWorker() {
           }),
           {
             status: 401,
-            headers: {
-              "content-type": "application/json",
-              "www-authenticate": "Bearer",
-              "cache-control": "no-store",
-            },
+            headers: { "content-type": "application/json", "www-authenticate": "Bearer" },
           },
         );
       }
@@ -81,8 +53,7 @@ export function createEdgeWorker() {
       const upstreamBase = new URL(env.UPSTREAM_URL);
       const upstream = new URL(upstreamBase.origin + (incoming.pathname === "/" ? upstreamBase.pathname : incoming.pathname));
       for (const [key, value] of incoming.searchParams) {
-        // Token klienta przepuszczamy tylko wtedy, gdy nie nadpisujemy go sekretem.
-        if (env.UPSTREAM_TOKEN_PARAM && env.UPSTREAM_TOKEN && key === env.UPSTREAM_TOKEN_PARAM) continue;
+        if (env.UPSTREAM_TOKEN_PARAM && key === env.UPSTREAM_TOKEN_PARAM) continue;
         upstream.searchParams.set(key, value);
       }
       if (env.UPSTREAM_TOKEN_PARAM && env.UPSTREAM_TOKEN) {
@@ -97,42 +68,22 @@ export function createEdgeWorker() {
       } else if (!env.UPSTREAM_TOKEN && bearer) {
         headers.set("authorization", `Bearer ${bearer}`);
       }
-      // Nagłówki protokołu MCP (sesja + wersja) muszą przejść w obie strony.
-      for (const name of ["mcp-session-id", "mcp-protocol-version"]) {
-        const value = request.headers.get(name);
-        if (value) headers.set(name, value);
-      }
+      const session = request.headers.get("mcp-session-id");
+      if (session) headers.set("mcp-session-id", session);
 
       const body = request.method === "GET" || request.method === "HEAD" ? undefined : await request.arrayBuffer();
-      let res: Response;
-      try {
-        res = await fetch(upstream.toString(), {
-          method: request.method,
-          headers,
-          body,
-          redirect: "manual",
-          signal: AbortSignal.timeout(UPSTREAM_TIMEOUT_MS),
-        });
-      } catch (error) {
-        const timedOut = error instanceof Error && error.name === "TimeoutError";
-        return json(
-          {
-            jsonrpc: "2.0",
-            error: {
-              code: -32000,
-              message: timedOut ? `Upstream timeout (${UPSTREAM_TIMEOUT_MS} ms)` : "Upstream unreachable",
-            },
-            id: null,
-          },
-          504,
-        );
-      }
+      const res = await fetch(upstream.toString(), {
+        method: request.method,
+        headers,
+        body,
+        redirect: "manual",
+      });
 
       const out = new Headers();
-      for (const name of ["content-type", "mcp-session-id", "mcp-protocol-version"]) {
-        const value = res.headers.get(name);
-        if (value) out.set(name, value);
-      }
+      const contentType = res.headers.get("content-type");
+      if (contentType) out.set("content-type", contentType);
+      const outSession = res.headers.get("mcp-session-id");
+      if (outSession) out.set("mcp-session-id", outSession);
       return new Response(res.body, { status: res.status, headers: out });
     },
   };
