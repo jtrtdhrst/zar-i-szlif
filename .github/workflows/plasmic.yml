@@ -48,6 +48,8 @@ jobs:
           description: ${{ github.event.client_payload.data.description }}
       - id: sync
         name: Syncing Plasmic project...
+        env:
+          PLASMIC_DEFAULT_HOST: https://plasmic.kompaszbiorek.pl
         if: ${{ github.event.client_payload.data.scheme == 'codegen' && steps.init.outputs.synced != 'true' }}
         uses: plasmicapp/plasmic-action@master
         with:
