@@ -21,6 +21,8 @@ concurrency:
 jobs:
   deploy:
     runs-on: ubuntu-latest
+    # Token Cloudflare żyje w sekretach środowiska Production (nie w repo).
+    environment: Production
     strategy:
       fail-fast: false
       matrix:
