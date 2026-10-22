@@ -9,14 +9,16 @@
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
+    "@plasmicapp/react-web": "^1.0.40",
     "next": "16.4.2",
     "react": "^19.2.0",
     "react-dom": "^19.2.0"
   },
   "devDependencies": {
-    "typescript": "^5.9.0",
+    "@plasmicapp/cli": "0.1.381",
+    "@types/node": "^22.0.0",
     "@types/react": "^19.2.0",
     "@types/react-dom": "^19.2.0",
-    "@types/node": "^22.0.0"
+    "typescript": "^5.9.0"
   }
 }
