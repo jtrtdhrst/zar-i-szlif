@@ -62,13 +62,3 @@ describe("smoke: plasmic-mcp (stdio, bez sekretów)", () => {
   });
 });
 
-describe("smoke: opendesign-bridge-mcp (stdio, bez sekretów)", () => {
-  it("startuje i wystawia 9 narzędzi READ-ONLY", { skip: !SMOKE }, async () => {
-    const { tools } = await mcpSmoke(
-      "services/opendesign-bridge-mcp/server.ts",
-      { OD_HOST: "127.0.0.1", OD_PORT: "1", OD_API_TOKEN: "x" },
-      ["design_get_context", "design_list_tokens"],
-    );
-    assert.equal(tools.length, 9);
-  });
-});

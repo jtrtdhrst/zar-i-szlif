@@ -1,7 +1,6 @@
-// Testy jednostkowe: klienci OD i Plasmic na mocku fetch (bez sieci).
+// Testy jednostkowe: klient Plasmic na mocku fetch (bez sieci).
 import { describe, it } from "node:test";
 import assert from "node:assert/strict";
-import { OdClient } from "../libs/od-client/client.ts";
 import { PlasmicClient } from "../libs/plasmic-client/client.ts";
 
 function mockFetch(routes: Record<string, { status?: number; body: unknown }>): typeof fetch {
@@ -14,37 +13,6 @@ function mockFetch(routes: Record<string, { status?: number; body: unknown }>): 
     return new Response(JSON.stringify(hit.body), { status: hit.status ?? 200 });
   }) as typeof fetch;
 }
-
-describe("od-client", () => {
-  const od = new OdClient({
-    baseUrl: "http://x",
-    token: "t",
-    fetchImpl: mockFetch({
-      "/api/design-systems": { body: { designSystems: [{ id: "ds1", name: "DS" }] } },
-      "/api/design-systems/ds1/files": { body: { files: [{ path: "design-tokens.json" }] } },
-    }),
-  });
-  // Nadpisz readFile mockiem treści
-  (od as unknown as Record<string, unknown>).readFile = async () =>
-    JSON.stringify({ colors: { brand: { primary: "#123456" } } });
-  (od as unknown as Record<string, unknown>).getDesignSystem = async () => ({
-    id: "ds1",
-    name: "DS",
-  });
-
-  it("getContext agreguje project/tokens/components/constraints/refs", async () => {
-    (od as unknown as Record<string, unknown>).getComponents = async () => [
-      { id: "c1", name: "Button" },
-    ];
-    const ctx = await od.getContext("ds1");
-    assert.equal(ctx.version, "1");
-    assert.equal(ctx.project.id, "ds1");
-    assert.equal((ctx.tokens as Record<string, unknown>).colors !== undefined, true);
-    assert.equal(ctx.components[0]?.source, "opendesign");
-    assert.ok(ctx.constraints.length > 0);
-    assert.ok(ctx.sourceRefs.length > 0);
-  });
-});
 
 describe("plasmic-client", () => {
   const bundle = {
