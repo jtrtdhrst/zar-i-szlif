@@ -1,5 +1,11 @@
 # Instrukcje dla agentów
 
+## OWNER DIRECTIVE: PHYSICAL REPOSITORY SEGREGATION (2026-10-22)
+
+**HARD FIRST GATE before editing, testing, committing, pushing or deploying:** this repository (`miloszspyrka-code/zar-i-szlif`) is the **PRODUCT**, NOT the owner's host MCP/Harness repository. Verify `git remote -v`, realpath and current execution workspace. The only supported customer-facing PRODUCT MCP lives in `app/mcp-worker/**`; Supabase product migrations and application code remain product-owned. Never add or modify self-hosted Mantic, Qdrant, Penpot, Plasmic, Supabase connector, Ubuntu/host or Paperclip/OpenCode infrastructure MCP implementations in this repo. The legacy `ops/design-stack/**` and `dev/integrations/{paperclip-mcp,opencode-mcp}/**` copies must be inventoried and migrated, not extended.
+
+The six canonical source roots belong ONLY in a **separate private owner-Harness repository**: `mcp/mantic/`, `mcp/qdrant/`, `mcp/penpot/`, `mcp/plasmic/`, `mcp/supabase/`, `mcp/ubuntu/`. Host gateway/supervisor and OpenCode MCP each have their own additional isolated service roots. Do not treat a branch/worktree of this product repo as a substitute for the second repository. No product GitHub Actions CI pass or merged PR proves deployment to the Ubuntu VPS. Host release requires physical service source/path, version/digest, authorization, backup/rollback and live MCP-protocol readback. If the separate repo is missing: FAIL CLOSED and route to CTO-owned Paperclip KOMAA-1336/1344, not a workaround in this repo. Preserve models and Paperclip/OpenCode Core unchanged. See `docs/mcp-repository-boundaries.md`.
+
 ## Zasada nadrzędna
 
 Ten plik zawiera tylko reguły wspólne dla repo. Szczegóły roli, domeny i workflow utrzymują skille. **Nie kopiuj REPO MAP, design rules ani test contract do wielu promptów.**
