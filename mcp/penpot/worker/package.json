@@ -4,7 +4,7 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "build": "npm run typecheck",
+    "build": "npm ci --no-audit --no-fund && npm run typecheck",
     "typecheck": "tsc --noEmit -p tsconfig.json",
     "deploy": "wrangler deploy"
   },
