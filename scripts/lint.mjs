@@ -23,6 +23,7 @@ const files = [
   "app/cloudflare-worker/worker.js",
   "scripts/assert-release-provenance.mjs",
   "scripts/release-targets.mjs",
+  "scripts/check-mcp-endpoints.mjs",
   "scripts/validate-frontend.mjs",
   "tests/release-gate.test.mjs",
   "tests/repo-structure.test.mjs",

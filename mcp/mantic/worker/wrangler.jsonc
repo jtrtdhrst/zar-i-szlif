@@ -1,0 +1,24 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "mantic-mcp",
+  "main": "src/index.ts",
+  "compatibility_date": "2026-10-22",
+  "workers_dev": false,
+  "routes": [
+    {
+      "pattern": "mantic-mcp.zariszlif.pl",
+      "custom_domain": true
+    }
+  ],
+  "vars": {
+    "MAUTIC_BASE_URL": "https://mautic.kompaszbiorek.pl/api/",
+    "MAUTIC_TOKEN_ENDPOINT": "https://mautic.kompaszbiorek.pl/api/oauth/token",
+    "MAUTIC_REDIRECT_URI": "https://mantic-mcp.zariszlif.pl/oauth/callback"
+  },
+  "kv_namespaces": [
+    {
+      "binding": "MAUTIC_TOKENS",
+      "id": "e5c209b3b95841698bcc2c00210cf4a0"
+    }
+  ]
+}

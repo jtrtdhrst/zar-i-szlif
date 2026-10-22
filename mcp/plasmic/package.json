@@ -1,0 +1,24 @@
+{
+  "name": "@design-stack/monorepo",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "workspaces": [
+    "libs/*",
+    "services/*",
+    "design-sync"
+  ],
+  "scripts": {
+    "test": "node --test tests/*.test.ts",
+    "test:all": "npm test --workspaces --if-present && npm run test",
+    "lint": "node --check $(find libs services design-sync workflows -name '*.ts' -not -path '*/node_modules/*' | tr '\\n' ' ')",
+    "typecheck": "tsc --noEmit -p tsconfig.json"
+  },
+  "engines": {
+    "node": ">=22"
+  },
+  "devDependencies": {
+    "@types/node": "^26.5.1",
+    "typescript": "^7.0.2"
+  }
+}

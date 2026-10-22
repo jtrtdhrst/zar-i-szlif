@@ -1,0 +1,4 @@
+node_modules
+build
+bridge/node_modules
+*.log

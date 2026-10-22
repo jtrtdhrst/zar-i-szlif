@@ -1,5 +1,8 @@
 node_modules/
 dist/
+build/
+__pycache__/
+*.pyc
 .wrangler/
 .npm-cache/
 .tmp.driveupload/
@@ -49,3 +52,8 @@ audyt-ui/*.json
 storybook-static
 opencode-mcp/.runtime/
 .paperclip/
+
+# mcp/ — real secrets and secret files never enter the repo
+mcp/**/.env
+mcp/**/secrets/
+mcp/**/.secrets/

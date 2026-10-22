@@ -1,0 +1,15 @@
+{
+  "name": "@design-stack/design-sync",
+  "version": "0.1.0",
+  "type": "module",
+  "scripts": {
+    "status": "node ./cli.ts design_sync_status",
+    "plan": "node ./cli.ts design_sync_plan",
+    "apply": "node ./cli.ts design_sync_apply"
+  },
+  "dependencies": {
+    "@design-stack/contracts": "0.1.0",
+    "@design-stack/od-client": "0.1.0",
+    "@design-stack/plasmic-client": "0.1.0"
+  }
+}

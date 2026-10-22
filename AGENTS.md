@@ -16,6 +16,7 @@ Najważniejsze skille kontekstowe:
 ## Repo layout
 
 - `app/` — jedyny runtime aplikacji; `app/plugin/` to Wtyczka / MCP Kompasu Zbiórek.
+- `mcp/` — samodzielne serwery MCP (własny Dockerfile, własny katalog budowania w Coolify): kod źródłowy kontenerów MCP, które dziś działają na produkcji (mantic, qdrant, penpot, plasmic, supabase, ubuntu, paperclip).
 - `branding/` — jedyne kanoniczne miejsce na źródła brandingu produktu; obecnie celowo puste.
 - `dev/` — techniczny design system, integracje developerskie i quality tooling.
 - `content/` — marketing i onboarding emails.
