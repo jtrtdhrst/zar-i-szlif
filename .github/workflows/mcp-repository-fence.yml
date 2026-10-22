@@ -1,0 +1,27 @@
+name: MCP repository boundary
+
+on:
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  product-host-fence:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+      - name: Unit test the repository routing policy
+        run: node --test tests/mcp-repository-fence.test.mjs
+      - name: Reject host-only MCP changes in product pull requests
+        if: github.event_name == 'pull_request'
+        env:
+          GITHUB_BASE_SHA: ${{ github.event.pull_request.base.sha }}
+        run: node scripts/check-mcp-repository-fence.mjs
