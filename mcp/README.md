@@ -15,28 +15,34 @@ containers that run in production today.
 | Paperclip MCP | `paperclip/` | `/mcp/paperclip` | streamable-http `:3101` | Paperclip core: `paperclipai/paperclip` (image, **not vendored**) |
 
 The product MCP (`app/mcp-worker`, Cloudflare Worker) stays in `app/mcp-worker/`.
+## Publiczne endpointy — Cloudflare Workers
 
-## Publiczne endpointy (Cloudflare)
+Każdy MCP jest wystawiony jako **Cloudflare Worker** (`*.zariszlif.pl`), a kod workera
+leży w tym repo w katalogu usługi (`mcp/<usługa>/worker/`) — to on jest źródłem
+wdrażanym przez CI (`.github/workflows/mcp-workers.yml`: build + `wrangler deploy`
+tokenem CF ze środowiska `Production`).
 
-Każdy MCP jest wystawiony przez **Cloudflare Tunnel** (`0fa7a5f6-70c6-495a-b6a7-7e9c6e3e9285`,
-strefa `zariszlif.pl`). DNS: CNAME `<nazwa>-mcp.zariszlif.pl` →
-`0fa7a5f6-70c6-495a-b6a7-7e9c6e3e9285.cfargotunnel.com` (proxied). Ingress w tunelu:
-`<nazwa>-mcp.zariszlif.pl` → `http://<usługa>:<port>`.
+| Publiczny endpoint | Worker | Typ | Silnik |
+|---|---|---|---|
+| `https://mantic-mcp.zariszlif.pl/mcp` | `mantic-mcp` | **natywny Worker** (te same narzędzia co stdio, transport Web Standard) | Mautic API po HTTPS |
+| `https://qdrant-mcp.zariszlif.pl/mcp` | `qdrant-mcp` | krawędź Worker | `mcp-qdrant` (Docker) przez `qdrant-engine.zariszlif.pl` |
+| `https://supabase-mcp.zariszlif.pl/mcp` | `supabase-mcp` | krawędź Worker | `supabase-mcp` (Docker) przez `supabase-engine.zariszlif.pl` |
+| `https://ubuntu-mcp.zariszlif.pl/mcp` | `ubuntu-mcp` | krawędź Worker | `ubuntu-mcp-bridge` (Docker) przez `ubuntu-engine.zariszlif.pl` |
+| `https://penpot-mcp.zariszlif.pl/mcp/stream` | `penpot-mcp` | krawędź Worker | Penpot (Docker) przez `penpot-engine.zariszlif.pl` |
+| `https://plasmic-mcp.zariszlif.pl/mcp` | `plasmic-mcp` | krawędź Worker | `plasmic-mcp` (Docker) przez `plasmic-engine.zariszlif.pl` |
+| `https://paperclip-mcp.zariszlif.pl/mcp` | `paperclip-mcp` | krawędź Worker (weryfikacja po stronie silnika) | Paperclip (Docker) przez `paperclip-engine.zariszlif.pl` |
+| `https://emailens-mcp.zariszlif.pl/mcp` | `emailens-mcp` | krawędź Worker | `emailens-mcp-bridge` (Docker) przez `emailens-engine.zariszlif.pl` |
 
-| Publiczny endpoint | Usługa | Auth |
-|---|---|---|
-| `https://mantic-mcp.zariszlif.pl/mcp` | Mantic HTTP bridge | `Authorization: Bearer` (BRIDGE_TOKEN) |
-| `https://qdrant-mcp.zariszlif.pl/mcp` | Qdrant hybrid | `Authorization: Bearer` (QDRANT_MCP_TOKEN) |
-| `https://penpot-mcp.zariszlif.pl/mcp/stream` | Penpot native MCP | `?userToken=<token>` |
-| `https://plasmic-mcp.zariszlif.pl/mcp` | Plasmic MCP | `Authorization: Bearer` (MCP_AUTH_TOKEN) |
-| `https://supabase-mcp.zariszlif.pl/mcp` | Supabase MCP | `Authorization: Bearer` (JWT) |
-| `https://ubuntu-mcp.zariszlif.pl/mcp` | Ubuntu operations | `Authorization: Bearer` (bridge token) |
-| `https://paperclip-mcp.zariszlif.pl/mcp` | Paperclip MCP (core) | Bearer / OAuth 2.1 |
-| `https://emailens-mcp.zariszlif.pl/mcp` | Emailens MCP bridge | `Authorization: Bearer` (bridge token) |
+**Krawędź** (`mcp/worker-edge/`) to Worker, który sprawdza Bearer token i przekazuje
+JSON-RPC do silnika (przez Cloudflare Tunnel) — używana tam, gdzie silnika **nie da się
+uruchomić w runtime Workers**: Python (qdrant), TCP/Postgres (supabase), surowe SSH
+(ubuntu), istniejące obrazy Dockera (penpot, plasmic, paperclip, emailens).
 
-**Każdy publiczny endpoint ma własną autoryzację** — Qdrant wymaga
-`QDRANT_MCP_TOKEN` (dodał tę bramkę ten folder), Mantic wymaga `BRIDGE_TOKEN`,
-Penpot tokenu w query, reszta tokenu Bearer. Nie wystawiaj usługi bez tokenu.
+Dla `mantic` Worker jest natywny (`mcp/mantic/worker/src/index.ts`): te same moduły
+narzędzi co wersja stdio, transport MCP Streamable HTTP (Web Standard) — dlatego
+kontenery `mantic-mcp` / `mantic-mcp-http` zostały wyłączone.
+
+Każdy publiczny endpoint ma własną autoryzację (Bearer / token w query).
 
 ## Rules for this folder
 
