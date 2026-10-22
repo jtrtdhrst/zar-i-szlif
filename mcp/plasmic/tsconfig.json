@@ -6,8 +6,14 @@
     "strict": true,
     "skipLibCheck": true,
     "allowImportingTsExtensions": true,
-    "types": ["node"],
+    "types": [
+      "node"
+    ],
     "noEmit": true
   },
-  "include": ["libs", "services", "design-sync", "workflows", "tests"]
+  "include": [
+    "libs",
+    "services",
+    "tests"
+  ]
 }
