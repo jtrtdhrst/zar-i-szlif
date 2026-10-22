@@ -1,0 +1,10 @@
+name: testenv
+on: workflow_dispatch
+env:
+  PLASMIC_DEFAULT_HOST: https://self-hosted.example
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: ./.github/actions/testenv
