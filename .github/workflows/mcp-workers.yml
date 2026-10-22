@@ -41,6 +41,8 @@ jobs:
             name: plasmic-mcp
           - dir: mcp/paperclip/worker
             name: paperclip-mcp
+          - dir: mcp/emailens/worker
+            name: emailens-mcp
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4

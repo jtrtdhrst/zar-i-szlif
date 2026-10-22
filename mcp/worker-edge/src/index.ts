@@ -8,13 +8,13 @@
  * endpoint usługi jest Workera.
  */
 export interface EdgeEnv {
-  /** Token wymagany od klienta (Paperclip wysyła go jako Bearer). */
-  MCP_AUTH_TOKEN: string;
+  /** Token wymagany od klienta (pusty = weryfikacja po stronie silnika). */
+  MCP_AUTH_TOKEN?: string;
   /** Publiczny URL silnika (przez tunnel). */
   UPSTREAM_URL: string;
-  /** Token dla silnika (w nagłówku Authorization). */
+  /** Token dla silnika (nagłówek Authorization). Pusty = przekaż nagłówek klienta. */
   UPSTREAM_TOKEN?: string;
-  /** Nazwa parametru query dla tokenu silnika (np. userToken dla Penpot). */
+  /** Nazwa parametru query dla tokenu (np. userToken dla Penpot). */
   UPSTREAM_TOKEN_PARAM?: string;
 }
 
@@ -29,8 +29,12 @@ export function createEdgeWorker() {
   return {
     async fetch(request: Request, env: EdgeEnv): Promise<Response> {
       const header = request.headers.get("authorization") ?? "";
-      const token = header.toLowerCase().startsWith("bearer ") ? header.slice(7).trim() : "";
-      if (!env.MCP_AUTH_TOKEN || !safeEqual(token, env.MCP_AUTH_TOKEN)) {
+      const bearer = header.toLowerCase().startsWith("bearer ") ? header.slice(7).trim() : "";
+      const incoming = new URL(request.url);
+      const queryToken = env.UPSTREAM_TOKEN_PARAM ? incoming.searchParams.get(env.UPSTREAM_TOKEN_PARAM) ?? "" : "";
+      const supplied = bearer || queryToken;
+
+      if (env.MCP_AUTH_TOKEN && !safeEqual(supplied, env.MCP_AUTH_TOKEN)) {
         return new Response(
           JSON.stringify({
             jsonrpc: "2.0",
@@ -54,6 +58,8 @@ export function createEdgeWorker() {
       headers.set("accept", request.headers.get("accept") ?? "application/json, text/event-stream");
       if (env.UPSTREAM_TOKEN && !env.UPSTREAM_TOKEN_PARAM) {
         headers.set("authorization", `Bearer ${env.UPSTREAM_TOKEN}`);
+      } else if (!env.UPSTREAM_TOKEN && bearer) {
+        headers.set("authorization", `Bearer ${bearer}`);
       }
       const session = request.headers.get("mcp-session-id");
       if (session) headers.set("mcp-session-id", session);
