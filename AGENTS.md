@@ -1,5 +1,15 @@
 # Instrukcje dla agentów
 
+## OBOWIĄZUJĄCA DECYZJA WŁAŚCICIELA — 2026-10-22: JEDNO REPO, MAIN PO ZATWIERDZENIU
+
+**Ta decyzja zastępuje wcześniejsze instrukcje o osobnym prywatnym repo Harnessa oraz zakazie `mcp/**` w repo produktu.** Cały kod Żar i Szlif oraz wszystkie własne integracje MCP mieszkają w JEDNYM repozytorium `miloszspyrka-code/zar-i-szlif`. Jedyna gałąź integracyjna i produkcyjna to `main`; agent tworzy izolowaną gałąź roboczą i PR do `main`, nigdy nie pushuje ani nie scala bezpośrednio do `main`. Merge następuje DOPIERO po realnym niezależnym review CTO zatwierdzającym dokładny SHA, przejściu wymaganego CI oraz pozytywnej decyzji wykonawczej w Paperclip. Nie zmieniać konfiguracji żadnych modeli.
+
+Kanoniczne katalogi: `app/web/` = aplikacja produktu, `app/website/` = strona produktu, `app/mcp-worker/` = MCP produktu, `mcp/mantic/`, `mcp/qdrant/`, `mcp/penpot/`, `mcp/plasmic/`, `mcp/supabase/`, `mcp/ubuntu/` = własne MCP, oraz `mcp/opencode/`, `mcp/paperclip/`, `mcp/opendesign/` = dodatkowe integracje. Katalogi `_branches/` przechowują **wersje źródłowe do ręcznego/modelowego scalenia**, nigdy nie są aktywnymi rootami wdrożenia. `supabase/` na root to baza produktu, nie konektor MCP.
+
+Coolify: jedno repo, ale ODDZIELNA aplikacja/usługa na komponent z własnym `Base Directory`, kontekstem buildu, Dockerfile, healthcheckiem, triggerem ścieżek i rollbackiem. Patrz `ops/coolify/targets.json` i `docs/architecture/monorepo-branches-and-deploy.md`. Gotowy Dockerfile aplikacji to `ops/coolify/Dockerfile` (kontekst repo root, `app/web/dist`), strony `app/website/Dockerfile` (kontekst repo root). MCP produktu `app/mcp-worker/` jest w tej chwili Cloudflare Worker zależnym od KV/Workers AI, NIE działającym bezpośrednio jako kontener Coolify; wdrożenie Coolify wymaga osobnego sprawdzonego adaptera. Mantic obecnie stdio-only; nie udawać gotowego HTTP. Nie wdrażać z gałęzi PR ani z katalogów `_branches`.
+
+Paperclip: właściciel modułu → realne testy i SHA → niezależny CTO → zatwierdzony merge main → tylko docelowy deploy → runtime SHA/digest i MCP tools/list. Każdy task ma watchdog; nie dodawać fałszywych blokad; nie modyfikować Paperclip/OpenCode Core. Wcześniejsze sprzeczne zapisy poniżej są historyczne, a niniejsza decyzja ma pierwszeństwo.
+
 ## Zasada nadrzędna
 
 Ten plik zawiera tylko reguły wspólne dla repo. Szczegóły roli, domeny i workflow utrzymują skille. **Nie kopiuj REPO MAP, design rules ani test contract do wielu promptów.**
