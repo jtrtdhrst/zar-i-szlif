@@ -1,9 +1,13 @@
 /**
  * mantic MCP — Cloudflare Worker.
  *
- * Protokół MCP (Streamable HTTP) obsłużony ręcznie: bez @modelcontextprotocol/sdk
- * i bez axiosa — bundle ~15 KB zamiast 1,2 MB. Narzędzia są te same co w wersji
+ * Protokół MCP (JSON-RPC) obsłużony ręcznie: bez @modelcontextprotocol/sdk
+ * i bez axiosa — bundle ~68 KiB zamiast 1,2 MB. Narzędzia są te same co w wersji
  * stdio (mcp/mantic/src), tylko transport i klient HTTP są Workerowe.
+ *
+ * Autoryzacja do Mautica: flow authorization_code (panel Mautica → OAuth 2 →
+ * Name + Redirect URL). Po kliknięciu autoryzacji Mautic przekierowuje na
+ * /oauth/callback, Worker wymienia kod na refresh_token i trzyma go w KV.
  */
 import { allToolDefinitions, dispatchTool } from "../../src/tools/index.js";
 import { MauticRequestError, MauticWorkerClient } from "./mautic-client.js";
@@ -13,21 +17,28 @@ export interface Env {
   MAUTIC_CLIENT_ID: string;
   MAUTIC_CLIENT_SECRET: string;
   MAUTIC_TOKEN_ENDPOINT: string;
+  MAUTIC_REDIRECT_URI: string;
   MCP_AUTH_TOKEN: string;
+  MAUTIC_TOKENS: KVNamespace;
 }
 
 const PROTOCOL_VERSION = "2024-11-05";
 const SERVER_INFO = { name: "mantic-mcp", version: "2.0.0" };
+const REFRESH_TOKEN_KEY = "mautic_refresh_token";
 
 let cachedClient: MauticWorkerClient | undefined;
 
-function apiClient(env: Env): MauticWorkerClient {
+async function apiClient(env: Env): Promise<MauticWorkerClient> {
   if (!cachedClient) {
     cachedClient = new MauticWorkerClient({
       baseUrl: env.MAUTIC_BASE_URL,
       clientId: env.MAUTIC_CLIENT_ID,
       clientSecret: env.MAUTIC_CLIENT_SECRET,
       tokenEndpoint: env.MAUTIC_TOKEN_ENDPOINT,
+      refreshToken: (await env.MAUTIC_TOKENS.get(REFRESH_TOKEN_KEY)) ?? undefined,
+      saveRefreshToken: async (token: string) => {
+        await env.MAUTIC_TOKENS.put(REFRESH_TOKEN_KEY, token);
+      },
     });
   }
   return cachedClient;
@@ -60,6 +71,34 @@ function jsonResponse(payload: unknown, status = 200): Response {
   });
 }
 
+/** Callback po autoryzacji w Mauticu: wymiana kodu na refresh_token. */
+async function handleOauthCallback(request: Request, env: Env): Promise<Response> {
+  const url = new URL(request.url);
+  const code = url.searchParams.get("code");
+  const error = url.searchParams.get("error");
+  if (error) return jsonResponse({ ok: false, error }, 400);
+  if (!code) return jsonResponse({ ok: false, error: "brak parametru code" }, 400);
+
+  const res = await fetch(env.MAUTIC_TOKEN_ENDPOINT, {
+    method: "POST",
+    headers: { "Content-Type": "application/x-www-form-urlencoded" },
+    body: new URLSearchParams({
+      grant_type: "authorization_code",
+      code,
+      client_id: env.MAUTIC_CLIENT_ID,
+      client_secret: env.MAUTIC_CLIENT_SECRET,
+      redirect_uri: env.MAUTIC_REDIRECT_URI,
+    }).toString(),
+  });
+  const data = (await res.json().catch(() => ({}))) as Record<string, unknown>;
+  if (!res.ok || !data.refresh_token) {
+    return jsonResponse({ ok: false, error: "wymiana kodu nie powiodła się", detail: data }, 400);
+  }
+  await env.MAUTIC_TOKENS.put(REFRESH_TOKEN_KEY, data.refresh_token as string);
+  cachedClient = undefined; // następne wywołanie użyje nowego refresh tokenu
+  return jsonResponse({ ok: true, message: "Mautic MCP autoryzowany — refresh token zapisany w KV." });
+}
+
 async function handleRpc(request: JsonRpcRequest, env: Env): Promise<Response> {
   const { id, method, params } = request;
   const isNotification = id === undefined || id === null;
@@ -88,7 +127,7 @@ async function handleRpc(request: JsonRpcRequest, env: Env): Promise<Response> {
     const name = String((params as { name?: string } | undefined)?.name ?? "");
     const args = ((params as { arguments?: unknown } | undefined)?.arguments ?? {}) as Record<string, unknown>;
     try {
-      const result = await dispatchTool(name, apiClient(env) as never, args);
+      const result = await dispatchTool(name, (await apiClient(env)) as never, args);
       return jsonResponse({ jsonrpc: "2.0", id, result });
     } catch (error) {
       const message =
@@ -112,6 +151,9 @@ async function handleRpc(request: JsonRpcRequest, env: Env): Promise<Response> {
 
 export default {
   async fetch(request: Request, env: Env): Promise<Response> {
+    const url = new URL(request.url);
+    if (url.pathname === "/oauth/callback") return handleOauthCallback(request, env);
+
     if (request.method === "OPTIONS") {
       return new Response(null, {
         status: 204,

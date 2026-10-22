@@ -1,12 +1,21 @@
 /**
  * Klient Mautic API na fetchu (bez axiosa) — Worker nie ma Node HTTP stacka.
  * API kompatybilne z MauticApiClient: `client.v1.get(path, {params})` → `{ data }`.
+ *
+ * Dwa przepływy tokenu (w kolejności):
+ * 1. `refresh_token` — token odzyskany w flow authorization_code (panel Mautica:
+ *    OAuth 2 → Name + Redirect URL). Odświeżany w KV Workera.
+ * 2. `client_credentials` — dla instancji, które ten grant obsługują.
  */
 export interface MauticWorkerConfig {
   baseUrl: string;
   clientId: string;
   clientSecret: string;
   tokenEndpoint: string;
+  /** Istniejący refresh token (np. z KV). */
+  refreshToken?: string;
+  /** Zapis nowego refresh tokenu (KV Workera). */
+  saveRefreshToken?: (token: string) => Promise<void>;
 }
 
 interface RequestOptions {
@@ -28,22 +37,56 @@ export class MauticWorkerClient {
 
   constructor(private readonly cfg: MauticWorkerConfig) {}
 
-  private async token(): Promise<string> {
-    if (this.accessToken && Date.now() < this.accessToken.expiresAt) return this.accessToken.value;
+  private async requestToken(body: URLSearchParams): Promise<Record<string, unknown> | null> {
     const res = await fetch(this.cfg.tokenEndpoint, {
       method: "POST",
       headers: { "Content-Type": "application/x-www-form-urlencoded" },
-      body: new URLSearchParams({
+      body: body.toString(),
+    });
+    if (!res.ok) return null;
+    return (await res.json()) as Record<string, unknown>;
+  }
+
+  private async token(): Promise<string> {
+    if (this.accessToken && Date.now() < this.accessToken.expiresAt) return this.accessToken.value;
+
+    if (this.cfg.refreshToken) {
+      const data = await this.requestToken(
+        new URLSearchParams({
+          grant_type: "refresh_token",
+          refresh_token: this.cfg.refreshToken,
+          client_id: this.cfg.clientId,
+          client_secret: this.cfg.clientSecret,
+        }),
+      );
+      if (data?.access_token) {
+        const refresh = typeof data.refresh_token === "string" ? data.refresh_token : undefined;
+        if (refresh && this.cfg.saveRefreshToken) await this.cfg.saveRefreshToken(refresh);
+        this.accessToken = {
+          value: data.access_token as string,
+          expiresAt: Date.now() + Number(data.expires_in ?? 300) * 1000 - 60_000,
+        };
+        return this.accessToken.value;
+      }
+    }
+
+    const data = await this.requestToken(
+      new URLSearchParams({
         grant_type: "client_credentials",
         client_id: this.cfg.clientId,
         client_secret: this.cfg.clientSecret,
-      }).toString(),
-    });
-    if (!res.ok) throw new MauticRequestError(res.status, await res.text().catch(() => ""), "Mautic authentication failed");
-    const data = (await res.json()) as { access_token: string; expires_in?: number };
+      }),
+    );
+    if (!data?.access_token) {
+      throw new MauticRequestError(
+        401,
+        null,
+        "Mautic authentication failed (brak access_token; sprawdź refresh token / client credentials)",
+      );
+    }
     this.accessToken = {
-      value: data.access_token,
-      expiresAt: Date.now() + (data.expires_in ?? 300) * 1000 - 60_000,
+      value: data.access_token as string,
+      expiresAt: Date.now() + Number(data.expires_in ?? 300) * 1000 - 60_000,
     };
     return this.accessToken.value;
   }

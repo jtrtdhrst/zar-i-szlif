@@ -86,11 +86,14 @@ export class MauticApiClient {
 
   private async getAccessToken() {
     try {
-      const response = await axios.post(this.tokenEndpoint, {
-        grant_type: 'client_credentials',
-        client_id: this.clientId,
-        client_secret: this.clientSecret,
-      }, {
+      // Kolejnosc: refresh_token (flow authorization_code) -> client_credentials.
+      const refreshToken = process.env.MAUTIC_REFRESH_TOKEN;
+      const body: Record<string, string> = refreshToken
+        ? { grant_type: 'refresh_token', refresh_token: refreshToken }
+        : { grant_type: 'client_credentials' };
+      body.client_id = this.clientId;
+      body.client_secret = this.clientSecret;
+      const response = await axios.post(this.tokenEndpoint, body, {
         headers: {
           'Content-Type': 'application/x-www-form-urlencoded',
         },
