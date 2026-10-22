@@ -40,6 +40,33 @@ If Qdrant itself is unreachable at start-up, the server now stays up (the MCP
 endpoint still answers `tools/list`) and the data tools fail with a readable
 "Qdrant is not reachable" error instead of the container dying.
 
+## Local stack (this host)
+
+Qdrant działa lokalnie na VPS (konkretna instancja chmurowa nieosiągalna z hosta —
+TLS reset na połączeniu). Uruchomienie:
+
+```bash
+docker volume create qdrant_data
+docker run -d --name qdrant --network paperclip-net --restart unless-stopped \
+  -v qdrant_data:/qdrant/storage \
+  -p 127.0.0.1:6333:6333 -p 127.0.0.1:6334:6334 qdrant/qdrant:latest
+
+# MCP wskazany na lokalny Qdrant (kolekcja long_term_memory tworzy się sama)
+docker run -d --name mcp-qdrant --network paperclip-net --restart unless-stopped \
+  --env-file qdrant.env repo/mcp-qdrant:latest
+```
+
+`qdrant.env`: `QDRANT_URL=http://qdrant:6333`, `QDRANT_API_KEY=` (puste dla
+lokalnego), `COLLECTION_NAME=long_term_memory`, `MCP_TRANSPORT=streamable-http`,
+`QDRANT_MCP_TOKEN=<token>`.
+
+Dane z chmury **nie są migrowane** (klaster nieosiągalny) — kolekcja startuje
+pusta.
+
+Source of the running container `mcp-qdrant-hybrid:latest` on the production host.
+Related upstream projects: `allfunc/mcp-qdrant`, `qdrant/mcp-server-qdrant` — the
+deployed server here is the hybrid variant, this folder is its source of truth.
+
 ## Provenance
 
 Source of the running container `mcp-qdrant-hybrid:latest` on the production host.
