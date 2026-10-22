@@ -32,7 +32,7 @@ jobs:
       - name: Detect whether the original workflow has already been fixed by Studio
         id: original
         run: |
-          if git show origin/main:.github/workflows/plasmic.yml 2>/dev/null | grep -q 'npm install --global pnpm@12'; then
+          if git show origin/main:.github/workflows/plasmic.yml 2>/dev/null | grep -q 'Fix CLI codegen origin selection for self-hosted Studio'; then
             echo 'run_fallback=false' >> "$GITHUB_OUTPUT"
             echo 'Studio generated workflow is patched; skipping duplicate sync.'
           else
@@ -64,7 +64,7 @@ jobs:
       - name: Fix CLI codegen origin selection for self-hosted Studio
         if: ${{ steps.original.outputs.run_fallback == 'true' }}
         run: |
-          node - <<'NODE'
+          node --input-type=commonjs - <<'NODE'
           const fs = require("fs");
           const file = "app/website/node_modules/@plasmicapp/cli/dist/index.js";
           if (!fs.existsSync(file)) throw new Error("Plasmic CLI binary missing");
