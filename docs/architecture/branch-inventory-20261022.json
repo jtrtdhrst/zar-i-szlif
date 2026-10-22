@@ -1,0 +1,507 @@
+{
+  "schemaVersion": 1,
+  "generatedAt": "2026-10-22",
+  "repo": "miloszspyrka-code/zar-i-szlif",
+  "branchCount": 83,
+  "policy": "All branch heads preserved. main is the only integration/release ref. Proposed merges require actual CI and independent Paperclip review. Snapshot changes are not live deployment.",
+  "branches": [
+    {
+      "ref": "KOMAA-24-retry-sprawno-ci-historia-100-i-blokada-ponownego-wyboru",
+      "headSha": "988178f7420ee87fb9aaa82725ba55d184d4e6d4",
+      "routingGroup": "product-other-review",
+      "disposition": "retain-original-branch-review-before-merging"
+    },
+    {
+      "ref": "KOMAA-29-cmo-mail-powitalny-html-tag-sekwencja-onboardingowa-po-rejestracji",
+      "headSha": "ef9551105e2fe83ed5a49fe8d2cc52558c98cd86",
+      "routingGroup": "product-data-lifecycle",
+      "disposition": "retain-original-branch-review-before-merging"
+    },
+    {
+      "ref": "KOMAA-30-mobile-ux-audit-dashboard-kompasu-na-telefonie",
+      "headSha": "2bac7ecb61437a96ab2b06cd583aa5345ce28cbe",
+      "routingGroup": "product-other-review",
+      "disposition": "retain-original-branch-review-before-merging"
+    },
+    {
+      "ref": "KOMAA-31-mobile-ux-implementation-popraw-dashboard-kompasu-na-telefonie",
+      "headSha": "97dc7856ad96a74155cfebf4e93842adf9e8693d",
+      "routingGroup": "product-other-review",
+      "disposition": "retain-original-branch-review-before-merging"
+    },
+    {
+      "ref": "KOMAA-45-prd-p1-napraw-uiaction-i-realn-obs-ug-komend-cyklu",
+      "headSha": "4a5a875c5394ad3d80c42378b6a4f46a08185143",
+      "routingGroup": "product-other-review",
+      "disposition": "retain-original-branch-review-before-merging"
+    },
+    {
+      "ref": "KOMAA-46",
+      "headSha": "7df763bb85afeee30861dfd88cb3cfb23a369c29",
+      "routingGroup": "product-other-review",
+      "disposition": "retain-original-branch-review-before-merging"
+    },
+    {
+      "ref": "KOMAA-47",
+      "headSha": "4ea0bb90121514b3578fd80dc007c212a9cd6789",
+      "routingGroup": "product-other-review",
+      "disposition": "retain-original-branch-review-before-merging"
+    },
+    {
+      "ref": "KOMAA-49-prd-p0-napraw-kart-problemu-zgodnie-z-7-1",
+      "headSha": "d487c48ba74964beaf481cfaa01f12935a9e0f9e",
+      "routingGroup": "product-other-review",
+      "disposition": "retain-original-branch-review-before-merging"
+    },
+    {
+      "ref": "KOMAA-50-prd-p1-uzupe-nij-plan-roczny-o-kierunek-i-program",
+      "headSha": "c118e70fef11c4bca7f35e91e6ce5cb2169e708c",
+      "routingGroup": "product-other-review",
+      "disposition": "retain-original-branch-review-before-merging"
+    },
+    {
+      "ref": "KOMAA-51-prd-p1-dodaj-tabel-eksperyment-w-do-historii-sprawno-ci",
+      "headSha": "4accd3497fd261638ea02329359b6a9f890a8979",
+      "routingGroup": "product-other-review",
+      "disposition": "retain-original-branch-review-before-merging"
+    },
+    {
+      "ref": "KOMAA-53-release-gate-napraw-lighthouse-runner-i-uzyskaj-wynik",
+      "headSha": "380ad62de354c447ab394e098bc455663e367192",
+      "routingGroup": "product-other-review",
+      "disposition": "retain-original-branch-review-before-merging"
+    },
+    {
+      "ref": "KOMAA-58-a11y-p2-zwi-ksz-touch-target-usuwania-historii-sprawno-ci-do-44-44",
+      "headSha": "5e728c0c003672dc7b04c3af11879b3cede1e328",
+      "routingGroup": "product-other-review",
+      "disposition": "retain-original-branch-review-before-merging"
+    },
+    {
+      "ref": "KOMAA-63-mobile-a11y-fix-podnie-7-touch-target-w-dashboardu-do-44-44",
+      "headSha": "2c61c48517d052bac18341165bc0d97a054d5258",
+      "routingGroup": "product-other-review",
+      "disposition": "retain-original-branch-review-before-merging"
+    },
+    {
+      "ref": "KOMAA-71-prd-delta-kontrakt-persistence-dla-refleksji-per-eksperyment",
+      "headSha": "733c822331328257f959c7f59329dfc51ccfcf1a",
+      "routingGroup": "product-other-review",
+      "disposition": "retain-original-branch-review-before-merging"
+    },
+    {
+      "ref": "KOMAA-72-prd-delta-upro-podsumowanie-i-dodaj-formularze-1-n-eksperyment-w",
+      "headSha": "4a73cd67f31d07c12d876cf6aa57909703fd1990",
+      "routingGroup": "product-other-review",
+      "disposition": "retain-original-branch-review-before-merging"
+    },
+    {
+      "ref": "KOMAA-74-onboarding-rejestracja-sender-net-sekwencja-maili-domy-lnie-off",
+      "headSha": "04fbabaa1bc2e714c9e4859c6e70a81db846fe5e",
+      "routingGroup": "product-data-lifecycle",
+      "disposition": "retain-original-branch-review-before-merging"
+    },
+    {
+      "ref": "KOMAA-104",
+      "headSha": "28c6c705d50735ea6033023c9c2d5fdcfa06c75b",
+      "routingGroup": "product-other-review",
+      "disposition": "retain-original-branch-review-before-merging"
+    },
+    {
+      "ref": "KOMAA-105",
+      "headSha": "f1bbda4afdc0fec7e192603d3e7290f9dea4f523",
+      "routingGroup": "product-other-review",
+      "disposition": "retain-original-branch-review-before-merging"
+    },
+    {
+      "ref": "KOMAA-106",
+      "headSha": "0016ab4f9c04ed59cbfe357d1fdbac1a525cfb01",
+      "routingGroup": "product-other-review",
+      "disposition": "retain-original-branch-review-before-merging"
+    },
+    {
+      "ref": "KOMAA-115",
+      "headSha": "ba29f73bfdeee88017883e289f77e49dd4c6e173",
+      "routingGroup": "product-other-review",
+      "disposition": "retain-original-branch-review-before-merging"
+    },
+    {
+      "ref": "KOMAA-117",
+      "headSha": "cb8578629b0cf9038c9732e3bfbb40611284377c",
+      "routingGroup": "product-other-review",
+      "disposition": "retain-original-branch-review-before-merging"
+    },
+    {
+      "ref": "KOMAA-168",
+      "headSha": "bf3866ede8cb206d0cbe038c42b6eb3eb391ecb4",
+      "routingGroup": "mcp/opencode",
+      "disposition": "source-copied-in-import-pr"
+    },
+    {
+      "ref": "KOMAA-187",
+      "headSha": "f5e8dcfcf1fdfd457055ddf5fbf45223d54dd696",
+      "routingGroup": "product-other-review",
+      "disposition": "retain-original-branch-review-before-merging"
+    },
+    {
+      "ref": "KOMAA-198",
+      "headSha": "e5af5d15b48b9b9a5b31ccf09e09b091e9e15915",
+      "routingGroup": "product-other-review",
+      "disposition": "retain-original-branch-review-before-merging"
+    },
+    {
+      "ref": "KOMAA-205",
+      "headSha": "94569005dd028ab96bab48fa8cd7ee5e54912ed6",
+      "routingGroup": "product-other-review",
+      "disposition": "retain-original-branch-review-before-merging"
+    },
+    {
+      "ref": "KOMAA-206",
+      "headSha": "221a71d18cb107c30b4f01ebd29924a40e2a2f62",
+      "routingGroup": "product-other-review",
+      "disposition": "retain-original-branch-review-before-merging"
+    },
+    {
+      "ref": "KOMAA-207",
+      "headSha": "bdddcdd60a0b8c26b8383ccde23e4f9f463e99c1",
+      "routingGroup": "product-other-review",
+      "disposition": "retain-original-branch-review-before-merging"
+    },
+    {
+      "ref": "KOMAA-208",
+      "headSha": "ce19a4b2687940cfd031ab3bdba2ff6f3a3ff36a",
+      "routingGroup": "product-other-review",
+      "disposition": "retain-original-branch-review-before-merging"
+    },
+    {
+      "ref": "KOMAA-209",
+      "headSha": "8b26ba5c7b6a8b8fa23f1c4eda6c8619cc7b3878",
+      "routingGroup": "product-other-review",
+      "disposition": "retain-original-branch-review-before-merging"
+    },
+    {
+      "ref": "KOMAA-210",
+      "headSha": "2e45ed3812c89af0825652386a9645a713c6cab5",
+      "routingGroup": "product-other-review",
+      "disposition": "retain-original-branch-review-before-merging"
+    },
+    {
+      "ref": "KOMAA-211",
+      "headSha": "71f5627aef98d8ff8a4405519796d9fb2157890e",
+      "routingGroup": "product-other-review",
+      "disposition": "retain-original-branch-review-before-merging"
+    },
+    {
+      "ref": "KOMAA-222",
+      "headSha": "b53f4ac84f41a568188499cd3306ed73166ef65e",
+      "routingGroup": "product-other-review",
+      "disposition": "retain-original-branch-review-before-merging"
+    },
+    {
+      "ref": "KOMAA-248",
+      "headSha": "fa671f227886259f351e67f55a4e5caded8dc1df",
+      "routingGroup": "product-other-review",
+      "disposition": "retain-original-branch-review-before-merging"
+    },
+    {
+      "ref": "KOMAA-310-v3-pipeline-ingestion",
+      "headSha": "a1c8d8ede8b6bfd50353272541d55e4af1ca1216",
+      "routingGroup": "app/mcp-worker",
+      "disposition": "retain-original-branch-review-before-merging"
+    },
+    {
+      "ref": "KOMAA-311-v4-retrieval-scope-fresh",
+      "headSha": "f5f682e71722c13c9e1d47ca4c71352b12ad78fe",
+      "routingGroup": "app/mcp-worker",
+      "disposition": "retain-original-branch-review-before-merging"
+    },
+    {
+      "ref": "KOMAA-411",
+      "headSha": "05ddeaef568ba637ca935d6aec08ea8ee4f37b64",
+      "routingGroup": "mcp/qdrant",
+      "disposition": "source-copied-in-import-pr"
+    },
+    {
+      "ref": "KOMAA-774",
+      "headSha": "e7ecafea90e00e0995d6bcc7d9114e71b1197da3",
+      "routingGroup": "product-data-lifecycle",
+      "disposition": "retain-original-branch-review-before-merging"
+    },
+    {
+      "ref": "KOMAA-879",
+      "headSha": "cd3e0627c72d2f3ee0dd816a09bb2a6327d3f01e",
+      "routingGroup": "product-other-review",
+      "disposition": "retain-original-branch-review-before-merging"
+    },
+    {
+      "ref": "KOMAA-993",
+      "headSha": "4c19962e2f95ec951da4212dbddb4384eb59f283",
+      "routingGroup": "product-other-review",
+      "disposition": "retain-original-branch-review-before-merging"
+    },
+    {
+      "ref": "KOMAA-1001",
+      "headSha": "2ba793413d047fc4751b05c1dd19700acbfe4025",
+      "routingGroup": "app/mcp-worker",
+      "disposition": "no-unique-commits-against-main-as-checked"
+    },
+    {
+      "ref": "KOMAA-1003",
+      "headSha": "4f4fc7e31c7303d2e44d366c746963f89469bef3",
+      "routingGroup": "app/mcp-worker",
+      "disposition": "retain-original-branch-review-before-merging"
+    },
+    {
+      "ref": "KOMAA-1011",
+      "headSha": "d860d5ac7f56a90e705e12399660df3937dab39b",
+      "routingGroup": "product-other-review",
+      "disposition": "retain-original-branch-review-before-merging"
+    },
+    {
+      "ref": "KOMAA-1084",
+      "headSha": "ba42253985a28a154ee421d3008a50647abd91bb",
+      "routingGroup": "mcp/plasmic",
+      "disposition": "source-copied-in-import-pr"
+    },
+    {
+      "ref": "KOMAA-1094",
+      "headSha": "bf72583cc4458b113bbb0d0b4060a4fe77c03a6c",
+      "routingGroup": "product-other-review",
+      "disposition": "retain-original-branch-review-before-merging"
+    },
+    {
+      "ref": "KOMAA-1102",
+      "headSha": "ecd9f5ba5971313f40226a74973ee8b3c96a80d6",
+      "routingGroup": "mcp/mantic",
+      "disposition": "source-copied-in-import-pr"
+    },
+    {
+      "ref": "KOMAA-1120/supabase-user-team-task-proposal",
+      "headSha": "b46d5cc425d248e81c7f8d699ad45c07aea95eef",
+      "routingGroup": "product-data-lifecycle",
+      "disposition": "retain-original-branch-review-before-merging"
+    },
+    {
+      "ref": "KOMAA-1146",
+      "headSha": "e0b122598d809d86b236610c2be026b43810ac44",
+      "routingGroup": "product-other-review",
+      "disposition": "retain-original-branch-review-before-merging"
+    },
+    {
+      "ref": "KOMAA-1174",
+      "headSha": "9e3f1457ab87f82b3b9667cc2ea5a99dccf9fed5",
+      "routingGroup": "mcp/plasmic",
+      "disposition": "source-copied-in-import-pr"
+    },
+    {
+      "ref": "KOMAA-1175",
+      "headSha": "355f53fcaa5e330dbacf9d6024afc179aaa6fc41",
+      "routingGroup": "app/mcp-worker",
+      "disposition": "retain-original-branch-review-before-merging"
+    },
+    {
+      "ref": "KOMAA-1176",
+      "headSha": "e06e9c875bd6b47e6bf3f221a684e042cf92d37e",
+      "routingGroup": "product-other-review",
+      "disposition": "retain-original-branch-review-before-merging"
+    },
+    {
+      "ref": "KOMAA-1178",
+      "headSha": "627fb4090e279c7448133942863418a583346795",
+      "routingGroup": "app/mcp-worker",
+      "disposition": "retain-original-branch-review-before-merging"
+    },
+    {
+      "ref": "KOMAA-1278",
+      "headSha": "497270f25eea7b3c7e9b56928ea3846ab705469b",
+      "routingGroup": "product-other-review",
+      "disposition": "retain-original-branch-review-before-merging"
+    },
+    {
+      "ref": "beta",
+      "headSha": "1b7a21be06dcd1978c017a44c7919405d0e692e2",
+      "routingGroup": "product-other-review",
+      "disposition": "retain-original-branch-review-before-merging"
+    },
+    {
+      "ref": "brand/zar-i-szlif-direct-20261013",
+      "headSha": "9770b4c857f07eb1f0aadf9fdd46bb9ddb1b71f6",
+      "routingGroup": "app/website",
+      "disposition": "retain-original-branch-review-before-merging"
+    },
+    {
+      "ref": "chore/current-context-docs-20261021",
+      "headSha": "2b338b28b4bd1f826879b54ab0de19d5e5ef9cf6",
+      "routingGroup": "product-other-review",
+      "disposition": "retain-original-branch-review-before-merging"
+    },
+    {
+      "ref": "chore/harness-repository-boundary-20261021",
+      "headSha": "9017d5311995e4c8ae13f8c22509be6d60a03015",
+      "routingGroup": "governance",
+      "disposition": "retain-original-branch-review-before-merging"
+    },
+    {
+      "ref": "chore/mcp-repository-fence-20261022",
+      "headSha": "ba825298e12acc97c1cc9d9b8560d124414b2b6c",
+      "routingGroup": "governance",
+      "disposition": "retain-original-branch-review-before-merging"
+    },
+    {
+      "ref": "chore/monorepo-mcp-segmentation-20261022",
+      "headSha": "f9a6c6b1ba6e07dab261a40a8588d0d988e32ef9",
+      "routingGroup": "product-other-review",
+      "disposition": "retain-original-branch-review-before-merging"
+    },
+    {
+      "ref": "chore/remove-vercel",
+      "headSha": "fa7af362f16370ed15fa0aaefb1c691ef09a8c57",
+      "routingGroup": "product-other-review",
+      "disposition": "retain-original-branch-review-before-merging"
+    },
+    {
+      "ref": "codex/retire-wtyczka-edytor-interfejs",
+      "headSha": "406892073fc48900d307c5d2f359584a45f20a35",
+      "routingGroup": "product-other-review",
+      "disposition": "retain-original-branch-review-before-merging"
+    },
+    {
+      "ref": "design/mascot-minimal-flat-v3-20261020",
+      "headSha": "40e4f4dc0c91f61c8ef0a51d1b391e1ec4e9ec96",
+      "routingGroup": "product-design",
+      "disposition": "retain-original-branch-review-before-merging"
+    },
+    {
+      "ref": "docs/coolify-deployment-target",
+      "headSha": "e77de0e08014eb8098d03ad94c4836bb27852daa",
+      "routingGroup": "app/website",
+      "disposition": "retain-original-branch-review-before-merging"
+    },
+    {
+      "ref": "docs/coolify-github-app-source",
+      "headSha": "b70b3ef2dc50b9e14640baac86ea1847479f80fc",
+      "routingGroup": "app/website",
+      "disposition": "retain-original-branch-review-before-merging"
+    },
+    {
+      "ref": "docs/paperclip-context-hardening-2026-09-13",
+      "headSha": "8992665442df69978b7ba15641ed6debad0215b2",
+      "routingGroup": "product-other-review",
+      "disposition": "retain-original-branch-review-before-merging"
+    },
+    {
+      "ref": "docs/product-mcp-runbook",
+      "headSha": "4c254ddc0339be87e3295e6dc5edc1751621000f",
+      "routingGroup": "app/mcp-worker",
+      "disposition": "retain-original-branch-review-before-merging"
+    },
+    {
+      "ref": "docs/readme-context-refactor",
+      "headSha": "a2ecabded46d19e054d384a5eececc2f239754a2",
+      "routingGroup": "product-other-review",
+      "disposition": "retain-original-branch-review-before-merging"
+    },
+    {
+      "ref": "feat/coolify-frontend-deployment",
+      "headSha": "cab45c06b2fe0def44fb8326e3d7f7f08212aa09",
+      "routingGroup": "app/website",
+      "disposition": "retain-original-branch-review-before-merging"
+    },
+    {
+      "ref": "feat/opendesign-brand-mcp",
+      "headSha": "058f5f81bdccca928a628126b72622983c5550e3",
+      "routingGroup": "mcp/opendesign",
+      "disposition": "retain-original-branch-review-before-merging"
+    },
+    {
+      "ref": "feat/product-mcp-cloudflare-worker",
+      "headSha": "3b1033cef4fbd2b374b8c57dc966841a30aeabef",
+      "routingGroup": "app/mcp-worker",
+      "disposition": "retain-original-branch-review-before-merging"
+    },
+    {
+      "ref": "feat/three-plasmic-sites-mcp-landing-20261021",
+      "headSha": "6c4be0ad54ef16e56b887847678b64a1d11de00d",
+      "routingGroup": "app/website",
+      "disposition": "retain-original-branch-review-before-merging"
+    },
+    {
+      "ref": "feature/rag-chatgpt-plugin",
+      "headSha": "85f862f6587ef3cc66017012766f34ae2dfcec97",
+      "routingGroup": "app/mcp-worker",
+      "disposition": "retain-original-branch-review-before-merging"
+    },
+    {
+      "ref": "feature/user-mcp-qdrant-knowledge",
+      "headSha": "193f2320d7d78dd2910046d64c132d806b3199b8",
+      "routingGroup": "app/mcp-worker",
+      "disposition": "retain-original-branch-review-before-merging"
+    },
+    {
+      "ref": "fix/first-registration-onboarding-guard-20261013",
+      "headSha": "a7bf26b29ca97c49a2efbb81424f0bb79d24651d",
+      "routingGroup": "product-data-lifecycle",
+      "disposition": "retain-original-branch-review-before-merging"
+    },
+    {
+      "ref": "fix/komaa-446-oauth-smoke-on-main",
+      "headSha": "f27ad5661466eebc1f69ada845ecdccd15767666",
+      "routingGroup": "product-other-review",
+      "disposition": "retain-original-branch-review-before-merging"
+    },
+    {
+      "ref": "fix/mcp-worker-self-contained-20261021",
+      "headSha": "ec76a7db93e7a8d319600caaf95d16689a86671f",
+      "routingGroup": "app/mcp-worker",
+      "disposition": "retain-original-branch-review-before-merging"
+    },
+    {
+      "ref": "fix/zar-i-szlif-canonical-brand-20261013",
+      "headSha": "e00a6707743e8fa34b4e997add8d605fdd97e0d8",
+      "routingGroup": "product-other-review",
+      "disposition": "retain-original-branch-review-before-merging"
+    },
+    {
+      "ref": "main",
+      "headSha": "df1bf8c6da180dc5bb79c0aae20a24328043a3d7",
+      "routingGroup": "product-other-review",
+      "disposition": "integration-source"
+    },
+    {
+      "ref": "mascots-v7-design-preview",
+      "headSha": "71eba18b78caeb8a77b2e58ded527e0a583babc5",
+      "routingGroup": "product-design",
+      "disposition": "retain-original-branch-review-before-merging"
+    },
+    {
+      "ref": "opendesign-full-restore-20260914",
+      "headSha": "46d35c8d1e19a83b22b818c668a1a97fc3384a01",
+      "routingGroup": "product-design",
+      "disposition": "retain-original-branch-review-before-merging"
+    },
+    {
+      "ref": "product/app",
+      "headSha": "b3282da1a7d83bbfe460b41419345541b5a377ce",
+      "routingGroup": "product-other-review",
+      "disposition": "retain-original-branch-review-before-merging"
+    },
+    {
+      "ref": "product/mcp",
+      "headSha": "b3282da1a7d83bbfe460b41419345541b5a377ce",
+      "routingGroup": "product-other-review",
+      "disposition": "no-unique-commits-against-main-as-checked"
+    },
+    {
+      "ref": "product/www",
+      "headSha": "5d04ba7d8af1e3aa919dfbeb8be1204815b1faa1",
+      "routingGroup": "app/website",
+      "disposition": "retain-original-branch-review-before-merging"
+    },
+    {
+      "ref": "ui/onlook-pilot",
+      "headSha": "e400eb952df9f7b0d5fdbbadd372ae289bf4b625",
+      "routingGroup": "product-design",
+      "disposition": "retain-original-branch-review-before-merging"
+    }
+  ]
+}

@@ -1,0 +1,173 @@
+{
+  "schemaVersion": 1,
+  "repo": "miloszspyrka-code/zar-i-szlif",
+  "productionRef": "main",
+  "principle": "All apps connect one GitHub repo but use distinct Coolify applications/services and path-filtered deployments; no shared deployment webhook on every main push.",
+  "coolifyTargets": [
+    {
+      "id": "product-app",
+      "sourceDirectory": "app/web/",
+      "coolifyBaseDirectory": "/",
+      "buildContext": "/",
+      "dockerfile": "ops/coolify/Dockerfile",
+      "artifact": "app/web/dist",
+      "containerPort": 80,
+      "status": "existing-build-config-verified",
+      "triggerPaths": [
+        "app/web/**",
+        "app/registry/**",
+        "registry/**",
+        "ops/coolify/**",
+        "app/package.json",
+        "package*.json"
+      ],
+      "notes": "Static frontend nginx. Actual production routing/domain is an independent runtime question."
+    },
+    {
+      "id": "product-website",
+      "sourceDirectory": "app/website/",
+      "coolifyBaseDirectory": "/",
+      "buildContext": "/",
+      "dockerfile": "app/website/Dockerfile",
+      "artifact": "app/website/index.html",
+      "containerPort": 80,
+      "status": "new-imported-candidate-not-live-verified",
+      "triggerPaths": [
+        "app/website/**"
+      ],
+      "notes": "Independent static site imported from candidate KOMAA-1174; not the application."
+    },
+    {
+      "id": "product-mcp",
+      "sourceDirectory": "app/mcp-worker/",
+      "coolifyBaseDirectory": "/app/mcp-worker",
+      "buildContext": null,
+      "dockerfile": null,
+      "containerPort": null,
+      "status": "NOT-COOLIFY-READY-currently-cloudflare-worker",
+      "triggerPaths": [
+        "app/mcp-worker/**",
+        "app/plugin/knowledge/**",
+        "app/cloudflare-worker/src/google-handler.ts"
+      ],
+      "notes": "Current Cloudflare OAuthProvider and Workers AI/KV bindings. Do NOT configure a false Coolify Docker image. Requires a tested Node/workerd runtime adapter, external OAuth storage & AI bindings, health and security smoke before migration. Existing Cloudflare deployment config app/mcp-worker/wrangler.jsonc."
+    },
+    {
+      "id": "mantic-mcp",
+      "sourceDirectory": "mcp/mantic/",
+      "coolifyBaseDirectory": "/mcp/mantic",
+      "buildContext": "/mcp/mantic",
+      "dockerfile": "Dockerfile",
+      "containerPort": null,
+      "status": "imported-candidate-needs-runtime-review",
+      "triggerPaths": [
+        "mcp/mantic/**"
+      ],
+      "notes": "Import from KOMAA-1102, verify Dockerfile EXPOSE/port & actual network before enabling."
+    },
+    {
+      "id": "plasmic-mcp",
+      "sourceDirectory": "mcp/plasmic/",
+      "coolifyBaseDirectory": "/mcp/plasmic",
+      "buildContext": "/mcp/plasmic",
+      "dockerfile": "Dockerfile.mcp",
+      "containerPort": 8091,
+      "status": "imported-baseline-needs-branch-reconcile-and-e2e",
+      "triggerPaths": [
+        "mcp/plasmic/**"
+      ],
+      "notes": "Original ops/design-stack grouped image also starts OpenDesign: split service before independently activating; preserve 412 fix snapshot under _branches/KOMAA-1084."
+    },
+    {
+      "id": "opendesign-mcp",
+      "sourceDirectory": "mcp/opendesign/",
+      "coolifyBaseDirectory": null,
+      "buildContext": null,
+      "dockerfile": null,
+      "containerPort": null,
+      "status": "candidate-snapshot-only",
+      "triggerPaths": [
+        "mcp/opendesign/**"
+      ],
+      "notes": "Legacy bridge is shared with original design-stack image; no isolated runner in this directory yet."
+    },
+    {
+      "id": "qdrant-mcp",
+      "sourceDirectory": "mcp/qdrant/",
+      "coolifyBaseDirectory": null,
+      "buildContext": null,
+      "dockerfile": null,
+      "containerPort": null,
+      "status": "source-incomplete",
+      "triggerPaths": [
+        "mcp/qdrant/**"
+      ],
+      "notes": "Only verification script found from KOMAA-411. Recover the standalone MCP from Paperclip workspace mcp-qdrant-hybrid or VPS; NEVER use app/mcp-worker/src/knowledge as standalone code."
+    },
+    {
+      "id": "penpot-mcp",
+      "sourceDirectory": "mcp/penpot/",
+      "coolifyBaseDirectory": null,
+      "buildContext": null,
+      "dockerfile": null,
+      "containerPort": null,
+      "status": "source-incomplete",
+      "triggerPaths": [
+        "mcp/penpot/**"
+      ],
+      "notes": "Find actual Penpot MCP host source first."
+    },
+    {
+      "id": "supabase-mcp",
+      "sourceDirectory": "mcp/supabase/",
+      "coolifyBaseDirectory": null,
+      "buildContext": null,
+      "dockerfile": null,
+      "containerPort": null,
+      "status": "source-incomplete",
+      "triggerPaths": [
+        "mcp/supabase/**"
+      ],
+      "notes": "Host connector, not product supabase/ schema/migrations."
+    },
+    {
+      "id": "ubuntu-mcp",
+      "sourceDirectory": "mcp/ubuntu/",
+      "coolifyBaseDirectory": null,
+      "buildContext": null,
+      "dockerfile": null,
+      "containerPort": null,
+      "status": "source-incomplete",
+      "triggerPaths": [
+        "mcp/ubuntu/**"
+      ],
+      "notes": "Recover host bridge source; production privilege/security review mandatory."
+    },
+    {
+      "id": "opencode-mcp",
+      "sourceDirectory": "mcp/opencode/",
+      "coolifyBaseDirectory": null,
+      "buildContext": null,
+      "dockerfile": null,
+      "containerPort": null,
+      "status": "imported-code-not-validated-for-standalone-deploy",
+      "triggerPaths": [
+        "mcp/opencode/**"
+      ],
+      "notes": "OpenCode MCP integrations, no edits to OpenCode Core."
+    },
+    {
+      "id": "paperclip-mcp",
+      "sourceDirectory": "mcp/paperclip/",
+      "coolifyBaseDirectory": null,
+      "buildContext": null,
+      "dockerfile": null,
+      "containerPort": null,
+      "status": "imported-code-not-validated-for-standalone-deploy",
+      "triggerPaths": [
+        "mcp/paperclip/**"
+      ],
+      "notes": "Paperclip gateway wrappers, no edits to Paperclip Core."
+    }
+  ]
+}
