@@ -37,6 +37,10 @@ const RELEASE_RULES = [
 
 // Docs/non-release-only: minimum canonical repo validation, never provider auth.
 const NON_RELEASE_RULES = [
+  // MCP service sources and website run independent path-scoped service CI.
+  /^mcp\//,
+  /^app\/website\//,
+  /^app\/mcp-worker\//,
   /^docs\//,
   /^archive\//,
   /^content\//,
