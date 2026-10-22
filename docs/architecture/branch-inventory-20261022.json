@@ -3,7 +3,7 @@
   "generatedAt": "2026-10-22",
   "repo": "miloszspyrka-code/zar-i-szlif",
   "branchCount": 83,
-  "policy": "All branch heads preserved. main is the only integration/release ref. Proposed merges require actual CI and independent Paperclip review. Snapshot changes are not live deployment.",
+  "policy": "2026-10-22 owner policy: one repo/main after CTO review. OpenDesign MCP and OpenCode MCP retired, original Git refs retained solely as provenance; no source import, merge or service deployment.",
   "branches": [
     {
       "ref": "KOMAA-24-retry-sprawno-ci-historia-100-i-blokada-ponownego-wyboru",
@@ -134,8 +134,8 @@
     {
       "ref": "KOMAA-168",
       "headSha": "bf3866ede8cb206d0cbe038c42b6eb3eb391ecb4",
-      "routingGroup": "mcp/opencode",
-      "disposition": "source-copied-in-import-pr"
+      "routingGroup": "retired-mcp-history",
+      "disposition": "owner-retired-2026-10-22; original Git branch preserved; do-not-merge-or-deploy"
     },
     {
       "ref": "KOMAA-187",
@@ -410,8 +410,8 @@
     {
       "ref": "feat/opendesign-brand-mcp",
       "headSha": "058f5f81bdccca928a628126b72622983c5550e3",
-      "routingGroup": "mcp/opendesign",
-      "disposition": "retain-original-branch-review-before-merging"
+      "routingGroup": "retired-mcp-history",
+      "disposition": "owner-retired-2026-10-22; original Git branch preserved; do-not-merge-or-deploy"
     },
     {
       "ref": "feat/product-mcp-cloudflare-worker",

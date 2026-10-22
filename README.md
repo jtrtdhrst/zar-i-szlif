@@ -14,12 +14,10 @@ mcp/penpot/       # własny Penpot MCP — niepełne źródła
 mcp/plasmic/      # własny Plasmic MCP; kontekst Coolify /mcp/plasmic
 mcp/supabase/     # własny Supabase MCP — nie mylić z produktem supabase/
 mcp/ubuntu/       # własny Ubuntu MCP — niepełne źródła
-mcp/opencode/     # integracje OpenCode MCP
 mcp/paperclip/    # integracje Paperclip MCP
-mcp/opendesign/   # dodatkowy OpenDesign bridge
 ```
 
-Katalogi `_branches/` przechowują wersje do późniejszej konsolidacji przez model AI, nie runtime. Każdy działający MCP/produkt ma własny pipeline i aplikację Coolify, **nie** wspólny deploy wszystkiego z każdego push. Nie podłączaj do produkcyjnego Coolify usług, dla których nie ma zweryfikowanego Dockerfile/HTTP entrypointu i testu live.
+OpenDesign MCP i OpenCode MCP zostały wycofane (2026-10-22). Sam OpenCode używany przez agentów pozostaje bez zmian. Katalogi `_branches/` przechowują wersje do późniejszej konsolidacji przez model AI, nie runtime. Każdy działający MCP/produkt ma własny pipeline i aplikację Coolify, **nie** wspólny deploy wszystkiego z każdego push. Nie podłączaj do produkcyjnego Coolify usług, dla których nie ma zweryfikowanego Dockerfile/HTTP entrypointu i testu live.
 
 Aplikacja dla instruktorów Royal Rangers wspierająca cykl **Planowanie → Realizacja → Refleksja → Doskonalenie**. Główna wartość produktu to prostsze planowanie, brak pustej kartki i ciągłość pracy między aktywnościami. AI jest opcjonalnym interfejsem, nie źródłem decyzji domenowych.
 

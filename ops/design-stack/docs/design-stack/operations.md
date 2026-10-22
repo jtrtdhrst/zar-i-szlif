@@ -8,9 +8,7 @@
   zmienna przerywa deploy zamiast ciągnąć pływający tag `latest`. Wartość = SHA
   commita z `main`, na którym CI zbudował obraz (tag `sha` + `latest`).
   `IMAGE_TAG=<sha>` w `.env` przed `pull && up -d`.
-- Oba serwery (`plasmic-mcp`, `opendesign-bridge-mcp`) startują z tego samego obrazu CI
-  `ghcr.io/miloszspyrka-code/kompas-zbiorek-opendesign-mcp:<sha>`; serwer wybiera
-  `command` w compose. `IMAGE_TAG` = SHA commita z `main`.
+- Only Plasmic MCP remains in the approved-image lane: `ghcr.io/miloszspyrka-code/zar-i-szlif-plasmic-mcp:<sha>`; OpenDesign MCP retired by owner 2026-10-22.
 - Budowanie lokalne z `/root/design-stack` (checkout bez remote) jest wycofane: ten
   katalog jest poza kontrolą wersji repo, a deploy z niego utrzymywał manifest 18
   narzędzi (`plasmic_import_html`), podczas gdy repo ma 17 (`plasmic_*`).
@@ -19,7 +17,7 @@
   przy team token wystarczy rotacja tokenu w Studio + `.env`.
 - Restart sesji: `docker compose -f docker-compose.mcp.yml restart`.
 - Wyłączenie: `docker compose -f docker-compose.mcp.yml stop plasmic-mcp`
-  (lub `opendesign-bridge-mcp`).
+  (no additional MCP service is part of this Compose project).
 - Observability: ślad Paperclip issue → run → OpenCode run → MCP request → operacja →
   commit/PR przez istniejące logi OpenCode/Paperclip + `audit.jsonl` (plasmic-mcp,
   design-sync). Bez równoległego systemu.
