@@ -1,17 +1,10 @@
 name: MCP Workers
 
-# Każdy MCP jako Cloudflare Worker. Kod jest w repo:
-#  - mcp/worker-edge/       — 8 usług na wspólnej krawędzi, każda jako --env
-#  - mcp/mantic/worker/     — natywny Worker (Mautic API)
-# Wdrożenie: wrangler (token z sekretów środowiska Production).
+# Jednorazowe / ręczne wdrożenie Workerów MCP z repo (workflow_dispatch).
+# Docelowa ścieżka wdrożeń: Cloudflare Workers Builds (repo podpięte w panelu
+# Cloudflare), pliki konfiguracji: mcp/worker-edge/wrangler.<usługa>.jsonc
+# oraz mcp/mantic/worker/wrangler.jsonc.
 on:
-  push:
-    branches: [main, feat/mcp-services-in-repo]
-    paths:
-      - "mcp/worker-edge/**"
-      - "mcp/mantic/worker/**"
-      - "mcp/mantic/src/**"
-      - ".github/workflows/mcp-workers.yml"
   workflow_dispatch:
 
 permissions:
@@ -24,7 +17,6 @@ concurrency:
 jobs:
   edge:
     runs-on: ubuntu-latest
-    # Token Cloudflare żyje w sekretach środowiska Production (nie w repo).
     environment: Production
     steps:
       - uses: actions/checkout@v4
@@ -41,9 +33,9 @@ jobs:
           CLOUDFLARE_ACCOUNT_ID: c056821a7ee2aabdcf0a6dc447490184
         run: |
           set -e
-          for env in emailens langfuse paperclip penpot plasmic qdrant supabase ubuntu probe probe2 probe3 probe4 probe5 probe6 probe7 probe8 probe9; do
-            echo "--- deploy $env"
-            npx wrangler deploy --env "$env"
+          for svc in emailens langfuse paperclip penpot plasmic qdrant supabase ubuntu; do
+            echo "--- deploy $svc"
+            npx wrangler deploy --config "wrangler.$svc.jsonc"
           done
 
   mantic:

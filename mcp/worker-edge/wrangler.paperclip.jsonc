@@ -1,0 +1,16 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "paperclip-mcp",
+  "main": "src/index.ts",
+  "compatibility_date": "2026-10-22",
+  "workers_dev": false,
+  "routes": [
+    {
+      "pattern": "paperclip-mcp.zariszlif.pl",
+      "custom_domain": true
+    }
+  ],
+  "vars": {
+    "UPSTREAM_URL": "https://paperclip-engine.zariszlif.pl/mcp"
+  }
+}
