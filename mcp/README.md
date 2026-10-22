@@ -24,7 +24,7 @@ tokenem CF ze środowiska `Production`).
 
 | Publiczny endpoint | Worker | Typ | Silnik |
 |---|---|---|---|
-| `https://mantic-mcp.zariszlif.pl/mcp` | `mantic-mcp` | **natywny Worker** (te same narzędzia co stdio, transport Web Standard) | Mautic API po HTTPS |
+| `https://mantic-mcp.zariszlif.pl/mcp` | `mantic-mcp` | **natywny Worker** (te same narzędzia co stdio; protokół MCP pisany ręcznie, bez SDK/axios — bundle 68 KiB) | Mautic API po HTTPS |
 | `https://qdrant-mcp.zariszlif.pl/mcp` | `qdrant-mcp` | krawędź Worker | `mcp-qdrant` (Docker) przez `qdrant-engine.zariszlif.pl` |
 | `https://supabase-mcp.zariszlif.pl/mcp` | `supabase-mcp` | krawędź Worker | `supabase-mcp` (Docker) przez `supabase-engine.zariszlif.pl` |
 | `https://ubuntu-mcp.zariszlif.pl/mcp` | `ubuntu-mcp` | krawędź Worker | `ubuntu-mcp-bridge` (Docker) przez `ubuntu-engine.zariszlif.pl` |
@@ -40,7 +40,7 @@ uruchomić w runtime Workers**: Python (qdrant), TCP/Postgres (supabase), surowe
 
 Dla `mantic` Worker jest natywny (`mcp/mantic/worker/src/index.ts`): te same moduły
 narzędzi co wersja stdio, transport MCP Streamable HTTP (Web Standard) — dlatego
-kontenery `mantic-mcp` / `mantic-mcp-http` zostały wyłączone.
+kontenery `mantic-mcp` / `mantic-mcp-http` zostały wyłączone i usunięte.
 
 Każdy publiczny endpoint ma własną autoryzację (Bearer / token w query).
 
@@ -62,3 +62,11 @@ cd mcp/<service>
 docker build -t <name>:local .          # or: docker compose up -d --build
 curl -s http://127.0.0.1:<port>/mcp     # JSON-RPC initialize
 ```
+
+## Znany problem (nie z Workerów)
+
+**Mautic API: `POST /api/oauth/token` → 401 „API authorization denied"** — klient
+OAuth `mantic-mcp` istnieje w bazie Mautica (grant `client_credentials` ✓,
+`api_oauth2 => true` w configu ✓), ale token nie jest wydawany. Dlatego `tools/list`
+działa, a wywołania narzędzi (kontakty, kampanie) zwracają błąd autoryzacji.
+Naprawa po stronie Mautica (konfiguracja API/OAuth), nie Workerów.

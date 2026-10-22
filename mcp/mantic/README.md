@@ -43,3 +43,17 @@ missing.
 Source of the running container (`mantic-mcp:latest` / `mantic-mcp-http:latest` on the
 production host). Upstream inspiration: `Cbrown35/mantic-MCP`. The copy in this folder
 is the deployed source of truth — upstream changes are applied here first.
+
+## Worker (Cloudflare)
+
+`worker/` = ten sam MCP jako Cloudflare Worker (`mantic-mcp.zariszlif.pl`):
+
+- protokół MCP (JSON-RPC) obsłużony **ręcznie** — bez `@modelcontextprotocol/sdk`
+  i bez `axios` (klient Mautic na `fetch`, `worker/src/mautic-client.ts`);
+- bundle **68 KiB** (gzip 10 KiB) zamiast 1245 KiB z SDK + axios;
+- narzędzia te same co w stdio (`src/tools/**`), błędy MCP przez `src/errors.ts`
+  (bez zoda w bundlu) — serwer stdio tłumaczy je na SDK-owy `McpError`;
+- deploy: `.github/workflows/mcp-workers.yml` (push do repo = build + `wrangler deploy`).
+
+Konfiguracja Workera: `MAUTIC_BASE_URL`, `MAUTIC_TOKEN_ENDPOINT` (vars) +
+`MAUTIC_CLIENT_ID`, `MAUTIC_CLIENT_SECRET`, `MCP_AUTH_TOKEN` (sekrety).
