@@ -219,7 +219,7 @@ function PlasmicNewPage__RenderFunc(props: {
               }
             }}
           >
-            {"SIEMA"}
+            {"SIEMA        TESTPUSHA"}
           </Checkbox>
         </div>
       </div>
