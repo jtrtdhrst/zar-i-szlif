@@ -63,16 +63,13 @@ import {
 
 import { generateDynamicMetadata, PageCtx } from "./PlasmicNewPageServer"; // plasmic-import: sxEayKxEjoph/rscServer
 
-import TextInput from "../../TextInput"; // plasmic-import: ZYqBJl_cHyef/component
+import Checkbox from "../../Checkbox"; // plasmic-import: avuZZfrHVlu0/component
 import { _useGlobalVariants } from "./plasmic"; // plasmic-import: dE4b3DdZMeQM5wj8QqR9Ny/projectModule
 import { _useStyleTokens } from "./PlasmicStyleTokensProvider"; // plasmic-import: dE4b3DdZMeQM5wj8QqR9Ny/styleTokensProvider
 
 import "@plasmicapp/react-web/lib/plasmic.css";
 
 import sty from "./PlasmicNewPage.module.css"; // plasmic-import: sxEayKxEjoph/css
-
-import SearchSvgIcon from "./icons/PlasmicIcon__SearchSvg"; // plasmic-import: _91yCBqx1ADW/icon
-import CheckSvgIcon from "./icons/PlasmicIcon__CheckSvg"; // plasmic-import: YESenKuiaZe-/icon
 
 const emptyProxy: any = new Proxy(() => "", {
   get(_, prop) {
@@ -102,7 +99,7 @@ export const PlasmicNewPage__ArgProps = new Array<ArgPropType>();
 
 export type PlasmicNewPage__OverridesType = {
   root?: Flex__<"div">;
-  textInput?: Flex__<typeof TextInput>;
+  checkbox?: Flex__<typeof Checkbox>;
 };
 
 export interface DefaultNewPageProps {}
@@ -149,10 +146,10 @@ function PlasmicNewPage__RenderFunc(props: {
   const stateSpecs: Parameters<typeof useDollarState>[0] = React.useMemo(
     () => [
       {
-        path: "textInput.value",
+        path: "checkbox.isChecked",
         type: "private",
-        variableType: "text",
-        initFunc: ({ $props, $state, $queries, $q, $ctx }) => ""
+        variableType: "boolean",
+        initFunc: ({ $props, $state, $queries, $q, $ctx }) => undefined
       }
     ],
     [$props, $ctx, $refs]
@@ -198,15 +195,18 @@ function PlasmicNewPage__RenderFunc(props: {
             sty.root
           )}
         >
-          <TextInput
-            data-plasmic-name={"textInput"}
-            data-plasmic-override={overrides.textInput}
+          <Checkbox
+            data-plasmic-name={"checkbox"}
+            data-plasmic-override={overrides.checkbox}
 
-            className={classNames("__wab_instance", sty.textInput)}
+            className={classNames("__wab_instance", sty.checkbox)}
+            isChecked={
+              generateStateValueProp($state, ["checkbox", "isChecked"]) ?? false
+            }
             onChange={async (...eventArgs: any) => {
               ((...eventArgs) => {
-                generateStateOnChangeProp($state, ["textInput", "value"])(
-                  (e => e.target?.value).apply(null, eventArgs)
+                generateStateOnChangeProp($state, ["checkbox", "isChecked"])(
+                  eventArgs[0]
                 );
               }).apply(null, eventArgs);
 
@@ -218,8 +218,9 @@ function PlasmicNewPage__RenderFunc(props: {
                 return;
               }
             }}
-            value={generateStateValueProp($state, ["textInput", "value"]) ?? ""}
-          />
+          >
+            {"SIEMA"}
+          </Checkbox>
         </div>
       </div>
     </React.Fragment>
@@ -227,15 +228,15 @@ function PlasmicNewPage__RenderFunc(props: {
 }
 
 const PlasmicDescendants = {
-  root: ["root", "textInput"],
-  textInput: ["textInput"]
+  root: ["root", "checkbox"],
+  checkbox: ["checkbox"]
 } as const;
 type NodeNameType = keyof typeof PlasmicDescendants;
 type DescendantsType<T extends NodeNameType> =
   (typeof PlasmicDescendants)[T][number];
 type NodeDefaultElementType = {
   root: "div";
-  textInput: typeof TextInput;
+  checkbox: typeof Checkbox;
 };
 
 type ReservedPropsType = "variants" | "args" | "overrides";
@@ -300,7 +301,7 @@ export const PlasmicNewPage = Object.assign(
   makeNodeComponent("root"),
   {
     // Helper components rendering sub-elements
-    textInput: makeNodeComponent("textInput"),
+    checkbox: makeNodeComponent("checkbox"),
 
     // Metadata about props expected for PlasmicNewPage
     internalVariantProps: PlasmicNewPage__VariantProps,
