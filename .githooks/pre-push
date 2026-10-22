@@ -39,6 +39,15 @@ do
   esac
 done
 
+# A delete-only push transfers no commits. The release gate without SHA
+# arguments defaults to HEAD, which wrongly validates an unrelated worktree.
+# Do NOT skip any checks when even one nonzero local SHA is being pushed.
+# The main ref is still protected by the check above, including deletion.
+if [ -z "$shas" ]; then
+  echo "[pre-push] No new commit refs (delete-only/no-op); release validation not applicable."
+  exit 0
+fi
+
 if [ -n "$commits" ]; then
   # Identity gate runs before the release gate: synthetic author/committer
   # identities never reach push/production. CI re-checks the same rule server-side,
