@@ -8,11 +8,6 @@
       "fileLocks": [
         {
           "assetId": "dE4b3DdZMeQM5wj8QqR9Ny",
-          "type": "projectCss",
-          "checksum": "7c419ac016aac69b1a1a9659989dbac4"
-        },
-        {
-          "assetId": "dE4b3DdZMeQM5wj8QqR9Ny",
           "checksum": "5366bd8c76d7a696ab8661ce4e8847c3",
           "type": "projectModule"
         },
@@ -50,6 +45,11 @@
           "type": "icon",
           "assetId": "YESenKuiaZe-",
           "checksum": "03ae09bc87d4979374b6ef34fbb27535"
+        },
+        {
+          "assetId": "dE4b3DdZMeQM5wj8QqR9Ny",
+          "type": "projectCss",
+          "checksum": "7c419ac016aac69b1a1a9659989dbac4"
         }
       ],
       "codegenVersion": "0.0.3"
