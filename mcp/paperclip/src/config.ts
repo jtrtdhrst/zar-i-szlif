@@ -14,6 +14,8 @@ export interface PaperclipMcpConfig {
   operatorRunId?: string | null; // KOMAA-630: first-class operator session
   agentApiKey: string | null;
   boardApiKey: string | null;
+  /** Explicit gateway caller principal; absent for legacy stdio agent runtimes. */
+  principalKind?: "agent" | "board" | "service" | null;
 }
 
 function nonEmpty(value: string | undefined): string | null {

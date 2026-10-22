@@ -733,13 +733,24 @@ export function createToolDefinitions(client: PaperclipApiClient): ToolDefinitio
       "paperclipMe",
       "Get the current authenticated Paperclip actor details",
       z.object({}),
-      async () => client.requestJson("GET", "/agents/me"),
+      async () => client.defaults.principalKind === "board"
+        ? {
+          kind: "board", type: "board", role: "board",
+          agentId: null, companyId: client.resolveCompanyId(),
+          humanUserId: null, boardAuthorized: client.hasBoardCredential,
+        }
+        : client.requestJson("GET", "/agents/me"),
     ),
     makeTool(
       "paperclipInboxLite",
       "Get the current authenticated agent inbox-lite assignment list",
       z.object({}),
-      async () => client.requestJson("GET", "/agents/me/inbox-lite"),
+      async () => {
+        if (client.defaults.principalKind === "board") {
+          throw new Error("paperclipInboxLite is only available to agent principals");
+        }
+        return client.requestJson("GET", "/agents/me/inbox-lite");
+      },
     ),
     makeTool(
       "paperclipListAgents",
