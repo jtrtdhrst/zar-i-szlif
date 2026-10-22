@@ -1,9 +1,18 @@
-# Plasmic workflow v4
+# Plasmic workflow v4 — self-hosted variant
+#
+# Studio regenerates this file on publish. This version keeps the same trigger and
+# step names Studio expects, but does the sync with the Plasmic CLI directly:
+# the vendored action (./.github/actions/plasmic-action) installs its own CLI in a
+# throwaway directory, which cannot be pointed at the self-hosted codegen API.
 name: Sync, build and deploy Plasmic app
 
 permissions:
   contents: write
   pull-requests: write
+
+concurrency:
+  group: plasmic-${{ github.event.client_payload.data.branch }}
+  cancel-in-progress: false
 
 env:
   PLASMIC_DEFAULT_HOST: https://plasmic.kompaszbiorek.pl
@@ -17,85 +26,77 @@ jobs:
     name: Sync, build and deploy
     runs-on: ubuntu-latest
     steps:
-      - id: checkout
-        name: Checking out repository...
+      - name: Mask event payload project API token
+        run: |
+          node -e 'const p=require(process.env.GITHUB_EVENT_PATH).client_payload?.data?.projectApiToken;if(p)console.log("::add-mask::"+p)'
+
+      - name: Checking out repository...
         uses: actions/checkout@v6
         with:
-          persist-credentials: false
+          ref: ${{ github.event.client_payload.data.branch }}
           fetch-depth: 0
-      - id: node
-        name: Setting up node v24...
+
+      - name: Setting up node v24...
         uses: actions/setup-node@v6
         with:
           node-version: "24"
-      - id: pnpm
-        name: Setting up pnpm...
-        run: npm install -g pnpm
-      - id: cache
-        name: Recovering cache...
-        uses: actions/cache@v5
-        with:
-          key: lock-${{ hashFiles('**/package-lock.json', '**/yarn.lock') }}
-          path: ${{ github.event.client_payload.data.directory }}/node_modules
-      - id: init
-        name: Initializing Plasmic app...
-        env:
-          PLASMIC_DEFAULT_HOST: https://plasmic.kompaszbiorek.pl
-        uses: ./.github/actions/plasmic-action
-        with:
-          run: init
-          github_token: ${{ secrets.GITHUB_TOKEN }}
-          branch: ${{ github.event.client_payload.data.branch }}
-          directory: ${{ github.event.client_payload.data.directory }}
-          project_id: ${{ github.event.client_payload.data.projectId }}
-          project_api_token: ${{ github.event.client_payload.data.projectApiToken }}
-          platform: ${{ github.event.client_payload.data.platform }}
-          language: ${{ github.event.client_payload.data.language }}
-          scheme: ${{ github.event.client_payload.data.scheme }}
-          title: ${{ github.event.client_payload.data.title }}
-          description: ${{ github.event.client_payload.data.description }}
-      - id: sync
-        name: Syncing Plasmic project...
-        env:
-          PLASMIC_DEFAULT_HOST: https://plasmic.kompaszbiorek.pl
-        if: ${{ github.event.client_payload.data.scheme == 'codegen' && steps.init.outputs.synced != 'true' }}
-        uses: ./.github/actions/plasmic-action
-        with:
-          run: sync
-          github_token: ${{ secrets.GITHUB_TOKEN }}
-          branch: ${{ github.event.client_payload.data.branch }}
-          directory: ${{ github.event.client_payload.data.directory }}
-          project_id: ${{ github.event.client_payload.data.projectId }}
-          project_api_token: ${{ github.event.client_payload.data.projectApiToken }}
-          sync_action: ${{ github.event.client_payload.data.syncAction }}
-          title: ${{ github.event.client_payload.data.title }}
-          description: ${{ github.event.client_payload.data.description }}
-      - id: build
-        name: Building Plasmic app...
-        if: ${{ github.event.client_payload.data.publish }}
-        uses: ./.github/actions/plasmic-action
-        with:
-          run: build
-          branch: ${{ github.event.client_payload.data.branch }}
-          directory: ${{ github.event.client_payload.data.directory }}
-          platform: ${{ github.event.client_payload.data.platform }}
-      - id: pr
-        name: Creating pull request...
-        if: ${{ steps.sync.outputs.new_branch }}
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          PR_HEAD: ${{ steps.sync.outputs.new_branch }}
-          PR_BASE: ${{ github.event.client_payload.data.branch }}
-          PR_TITLE: ${{ github.event.client_payload.data.title }}
-          PR_BODY: ${{ github.event.client_payload.data.description }}
+
+      - name: Setting up pnpm...
+        run: npm install -g pnpm@12
+
+      # Marker read by plasmic-website-selfhost.yml: when this workflow carries the
+      # fix, the fallback workflow stays out of the way.
+      - name: Fix CLI codegen origin selection for self-hosted Studio
         run: |
-          existing=$(gh pr list --head "$PR_HEAD" --base "$PR_BASE" --state open --json number --jq '.[].number')
-          if [ -z "$existing" ]; then
-            gh pr create \
-              --head "$PR_HEAD" \
-              --base "$PR_BASE" \
-              --title "$PR_TITLE" \
-              --body "$PR_BODY"
-          else
-            echo "PR already exists for $PR_HEAD -> $PR_BASE (#$existing); skipping create."
+          echo "Self-hosted sync is handled here."
+
+      - name: Initializing Plasmic app...
+        working-directory: ${{ github.event.client_payload.data.directory }}
+        env:
+          PLASMIC_PROJECT_ID: ${{ github.event.client_payload.data.projectId }}
+          PLASMIC_PROJECT_API_TOKEN: ${{ github.event.client_payload.data.projectApiToken }}
+        run: |
+          pnpm install --ignore-scripts
+          pnpm add --ignore-scripts @plasmicapp/react-web
+          pnpm add -D --ignore-scripts @plasmicapp/cli@0.1.381
+          node --input-type=commonjs - <<'NODE'
+          const fs = require("fs");
+          const file = "node_modules/@plasmicapp/cli/dist/index.js";
+          if (!fs.existsSync(file)) throw new Error("Plasmic CLI binary missing");
+          const original = fs.readFileSync(file, "utf8");
+          const matcher = /this\.auth\.host\s*===\s*DEFAULT_HOST\d*/g;
+          if ([...original.matchAll(matcher)].length !== 1) {
+            throw new Error("CLI host routing signature changed");
+          }
+          fs.writeFileSync(file, original.replace(matcher, 'this.auth.host === "https://studio.plasmic.app"'));
+          console.log("Patched CLI to use the self-hosted codegen API.");
+          NODE
+
+      - name: Syncing Plasmic project...
+        working-directory: ${{ github.event.client_payload.data.directory }}
+        env:
+          PLASMIC_PROJECT_ID: ${{ github.event.client_payload.data.projectId }}
+          PLASMIC_PROJECT_API_TOKEN: ${{ github.event.client_payload.data.projectApiToken }}
+        run: |
+          pnpm exec plasmic sync --yes --projects "$PLASMIC_PROJECT_ID:$PLASMIC_PROJECT_API_TOKEN"
+
+      - name: Committing generated code
+        env:
+          BRANCH: ${{ github.event.client_payload.data.branch }}
+          DIRECTORY: ${{ github.event.client_payload.data.directory }}
+          TITLE: ${{ github.event.client_payload.data.title }}
+        run: |
+          rm -f "$DIRECTORY/.plasmic.auth"
+          git add -A -- "$DIRECTORY"
+          if git diff --cached --name-only | grep -E '(^|/)(\.plasmic\.auth|\.env($|\.))'; then
+            echo "::error::Refusing to commit private Plasmic credentials or environment files"
+            exit 1
           fi
+          if git diff --cached --quiet; then
+            echo "No generated change after Plasmic sync"
+            exit 0
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git commit -m "${TITLE:-chore: sync Plasmic project}"
+          git push origin "HEAD:$BRANCH"
