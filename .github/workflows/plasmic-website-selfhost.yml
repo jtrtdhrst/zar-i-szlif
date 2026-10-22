@@ -2,7 +2,6 @@ name: Plasmic Website — isolated self-hosted Codegen
 on:
   repository_dispatch:
     types: [plasmic]
-  workflow_dispatch:
 
 permissions:
   contents: write
@@ -30,12 +29,24 @@ jobs:
           fetch-depth: 0
           persist-credentials: false
 
+      - name: Detect whether the original workflow has already been fixed by Studio
+        id: original
+        run: |
+          if git show origin/main:.github/workflows/plasmic.yml 2>/dev/null | grep -q 'npm install --global pnpm@12'; then
+            echo 'run_fallback=false' >> "$GITHUB_OUTPUT"
+            echo 'Studio generated workflow is patched; skipping duplicate sync.'
+          else
+            echo 'run_fallback=true' >> "$GITHUB_OUTPUT"
+          fi
+
       - name: Setup Node 24
+        if: ${{ steps.original.outputs.run_fallback == 'true' }}
         uses: actions/setup-node@v6
         with:
           node-version: '24'
 
       - name: Install pnpm and verify target
+        if: ${{ steps.original.outputs.run_fallback == 'true' }}
         run: |
           npm install --global pnpm@12
           pnpm --version
@@ -44,6 +55,7 @@ jobs:
 
       - name: Initialize Plasmic Website
         id: init
+        if: ${{ steps.original.outputs.run_fallback == 'true' }}
         uses: plasmicapp/plasmic-action@master
         with:
           run: init
@@ -59,7 +71,7 @@ jobs:
           description: ${{ github.event.client_payload.data.description }}
 
       - name: Sync and commit Plasmic components
-        if: ${{ steps.init.outputs.synced != 'true' }}
+        if: ${{ steps.original.outputs.run_fallback == 'true' && steps.init.outputs.synced != 'true' }}
         uses: plasmicapp/plasmic-action@master
         with:
           run: sync
@@ -73,7 +85,7 @@ jobs:
           description: ${{ github.event.client_payload.data.description }}
 
       - name: Verify website branch commit is available
-        if: always()
+        if: ${{ always() && steps.original.outputs.run_fallback == 'true' }}
         run: |
           echo "Target branch: product/www"
           echo "Repository: ${{ github.repository }}"
