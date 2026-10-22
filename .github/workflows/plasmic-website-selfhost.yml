@@ -84,7 +84,7 @@ jobs:
           PLASMIC_PROJECT_ID: ${{ github.event.client_payload.data.projectId }}
           PLASMIC_PROJECT_API_TOKEN: ${{ github.event.client_payload.data.projectApiToken }}
         run: |
-          pnpm --ignore-workspace exec plasmic sync --yes --projects "$PLASMIC_PROJECT_ID:$PLASMIC_PROJECT_API_TOKEN"
+          pnpm --ignore-workspace exec plasmic sync --yes --skip-upgrade-check --projects "$PLASMIC_PROJECT_ID:$PLASMIC_PROJECT_API_TOKEN"
 
       - name: Commit and push generated site to product/www
         if: ${{ steps.original.outputs.run_fallback == 'true' }}
