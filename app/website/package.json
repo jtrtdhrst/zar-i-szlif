@@ -9,6 +9,7 @@
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
+    "@plasmicapp/host": "1.0.211",
     "@plasmicapp/react-web": "^1.0.40",
     "next": "16.4.2",
     "react": "^19.2.0",
