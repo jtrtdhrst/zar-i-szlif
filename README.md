@@ -1,5 +1,26 @@
 # Kompas Zbiórek
 
+> **CURRENT OWNER ARCHITECTURE — 2026-10-22:** All code lives in this **one GitHub monorepo**. `main` is the only approved integration/release branch: feature branches become PRs and reach `main` only after passing CI and independent CTO/Paperclip approval. The earlier plan for a separate private Harness repository is cancelled. See [full branch policy and Coolify map](docs/architecture/monorepo-branches-and-deploy.md), [all remote branch SHA inventory](docs/architecture/branch-inventory-20261022.json) and [machine-readable Coolify targets](ops/coolify/targets.json). Candidate segmentation in [PR #74](https://github.com/miloszspyrka-code/zar-i-szlif/pull/74) is not production until approved.
+
+## Aktualne katalogi monorepo (2026-10-22)
+
+```text
+app/web/          # aplikacja produktu — Coolify: /, ops/coolify/Dockerfile, :80
+app/website/      # strona produktu — Coolify: /, app/website/Dockerfile, :80
+app/mcp-worker/   # MCP produktu — obecnie Cloudflare, NIE gotowy kontener Coolify
+mcp/mantic/       # własny Mantic MCP; STDIO image, HTTP wrapper jeszcze do ustalenia
+mcp/qdrant/       # własny Qdrant MCP — niepełne źródła
+mcp/penpot/       # własny Penpot MCP — niepełne źródła
+mcp/plasmic/      # własny Plasmic MCP; kontekst Coolify /mcp/plasmic
+mcp/supabase/     # własny Supabase MCP — nie mylić z produktem supabase/
+mcp/ubuntu/       # własny Ubuntu MCP — niepełne źródła
+mcp/opencode/     # integracje OpenCode MCP
+mcp/paperclip/    # integracje Paperclip MCP
+mcp/opendesign/   # dodatkowy OpenDesign bridge
+```
+
+Katalogi `_branches/` przechowują wersje do późniejszej konsolidacji przez model AI, nie runtime. Każdy działający MCP/produkt ma własny pipeline i aplikację Coolify, **nie** wspólny deploy wszystkiego z każdego push. Nie podłączaj do produkcyjnego Coolify usług, dla których nie ma zweryfikowanego Dockerfile/HTTP entrypointu i testu live.
+
 Aplikacja dla instruktorów Royal Rangers wspierająca cykl **Planowanie → Realizacja → Refleksja → Doskonalenie**. Główna wartość produktu to prostsze planowanie, brak pustej kartki i ciągłość pracy między aktywnościami. AI jest opcjonalnym interfejsem, nie źródłem decyzji domenowych.
 
 ## Struktura repozytorium
