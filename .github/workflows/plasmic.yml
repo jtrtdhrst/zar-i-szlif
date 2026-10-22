@@ -25,12 +25,18 @@ jobs:
         uses: actions/setup-node@v6
         with:
           node-version: "24"
+      - id: pnpm
+        name: Setting up pnpm...
+        run: npm install -g pnpm
       - id: cache
         name: Recovering cache...
         uses: actions/cache@v5
         with:
           key: lock-${{ hashFiles('**/package-lock.json', '**/yarn.lock') }}
           path: ${{ github.event.client_payload.data.directory }}/node_modules
+      - id: ensure_dir
+        name: Ensuring target directory...
+        run: mkdir -p ${{ github.event.client_payload.data.directory }}
       - id: init
         name: Initializing Plasmic app...
         uses: plasmicapp/plasmic-action@master
