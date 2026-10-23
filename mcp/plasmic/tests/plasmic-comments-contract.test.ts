@@ -95,6 +95,19 @@ test("AI list returns replies, precise element addresses, safe author names and 
   assert.deepEqual(everything.threads[0].comments[1].body, "");
   assert.equal(everything.threads[0].comments[1].deleted, true);
   assert.equal(everything.threads[1].resolved, true);
+  const page = await list.handler({
+    projectId: "project-1", includeResolved: true, limit: 1, offset: 1,
+  }) as Record<string, any>;
+  assert.equal(page.threadCount, 2);
+  assert.equal(page.threads.length, 1);
+  assert.equal(page.threads[0].threadId, "thread-2");
+  assert.equal(page.hasMore, false);
+  const firstPage = await list.handler({
+    projectId: "project-1", includeResolved: true, limit: 1,
+  }) as Record<string, any>;
+  assert.equal(firstPage.threadCount, 2);
+  assert.equal(firstPage.threads.length, 1);
+  assert.equal(firstPage.hasMore, true);
 });
 
 test("element tool exact-match filters using IID and/or UUID; never fuzzy-matches", async () => {
