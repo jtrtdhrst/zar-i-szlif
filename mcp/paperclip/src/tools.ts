@@ -169,7 +169,7 @@ function wikiLocalPath(input: { wikiId?: string; spaceSlug?: string; path: strin
 
 function isWikiWorkerDown(error: unknown): boolean {
   const msg = String((error as any)?.message ?? error ?? "");
-  return /502|WORKER_UNAVAILABLE|not ready|API route not found|failed with 502|failed with 404|CONFIGURATION_MISSING|explicitly configured Board credential/i.test(msg);
+  return /502|WORKER_UNAVAILABLE|not ready|API route not found|failed with 502|failed with 404/i.test(msg);
 }
 
 function wikiTitleFrom(contents: string, fallbackPath: string): string | null {
@@ -235,11 +235,21 @@ function wikiFileCreate(input: { wikiId?: string; spaceSlug?: string; path: stri
   return { path: input.path, hash, bytesWritten: Buffer.byteLength(input.contents, "utf8"), fallback: "file", summary: input.summary ?? null };
 }
 
-async function wikiWriteWithFallback<T>(input: any, viaPlugin: () => Promise<T>, viaFile: () => T): Promise<T> {
+// Unavailable plugins never authorize a direct filesystem bypass. Proof of
+// Board authority comes from the independent, Board-guarded upstream route.
+async function assertWikiFileFallbackAuthorized(client: PaperclipApiClient): Promise<void> {
+  if (!client.hasBoardCredential || client.defaults.principalKind === "agent") {
+    throw new Error("Wiki file fallback requires Board authorization [errorCode=BOARD_ACCESS_REQUIRED]");
+  }
+  await client.requestJson("GET", "/plugins");
+}
+
+async function wikiWriteWithFallback<T>(client: PaperclipApiClient, input: any, viaPlugin: () => Promise<T>, viaFile: () => T): Promise<T> {
   try {
     return await viaPlugin();
   } catch (error) {
     if (!isWikiWorkerDown(error)) throw error;
+    await assertWikiFileFallbackAuthorized(client);
     return viaFile();
   }
 }
@@ -291,6 +301,7 @@ async function wikiListPages(
     return result.data?.pages ?? [];
   } catch (error) {
     if (!isWikiWorkerDown(error)) throw error;
+    await assertWikiFileFallbackAuthorized(client);
     return wikiFileList(input);
   }
 }
@@ -316,6 +327,7 @@ async function wikiGetPage(
     return result.data ?? {};
   } catch (error) {
     if (!isWikiWorkerDown(error)) throw error;
+    await assertWikiFileFallbackAuthorized(client);
     const local = wikiFileGetPage(input);
     if (!local) throw new Error(`No such wiki page: ${input.path} [errorCode=NOT_FOUND]`);
     return local;
@@ -1477,7 +1489,7 @@ export function createToolDefinitions(client: PaperclipApiClient): ToolDefinitio
         expectedHash: z.string().trim().min(8).max(128),
         summary: z.string().trim().max(500).optional(),
       }),
-      async (input: any) => wikiWriteWithFallback(input,
+      async (input: any) => wikiWriteWithFallback(client, input,
         () => client.requestJson(
           "POST",
           `/plugins/${WIKI_PLUGIN_ID}/actions/write-page`,
@@ -1513,7 +1525,7 @@ export function createToolDefinitions(client: PaperclipApiClient): ToolDefinitio
             `Wiki page already exists: ${input.path}. Read it and use paperclipWikiProposeChange/paperclipWikiApplyChange to edit.`,
           );
         }
-        return wikiWriteWithFallback(input,
+        return wikiWriteWithFallback(client, input,
           () => client.requestJson(
             "POST",
             `/plugins/${WIKI_PLUGIN_ID}/actions/write-page`,
