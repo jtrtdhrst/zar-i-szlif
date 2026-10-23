@@ -144,11 +144,19 @@ export class PlasmicClient {
     if (!res.ok) {
       const body = (await res.text()).slice(0, 300);
       // WAB rotation/restart invalidates the cached session while the process
-      // stays up; re-authenticate once instead of reporting a false 403.
+      // stays up. A GET is safe to replay once after a fresh login; a write is
+      // not replayed implicitly because the first request may have committed.
+      const method = (init?.method ?? "GET").toUpperCase();
+      const replaySafe = method === "GET" || method === "HEAD";
       const sessionLost =
         res.status === 401 ||
         (res.status === 403 && /must be a normal user/i.test(body));
-      if (!retriedAuth && !this.authenticating && sessionLost &&
+      if (sessionLost && !this.authenticating && !replaySafe) {
+        throw new Error(
+          `Plasmic ${res.status} ${path}: session lost during ${method}; re-authenticate and retry the write explicitly: ${body}`,
+        );
+      }
+      if (!retriedAuth && !this.authenticating && sessionLost && replaySafe &&
           this.opts.email && this.opts.password) {
         this.loggedIn = false;
         await this.login();

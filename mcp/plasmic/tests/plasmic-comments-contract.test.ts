@@ -188,6 +188,35 @@ test("expired WAB session re-authenticates once and retries the read", async () 
   assert.equal(commentsCalls, 2, "the read is retried exactly once");
 });
 
+test("expired session on a write is not transparently replayed", async () => {
+  let posts = 0;
+  let logins = 0;
+  const client = new PlasmicClient({
+    baseUrl: "https://wab.fixture.invalid",
+    email: "agent@example.invalid",
+    password: "not-a-real-secret",
+    fetchImpl: async (input, init) => {
+      const path = new URL(String(input)).pathname;
+      const method = (init?.method ?? "GET").toUpperCase();
+      if (path === "/api/v1/auth/csrf") {
+        return new Response(JSON.stringify({ csrf: "csrf" }), { status: 200 });
+      }
+      if (path === "/api/v1/auth/login") {
+        logins++;
+        return new Response(JSON.stringify({ status: true }), { status: 200 });
+      }
+      if (path === "/api/v1/projects" && method === "POST") {
+        posts++;
+        return new Response(JSON.stringify({ error: { message: "Must be a normal user" } }), { status: 403 });
+      }
+      throw new Error(`unexpected ${method} ${path}`);
+    },
+  });
+  await assert.rejects(client.createProject("x"), /session lost during POST/);
+  assert.equal(posts, 1, "a possibly committed write must never be replayed");
+  assert.equal(logins, 1, "only the initial explicit login ran");
+});
+
 test("a permanent authorization denial is retried once and still fails", async () => {
   let commentsCalls = 0;
   const client = new PlasmicClient({
