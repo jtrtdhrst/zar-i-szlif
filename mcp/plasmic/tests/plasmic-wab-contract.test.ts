@@ -79,8 +79,17 @@ test("Plasmic design branches use native WAB REST, not GitHub", async () => {
   assert.equal(requests.filter((r) => r.method === "POST").length, 1);
   assert.deepEqual(requests.find((r) => r.method === "POST")?.body,
     { name: "mcp-preview", base: "latest" });
+  // WAB base:new can publish the project; reject this before POST.
+  await assert.rejects(
+    client.createBranch("project-1", "unsafe", { base: "new" } as never),
+    /BRANCH_BASE_FORBIDDEN/,
+  );
+  const safe = await client.createBranch("project-1", "safe-default");
+  assert.equal(safe.branch.name, "safe-default");
+  assert.deepEqual(requests.filter((r) => r.method === "POST").at(-1)?.body,
+    { name: "safe-default", base: "latest" });
   await assert.rejects(client.createBranch("project-1", "mcp-preview"), /BRANCH_EXISTS/);
-  assert.equal(requests.filter((r) => r.method === "POST").length, 1);
+  assert.equal(requests.filter((r) => r.method === "POST").length, 2);
   await assert.rejects(
     client.createBranch("project-1", "second", { sourceBranchId: "a", base: "latest" }),
     /INVALID_BRANCH_BASE/,
