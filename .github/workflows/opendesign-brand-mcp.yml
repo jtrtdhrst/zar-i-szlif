@@ -80,3 +80,24 @@ jobs:
           cache-to: type=gha,mode=max
           provenance: mode=max
           sbom: true
+      # Release-lane defect: the VPS has no GHCR read:packages credential, so
+      # the private pushed image cannot be pulled there. Ship the exact CI image
+      # as a private, short-lived workflow artifact; the VPS verifies its image
+      # ID against the value logged here before loading it.
+      - name: Record immutable image identity
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+        run: |
+          set -euo pipefail
+          image="ghcr.io/miloszspyrka-code/kompas-zbiorek-opendesign-mcp:${GITHUB_SHA}"
+          docker pull "$image"
+          docker image inspect "$image" --format 'IMAGE_ID={{.Id}}'
+          docker image inspect "$image" --format 'REPO_DIGESTS={{json .RepoDigests}}'
+          docker save "$image" | gzip -1 > "/tmp/plasmic-mcp-${GITHUB_SHA}.tar.gz"
+          sha256sum "/tmp/plasmic-mcp-${GITHUB_SHA}.tar.gz"
+      - name: Upload immutable image artifact
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+        uses: actions/upload-artifact@v4
+        with:
+          name: plasmic-mcp-image-${{ github.sha }}
+          path: /tmp/plasmic-mcp-${{ github.sha }}.tar.gz
+          retention-days: 3
