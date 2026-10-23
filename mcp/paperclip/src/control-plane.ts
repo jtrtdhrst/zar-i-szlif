@@ -10,6 +10,13 @@ import {
   CRITICAL_VALIDATE_DAG,
 } from "./critical-notice.js";
 import { assertTaskSessionWorkspaceIsolation } from "./workspace-isolation.js";
+import {
+  allowNativeCheckout,
+  confirmedIssueBoundRuns,
+  hasFalseInProgress,
+  isNativeReviewPending,
+  nativeRetryRouteMissing,
+} from "./execution-truth.js";
 
 // 1012 compat (MCP-side): /control-plane-revision was removed upstream.
 // Fall back to a synthetic token derived from the company issueCounter.
@@ -705,10 +712,10 @@ function runTools(client: PaperclipApiClient): ControlPlaneToolDefinition[] {
         const status = issueStatusOf(issue);
         const workflow = isRecord(issue.executionState) ? issue.executionState : null;
         // force may override dependency gating, NEVER an active native review.
-        if (status === "in_review" || (workflow?.status === "pending" && workflow?.currentStageType === "review")) {
+        if (isNativeReviewPending(status, workflow)) {
           return { woke: false, issueId, status, reason: "review_pending_no_checkout", currentStageId: workflow?.currentStageId ?? null, verified: true };
         }
-        if (status === "in_progress" && liveCount === 0) {
+        if (hasFalseInProgress(status, liveRuns)) {
           return { woke: false, issueId, status, reason: "false_progress_requires_reconciliation", verified: true };
         }
         if (!force && (status === "blocked" || blockerCount > 0 || hold)) {
@@ -730,9 +737,7 @@ function runTools(client: PaperclipApiClient): ControlPlaneToolDefinition[] {
         // Checkout may commit in_progress while scheduler skips the wake.
         // The acknowledgement is NOT proof of an issue-bound queued/running run.
         const issueBound = await getJsonOrNull(client, `/issues/${enc(issueId)}/live-runs`);
-        const confirmedRuns = Array.isArray(issueBound)
-          ? issueBound.filter((r) => isRecord(r) && (r.status === "running" || r.status === "queued"))
-          : [];
+        const confirmedRuns = confirmedIssueBoundRuns(issueBound);
         return {
           woke: confirmedRuns.length > 0, verified: confirmedRuns.length > 0,
           checkoutAccepted: true, issueId, agentId: resolvedAgent, forced: force,
@@ -795,8 +800,8 @@ async function getEligibility(client: PaperclipApiClient, issueId: string): Prom
   if (status === "blocked" && blockerList.length === 0 && !hold) reasons.push("blocked_but_zero_blockers");
   if (status === "blocked") reasons.push("status_blocked");
   if (status === "in_review") reasons.push("review_pending");
-  if (executionState?.status === "pending" && executionState?.currentStageType === "review") reasons.push("review_stage_pending");
-  if (status === "in_progress" && liveList.length === 0) reasons.push("false_progress_no_issue_run");
+  if (isNativeReviewPending(status, executionState) && status !== "in_review") reasons.push("review_stage_pending");
+  if (hasFalseInProgress(status, liveList)) reasons.push("false_progress_no_issue_run");
   if (status !== "todo" && status !== "backlog" && status !== "in_progress" && status !== "in_review" && status !== "blocked" && status !== "done" && status !== "cancelled") reasons.push("not_executable_status");
   if (blockerList.length > 0) reasons.push(`blocked_by_${blockerList.length}`);
   if (hold) reasons.push("execution_hold");
@@ -2789,11 +2794,9 @@ async function checkoutWake(
   if (!agent) return { woke: false, issueId, reason: "no assigneeAgentId and no session agent" };
   const workflow = isRecord(issue.executionState) ? issue.executionState : null;
   const status = issueStatusOf(issue);
-  if (status === "in_review" || (workflow?.status === "pending" && workflow?.currentStageType === "review")) {
-    return { woke: false, issueId, reason: "review_pending_no_checkout", status };
-  }
-  if (status !== "todo" && status !== "backlog") {
-    return { woke: false, issueId, reason: "not_checkout_ready", status };
+  const checkoutGate = allowNativeCheckout(status, workflow, null);
+  if (!checkoutGate.allowed) {
+    return { woke: false, issueId, reason: checkoutGate.reason, status };
   }
   try {
     const checkout = await client.requestJson("POST", `/issues/${enc(issueId)}/checkout`, {
@@ -2802,7 +2805,7 @@ async function checkoutWake(
       ...auth,
     });
     const live = await getJsonOrNull(client, `/issues/${enc(issueId)}/live-runs`);
-    const confirmed = Array.isArray(live) ? live.filter((r) => isRecord(r) && (r.status === "running" || r.status === "queued")) : [];
+    const confirmed = confirmedIssueBoundRuns(live);
     return {
       woke: confirmed.length > 0, verified: confirmed.length > 0,
       checkoutAccepted: true, issueId, agentId: agent, checkout,
@@ -3435,7 +3438,7 @@ async function getExecutionStateCompat(client: PaperclipApiClient, issueId: stri
   const pendingInteractions = pendingOf(interactions);
   const blockedByRaw = Array.isArray(issueRec.blockedBy) ? issueRec.blockedBy : null;
   const workflow = isRecord(issueRec.executionState) ? issueRec.executionState : null;
-  const reviewPending = workflow?.status === "pending" && workflow?.currentStageType === "review";
+  const reviewPending = isNativeReviewPending(status, workflow);
   const warnings: string[] = ["native /issues/:id/execution-state route absent in Paperclip 2026.1012.0; projection from heartbeat-context/live-runs/approvals/interactions/recovery-actions"];
   let unresolvedBlockerCount: number | null = null;
   if (blockedByRaw === null) warnings.push("blockedBy projection absent on issue record; unresolvedBlockerCount unverified");
@@ -3535,8 +3538,7 @@ function deliveryCycleToolsPartA(client: PaperclipApiClient): ControlPlaneToolDe
         } catch (error) {
           // Removed in Paperclip 2026.1012.0. Fail closed, never blind-retry,
           // and do not mistake a compatibility 404 for an eligible retry.
-          const message = error instanceof Error ? error.message : String(error);
-          if (!/(404|UPSTREAM_NOT_FOUND|API route not found)/i.test(message)) throw error;
+          if (!nativeRetryRouteMissing(error)) throw error;
           return { issueId, retried: false, circuitOpen: true, retryReason: "native_retry_eligibility_unavailable", nativeRouteAbsent: true, before: pickIssueShort(before), operatorRunId: op };
         }
         if (elig.retryEligible !== true) {
