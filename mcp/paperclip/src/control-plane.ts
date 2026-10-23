@@ -3181,6 +3181,14 @@ function operatorCompositeTools(client: PaperclipApiClient): ControlPlaneToolDef
           client.requestJson<Record<string, unknown>>("GET", `/issues/${enc(issueId)}`),
           relationalBlockerEntries(client, issueId),
         ]);
+        // Native pending review is an independent stage. Do not demote it with
+        // any combination of manual status, dependency patch, or wake.
+        if (isNativeReviewPending(issueStatusOf(before), before.executionState)) {
+          return {
+            issueId, woke: false, reason: "review_pending_no_manual_status_or_wake",
+            before: pickIssueShort(before),
+          };
+        }
         const removeResolved = resolveBlockerRefs(beforeRel.entries, removeBlockerIds);
         const removeSet = new Set([...removeBlockerIds, ...removeResolved]);
         const base = beforeRel.unavailable ? blockedByIdsOf(before) : beforeRel.entries.map((e) => e.id);
