@@ -453,6 +453,7 @@ export function plasmicTools(ctx: PlasmicCtx): ToolDef[] {
             key,
             async () => {
               const fixture = loadFixture("comp-template.json");
+              let createdId: string | null = null;
               const out = await c.mutate(
                 a.projectId as string,
                 a.branchId as string | undefined,
@@ -460,6 +461,7 @@ export function plasmicTools(ctx: PlasmicCtx): ToolDef[] {
                   const { map, rootComponentIid, arenaIid, arenaType } = cloneFixture(fixture, {
                     name: a.name as string,
                   });
+                  createdId = rootComponentIid;
                   const siteEntry = Object.entries(bundle.map).find(
                     ([, v]) => (v as Record<string, unknown>).__type === "Site",
                   );
@@ -486,7 +488,7 @@ export function plasmicTools(ctx: PlasmicCtx): ToolDef[] {
                 },
                 { dryRun: a.dryRun as boolean | undefined },
               );
-              return { ...out, id: (out.changed[0] as string) ?? null };
+              return { ...out, id: createdId };
             }),
         );
         return result;
