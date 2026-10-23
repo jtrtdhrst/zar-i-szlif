@@ -1,0 +1,116 @@
+import assert from "node:assert/strict";
+import test from "node:test";
+import { PlasmicClient } from "../libs/plasmic-client/client.ts";
+
+// Contract tests against the REST routes in plasmicapp/plasmic:
+// platform/wab/src/wab/server/AppServer.ts and routes/projects.ts.
+// No network access, credentials or real project mutations required.
+function mockWab() {
+  const requests: Array<{ method: string; path: string; body?: Record<string, unknown> }> = [];
+  const branches: Array<{ id: string; name: string }> = [];
+  let revision = 4;
+  let bundle = {
+    version: "fixture",
+    root: "root",
+    deps: [],
+    map: { root: { __type: "Site", name: "Test site" } } as Record<string, Record<string, unknown>>,
+  };
+  let suppressReadback = false;
+  const json = (data: unknown, status = 200) =>
+    new Response(JSON.stringify(data), {
+      status, headers: { "content-type": "application/json" },
+    });
+  const fetchImpl: typeof fetch = async (input, init) => {
+    const url = new URL(String(input));
+    const method = init?.method ?? "GET";
+    const body = init?.body ? JSON.parse(String(init.body)) as Record<string, unknown> : undefined;
+    requests.push({ method, path: url.pathname, body });
+    assert.equal((init?.headers as Record<string, string>)?.["x-plasmic-team-token"], "test-token");
+    const project = "/api/v1/projects/project-1";
+    if (url.pathname === project + "/branches") {
+      if (method === "GET") return json({ branches });
+      if (method === "POST") {
+        const name = body?.name;
+        if (typeof name !== "string") return json({ error: "bad name" }, 400);
+        const created = { id: `branch-${branches.length + 1}`, name };
+        branches.push(created);
+        return json({ branch: created });
+      }
+    }
+    if (url.pathname === project + "/merge" && method === "POST") {
+      return json({ status: "can be merged", pretend: body?.pretend });
+    }
+    if (url.pathname === project && method === "GET") {
+      return json({
+        project: { id: "project-1", name: "Fixture" },
+        rev: { id: "revision", revision, data: JSON.stringify(bundle) },
+        modelVersion: 1, hostlessDataVersion: 1,
+      });
+    }
+    if (url.pathname === project + "/revisions/5" && method === "POST") {
+      assert.equal(body?.incremental, true);
+      const patch = JSON.parse(String(body?.data)) as typeof bundle;
+      if (!suppressReadback) {
+        revision = 5;
+        bundle = { ...bundle, map: { ...bundle.map, ...patch.map } };
+      }
+      return json({ revision: 5 });
+    }
+    return json({ error: "unmocked route", path: url.pathname }, 404);
+  };
+  const client = new PlasmicClient({
+    baseUrl: "https://wab.example.test",
+    teamToken: "test-token", fetchImpl,
+  });
+  return { client, requests, setSuppressReadback: (v: boolean) => { suppressReadback = v; } };
+}
+
+test("Plasmic design branches use native WAB REST, not GitHub", async () => {
+  const { client, requests } = mockWab();
+  assert.deepEqual((await client.listBranches("project-1")).branches, []);
+  const result = await client.createBranch("project-1", "mcp-preview", { base: "latest" });
+  assert.equal(result.branch.name, "mcp-preview");
+  assert.equal((await client.listBranches("project-1")).branches.length, 1);
+  assert.equal(requests.filter((r) => r.method === "POST").length, 1);
+  assert.deepEqual(requests.find((r) => r.method === "POST")?.body,
+    { name: "mcp-preview", base: "latest" });
+  await assert.rejects(client.createBranch("project-1", "mcp-preview"), /BRANCH_EXISTS/);
+  assert.equal(requests.filter((r) => r.method === "POST").length, 1);
+  await assert.rejects(
+    client.createBranch("project-1", "second", { sourceBranchId: "a", base: "latest" }),
+    /INVALID_BRANCH_BASE/,
+  );
+});
+
+test("merge preview is WAB pretend=true without a commit", async () => {
+  const { client, requests } = mockWab();
+  const result = await client.previewMerge("project-1", "feature", "main");
+  assert.deepEqual(result, { status: "can be merged", pretend: true });
+  assert.deepEqual(requests.find((r) => r.path.endsWith("/merge"))?.body, {
+    subject: { fromBranchId: "feature", toBranchId: "main" },
+    pretend: true, autoCommitOnToBranch: false,
+  });
+  await assert.rejects(client.previewMerge("project-1", "main", "main"), /INVALID_MERGE_BRANCHES/);
+});
+
+test("incremental write verifies saved state through a fresh read", async () => {
+  const { client, requests } = mockWab();
+  const result = await client.mutate("project-1", undefined, () => ({
+    map: { child: { __type: "TplTag", name: "Child" } },
+  }));
+  assert.equal(result.revision, 5);
+  assert.equal(result.dryRun, false);
+  assert.ok(requests.some((r) => r.path.endsWith("/revisions/5")));
+  assert.equal(requests.filter((r) => r.method === "GET" && r.path === "/api/v1/projects/project-1").length, 2);
+});
+
+test("unverified write fails closed and requests inspection instead of silent success", async () => {
+  const { client, setSuppressReadback } = mockWab();
+  setSuppressReadback(true);
+  await assert.rejects(
+    client.mutate("project-1", undefined, () => ({
+      map: { child: { __type: "TplTag", name: "Child" } },
+    })),
+    /WRITE_READBACK_UNVERIFIED/,
+  );
+});
