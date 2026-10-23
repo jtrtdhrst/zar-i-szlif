@@ -17,6 +17,10 @@ const DESIGN_STACK_ROOT = join(dirname(fileURLToPath(import.meta.url)), "..");
 
 /** Manifest agent-visible plasmic-mcp (kontrakt publiczny). */
 const EXPECTED_TOOLS = [
+  "plasmic_list_projects",
+  "plasmic_list_branches",
+  "plasmic_create_branch",
+  "plasmic_preview_merge",
   "plasmic_get_project",
   "plasmic_list_pages",
   "plasmic_list_components",
@@ -38,6 +42,9 @@ const EXPECTED_TOOLS = [
 
 /** Narzędzia tylko do odczytu — nie zmieniają projektu Plasmic. */
 const READ_ONLY_TOOLS = [
+  "plasmic_list_projects",
+  "plasmic_list_branches",
+  "plasmic_preview_merge",
   "plasmic_get_project",
   "plasmic_list_pages",
   "plasmic_list_components",
@@ -51,6 +58,7 @@ const READ_ONLY_TOOLS = [
 
 /** Narzędzia zapisujące — platforma musi je widzieć jako zmiany. */
 const WRITE_TOOLS = [
+  "plasmic_create_branch",
   "plasmic_create_page",
   "plasmic_create_component",
   "plasmic_insert",
@@ -160,14 +168,14 @@ async function withServer<T>(
 }
 
 describe("KOMAA-1001: katalog MCP == tools/list żywego serwera", () => {
-  it("tools/list zwraca dokładnie 17 narzędzi zgodnych z kontraktem", async () => {
+  it("tools/list zwraca dokładnie 21 narzędzi zgodnych z kontraktem", async () => {
     const tools = await withServer(async (client) => {
       const res = await client.request("tools/list", {});
       assert.ok(res.result, `tools/list nie powiodło się: ${JSON.stringify(res.error)}`);
       return (res.result.tools ?? []).map((t) => t.name);
     });
     assert.deepEqual(tools.sort(), [...EXPECTED_TOOLS].sort());
-    assert.equal(tools.length, 17);
+    assert.equal(tools.length, EXPECTED_TOOLS.length);
   });
 
   it("negatyw na poziomie protokołu: serwer odrzuca plasmic_import_html", async () => {
@@ -196,7 +204,7 @@ describe("KOMAA-1001: katalog MCP == tools/list żywego serwera", () => {
       assert.ok(res.result, `tools/list nie powiodło się: ${JSON.stringify(res.error)}`);
       return res.result.tools ?? [];
     });
-    assert.equal(tools.length, 17);
+    assert.equal(tools.length, EXPECTED_TOOLS.length);
     for (const t of tools) {
       assert.ok(t.annotations, `${t.name}: brak adnotacji MCP — platforma nie sklasyfikuje narzędzia`);
     }
