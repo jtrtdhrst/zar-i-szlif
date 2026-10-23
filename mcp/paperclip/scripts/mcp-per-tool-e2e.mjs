@@ -20,6 +20,7 @@
  * Never prints credentials.
  */
 import assert from "node:assert/strict";
+import { createHash } from "node:crypto";
 import { writeFileSync } from "node:fs";
 
 const origins = (process.env.MCP_E2E_ORIGINS || "https://paperclip-mcp.kompaszbiorek.pl")
@@ -89,7 +90,7 @@ function unwrap(reply) {
 }
 
 async function forOrigin(origin) {
-  const record = { initialized: false, tools: 0, invoked: [], typedErrors: [], schemaOnly: 0, problems: [] };
+  const record = { initialized: false, tools: 0, toolDigest: null, invoked: [], typedErrors: [], schemaOnly: 0, counts: { PASS: 0, EXPECTED_DENY: 0, UNTESTED: 0, FAIL: 0 }, rows: [], problems: [] };
   report.origins[origin] = record;
 
   const denial = await rpc(origin, "initialize", {
@@ -109,9 +110,16 @@ async function forOrigin(origin) {
   assert.equal(list.status, 200, `tools/list failed on ${origin}`);
   const tools = list.payload?.result?.tools ?? [];
   record.tools = tools.length;
+  record.toolDigest = createHash("sha256")
+    .update(JSON.stringify(tools.map((tool) => [tool.name, tool.inputSchema]).sort((a, b) => String(a[0]).localeCompare(String(b[0])))))
+    .digest("hex");
   assert.ok(tools.length >= expectedTools, `registry shrank: ${tools.length} < ${expectedTools} on ${origin}`);
 
   const seen = new Set();
+  const verdict = (name, value, detail) => {
+    record.rows.push({ name, verdict: value, ...(detail ? { detail: String(detail).slice(0, 240) } : {}) });
+    record.counts[value] += 1;
+  };
   for (const tool of tools) {
     if (!tool?.name || seen.has(tool.name)) record.problems.push(`duplicate/empty tool name: ${tool?.name}`);
     else seen.add(tool.name);
@@ -121,8 +129,13 @@ async function forOrigin(origin) {
     if (typeof tool?.description !== "string" || tool.description.length < 10) {
       record.problems.push(`missing description: ${tool?.name}`);
     }
-    if (!READ_ONLY.test(tool?.name ?? "")) {
+    if (!tool?.name || !tool?.inputSchema || tool.inputSchema.type !== "object") {
+      verdict(tool?.name ?? "(missing)", "FAIL", "schema");
+      continue;
+    }
+    if (!READ_ONLY.test(tool.name)) {
       record.schemaOnly += 1;
+      verdict(tool.name, "UNTESTED", "mutation/schema-only");
       continue;
     }
     // Dispatch proof: real success OR a typed tool error (validation/auth/
@@ -133,12 +146,19 @@ async function forOrigin(origin) {
         arguments: FIXTURE_ARGS[tool.name] ?? {},
       }));
       record.invoked.push(tool.name);
+      verdict(tool.name, "PASS", "read-only dispatch");
     } catch (error) {
       const message = String(error.message || error);
       if (/unknown tool|method not found|not registered|does not exist/i.test(message)) {
         record.problems.push(`${tool.name}: not dispatched (${message.slice(0, 120)})`);
+        verdict(tool.name, "FAIL", message);
       } else {
         record.typedErrors.push({ name: tool.name, error: message.slice(0, 120) });
+        if (/PERMISSION_DENIED|CONFIGURATION_MISSING|BOARD_REQUIRED|AUTHORIZATION|Board credential|forbidden/i.test(message)) {
+          verdict(tool.name, "EXPECTED_DENY", message);
+        } else {
+          verdict(tool.name, "UNTESTED", message);
+        }
       }
     }
   }
@@ -152,7 +172,8 @@ let failed = false;
 for (const origin of origins) {
   try {
     await forOrigin(origin);
-    console.log(`[per-tool-e2e] ${origin}: PASS (${report.origins[origin].tools} tools, ${report.origins[origin].invoked.length} read-only invoked, ${report.origins[origin].typedErrors.length} typed errors)`);
+    const r = report.origins[origin];
+    console.log(`[per-tool-e2e] ${origin}: PASS (${r.tools} tools, digest ${r.toolDigest.slice(0, 12)}, ${JSON.stringify(r.counts)})`);
   } catch (error) {
     failed = true;
     console.error(`[per-tool-e2e] ${origin}: FAIL ${String(error.message || error)}`);
