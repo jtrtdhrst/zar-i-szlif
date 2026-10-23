@@ -28,15 +28,22 @@ function setOutput(key, value) {
   if (process.env.GITHUB_OUTPUT) fs.appendFileSync(process.env.GITHUB_OUTPUT, `${key}=${value}\n`);
 }
 
-function checkoutBranch() {
-  const current = execFileSync("git", ["rev-parse", "--abbrev-ref", "HEAD"], {
+function currentRef() {
+  return execFileSync("git", ["rev-parse", "--abbrev-ref", "HEAD"], {
     cwd: workspace,
     encoding: "utf8",
   }).trim();
-  if (current === branch) return;
+}
+
+function checkoutRef(ref) {
+  if (currentRef() === ref) return;
+  sh("git", ["checkout", ref], { cwd: workspace });
+}
+
+function checkoutBranch() {
   // Studio dispatches with the default branch checked out; the app directory
   // usually lives on the project's publish branch (e.g. product/www).
-  sh("git", ["checkout", branch], { cwd: workspace });
+  checkoutRef(branch);
 }
 
 function ensureWorkspace() {
@@ -88,11 +95,16 @@ function commitAndPush() {
 }
 
 try {
+  const initialRef = currentRef();
   checkoutBranch();
   ensureWorkspace();
   if (run === "init") {
     const hasApp = fs.existsSync(path.join(cwd, "package.json"));
     console.log(hasApp ? "Detected existing app. Moving forward..." : "No app scaffold; sync will initialize Plasmic config.");
+    // GitHub loads the next local-action step from the worktree, so leave it on
+    // the dispatch branch; otherwise the action must be mirrored to every
+    // publish branch.
+    checkoutRef(initialRef);
     setOutput("synced", "false");
   } else if (run === "sync") {
     install();
