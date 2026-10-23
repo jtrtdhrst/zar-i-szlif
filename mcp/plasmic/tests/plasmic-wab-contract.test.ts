@@ -16,6 +16,7 @@ function mockWab() {
     map: { root: { __type: "Site", name: "Test site" } } as Record<string, Record<string, unknown>>,
   };
   let suppressReadback = false;
+  let tamperReadback = false;
   const json = (data: unknown, status = 200) =>
     new Response(JSON.stringify(data), {
       status, headers: { "content-type": "application/json" },
@@ -53,6 +54,9 @@ function mockWab() {
       if (!suppressReadback) {
         revision = 5;
         bundle = { ...bundle, map: { ...bundle.map, ...patch.map } };
+        if (tamperReadback && bundle.map.child) {
+          bundle.map.child = { ...bundle.map.child, name: "Unexpected server value" };
+        }
       }
       return json({ revision: 5 });
     }
@@ -62,7 +66,8 @@ function mockWab() {
     baseUrl: "https://wab.example.test",
     teamToken: "test-token", fetchImpl,
   });
-  return { client, requests, setSuppressReadback: (v: boolean) => { suppressReadback = v; } };
+  return { client, requests, setSuppressReadback: (v: boolean) => { suppressReadback = v; },
+    setTamperReadback: (v: boolean) => { tamperReadback = v; } };
 }
 
 test("Plasmic design branches use native WAB REST, not GitHub", async () => {
@@ -110,6 +115,17 @@ test("unverified write fails closed and requests inspection instead of silent su
   await assert.rejects(
     client.mutate("project-1", undefined, () => ({
       map: { child: { __type: "TplTag", name: "Child" } },
+    })),
+    /WRITE_READBACK_UNVERIFIED/,
+  );
+});
+
+test("readback rejects changed field values even when revision advances", async () => {
+  const { client, setTamperReadback } = mockWab();
+  setTamperReadback(true);
+  await assert.rejects(
+    client.mutate("project-1", undefined, () => ({
+      map: { child: { __type: "TplTag", name: "Expected" } },
     })),
     /WRITE_READBACK_UNVERIFIED/,
   );
