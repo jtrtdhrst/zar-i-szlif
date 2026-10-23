@@ -131,9 +131,9 @@ describe("wiki tools fall back to the managed file store", () => {
     vi.spyOn(api, "requestJson").mockRejectedValue(new Error(missing));
     await expect(run("paperclipWikiList", api, {})).rejects.toThrow(/CONFIGURATION_MISSING/);
     await expect(run("paperclipWikiApplyChange", api, {
-      path: "wiki/index.md", contents: "unauthorized write", expectedHash: sha("no heading here\\n"),
+      path: "wiki/index.md", contents: "unauthorized write", expectedHash: sha("no heading here\n"),
     })).rejects.toThrow(/CONFIGURATION_MISSING/);
-    expect(readFileSync(join(root, "wiki", "index.md"), "utf8")).toBe("no heading here\\n");
+    expect(readFileSync(join(root, "wiki", "index.md"), "utf8")).toBe("no heading here\n");
   });
 
   it("does not use filesystem fallback when Board proof returns 403", async () => {
@@ -143,9 +143,9 @@ describe("wiki tools fall back to the managed file store", () => {
       throw new Error(WORKER_DOWN);
     });
     await expect(run("paperclipWikiApplyChange", api, {
-      path: "wiki/index.md", contents: "unauthorized write", expectedHash: sha("no heading here\\n"),
+      path: "wiki/index.md", contents: "unauthorized write", expectedHash: sha("no heading here\n"),
     })).rejects.toThrow(/403/);
-    expect(readFileSync(join(root, "wiki", "index.md"), "utf8")).toBe("no heading here\\n");
+    expect(readFileSync(join(root, "wiki", "index.md"), "utf8")).toBe("no heading here\n");
   });
 
   it("reports NOT_FOUND for a missing page", async () => {
