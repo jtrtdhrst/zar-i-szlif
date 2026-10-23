@@ -53,6 +53,17 @@ test("plasmic_create_branch serializes competing calls and dedupes completed ret
     const third = await tool.handler(payload) as { deduped: boolean };
     assert.equal(third.deduped, true);
     assert.equal(posts.length, 1);
+    // Reusing a successful key with different arguments is a conflict, not
+    // an accidental "success" pointing to someone else's branch.
+    await assert.rejects(
+      tool.handler({ ...payload, name: "different-feature" }),
+      /IDEMPOTENCY_CONFLICT/,
+    );
+    await assert.rejects(
+      tool.handler({ ...payload, sourceBranchId: "other-source" }),
+      /IDEMPOTENCY_CONFLICT/,
+    );
+    assert.equal(posts.length, 1);
   } finally {
     await rm(dir, { recursive: true, force: true });
   }
