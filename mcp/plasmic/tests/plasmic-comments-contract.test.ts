@@ -42,7 +42,7 @@ function setup(body: unknown = fixture(), status = 200) {
       const url = new URL(String(input));
       const headers = init?.headers as Record<string, string>;
       requests.push({
-        url: url.pathname,
+        url: decodeURIComponent(url.pathname),
         method: init?.method ?? "GET",
         token: headers?.["x-plasmic-team-token"],
       });
@@ -66,7 +66,7 @@ test("read-only WAB comments are scoped to project main or exact Plasmic design 
   await client.getComments("project-1", "feature-branch");
   assert.deepEqual(requests.map((r) => r.url), [
     "/api/v1/comments/project-1",
-    "/api/v1/comments/project-1.feature-branch",
+    "/api/v1/comments/project-1@feature-branch",
   ]);
   assert.ok(requests.every((r) => r.method === "GET"));
   assert.ok(requests.every((r) => r.token === "test-token-no-production-secret"));
@@ -136,4 +136,79 @@ test("403 or wrong WAB comments shape fails closed; no empty success invented", 
     threads: [{ id: "broken", resolved: false, comments: [], location: { subject: { iid: "x" }, variants: [] } }],
   });
   await assert.rejects(badLoc.element.handler({ projectId: "p", elementIid: "x" }), /COMMENTS_RESPONSE_INVALID/);
+});
+
+test("branch-scoped project reads use the real WAB @ separator", async () => {
+  const seen: string[] = [];
+  const client = new PlasmicClient({
+    baseUrl: "https://wab.fixture.invalid",
+    teamToken: "test-token",
+    fetchImpl: async (input) => {
+      const url = new URL(String(input));
+      seen.push(decodeURIComponent(url.pathname));
+      return new Response(JSON.stringify({
+        rev: { id: "rev-1", revision: 7, data: JSON.stringify({ map: {} }) },
+        project: { id: "project-1", name: "P" },
+      }), { status: 200, headers: { "content-type": "application/json" } });
+    },
+  });
+  await client.getProjectRev("project-1", "feature-branch");
+  assert.deepEqual(seen, ["/api/v1/projects/project-1@feature-branch"]);
+});
+
+test("expired WAB session re-authenticates once and retries the read", async () => {
+  let commentsCalls = 0;
+  let logins = 0;
+  const client = new PlasmicClient({
+    baseUrl: "https://wab.fixture.invalid",
+    email: "agent@example.invalid",
+    password: "not-a-real-secret",
+    fetchImpl: async (input) => {
+      const path = new URL(String(input)).pathname;
+      if (path === "/api/v1/auth/csrf") {
+        return new Response(JSON.stringify({ csrf: "csrf" }), { status: 200 });
+      }
+      if (path === "/api/v1/auth/login") {
+        logins++;
+        return new Response(JSON.stringify({ status: true }), { status: 200 });
+      }
+      if (path === "/api/v1/comments/project-1") {
+        commentsCalls++;
+        if (commentsCalls === 1) {
+          return new Response(JSON.stringify({ error: { message: "Must be a normal user" } }), { status: 403 });
+        }
+        return new Response(JSON.stringify(fixture()), { status: 200 });
+      }
+      throw new Error(`unexpected ${path}`);
+    },
+  });
+  const res = await client.getComments("project-1");
+  assert.equal(res.threads.length, 2);
+  assert.equal(logins, 2, "a lost session is replaced exactly once");
+  assert.equal(commentsCalls, 2, "the read is retried exactly once");
+});
+
+test("a permanent authorization denial is retried once and still fails", async () => {
+  let commentsCalls = 0;
+  const client = new PlasmicClient({
+    baseUrl: "https://wab.fixture.invalid",
+    email: "agent@example.invalid",
+    password: "not-a-real-secret",
+    fetchImpl: async (input) => {
+      const path = new URL(String(input)).pathname;
+      if (path === "/api/v1/auth/csrf") {
+        return new Response(JSON.stringify({ csrf: "csrf" }), { status: 200 });
+      }
+      if (path === "/api/v1/auth/login") {
+        return new Response(JSON.stringify({ status: true }), { status: 200 });
+      }
+      if (path === "/api/v1/comments/project-1") {
+        commentsCalls++;
+        return new Response(JSON.stringify({ error: { message: "Must be a normal user" } }), { status: 403 });
+      }
+      throw new Error(`unexpected ${path}`);
+    },
+  });
+  await assert.rejects(client.getComments("project-1"), /Plasmic 403/);
+  assert.equal(commentsCalls, 2, "no unbounded retry loop");
 });
