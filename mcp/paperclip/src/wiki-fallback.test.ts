@@ -1,5 +1,5 @@
-// 1012 compat regression: wiki tools must work when the llm-wiki plugin route
-// is unavailable (worker not built) or Board-gated for an agent principal.
+// 1012 compat regression: file fallback requires upstream Board authorization
+// and must never turn missing credentials into filesystem read/write access.
 import { createHash } from "node:crypto";
 import { mkdtempSync, mkdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
@@ -8,8 +8,7 @@ import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
 import { PaperclipApiClient } from "./client.js";
 import { createToolDefinitions } from "./tools.js";
 
-const BOARD_MISSING =
-  "POST /plugins/paperclipai.plugin-llm-wiki/data/pages requires an explicitly configured Board credential [errorCode=CONFIGURATION_MISSING]";
+const WORKER_DOWN = "POST /plugins/paperclipai.plugin-llm-wiki/data/pages failed with 502: worker not ready";
 
 const root = mkdtempSync(join(tmpdir(), "wiki-fallback-"));
 const sha = (value: string) => createHash("sha256").update(value, "utf8").digest("hex");
@@ -19,10 +18,11 @@ function client(): PaperclipApiClient {
     apiUrl: "http://127.0.0.1:3100/api",
     apiKey: "token-123",
     companyId: "11111111-1111-1111-1111-111111111111",
-    agentId: "22222222-2222-2222-2222-222222222222",
+    agentId: null,
     runId: null,
-    agentApiKey: "token-agent",
-    boardApiKey: null,
+    agentApiKey: null,
+    boardApiKey: "token-board",
+    principalKind: "board",
   });
 }
 
@@ -30,6 +30,13 @@ function tool(name: string, api: PaperclipApiClient) {
   const found = createToolDefinitions(api).find((candidate) => candidate.name === name);
   if (!found) throw new Error(`Missing tool ${name}`);
   return found;
+}
+
+function stubWorkerDown(api: PaperclipApiClient) {
+  return vi.spyOn(api, "requestJson").mockImplementation(async (method) => {
+    if (method === "GET") return [] as any; // Board /plugins proof
+    throw new Error(WORKER_DOWN);
+  });
 }
 
 // MCP tool results are envelopes: parse the JSON text payload (the tools do
@@ -56,9 +63,9 @@ afterAll(() => {
 });
 
 describe("wiki tools fall back to the managed file store", () => {
-  it("lists pages with titles when the plugin route is Board-gated", async () => {
+  it("lists pages with titles when the authorized plugin worker is down", async () => {
     const api = client();
-    vi.spyOn(api, "requestJson").mockRejectedValue(new Error(BOARD_MISSING));
+    stubWorkerDown(api);
     const result = await run("paperclipWikiList", api, { limit: 50 });
     const paths = result.data.pages.map((page: any) => page.path);
     expect(paths).toEqual(["wiki/concepts/routing.md", "wiki/index.md"]);
@@ -67,7 +74,7 @@ describe("wiki tools fall back to the managed file store", () => {
 
   it("searches paths/titles offline", async () => {
     const api = client();
-    vi.spyOn(api, "requestJson").mockRejectedValue(new Error(BOARD_MISSING));
+    stubWorkerDown(api);
     const result = await run("paperclipWikiSearch", api, { query: "routing" });
     expect(result.matchCount).toBe(1);
     expect(result.matches[0].path).toBe("wiki/concepts/routing.md");
@@ -75,7 +82,7 @@ describe("wiki tools fall back to the managed file store", () => {
 
   it("reads a page with its hash", async () => {
     const api = client();
-    vi.spyOn(api, "requestJson").mockRejectedValue(new Error(BOARD_MISSING));
+    stubWorkerDown(api);
     const result = await run("paperclipWikiGetPage", api, { path: "wiki/concepts/routing.md" });
     expect(result.data.contents).toContain("# Routing");
     expect(result.data.hash).toBe(sha("# Routing\n\nBody\n"));
@@ -83,7 +90,7 @@ describe("wiki tools fall back to the managed file store", () => {
 
   it("computes a dry-run diff against the file copy", async () => {
     const api = client();
-    vi.spyOn(api, "requestJson").mockRejectedValue(new Error(BOARD_MISSING));
+    stubWorkerDown(api);
     const result = await run("paperclipWikiProposeChange", api, {
       path: "wiki/concepts/routing.md",
       contents: "# Routing\n\nNew body\n",
@@ -95,7 +102,7 @@ describe("wiki tools fall back to the managed file store", () => {
 
   it("refuses a stale expectedHash and writes on a matching hash", async () => {
     const api = client();
-    vi.spyOn(api, "requestJson").mockRejectedValue(new Error(BOARD_MISSING));
+    stubWorkerDown(api);
     await expect(run("paperclipWikiApplyChange", api, {
       path: "wiki/concepts/routing.md",
       contents: "changed\n",
@@ -112,9 +119,38 @@ describe("wiki tools fall back to the managed file store", () => {
     expect(readFileSync(join(root, "wiki", "concepts", "routing.md"), "utf8")).toBe(next);
   });
 
+  it("does not bypass absent Board authority for reads or writes", async () => {
+    const api = new PaperclipApiClient({
+      apiUrl: "http://127.0.0.1:3100/api", apiKey: "agent",
+      companyId: "11111111-1111-1111-1111-111111111111",
+      agentId: "22222222-2222-2222-2222-222222222222",
+      runId: null, agentApiKey: "agent", boardApiKey: null,
+      principalKind: "agent",
+    });
+    const missing = "POST /plugins/paperclipai.plugin-llm-wiki/data/pages requires an explicitly configured Board credential [errorCode=CONFIGURATION_MISSING]";
+    vi.spyOn(api, "requestJson").mockRejectedValue(new Error(missing));
+    await expect(run("paperclipWikiList", api, {})).rejects.toThrow(/CONFIGURATION_MISSING/);
+    await expect(run("paperclipWikiApplyChange", api, {
+      path: "wiki/index.md", contents: "unauthorized write", expectedHash: sha("no heading here\\n"),
+    })).rejects.toThrow(/CONFIGURATION_MISSING/);
+    expect(readFileSync(join(root, "wiki", "index.md"), "utf8")).toBe("no heading here\\n");
+  });
+
+  it("does not use filesystem fallback when Board proof returns 403", async () => {
+    const api = client();
+    vi.spyOn(api, "requestJson").mockImplementation(async (method) => {
+      if (method === "GET") throw new Error("GET /plugins failed with 403: Board access required");
+      throw new Error(WORKER_DOWN);
+    });
+    await expect(run("paperclipWikiApplyChange", api, {
+      path: "wiki/index.md", contents: "unauthorized write", expectedHash: sha("no heading here\\n"),
+    })).rejects.toThrow(/403/);
+    expect(readFileSync(join(root, "wiki", "index.md"), "utf8")).toBe("no heading here\\n");
+  });
+
   it("reports NOT_FOUND for a missing page", async () => {
     const api = client();
-    vi.spyOn(api, "requestJson").mockRejectedValue(new Error(BOARD_MISSING));
+    stubWorkerDown(api);
     await expect(run("paperclipWikiGetPage", api, { path: "wiki/nope.md" }))
       .rejects.toThrow(/NOT_FOUND/);
   });
