@@ -10,6 +10,13 @@ import {
   CRITICAL_VALIDATE_DAG,
 } from "./critical-notice.js";
 import { assertTaskSessionWorkspaceIsolation } from "./workspace-isolation.js";
+import {
+  allowNativeCheckout,
+  confirmedIssueBoundRuns,
+  hasFalseInProgress,
+  isNativeReviewPending,
+  nativeRetryRouteMissing,
+} from "./execution-truth.js";
 
 // 1012 compat (MCP-side): /control-plane-revision was removed upstream.
 // Fall back to a synthetic token derived from the company issueCounter.
@@ -696,7 +703,19 @@ function runTools(client: PaperclipApiClient): ControlPlaneToolDefinition[] {
         const blockerCount = isRecord(blockers) && Array.isArray(blockers.blockers) ? blockers.blockers.length : 0;
         const liveCount = Array.isArray(liveRuns) ? liveRuns.length : 0;
         const hold = blockingHold(holdView);
-        if (!force && (issueStatusOf(issue) === "blocked" || blockerCount > 0 || hold)) {
+        const status = issueStatusOf(issue);
+        const workflow = isRecord(issue.executionState) ? issue.executionState : null;
+        // force may override dependency gating, NEVER an active native review.
+        if (isNativeReviewPending(status, workflow)) {
+          return { woke: false, issueId, status, reason: "review_pending_no_checkout", currentStageId: workflow?.currentStageId ?? null, verified: true };
+        }
+        if (hasFalseInProgress(status, liveRuns)) {
+          return { woke: false, issueId, status, reason: "false_progress_requires_reconciliation", verified: true };
+        }
+        if (confirmedIssueBoundRuns(liveRuns).length > 0) {
+          return { woke: false, issueId, status, reason: "issue_already_has_live_run", verified: true };
+        }
+        if (!force && (status === "blocked" || blockerCount > 0 || hold)) {
           return {
             woke: false, issueId, status: issueStatusOf(issue), blockerCount, executionHold: hold,
             reason: "Eligibility preflight failed (blocked/hold). Pass force:true to override (recorded), or clear the hold/blockers first.",
@@ -712,7 +731,17 @@ function runTools(client: PaperclipApiClient): ControlPlaneToolDefinition[] {
         if (note) {
           comment = await client.requestJson("POST", `/issues/${enc(issueId)}/comments`, { body: { body: note }, ...auth });
         }
-        return { woke: true, issueId, agentId: resolvedAgent, forced: force, liveRunsBefore: liveCount, checkout, commentPosted: Boolean(comment), operatorRunId: op };
+        // Checkout may commit in_progress while scheduler skips the wake.
+        // The acknowledgement is NOT proof of an issue-bound queued/running run.
+        const issueBound = await getJsonOrNull(client, `/issues/${enc(issueId)}/live-runs`);
+        const confirmedRuns = confirmedIssueBoundRuns(issueBound);
+        return {
+          woke: confirmedRuns.length > 0, verified: confirmedRuns.length > 0,
+          checkoutAccepted: true, issueId, agentId: resolvedAgent, forced: force,
+          reason: confirmedRuns.length > 0 ? "issue_run_observed" : "checkout_without_confirmed_issue_run",
+          liveRunsBefore: liveCount, liveRunsAfter: confirmedRuns,
+          checkout, commentPosted: Boolean(comment), operatorRunId: op,
+        };
       },
     ),
     makeTool(
@@ -762,7 +791,16 @@ async function getEligibility(client: PaperclipApiClient, issueId: string): Prom
   const blockerList: unknown[] = isRecord(blockers) && Array.isArray(blockers.blockers) ? blockers.blockers : blockedByIdsOf(issue);
   const liveList: unknown[] = Array.isArray(liveRuns) ? liveRuns : [];
   const reasons: string[] = [];
+  // KOMAA-841: a status label is not proof of a leased heartbeat run.
+  // Never classify review-pending or stale in_progress as runnable.
+  const executionState = isRecord(issue.executionState) ? issue.executionState : null;
   if (status === "blocked" && blockerList.length === 0 && !hold) reasons.push("blocked_but_zero_blockers");
+  if (status === "blocked") reasons.push("status_blocked");
+  if (status === "in_review") reasons.push("review_pending");
+  if (isNativeReviewPending(status, executionState) && status !== "in_review") reasons.push("review_stage_pending");
+  if (hasFalseInProgress(status, liveList)) reasons.push("false_progress_no_issue_run");
+  if (status === "in_progress" && confirmedIssueBoundRuns(liveList).length > 0) reasons.push("already_running_issue");
+  if (status !== "todo" && status !== "backlog" && status !== "in_progress" && status !== "in_review" && status !== "blocked" && status !== "done" && status !== "cancelled") reasons.push("not_executable_status");
   if (blockerList.length > 0) reasons.push(`blocked_by_${blockerList.length}`);
   if (hold) reasons.push("execution_hold");
   if (status === "done" || status === "cancelled") reasons.push(`terminal_${status}`);
@@ -2752,13 +2790,30 @@ async function checkoutWake(
     ? issue.assigneeAgentId
     : client.defaults.agentId;
   if (!agent) return { woke: false, issueId, reason: "no assigneeAgentId and no session agent" };
+  const workflow = isRecord(issue.executionState) ? issue.executionState : null;
+  const status = issueStatusOf(issue);
+  const checkoutGate = allowNativeCheckout(status, workflow, null);
+  if (!checkoutGate.allowed) {
+    return { woke: false, issueId, reason: checkoutGate.reason, status };
+  }
+  const liveBefore = await getJsonOrNull(client, `/issues/${enc(issueId)}/live-runs`);
+  if (confirmedIssueBoundRuns(liveBefore).length > 0) {
+    return { woke: false, issueId, reason: "issue_already_has_live_run", status };
+  }
   try {
     const checkout = await client.requestJson("POST", `/issues/${enc(issueId)}/checkout`, {
       // checkout is board-routed server-side; operator header carries authority
-      body: { agentId: agent, expectedStatuses: ["todo", "backlog", "blocked"] },
+      body: { agentId: agent, expectedStatuses: ["todo", "backlog"] },
       ...auth,
     });
-    return { woke: true, issueId, agentId: agent, checkout };
+    const live = await getJsonOrNull(client, `/issues/${enc(issueId)}/live-runs`);
+    const confirmed = confirmedIssueBoundRuns(live);
+    return {
+      woke: confirmed.length > 0, verified: confirmed.length > 0,
+      checkoutAccepted: true, issueId, agentId: agent, checkout,
+      reason: confirmed.length > 0 ? "issue_run_observed" : "checkout_without_confirmed_issue_run",
+      liveRunsAfter: confirmed,
+    };
   } catch (error) {
     return { woke: false, issueId, error: error instanceof Error ? error.message : String(error) };
   }
@@ -3120,6 +3175,14 @@ function operatorCompositeTools(client: PaperclipApiClient): ControlPlaneToolDef
           client.requestJson<Record<string, unknown>>("GET", `/issues/${enc(issueId)}`),
           relationalBlockerEntries(client, issueId),
         ]);
+        // Native pending review is an independent stage. Do not demote it with
+        // any combination of manual status, dependency patch, or wake.
+        if (isNativeReviewPending(issueStatusOf(before), before.executionState)) {
+          return {
+            issueId, woke: false, reason: "review_pending_no_manual_status_or_wake",
+            before: pickIssueShort(before),
+          };
+        }
         const removeResolved = resolveBlockerRefs(beforeRel.entries, removeBlockerIds);
         const removeSet = new Set([...removeBlockerIds, ...removeResolved]);
         const base = beforeRel.unavailable ? blockedByIdsOf(before) : beforeRel.entries.map((e) => e.id);
@@ -3128,6 +3191,11 @@ function operatorCompositeTools(client: PaperclipApiClient): ControlPlaneToolDef
           !beforeRel.entries.some((e) => e.id === id && e.identifier !== null && removeSet.has(e.identifier)));
         const patch: Record<string, unknown> = {};
         if (removeBlockerIds.length > 0) patch.blockedByIssueIds = next;
+        // Never manufacture in_progress/in_review with a PATCH. They require a
+        // real native checkout/run or first-class review transition respectively.
+        if (setStatus === "in_progress" || setStatus === "in_review") {
+          return { issueId, woke: false, reason: "native_execution_transition_required", requestedStatus: setStatus, before: pickIssueShort(before) };
+        }
         if (setStatus) patch.status = setStatus;
         // Auto-todo is an inference from emptiness: only on relational truth.
         else if (removeBlockerIds.length > 0 && before.status === "blocked" && next.length === 0 && !beforeRel.unavailable) patch.status = "todo";
@@ -3379,6 +3447,8 @@ async function getExecutionStateCompat(client: PaperclipApiClient, issueId: stri
   const pendingApprovals = pendingOf(approvals);
   const pendingInteractions = pendingOf(interactions);
   const blockedByRaw = Array.isArray(issueRec.blockedBy) ? issueRec.blockedBy : null;
+  const workflow = isRecord(issueRec.executionState) ? issueRec.executionState : null;
+  const reviewPending = isNativeReviewPending(status, workflow);
   const warnings: string[] = ["native /issues/:id/execution-state route absent in Paperclip 2026.1012.0; projection from heartbeat-context/live-runs/approvals/interactions/recovery-actions"];
   let unresolvedBlockerCount: number | null = null;
   if (blockedByRaw === null) warnings.push("blockedBy projection absent on issue record; unresolvedBlockerCount unverified");
@@ -3401,17 +3471,25 @@ async function getExecutionStateCompat(client: PaperclipApiClient, issueId: stri
   else if (running > 0) { state = "RUNNING"; reasons.push(`${running} running run(s)`); }
   else if (queued > 0) { state = "RUNNING"; reasons.push(`${queued} queued run(s), none running`); }
   else if (status === "in_review") { state = "WAITING_REVIEW"; reasons.push(`assigneeAgentId=${String(issueRec.assigneeAgentId ?? "none")}`); }
+  else if (reviewPending && status !== "in_review") {
+    state = "INCONSISTENT";
+    reasons.push("review_pending_status_drifted");
+    warnings.push("Native review stage is pending but visible issue status is not in_review; do not checkout/wake or infer active work");
+  }
   else if (status === "blocked") {
     if (unresolvedBlockerCount === null) { state = "UNVERIFIED"; reasons.push("blocked with unverifiable blocker projection"); }
     else if (unresolvedBlockerCount > 0) { state = "WAITING_DEPENDENCY"; reasons.push(`${unresolvedBlockerCount} unresolved blocker(s)`); }
-    else if (blockerAttention !== null && blockerAttention !== undefined) { state = "WAITING_EXTERNAL"; reasons.push("blockerAttention present with zero projected blockers"); }
     else { state = "INCONSISTENT"; reasons.push("status=blocked with zero projected unresolved blockers (possible hold or projection divergence - see KOMAA-874)"); }
   }
   else if (scheduledRetry) { state = "RETRYABLE_FAILURE"; reasons.push("scheduledRetry present"); }
   else if ((pendingApprovals ?? 0) > 0) { state = "HUMAN_ACTION_REQUIRED"; reasons.push(`${pendingApprovals} pending approval(s)`); }
   else if ((pendingInteractions ?? 0) > 0) { state = "WAITING_EXTERNAL"; reasons.push(`${pendingInteractions} pending interaction(s)`); }
   else if (status === "todo") state = "READY";
-  else if (status === "in_progress") { state = "RUNNING"; reasons.push("in_progress without projected live run"); }
+  else if (status === "in_progress") {
+    state = "INCONSISTENT";
+    reasons.push("false_progress_no_issue_run");
+    warnings.push("Status in_progress has no issue-bound queued/running run; status must not be treated as execution proof");
+  }
   else state = "INCONSISTENT";
   if (activeRecovery !== null && activeRecovery !== undefined) reasons.push("activeRecoveryAction present");
   const executable = state === "READY" && (unresolvedBlockerCount ?? 0) === 0 && (activeRecovery === null || activeRecovery === undefined);
@@ -3461,10 +3539,18 @@ function deliveryCycleToolsPartA(client: PaperclipApiClient): ControlPlaneToolDe
         const op = operatorRunId ?? client.defaults.operatorRunId ?? null;
         const auth = opAuth(op, runId ?? null);
         const before = await client.requestJson<Record<string, unknown>>("GET", `/issues/${enc(issueId)}`);
-        const elig = await client.requestJson<Record<string, unknown>>(
-          "GET",
-          `/issues/${enc(issueId)}/retry-eligibility${qs(force ? { force: "1" } : {})}`,
-        );
+        let elig: Record<string, unknown>;
+        try {
+          elig = await client.requestJson<Record<string, unknown>>(
+            "GET",
+            `/issues/${enc(issueId)}/retry-eligibility${qs(force ? { force: "1" } : {})}`,
+          );
+        } catch (error) {
+          // Removed in Paperclip 2026.1012.0. Fail closed, never blind-retry,
+          // and do not mistake a compatibility 404 for an eligible retry.
+          if (!nativeRetryRouteMissing(error)) throw error;
+          return { issueId, retried: false, circuitOpen: true, retryReason: "native_retry_eligibility_unavailable", nativeRouteAbsent: true, before: pickIssueShort(before), operatorRunId: op };
+        }
         if (elig.retryEligible !== true) {
           return {
             issueId, retried: false,
