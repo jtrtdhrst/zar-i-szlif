@@ -32,7 +32,8 @@ jobs:
         run: |
           npx --no-install vitest run \
             mcp/paperclip/src/config-board-credential-isolation.test.ts \
-            mcp/paperclip/src/board-credential-projection.test.ts
+            mcp/paperclip/src/board-credential-projection.test.ts \
+            mcp/paperclip/src/execution-truth-portable.test.ts
       - name: Verify gateway JavaScript syntax before tests
         run: |
           node --check mcp/paperclip/mcp-gateway/identity-retry.mjs
