@@ -65,14 +65,13 @@ const bodyOf = (call: { init: RequestInit } | undefined) =>
 describe("KOMAA-1415 wake verification", () => {
   beforeEach(() => vi.restoreAllMocks());
 
-  it("reports woke:false and reconciles a false in_progress when a deferred wake mints no run", async () => {
+  it("refuses to re-checkout a false in_progress and reconciles it to todo", async () => {
     const calls = mockRoutes([
       { method: "GET", match: "/issues/", body: { id: ISSUE, status: "in_progress", assigneeAgentId: TARGET, executionRunId: null, checkoutRunId: null } },
       { method: "GET", match: "/live-runs", body: [] },
       { method: "GET", match: "/diagnostics/blockers", body: { blockers: [] } },
       { method: "GET", match: "/documents", body: [] },
       { method: "GET", match: "/approvals", body: [] },
-      { method: "POST", match: "/checkout", body: { ok: true, reason: "deferred_issue_execution" } },
       { method: "PATCH", match: "/issues/", body: { id: ISSUE, status: "todo", assigneeAgentId: TARGET } },
     ]);
 
@@ -80,13 +79,14 @@ describe("KOMAA-1415 wake verification", () => {
 
     expect(result).toMatchObject({
       woke: false,
-      checkoutAccepted: true,
-      reason: "deferred_issue_execution",
+      checkoutAccepted: false,
+      reason: "false_progress_requires_reconciliation",
       reconciledTo: "todo",
       reconcile: { reconciled: true, reason: "no_issue_bound_run_observed" },
     });
     const patch = calls.find((c) => String(c.init.method).toUpperCase() === "PATCH" && c.url.includes(ISSUE));
     expect(bodyOf(patch)).toMatchObject({ status: "todo" });
+    expect(calls.some((c) => String(c.init.method).toUpperCase() === "POST" && c.url.includes("/checkout"))).toBe(false);
     expect(calls.some((c) => String(c.init.method).toUpperCase() === "POST" && c.url.includes("/comments"))).toBe(false);
   });
 

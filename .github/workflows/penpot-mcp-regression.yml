@@ -1,0 +1,49 @@
+name: Penpot MCP Regression
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'mcp/penpot/**'
+      - 'mcp/worker-edge/**'
+      - '.github/workflows/penpot-mcp-regression.yml'
+  pull_request:
+    paths:
+      - 'mcp/penpot/**'
+      - 'mcp/worker-edge/**'
+      - '.github/workflows/penpot-mcp-regression.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  worker-edge:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+          cache: npm
+          cache-dependency-path: mcp/worker-edge/package-lock.json
+      - name: Install and validate Cloudflare MCP edge
+        working-directory: mcp/worker-edge
+        run: |
+          npm ci --include=dev --no-audit --no-fund
+          npm run typecheck
+          npm test
+
+  penpot-headless:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+          cache: npm
+          cache-dependency-path: mcp/penpot/headless/package-lock.json
+      - name: Install and validate Penpot MCP headless
+        working-directory: mcp/penpot/headless
+        run: |
+          npm ci --include=dev --no-audit --no-fund
+          npm run typecheck
+          npm run typecheck:test
+          npm test

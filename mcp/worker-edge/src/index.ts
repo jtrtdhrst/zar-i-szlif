@@ -92,7 +92,11 @@ function createEdgeWorker() {
       // Ścieżka z żądania idzie do upstreamu (Langfuse: /api/public/mcp,
       // pozostałe: /mcp); pochodzenie z UPSTREAM_URL.
       const upstreamBase = new URL(env.UPSTREAM_URL);
-      const upstream = new URL(upstreamBase.origin + (incoming.pathname === "/" ? upstreamBase.pathname : incoming.pathname));
+      // Penpot's public MCP entrypoint is /mcp, while its hybrid router is mounted
+      // behind /mcp/stream. Do not send /mcp into Penpot's frontend SPA.
+      const useConfiguredMcpPath = incoming.pathname === "/" ||
+        (incoming.pathname === "/mcp" && upstreamBase.pathname === "/mcp/stream");
+      const upstream = new URL(upstreamBase.origin + (useConfiguredMcpPath ? upstreamBase.pathname : incoming.pathname));
       for (const [key, value] of incoming.searchParams) {
         // Token klienta przepuszczamy tylko wtedy, gdy nie nadpisujemy go sekretem.
         if (env.UPSTREAM_TOKEN_PARAM && env.UPSTREAM_TOKEN && key === env.UPSTREAM_TOKEN_PARAM) continue;

@@ -17,6 +17,7 @@ import { PenpotExporterClient } from './exporter-client.js'
 import { initCheckpointStore } from './checkpoints.js'
 import { projectFileTools, type ToolDefinition } from './tools/project-files.js'
 import { contentTools } from './tools/content.js'
+import { toMcpToolResult } from './mcp-result.js'
 import { commentTools } from './tools/comments.js'
 import { snapshotTools } from './tools/snapshots.js'
 import { registerExportTool } from './tools/export.js'
@@ -74,7 +75,7 @@ function registerTools(
             throw new Error('Headless writes require an explicit id for every shape so the result can be read back without a blind retry.')
           }
           const result = await tool.handler(client, parsedInput)
-          return { content: [{ type: 'text', text: JSON.stringify(result) }] }
+          return toMcpToolResult(tool.name, result)
         } catch (err) {
           if (headlessOnly && err instanceof PenpotStaleWriteError) {
             const value = parsedInput as {

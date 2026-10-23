@@ -9,7 +9,9 @@ const path = require("node:path");
 
 const input = (name) => (process.env[`INPUT_${name.toUpperCase()}`] || "").trim();
 const run = input("run");
-const directory = input("directory") || ".";
+// Studio sends the app directory with a leading slash ("/app"); treat it as
+// repo-relative so path.resolve does not escape the workspace.
+const directory = (input("directory") || ".").replace(/^\/+/, "") || ".";
 const branch = input("branch") || "main";
 const token = input("github_token");
 const projectId = input("project_id");
@@ -114,6 +116,10 @@ try {
       "--projects", `${projectId}:${projectApiToken}`,
     ]);
     commitAndPush();
+    // GitHub resolves the next local-action step from the worktree; return to
+    // the dispatch branch so it loads this action instead of the stale copy on
+    // the publish branch.
+    checkoutRef(initialRef);
   } else if (run === "build") {
     sh("npm", ["run", "build"]);
     setOutput("publish_dir", "out");

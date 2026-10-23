@@ -12,6 +12,7 @@ import { readFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { z } from "zod";
+import { plasmicCommentTools } from "./comment-tools.ts";
 
 export interface PlasmicCtx {
   client: PlasmicClient;
@@ -202,6 +203,79 @@ function idempotentLive<T>(
 export function plasmicTools(ctx: PlasmicCtx): ToolDef[] {
   const c = ctx.client;
   return [
+    ...plasmicCommentTools(ctx),
+
+    {
+      name: "plasmic_list_projects",
+      annotations: A_READ,
+      description: "List Plasmic Studio projects accessible to the configured identity.",
+      schema: {},
+      handler: async () => ({ projects: await c.listProjects() }),
+    },
+    {
+      name: "plasmic_list_branches",
+      annotations: A_READ,
+      description: "List design branches in Plasmic (not Git branches).",
+      schema: { projectId: z.string() },
+      handler: async (a) => c.listBranches(a.projectId as string),
+    },
+    {
+      name: "plasmic_create_branch",
+      // Retries with an identical key are serialized and deduplicated.
+      annotations: A_WRITE,
+      description: "Create a Plasmic design branch. Use GitHub MCP for Git branches and PRs.",
+      schema: {
+        projectId: z.string(),
+        name: z.string().min(1),
+        sourceBranchId: z.string().optional(),
+        // "new" is intentionally forbidden: WAB may auto-publish project content.
+        base: z.enum(["latest"]).optional(),
+        ...idKey,
+        ...dry,
+      },
+      handler: async (a) => {
+        const projectId = a.projectId as string;
+        const name = a.name as string;
+        const opts = {
+          ...(a.sourceBranchId ? { sourceBranchId: a.sourceBranchId as string } : {}),
+          ...(a.base ? { base: "latest" as const } : {}),
+        };
+        if (opts.sourceBranchId && opts.base) throw new Error("INVALID_BRANCH_BASE");
+        if (a.dryRun) return { dryRun: true, projectId, name, ...opts };
+        // One project-scoped mutex guards list-then-create. A stable key dedupes
+        // completed retries, but ambiguous remote failures remain fail-closed.
+        const key = `create_branch:${projectId}:${(a.idempotencyKey as string | undefined) ?? `${name}:${opts.sourceBranchId ?? "latest"}`}`;
+        const payloadDigest = sha256(JSON.stringify({
+          name, sourceBranchId: opts.sourceBranchId ?? null, base: opts.base ?? "latest",
+        }));
+        const { result, deduped } = await idempotentLive(
+          ctx.stateDir + "/idempotency", key, false,
+          async () => ({
+            payloadDigest,
+            created: await withProjectLock(ctx.stateDir + "/locks", projectId, () =>
+              c.createBranch(projectId, name, opts),
+            ),
+          }),
+        );
+        if (result.payloadDigest !== payloadDigest) {
+          throw new Error("IDEMPOTENCY_CONFLICT: same idempotencyKey with different branch inputs");
+        }
+        return { ...result.created, deduped };
+      },
+    },
+    {
+      name: "plasmic_preview_merge",
+      annotations: A_READ,
+      description: "Non-mutating Plasmic design-branch merge preview (pretend=true). Real merge requires review.",
+      schema: {
+        projectId: z.string(),
+        fromBranchId: z.string(),
+        toBranchId: z.string(),
+      },
+      handler: async (a) => c.previewMerge(
+        a.projectId as string, a.fromBranchId as string, a.toBranchId as string,
+      ),
+    },
     {
       name: "plasmic_get_project",
       annotations: A_READ,
@@ -693,7 +767,8 @@ export function plasmicTools(ctx: PlasmicCtx): ToolDef[] {
         const { join } = await import("node:path");
         const dir = ctx.stateDir + "/seen";
         await mkdir(dir, { recursive: true });
-        const f = join(dir, `${String(a.projectId).replace(/[^a-zA-Z0-9_-]/g, "_")}.json`);
+        const cacheKey = `${String(a.projectId)}__${String(a.branchId ?? "main")}`.replace(/[^a-zA-Z0-9_-]/g, "_");
+        const f = join(dir, `${cacheKey}.json`);
         const prev = JSON.parse((await readFile(f, "utf8").catch(() => "null")) as string) as {
           revision: number;
           hash: string;

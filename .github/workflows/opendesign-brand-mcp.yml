@@ -2,15 +2,20 @@ name: OpenDesign Brand MCP
 
 on:
   push:
-    branches: [main, feat/opendesign-brand-mcp]
+    branches: [main]
     paths:
-      - "ops/design-stack/**"
+      - "mcp/plasmic/**"
       - ".github/workflows/opendesign-brand-mcp.yml"
   pull_request:
     paths:
-      - "ops/design-stack/**"
+      - "mcp/plasmic/**"
       - ".github/workflows/opendesign-brand-mcp.yml"
   workflow_dispatch:
+    inputs:
+      image_tag:
+        description: "Existing GHCR image tag to export (for example a main commit SHA)"
+        required: true
+        type: string
 
 permissions:
   contents: read
@@ -25,15 +30,15 @@ jobs:
     runs-on: ubuntu-24.04
     defaults:
       run:
-        working-directory: ops/design-stack
+        working-directory: mcp/plasmic
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with:
           node-version: 24
           cache: npm
-          cache-dependency-path: ops/design-stack/package-lock.json
-      - run: npm ci
+          cache-dependency-path: mcp/plasmic/package-lock.json
+      - run: npm ci --include=dev
       - run: npm test
       - name: Typecheck
         id: typecheck
@@ -49,12 +54,15 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: opendesign-brand-mcp-typecheck
-          path: ops/design-stack/typecheck.log
+          path: mcp/plasmic/typecheck.log
           retention-days: 1
       - run: npm run lint
+      - run: npm run preflight:source
+      - run: npm run preflight:release
 
   image:
     needs: test
+    if: github.event_name != 'workflow_dispatch'
     runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v4
@@ -67,8 +75,8 @@ jobs:
           password: ${{ secrets.GITHUB_TOKEN }}
       - uses: docker/build-push-action@v6
         with:
-          context: ops/design-stack
-          file: ops/design-stack/Dockerfile.mcp
+          context: mcp/plasmic
+          file: mcp/plasmic/Dockerfile
           platforms: linux/amd64
           push: ${{ github.event_name == 'push' && github.ref == 'refs/heads/main' }}
           tags: |
@@ -78,3 +86,50 @@ jobs:
           cache-to: type=gha,mode=max
           provenance: mode=max
           sbom: true
+      # Release-lane defect: the VPS has no GHCR read:packages credential, so
+      # the private pushed image cannot be pulled there. Ship the exact CI image
+      # as a private, short-lived workflow artifact; the VPS verifies its image
+      # ID against the value logged here before loading it.
+      - name: Record immutable image identity
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+        run: |
+          set -euo pipefail
+          image="ghcr.io/miloszspyrka-code/kompas-zbiorek-opendesign-mcp:${GITHUB_SHA}"
+          docker pull "$image"
+          docker image inspect "$image" --format 'IMAGE_ID={{.Id}}'
+          docker image inspect "$image" --format 'REPO_DIGESTS={{json .RepoDigests}}'
+          docker save "$image" | gzip -1 > "/tmp/plasmic-mcp-${GITHUB_SHA}.tar.gz"
+          sha256sum "/tmp/plasmic-mcp-${GITHUB_SHA}.tar.gz"
+      - name: Upload immutable image artifact
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+        uses: actions/upload-artifact@v4
+        with:
+          name: plasmic-mcp-image-${{ github.sha }}
+          path: /tmp/plasmic-mcp-${{ github.sha }}.tar.gz
+          retention-days: 3
+
+  export:
+    if: github.event_name == 'workflow_dispatch'
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - name: Export exact GHCR image
+        env:
+          IMAGE_TAG: ${{ inputs.image_tag }}
+        run: |
+          set -euo pipefail
+          image="ghcr.io/miloszspyrka-code/kompas-zbiorek-opendesign-mcp:${IMAGE_TAG}"
+          docker pull "$image"
+          docker image inspect "$image" --format 'IMAGE_ID={{.Id}}'
+          docker image inspect "$image" --format 'REPO_DIGESTS={{json .RepoDigests}}'
+          docker save "$image" | gzip -1 > "/tmp/plasmic-mcp-${IMAGE_TAG}.tar.gz"
+          sha256sum "/tmp/plasmic-mcp-${IMAGE_TAG}.tar.gz"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: plasmic-mcp-image-${{ inputs.image_tag }}
+          path: /tmp/plasmic-mcp-${{ inputs.image_tag }}.tar.gz
+          retention-days: 3
