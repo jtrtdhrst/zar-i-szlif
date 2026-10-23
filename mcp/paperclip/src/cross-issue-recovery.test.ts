@@ -65,12 +65,14 @@ describe("KOMAA-401 cross-issue recovery key selection", () => {
       { match: "/diagnostics/blockers", body: { blockers: [] } },
       { match: "/execution-hold", body: null, status: 404 },
       { match: "/checkout", body: { checkoutRunId: "run-1" } },
+      // KOMAA-1415: a checkout 200 alone is not a wake; the observed run must exist.
+      { match: "/heartbeat-runs/run-1", body: { id: "run-1", status: "queued", issueId: ISSUE } },
       { match: "/issues/", body: { id: ISSUE, status: "todo", assigneeAgentId: TARGET } },
     ]);
 
     const result = await runTool("paperclipWakeIssueFresh", { issueId: ISSUE });
 
-    expect(result).toMatchObject({ woke: true, agentId: TARGET });
+    expect(result).toMatchObject({ woke: true, agentId: TARGET, observedFrom: "heartbeat-run" });
     const checkout = calls.find((c) => c.url.includes("/checkout"));
     expect(authOf(checkout!)).toBe("Bearer token-board");
     // No impersonation: the checkout names the OWNER, not the caller's agent.
