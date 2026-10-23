@@ -25,4 +25,9 @@ ln -sfn /app/packages/mcp-server/node_modules /paperclip/mcp-patch/node_modules
 . /opt/paperclip-mcp/plugin-runtime-builder/stage.sh
 stage_plugin_runtime /opt/paperclip-mcp/plugin-runtime /paperclip/plugin-runtime
 
+# Upstream docker-entrypoint probes the whole home for a single non-node file
+# and then runs a recursive chown. The code/plugin copies above are created by
+# root, so own them here first; otherwise every boot pays a full-volume chown.
+chown -R node:node /paperclip/mcp-gateway /paperclip/mcp-patch /paperclip/plugin-runtime 2>/dev/null || true
+
 exec /usr/local/bin/docker-entrypoint.sh "$@"
