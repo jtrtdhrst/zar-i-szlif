@@ -20,6 +20,12 @@ import type { PaperclipApiClient } from "./client.js";
 import { formatErrorResponse, formatTextResponse } from "./format.js";
 import { assertPathInScope, enforceWriteScope } from "./write-scope.js";
 import { enforceDeploymentRoot } from "./deployment-root.js";
+import {
+  deriveReviewDecision,
+  evaluateCheckRunsPayload,
+  formatCheckRuns,
+  parseRestPull,
+} from "./github-checks.js";
 
 export interface WorkspaceNativeToolDefinition {
   name: string;
@@ -1146,20 +1152,38 @@ export function createWorkspaceNativeTools(client: PaperclipApiClient): Workspac
         const head = await gitHead(ws);
         const target = branch ?? head.branch;
         if (!target) throw err("git_failed", "Cannot determine branch", { remediationOwner: "harness" });
-        const argvSets = [
-          ["gh", "pr", "checks", target],
-          ["npx", "--yes", "gh", "pr", "checks", target],
-        ];
-        for (const argv of argvSets) {
-          try {
-            const r = await runJailedExec({ ws, argv, timeoutSec: 45, outputLimit: 32768, extraEnv: { ...ghEnv() } });
-            if (r.exitCode === 0) return { workspaceId: ws.workspaceId, branch: target, checks: r.stdout, truncated: r.stdoutTruncated };
-            if (!/auth|not logged|Bad credentials|command not found/i.test(r.stdout + r.stderr)) {
-              return { workspaceId: ws.workspaceId, branch: target, checks: r.stdout + r.stderr, failed: true };
-            }
-          } catch { /* try next */ }
+        const slug = await resolveGitHubSlug(ws);
+        if (!slug) throw err("git_failed", "Cannot resolve GitHub repository slug from workspace origin", { remediationOwner: "harness" });
+        // Commit-scoped REST is readable with the bound fine-grained credential,
+        // while `gh pr checks` (GraphQL status contexts) is not. Fail closed when
+        // either the head SHA or the check-runs payload is unreadable.
+        const headRef = await runJailedExec({
+          ws,
+          argv: ["gh", "api", `repos/${slug}/commits/${encodeURIComponent(target)}`, "--jq", ".sha"],
+          timeoutSec: 30,
+          outputLimit: 1024,
+          extraEnv: { ...ghEnv() },
+        });
+        const sha = headRef.exitCode === 0 ? headRef.stdout.trim() : "";
+        if (!/^[0-9a-f]{7,64}$/i.test(sha)) {
+          return unverifiedChecks(ws.workspaceId, target, `cannot resolve head SHA for ${target}: ${(headRef.stderr || headRef.stdout).slice(0, 300)}`);
         }
-        throw err("auth_unverified", "GitHub checks unavailable (no gh auth on the MCP host)", { remediationOwner: "cto" });
+        const runs = await ghApiJson(ws, `repos/${slug}/commits/${sha}/check-runs?per_page=100`);
+        if (!runs.ok) return unverifiedChecks(ws.workspaceId, target, runs.error);
+        const evaluation = evaluateCheckRunsPayload(runs.data);
+        return {
+          workspaceId: ws.workspaceId,
+          branch: target,
+          headSha: sha,
+          state: evaluation.state,
+          overallStatus: evaluation.state,
+          total: evaluation.total,
+          checkConclusions: evaluation.checks.map((run) => `${run.name}\t${run.status}\t${run.conclusion ?? "-"}`),
+          checks: formatCheckRuns(evaluation),
+          failures: evaluation.failures.slice(0, 50),
+          ...(evaluation.reason ? { reason: evaluation.reason } : {}),
+          truncated: false,
+        };
       },
     ),
     makeTool(
@@ -1177,26 +1201,51 @@ export function createWorkspaceNativeTools(client: PaperclipApiClient): Workspac
         const head = await gitHead(ws);
         const target = branch ?? head.branch;
         if (!target) throw err("git_failed", "Cannot determine branch", { remediationOwner: "harness" });
-        const argvSets = [
-          ["gh", "pr", "view", target, "--json", "number,url,state,mergeable,mergeStateStatus,reviewDecision,statusCheckRollup"],
-          ["npx", "--yes", "gh", "pr", "view", target, "--json", "number,url,state,mergeable,mergeStateStatus,reviewDecision,statusCheckRollup"],
-        ];
-        for (const argv of argvSets) {
-          try {
-            const r = await runJailedExec({ ws, argv, timeoutSec: 45, outputLimit: 32768, extraEnv: { ...ghEnv() } });
-            if (r.exitCode === 0) {
-              try {
-                return { workspaceId: ws.workspaceId, branch: target, ...(JSON.parse(r.stdout) as Record<string, unknown>) };
-              } catch {
-                return { workspaceId: ws.workspaceId, branch: target, raw: r.stdout };
-              }
-            }
-            if (!/auth|not logged|Bad credentials|command not found/i.test(r.stdout + r.stderr)) {
-              return { workspaceId: ws.workspaceId, branch: target, raw: (r.stdout + r.stderr).slice(0, 2000), failed: true };
-            }
-          } catch { /* try next */ }
+        const slug = await resolveGitHubSlug(ws);
+        if (!slug) throw err("git_failed", "Cannot resolve GitHub repository slug from workspace origin", { remediationOwner: "harness" });
+        const owner = slug.split("/")[0];
+        const list = await ghApiJson(ws, `repos/${slug}/pulls?head=${encodeURIComponent(owner)}:${encodeURIComponent(target)}&state=all&per_page=5`);
+        if (!list.ok) {
+          return { workspaceId: ws.workspaceId, branch: target, state: "UNVERIFIED", overallStatus: "unverified", reason: list.error };
         }
-        throw err("auth_unverified", "GitHub merge readiness unavailable (no gh auth on the MCP host)", { remediationOwner: "cto" });
+        const candidates = Array.isArray(list.data) ? (list.data as Array<Record<string, unknown>>) : [];
+        if (candidates.length === 0) {
+          return { workspaceId: ws.workspaceId, branch: target, state: "UNVERIFIED", overallStatus: "unverified", reason: `no pull request found for ${owner}:${target}` };
+        }
+        const chosen = candidates.find((item) => item.state === "open") ?? candidates[0];
+        const number = typeof chosen?.number === "number" ? chosen.number : null;
+        if (!number) {
+          return { workspaceId: ws.workspaceId, branch: target, state: "UNVERIFIED", overallStatus: "unverified", reason: "pull request number is unreadable" };
+        }
+        const detail = await ghApiJson(ws, `repos/${slug}/pulls/${number}`);
+        if (!detail.ok) {
+          return { workspaceId: ws.workspaceId, branch: target, state: "UNVERIFIED", overallStatus: "unverified", reason: detail.error };
+        }
+        const pull = parseRestPull(detail.data);
+        if (!pull) {
+          return { workspaceId: ws.workspaceId, branch: target, state: "UNVERIFIED", overallStatus: "unverified", reason: "pull request payload is unreadable" };
+        }
+        const reviews = await ghApiJson(ws, `repos/${slug}/pulls/${number}/reviews?per_page=100`);
+        const runs = pull.headRefOid
+          ? await ghApiJson(ws, `repos/${slug}/commits/${pull.headRefOid}/check-runs?per_page=100`)
+          : { ok: false as const, error: "pull request head SHA is unreadable" };
+        const evaluation = runs.ok
+          ? evaluateCheckRunsPayload(runs.data)
+          : { state: "unverified" as const, total: 0, checks: [], failures: [], reason: runs.error };
+        return {
+          workspaceId: ws.workspaceId,
+          branch: target,
+          number,
+          url: pull.url,
+          state: pull.state,
+          mergeable: pull.mergeable,
+          mergeStateStatus: pull.mergeStateStatus,
+          reviewDecision: reviews.ok ? deriveReviewDecision(reviews.data) : "",
+          headRefOid: pull.headRefOid,
+          checksState: evaluation.state,
+          statusCheckRollup: evaluation.checks,
+          ...(evaluation.reason ? { checksReason: evaluation.reason } : {}),
+        };
       },
     ),
   ];
@@ -1282,4 +1331,50 @@ export function ghEnv(): Record<string, string> {
 
 function hasGitHubAuth(): boolean {
   return Boolean(readBoundGitToken());
+}
+
+function parseRepoSlugFromRemote(url: string): string | null {
+  const match = /github\.com[:/]([^/\s]+)\/([^/\s]+?)(?:\.git)?\s*$/.exec(url.trim());
+  return match ? `${match[1]}/${match[2]}` : null;
+}
+
+/** owner/repo for the workspace origin. REST reads stay scoped to that repo. */
+async function resolveGitHubSlug(ws: ResolvedWorkspace): Promise<string | null> {
+  const remote = await runJailedExec({ ws, argv: ["git", "remote", "get-url", "origin"], timeoutSec: 15, outputLimit: 1024 });
+  return remote.exitCode === 0 ? parseRepoSlugFromRemote(remote.stdout) : null;
+}
+
+async function ghApiJson(
+  ws: ResolvedWorkspace,
+  path: string,
+): Promise<{ ok: true; data: unknown } | { ok: false; error: string }> {
+  const result = await runJailedExec({
+    ws,
+    argv: ["gh", "api", path],
+    timeoutSec: 45,
+    outputLimit: 65536,
+    extraEnv: { ...ghEnv() },
+  });
+  if (result.exitCode !== 0) {
+    return { ok: false, error: (result.stderr || result.stdout || `gh api exited ${result.exitCode}`).slice(0, 400) };
+  }
+  try {
+    return { ok: true, data: JSON.parse(result.stdout) };
+  } catch {
+    return { ok: false, error: "gh api returned invalid JSON" };
+  }
+}
+
+function unverifiedChecks(workspaceId: string, branch: string, reason: string) {
+  return {
+    workspaceId,
+    branch,
+    state: "unverified" as const,
+    overallStatus: "unverified" as const,
+    total: 0,
+    checkConclusions: [] as string[],
+    checks: "",
+    failures: [] as string[],
+    reason,
+  };
 }
