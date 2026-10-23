@@ -16,7 +16,7 @@
  */
 import { createHash } from "node:crypto";
 import { execFileSync } from "node:child_process";
-import { cpSync, existsSync, mkdirSync, readFileSync, readdirSync, rmSync, statSync, writeFileSync } from "node:fs";
+import { cpSync, existsSync, mkdirSync, readFileSync, readdirSync, rmSync, statSync, symlinkSync, writeFileSync } from "node:fs";
 import { join, relative } from "node:path";
 
 const repoRoot = process.argv[2] || "/app";
@@ -46,7 +46,23 @@ function walk(root, dir = root, out = []) {
   return out;
 }
 
+// plugin-file-browser-example ships without a local node_modules in the
+// upstream image. Link the already-installed workspace store so its build
+// script (tsc + esbuild) resolves the same packages pnpm installed.
+function ensureExampleDeps(packageDir) {
+  if (packageDir !== "packages/plugins/examples/plugin-file-browser-example") return;
+  const modules = join(repoRoot, packageDir, "node_modules");
+  if (existsSync(join(modules, "@types"))) return;
+  mkdirSync(modules, { recursive: true });
+  for (const name of ["@codemirror", "@lezer", "@types", "@paperclipai", "codemirror", "react", "react-dom"]) {
+    const target = join(modules, name);
+    if (existsSync(target)) continue;
+    symlinkSync(join(repoRoot, "node_modules", ".pnpm", "node_modules", name), target, "dir");
+  }
+}
+
 function build(packageDir) {
+  ensureExampleDeps(packageDir);
   const pkg = JSON.parse(readFileSync(join(repoRoot, packageDir, "package.json"), "utf8"));
   if (!pkg.name) throw new Error(`missing package name in ${packageDir}`);
   console.log(`[plugin-runtime] building ${pkg.name}`);
@@ -90,6 +106,14 @@ for (const plugin of PLUGINS) {
         sha256: createHash("sha256").update(readFileSync(file)).digest("hex"),
       });
     }
+  }
+
+  // Runtime packages live on the persistent /paperclip volume. Their worker
+  // imports resolve through the source package's installed node_modules
+  // (stable inside the core image across recreates).
+  const sourceModules = join(sourceRoot, "node_modules");
+  if (existsSync(sourceModules) && !existsSync(join(targetRoot, "node_modules"))) {
+    symlinkSync(sourceModules, join(targetRoot, "node_modules"), "dir");
   }
 
   const manifestPath = join(targetRoot, "dist", "manifest.js");

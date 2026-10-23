@@ -14,6 +14,11 @@ export interface PaperclipMcpConfig {
   operatorRunId?: string | null; // KOMAA-630: first-class operator session
   agentApiKey: string | null;
   boardApiKey: string | null;
+  // KOMAA-1415: route-scoped Board projection for the llm-wiki plugin only.
+  // The gateway resolves this from its own enrolled secret; it is never part
+  // of the principal descriptor, never returned to the client and never used
+  // for any route outside the wiki plugin data/actions allowlist.
+  wikiBoardApiKey?: string | null;
   /** Explicit gateway caller principal; absent for legacy stdio agent runtimes. */
   principalKind?: "agent" | "board" | "service" | null;
 }

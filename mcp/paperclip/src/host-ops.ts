@@ -26,8 +26,8 @@ import { formatErrorResponse, formatTextResponse } from "./format.js";
 // are NOT in the schema enum: zod rejects them fail-closed with the bootstrap
 // pointer instead of implying execution.
 
-export const HOST_BRIDGE_POLICY_VERSION = "v3.8";
-export const HOST_SUPERVISOR_VERSION = "1.0.16";
+export const HOST_BRIDGE_POLICY_VERSION = "v3.9";
+export const HOST_SUPERVISOR_VERSION = "1.0.17";
 export const HOST_BRIDGE_TAG = "v3";
 export const HOST_REQUEST_TTL_SEC = 900;
 
@@ -166,10 +166,13 @@ export const HOST_INSPECT_TARGETS = [
   // Narrow, exact target name only - no wildcard; unrelated services stay denied.
   // The supervisor still enforces its own per-target pin (policy v3.9) host-side.
   "mantic-mcp-http",
-  // KOMAA-1415: the deployed public MCP edge. Exact container name only; the
-  // lane is read-only (inspect/logs/service_status/service_logs) so an agent
-  // can read the artifact/digest it is actually serving. Build/recreate still
-  // needs the separate supervisor deployment gates (image digest + CTO pin).
+  // KOMAA-1415: the deployed public MCP edge. Verified live: the Cloudflare
+  // tunnel origin paperclip-engine.zariszlif.pl -> paperclip:3101 -> socat
+  // forwards to `paperclip-mcp-gateway` (172.20.0.16), while the `-pub`
+  // container (172.20.0.19) is an idle legacy instance. Both exact names are
+  // pinned for read-only inspect/logs/service_status/service_logs so the agent
+  // can read the logs it is actually serving; no wildcard and no mutation.
+  "paperclip-mcp-gateway",
   "paperclip-mcp-gateway-pub",
 ] as const;
 

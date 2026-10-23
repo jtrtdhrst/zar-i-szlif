@@ -21,6 +21,17 @@ const ORIGIN_RESOLVER = createOriginResolver({
   publicOrigins: process.env.MCP_PUBLIC_ORIGINS || "",
 });
 
+// KOMAA-1415: the llm-wiki plugin is Board-gated in Paperclip 2026.1012.0. The
+// gateway projects its own enrolled Board credential ONLY for these exact
+// agent ids and ONLY for the wiki plugin data/actions routes (enforced again
+// in client.ts). The credential never leaves this process.
+const WIKI_BOARD_AGENT_IDS = new Set(
+  (process.env.PAPERCLIP_MCP_WIKI_BOARD_AGENT_IDS || "")
+    .split(",")
+    .map((value) => value.trim())
+    .filter(Boolean),
+);
+
 // --- Minimal OAuth 2.1 + MCP Protected Resource layer for Claude Web custom connectors ---
 // Claude.ai supports only OAuth (CIMD/DCR), not static Bearer. This bridge issues
 // short-lived OAuth access tokens bound to a Paperclip API key (pcp_...).
@@ -575,6 +586,7 @@ async function handleMcp(req, res, token, bodyOverride, agentContext = null, pri
     agentId: session.agentId,
     runId: session.runId,
     principalKind: session.principalKind ?? null,
+    wikiBoardApiKey: session.agentId && WIKI_BOARD_AGENT_IDS.has(session.agentId) ? SERVER_BOARD_API_KEY : null,
   }, toolAllowlist ? { toolAllowlist } : undefined);
   console.log(
     `[paperclip-mcp] session principal kind=${session.principalKind || "legacy"} agentId=${session.agentId || "none"} `

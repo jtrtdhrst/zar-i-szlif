@@ -48,6 +48,15 @@ function isWriteMethod(method: string): boolean {
   return !["GET", "HEAD"].includes(method.toUpperCase());
 }
 
+// KOMAA-1415: Board-gated plugin routes that the trusted gateway may execute
+// under its own enrolled Board credential for an explicitly allowlisted agent
+// principal. Deliberately exact: the llm-wiki plugin data/actions namespace
+// only, never another plugin and never a generic /plugins/* promotion.
+const WIKI_BOARD_ROUTE = /^\/plugins\/paperclipai\.plugin-llm-wiki\/(?:data|actions)\//;
+function isWikiBoardRoute(barePath: string): boolean {
+  return WIKI_BOARD_ROUTE.test(barePath);
+}
+
 export type PaperclipCredentialClass = "caller" | "agent" | "board";
 
 export interface RouteAuthContext {
@@ -310,6 +319,15 @@ export class PaperclipApiClient {
     if (!options.callerKey && promotedBoardRoutes.has(shape)) {
       credentialClass = "board";
     }
+    // KOMAA-1415: the gateway's enrolled Board credential is projected only
+    // for the llm-wiki plugin data/actions routes, and only when the gateway
+    // passed it for an allowlisted agent principal. The key stays server-side.
+    const scopedWikiBoardKey = !options.callerKey && isWikiBoardRoute(barePath)
+      ? this.config.wikiBoardApiKey ?? null
+      : null;
+    if (scopedWikiBoardKey) {
+      credentialClass = "board";
+    }
     // Removed upstream routes: answer from the cache instead of a 404 per call.
     if (method.toUpperCase() === "GET" && removedGetRoutes.has(shape)) {
       throw new PaperclipApiError({
@@ -357,7 +375,8 @@ export class PaperclipApiClient {
 
     let apiKey: string;
     if (credentialClass === "board") {
-      if (!this.config.boardApiKey) {
+      const boardKey = this.config.boardApiKey ?? scopedWikiBoardKey;
+      if (!boardKey) {
         throw localPolicyError(
           "CONFIGURATION_MISSING",
           `${method.toUpperCase()} ${path} requires an explicitly configured Board credential`,
@@ -365,7 +384,7 @@ export class PaperclipApiClient {
           "Enroll or rotate the Board credential through the approved secret-management flow; do not retry with an agent key.",
         );
       }
-      apiKey = this.config.boardApiKey;
+      apiKey = boardKey;
     } else if (credentialClass === "agent") {
       const agentKey = this.config.agentApiKey ?? (this.config.agentId ? this.config.apiKey : null);
       if (!agentKey) {
@@ -433,13 +452,14 @@ export class PaperclipApiClient {
       // the Board credential is safe and is what makes every Board-capable
       // route reachable from the MCP. Issue-scoped writes are never promoted:
       // their credential decides who the audit records as the author.
+      const retryBoardKey = this.config.boardApiKey ?? scopedWikiBoardKey;
       if (
         response.status === 403
         && credentialClass !== "board"
-        && this.config.boardApiKey
+        && retryBoardKey
         && isPromotable(method, barePath)
       ) {
-        const boardResponse = await send(this.config.boardApiKey);
+        const boardResponse = await send(retryBoardKey);
         const boardBody = await parseResponseBody(boardResponse);
         if (boardResponse.ok) {
           promotedBoardRoutes.add(shape);
