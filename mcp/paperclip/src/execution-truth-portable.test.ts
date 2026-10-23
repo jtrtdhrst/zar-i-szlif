@@ -53,6 +53,8 @@ describe("KOMAA-841 portable fail-closed execution contract", () => {
     ["blocked", null, [], false, "not_checkout_ready"],
     ["done", null, [], false, "not_checkout_ready"],
     ["todo", changes, [], true, null],
+    ["todo", changes, [{ status: "queued" }], false, "issue_already_has_live_run"],
+    ["backlog", null, [{ status: "running" }], false, "issue_already_has_live_run"],
     ["backlog", null, [], true, null],
   ] as const)("checks out only truly eligible work (%s)", (status, stage, runs, allowed, reason) => {
     expect(allowNativeCheckout(status, stage, [...runs])).toEqual({ allowed, reason });
