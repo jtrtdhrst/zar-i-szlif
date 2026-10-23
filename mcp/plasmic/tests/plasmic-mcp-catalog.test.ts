@@ -225,6 +225,8 @@ describe("Plasmic MCP: katalog MCP == tools/list żywego serwera", () => {
     // set_props tworzy nowe wpisy Expr przy każdym wywołaniu — nie jest idempotentne.
     assert.equal(byName.get("plasmic_set_props")?.idempotentHint, false);
     // Klucz idempotencji w create_page/create_component/insert/use_component.
+    assert.equal(byName.get("plasmic_create_branch")?.idempotentHint, true,
+      "plasmic_create_branch must advertise its locked retry/dedup contract");
     assert.equal(byName.get("plasmic_create_page")?.idempotentHint, true);
     assert.equal(byName.get("plasmic_insert")?.idempotentHint, true);
   });
