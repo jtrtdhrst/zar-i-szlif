@@ -12,7 +12,11 @@ const gateway = readFileSync(resolve(dir, "../gateway.mjs"), "utf8");
 const entrypoint = readFileSync(resolve(dir, "../../entrypoint.sh"), "utf8");
 
 test("production entrypoint copies every relative gateway import", () => {
-  const imports = [...gateway.matchAll(/from ["']\\.\\/([^"']+\\.mjs)["']/g)].map((m) => m[1]);
+  const imports = gateway.split("\n").map((line) => {
+    const segment = line.includes('from "./') ? line.split('from "./')[1]
+      : line.includes("from './") ? line.split("from './")[1] : null;
+    return segment ? segment.split(/['"]/)[0] : null;
+  }).filter((value) => value?.endsWith(".mjs"));
   assert.ok(imports.includes("identity-retry.mjs"), "retry helper must be imported by gateway");
   for (const file of imports) {
     assert.ok(entrypoint.includes(`/opt/paperclip-mcp/mcp-gateway/${file}`), `missing staged gateway dependency: ${file}`);
