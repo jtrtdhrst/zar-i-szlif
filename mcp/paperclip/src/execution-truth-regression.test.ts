@@ -27,9 +27,10 @@ function mockIssue(status: string, executionState: Record<string, unknown> | nul
 function runTool(
   toolName: string,
   issue: Record<string, unknown>,
-  opts: { live?: unknown[]; retryRouteExists?: boolean } = {},
+  opts: { live?: unknown[]; liveAfter?: unknown[]; retryRouteExists?: boolean } = {},
 ) {
   const calls: Array<{ url: string; method: string }> = [];
+  let liveReadCount = 0;
   const fetchMock = vi.fn().mockImplementation((urlArg: string, init?: RequestInit) => {
     const url = String(urlArg);
     const method = String(init?.method ?? "GET");
@@ -41,7 +42,7 @@ function runTool(
       status = 404;
       body = { error: "API route not found" };
     } else if (path.endsWith("/heartbeat-context")) body = { issue };
-    else if (path.endsWith("/live-runs")) body = opts.live ?? [];
+    else if (path.endsWith("/live-runs")) body = (++liveReadCount > 1 ? opts.liveAfter ?? opts.live : opts.live) ?? [];
     else if (path.endsWith("/diagnostics/blockers")) body = { blockers: [] };
     else if (path.endsWith("/diagnostics/wakes")) body = { events: [] };
     else if (path.endsWith("/active-run")) body = null;
@@ -137,7 +138,8 @@ describe("KOMAA-841: execution truth and no fake progress", () => {
 
   it("reports woke only when a queued/running issue run was observed on readback", async () => {
     const { execute } = runTool("paperclipWakeIssueFresh", mockIssue("todo", requestedChanges), {
-      live: [{ id: "r1", status: "queued" }],
+      live: [],
+      liveAfter: [{ id: "r1", status: "queued" }],
     });
     const obj = readResult(await execute({ issueId: ISSUE }));
     expect(obj.checkoutAccepted).toBe(true);
