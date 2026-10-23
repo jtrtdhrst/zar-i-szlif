@@ -1,5 +1,11 @@
 name: Penpot MCP Regression
 on:
+  push:
+    branches: [main]
+    paths:
+      - 'mcp/penpot/**'
+      - 'mcp/worker-edge/**'
+      - '.github/workflows/penpot-mcp-regression.yml'
   pull_request:
     paths:
       - 'mcp/penpot/**'
