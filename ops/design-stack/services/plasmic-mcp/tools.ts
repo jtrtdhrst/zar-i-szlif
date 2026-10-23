@@ -202,56 +202,6 @@ function idempotentLive<T>(
 export function plasmicTools(ctx: PlasmicCtx): ToolDef[] {
   const c = ctx.client;
   return [
-
-    {
-      name: "plasmic_list_projects",
-      annotations: A_READ,
-      description: "List Plasmic Studio projects accessible to the configured identity.",
-      schema: {},
-      handler: async () => ({ projects: await c.listProjects() }),
-    },
-    {
-      name: "plasmic_list_branches",
-      annotations: A_READ,
-      description: "List design branches in Plasmic (not Git branches).",
-      schema: { projectId: z.string() },
-      handler: async (a) => c.listBranches(a.projectId as string),
-    },
-    {
-      name: "plasmic_create_branch",
-      annotations: A_ADD,
-      description: "Create a Plasmic design branch. Use GitHub MCP for Git branches and PRs.",
-      schema: {
-        projectId: z.string(),
-        name: z.string().min(1),
-        sourceBranchId: z.string().optional(),
-        base: z.enum(["new", "latest"]).optional(),
-        ...dry,
-      },
-      handler: async (a) => {
-        const projectId = a.projectId as string;
-        const name = a.name as string;
-        const opts = {
-          ...(a.sourceBranchId ? { sourceBranchId: a.sourceBranchId as string } : {}),
-          ...(a.base ? { base: a.base as "new" | "latest" } : {}),
-        };
-        if (a.dryRun) return { dryRun: true, projectId, name, ...opts };
-        return c.createBranch(projectId, name, opts);
-      },
-    },
-    {
-      name: "plasmic_preview_merge",
-      annotations: A_READ,
-      description: "Non-mutating Plasmic design-branch merge preview (pretend=true). Real merge requires review.",
-      schema: {
-        projectId: z.string(),
-        fromBranchId: z.string(),
-        toBranchId: z.string(),
-      },
-      handler: async (a) => c.previewMerge(
-        a.projectId as string, a.fromBranchId as string, a.toBranchId as string,
-      ),
-    },
     {
       name: "plasmic_get_project",
       annotations: A_READ,
@@ -743,8 +693,7 @@ export function plasmicTools(ctx: PlasmicCtx): ToolDef[] {
         const { join } = await import("node:path");
         const dir = ctx.stateDir + "/seen";
         await mkdir(dir, { recursive: true });
-        const cacheKey = `${String(a.projectId)}__${String(a.branchId ?? "main")}`.replace(/[^a-zA-Z0-9_-]/g, "_");
-        const f = join(dir, `${cacheKey}.json`);
+        const f = join(dir, `${String(a.projectId).replace(/[^a-zA-Z0-9_-]/g, "_")}.json`);
         const prev = JSON.parse((await readFile(f, "utf8").catch(() => "null")) as string) as {
           revision: number;
           hash: string;
