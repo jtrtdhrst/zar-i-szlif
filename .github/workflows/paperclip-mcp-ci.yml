@@ -25,14 +25,18 @@ jobs:
           cache: npm
       - name: Install repository test dependencies (no lifecycle scripts)
         run: npm ci --ignore-scripts --no-audit --no-fund
-      # The test fixture imports zod directly, while the minimal repository
-      # root package.json only carries generic infrastructure dependencies.
-      # Pin this CI-only package to the existing package-lock transitive version;
-      # do not change the shipped Paperclip/Core runtime or root lockfile.
-      - name: Provision MCP test-only runtime dependency
-        run: npm install --no-save --no-package-lock --ignore-scripts --no-audit --no-fund zod@3.25.76
-      - name: MCP source regression tests
-        run: npx --no-install vitest run mcp/paperclip/src
+      # This checkout contains only custom MCP code, not the upstream Paperclip
+      # Core monorepo. These source tests are portable; the full 504-test suite
+      # must additionally run in the pinned Paperclip 2026.1012.0 runtime.
+      - name: Portable MCP credential isolation tests
+        run: |
+          npx --no-install vitest run \
+            mcp/paperclip/src/config-board-credential-isolation.test.ts \
+            mcp/paperclip/src/board-credential-projection.test.ts
+      - name: Verify gateway JavaScript syntax before tests
+        run: |
+          node --check mcp/paperclip/mcp-gateway/identity-retry.mjs
+          node --check mcp/paperclip/mcp-gateway/gateway.mjs
       - name: Gateway identity and origin tests
         run: node --test mcp/paperclip/mcp-gateway/test/*.test.mjs
       - name: Check gateway and transport scripts

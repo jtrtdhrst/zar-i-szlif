@@ -8,7 +8,7 @@ export async function fetchAgentMe(token, runId, { apiUrl, fetchImpl = fetch, wa
   if (typeof token !== "string" || !token.trim() || typeof apiUrl !== "string" || !apiUrl) return null;
   const headers = { Authorization: `Bearer ${token}`, Accept: "application/json" };
   if (runId) headers["X-Paperclip-Run-Id"] = runId;
-  const endpoint = `${apiUrl.replace(/\\/+$/, "")}/agents/me`;
+  const endpoint = new URL("agents/me", apiUrl.endsWith("/") ? apiUrl : `${apiUrl}/`).toString();
   for (let attempt = 0; attempt < 2; attempt++) {
     let transient = false;
     try {
