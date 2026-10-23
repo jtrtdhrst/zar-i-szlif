@@ -2145,7 +2145,9 @@ const getShape: ToolDefinition<z.infer<typeof getShapeInput>> = {
     'By default, nests the shape\'s full descendant subtree (frames/groups\' children) under its "shapes" ' +
     'field instead of leaving them as bare ids; set includeDescendants to false for just the shape itself, or ' +
     'maxDepth to cap how many levels deep the nesting goes. ' +
-    'Always includes a "componentInfo" field reporting the shape\'s component link state: ' +
+    'The MCP response encloses the full Penpot shape under the top-level "shape" key, avoiding collisions ' +
+    'between Penpot shape.content and the MCP response content array. ' +
+    'The nested shape includes a "componentInfo" field reporting the component link state: ' +
     '"not-an-instance" (plain shape), "main-component-root" (the component\'s own main instance), ' +
     '"linked" (a placed copy linked to a component — also includes driftedFields listing any field names ' +
     'whose value on this instance differs from the main component\'s current definition), or ' +
