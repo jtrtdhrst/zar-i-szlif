@@ -33,6 +33,7 @@ export function allowNativeCheckout(
 ): { allowed: boolean; reason: string | null } {
   if (isNativeReviewPending(status, executionState)) return { allowed: false, reason: "review_pending_no_checkout" };
   if (hasFalseInProgress(status, runs)) return { allowed: false, reason: "false_progress_requires_reconciliation" };
+  if (confirmedIssueBoundRuns(runs).length > 0) return { allowed: false, reason: "issue_already_has_live_run" };
   if (status !== "todo" && status !== "backlog") return { allowed: false, reason: "not_checkout_ready" };
   return { allowed: true, reason: null };
 }
