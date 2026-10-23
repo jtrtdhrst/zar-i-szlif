@@ -9,7 +9,9 @@ const path = require("node:path");
 
 const input = (name) => (process.env[`INPUT_${name.toUpperCase()}`] || "").trim();
 const run = input("run");
-const directory = input("directory") || ".";
+// Studio sends the app directory with a leading slash ("/app"); treat it as
+// repo-relative so path.resolve does not escape the workspace.
+const directory = (input("directory") || ".").replace(/^\/+/, "") || ".";
 const branch = input("branch") || "main";
 const token = input("github_token");
 const projectId = input("project_id");
