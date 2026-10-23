@@ -687,7 +687,7 @@ export function createP1GitTools(client: PaperclipApiClient): P1GitToolDefinitio
         const methodFlag = mergeMethod === "squash" ? "--squash" : mergeMethod === "rebase" ? "--rebase" : "--merge";
         const merged = (await runJailedExec({
           ws,
-          argv: ["gh", "pr", "merge", String(pullRequestNumber), ...repoFlag, methodFlag],
+          argv: ["gh", "pr", "merge", String(pullRequestNumber), ...repoFlag, methodFlag, "--match-head-commit", headSha],
           timeoutSec: 60,
           outputLimit: 8192,
           operationId: null,
