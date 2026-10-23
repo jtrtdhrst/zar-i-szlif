@@ -38,31 +38,25 @@ describe("KOMAA-1156 gateway Mantic read lane", () => {
   });
 });
 
-// KOMAA-1415: pin the ACTUAL deployed public MCP edge by exact container name.
+// KOMAA-1415: pin exactly ONE verified public MCP edge container.
 describe("KOMAA-1415 public gateway read lane", () => {
-  it("admits the live and legacy gateway names for read-only inspect/logs/status ops", () => {
-    for (const target of ["paperclip-mcp-gateway", "paperclip-mcp-gateway-pub"]) {
-      for (const op of ["inspect", "logs", "host.container_inspect", "host.container_logs", "host.service_status", "host.service_logs"]) {
-        expect(targetError(op, target)).toBeNull();
-      }
-      expect(HOST_INSPECT_TARGETS).toContain(target);
+  it("admits paperclip-mcp-gateway for read-only inspect/logs/status ops", () => {
+    for (const op of ["inspect", "logs", "host.container_inspect", "host.container_logs", "host.service_status", "host.service_logs"]) {
+      expect(targetError(op, "paperclip-mcp-gateway")).toBeNull();
     }
+    expect(HOST_INSPECT_TARGETS).toContain("paperclip-mcp-gateway");
   });
 
-  it("admits the verified live gateway name and keeps near-misses denied", () => {
-    for (const target of ["paperclip-mcp-gateway", "paperclip-mcp-gateway-pub"]) {
-      expect(targetError("host.container_logs", target)).toBeNull();
-    }
-    for (const target of ["paperclip-mcp-gateway-pub:latest", "paperclip-mcp-gateway:latest", "paperclip-mcp-*", "*", "PAPERCLIP-MCP-GATEWAY", ""]) {
+  it("keeps the idle legacy pub container and every near-miss denied", () => {
+    for (const target of ["paperclip-mcp-gateway-pub", "paperclip-mcp-gateway:latest", "paperclip-mcp-*", "*", "PAPERCLIP-MCP-GATEWAY", ""]) {
       expect(targetError("host.container_inspect", target)).toMatch(/not_allowlisted/);
     }
+    expect(HOST_INSPECT_TARGETS).not.toContain("paperclip-mcp-gateway-pub");
   });
 
-  it("does not widen a mutation lane for either gateway", () => {
-    for (const target of ["paperclip-mcp-gateway", "paperclip-mcp-gateway-pub"]) {
-      expect(HOST_RESTART_TARGETS).not.toContain(target);
-      expect(targetError("restart", target)).toMatch(/not_allowlisted/);
-    }
+  it("does not widen a mutation lane for the gateway", () => {
+    expect(HOST_RESTART_TARGETS).not.toContain("paperclip-mcp-gateway");
+    expect(targetError("restart", "paperclip-mcp-gateway")).toMatch(/not_allowlisted/);
     expect(HOST_RECREATE_TARGETS).toEqual([]);
   });
 });
