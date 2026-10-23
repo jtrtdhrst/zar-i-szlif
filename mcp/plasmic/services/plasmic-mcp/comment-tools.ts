@@ -71,6 +71,8 @@ export function plasmicCommentTools(ctx: PlasmicCtx): ToolDef[] {
     branchId: z.string().min(1).optional().describe("Plasmic design branch ID; omit for main (not Git branch)."),
     includeResolved: z.boolean().optional().describe("Include resolved threads (default false)."),
     includeDeleted: z.boolean().optional().describe("Include deleted comments as empty tombstones (default false)."),
+    offset: z.number().int().min(0).optional().describe("Zero-based thread offset after local filters (default 0)."),
+    limit: z.number().int().min(1).max(100).optional().describe("Maximum returned threads (default 50; max 100)."),
   };
   return [
     {
@@ -82,11 +84,15 @@ export function plasmicCommentTools(ctx: PlasmicCtx): ToolDef[] {
         const projectId = args.projectId as string;
         const branchId = args.branchId as string | undefined;
         const response = await ctx.client.getComments(projectId, branchId);
-        const threads = toReadableThreads(response, !!args.includeResolved, !!args.includeDeleted);
+        const filtered = toReadableThreads(response, !!args.includeResolved, !!args.includeDeleted);
+        const offset = (args.offset as number | undefined) ?? 0;
+        const limit = (args.limit as number | undefined) ?? 50;
         return {
           projectId, branchId: branchId ?? null,
-          threadCount: threads.length,
-          threads,
+          threadCount: filtered.length,
+          offset, limit,
+          hasMore: offset + limit < filtered.length,
+          threads: filtered.slice(offset, offset + limit),
         };
       },
     },
@@ -108,13 +114,17 @@ export function plasmicCommentTools(ctx: PlasmicCtx): ToolDef[] {
           throw new Error("ELEMENT_ID_REQUIRED: supply elementIid or elementUuid");
         }
         const response = await ctx.client.getComments(projectId, branchId);
-        const threads = toReadableThreads(response, !!args.includeResolved, !!args.includeDeleted,
+        const filtered = toReadableThreads(response, !!args.includeResolved, !!args.includeDeleted,
           { elementIid, elementUuid });
+        const offset = (args.offset as number | undefined) ?? 0;
+        const limit = (args.limit as number | undefined) ?? 50;
         return {
           projectId, branchId: branchId ?? null,
           elementIid: elementIid ?? null, elementUuid: elementUuid ?? null,
-          threadCount: threads.length,
-          threads,
+          threadCount: filtered.length,
+          offset, limit,
+          hasMore: offset + limit < filtered.length,
+          threads: filtered.slice(offset, offset + limit),
         };
       },
     },
