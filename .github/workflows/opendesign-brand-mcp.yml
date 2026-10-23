@@ -2,13 +2,13 @@ name: OpenDesign Brand MCP
 
 on:
   push:
-    branches: [main, feat/opendesign-brand-mcp]
+    branches: [main]
     paths:
-      - "ops/design-stack/**"
+      - "mcp/plasmic/**"
       - ".github/workflows/opendesign-brand-mcp.yml"
   pull_request:
     paths:
-      - "ops/design-stack/**"
+      - "mcp/plasmic/**"
       - ".github/workflows/opendesign-brand-mcp.yml"
   workflow_dispatch:
 
@@ -25,15 +25,15 @@ jobs:
     runs-on: ubuntu-24.04
     defaults:
       run:
-        working-directory: ops/design-stack
+        working-directory: mcp/plasmic
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with:
           node-version: 24
           cache: npm
-          cache-dependency-path: ops/design-stack/package-lock.json
-      - run: npm ci
+          cache-dependency-path: mcp/plasmic/package-lock.json
+      - run: npm ci --include=dev
       - run: npm test
       - name: Typecheck
         id: typecheck
@@ -49,9 +49,11 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: opendesign-brand-mcp-typecheck
-          path: ops/design-stack/typecheck.log
+          path: mcp/plasmic/typecheck.log
           retention-days: 1
       - run: npm run lint
+      - run: npm run preflight:source
+      - run: npm run preflight:release
 
   image:
     needs: test
@@ -67,8 +69,8 @@ jobs:
           password: ${{ secrets.GITHUB_TOKEN }}
       - uses: docker/build-push-action@v6
         with:
-          context: ops/design-stack
-          file: ops/design-stack/Dockerfile.mcp
+          context: mcp/plasmic
+          file: mcp/plasmic/Dockerfile
           platforms: linux/amd64
           push: ${{ github.event_name == 'push' && github.ref == 'refs/heads/main' }}
           tags: |

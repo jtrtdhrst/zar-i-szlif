@@ -1,3 +1,5 @@
+import { isDeepStrictEqual } from "node:util";
+
 // Cienki klient WAB REST (zweryfikowane w AppServer.ts self-hosta):
 // POST /api/v1/auth/login, GET/POST /api/v1/projects,
 // GET /api/v1/projects/:projectBranchId (pełny bundle),
@@ -144,6 +146,69 @@ export class PlasmicClient {
       body: JSON.stringify(workspaceId ? { name, workspaceId } : { name }),
     });
     return res.project;
+  }
+
+
+  /** Studio WAB REST: GET /api/v1/projects/:projectId/branches. */
+  async listBranches(projectId: string): Promise<{ branches: Array<{
+    id: string; name: string; status?: string; hostUrl?: string;
+  }> }> {
+    await this.ensureAuth();
+    return this.req(`/api/v1/projects/${encodeURIComponent(projectId)}/branches`);
+  }
+
+  /** Create a Plasmic *design* branch, not a GitHub source branch. */
+  async createBranch(
+    projectId: string,
+    name: string,
+    opts: { sourceBranchId?: string; base?: "latest" } = {},
+  ): Promise<{ branch: { id: string; name: string; status?: string } }> {
+    if (!name.trim() || name.trim() !== name) {
+      throw new Error("INVALID_BRANCH_NAME: supply a nonempty trimmed name");
+    }
+    if (opts.sourceBranchId && opts.base) {
+      throw new Error("INVALID_BRANCH_BASE: sourceBranchId and base are exclusive");
+    }
+    // WAB base:"new" may invoke publishProject(). Never expose that path.
+    if (opts.base && opts.base !== "latest") {
+      throw new Error("BRANCH_BASE_FORBIDDEN: only latest is allowed");
+    }
+    await this.ensureAuth();
+    const existing = await this.listBranches(projectId);
+    if (existing.branches.some((b) => b.name === name)) {
+      throw new Error(`BRANCH_EXISTS: ${name}`);
+    }
+    const created = await this.req<{ branch: { id: string; name: string; status?: string } }>(
+      `/api/v1/projects/${encodeURIComponent(projectId)}/branches`,
+      { method: "POST", body: JSON.stringify({ name, ...opts, ...(!opts.sourceBranchId ? { base: "latest" } : {}) }) },
+    );
+    // Treat an unverified write as an error; avoid blindly retrying POST.
+    const after = await this.listBranches(projectId);
+    if (!created.branch?.id || !after.branches.some((b) => b.id === created.branch.id)) {
+      throw new Error("BRANCH_CREATE_UNVERIFIED: check Studio before retrying");
+    }
+    return created;
+  }
+
+  /** Plasmic server performs the merge computation, but never commits. */
+  async previewMerge(
+    projectId: string,
+    fromBranchId: string,
+    toBranchId: string,
+  ): Promise<unknown> {
+    if (!fromBranchId || !toBranchId || fromBranchId === toBranchId ||
+        (fromBranchId === "main" && toBranchId === "main")) {
+      throw new Error("INVALID_MERGE_BRANCHES");
+    }
+    await this.ensureAuth();
+    return this.req(`/api/v1/projects/${encodeURIComponent(projectId)}/merge`, {
+      method: "POST",
+      body: JSON.stringify({
+        subject: { fromBranchId, toBranchId },
+        pretend: true,
+        autoCommitOnToBranch: false,
+      }),
+    });
   }
 
   async getProjectRev(
@@ -312,13 +377,27 @@ export class PlasmicClient {
     if (opts?.dryRun) {
       return { revision: rev.revision, dryRun: true, changed };
     }
-    await this.saveIncremental(projectId, rev.revision + 1, patch, branchId, {
+    const intendedRevision = rev.revision + 1;
+    await this.saveIncremental(projectId, intendedRevision, patch, branchId, {
       modelVersion: rev.modelVersion,
       hostlessDataVersion: rev.hostlessDataVersion,
       bundleVersion: (rev.bundle as Record<string, unknown>).version as string | undefined,
       bundleRoot: (rev.bundle as Record<string, unknown>).root as string | undefined,
       bundleDeps: (rev.bundle as Record<string, unknown>).deps as unknown[] | undefined,
     });
-    return { revision: rev.revision + 1, dryRun: false, changed };
+    const after = await this.getProjectRev(projectId, branchId);
+    const missingWrites = Object.entries(patch.map ?? {}).filter(([id, expected]) => {
+      const actual = after.bundle.map[id];
+      return !actual || Object.entries(expected).some(([field, value]) =>
+        !isDeepStrictEqual(actual[field], value),
+      );
+    }).map(([id]) => id);
+    const failedDeletes = (patch.toDeleteIids ?? []).filter((id) => !!after.bundle.map[id]);
+    if (after.revision < intendedRevision || missingWrites.length || failedDeletes.length) {
+      throw new Error(
+        `WRITE_READBACK_UNVERIFIED (may have committed): expected revision ${intendedRevision}, got ${after.revision}; missing=${missingWrites.join(",")}; notDeleted=${failedDeletes.join(",")}. Inspect before retrying.`,
+      );
+    }
+    return { revision: after.revision, dryRun: false, changed };
   }
 }
