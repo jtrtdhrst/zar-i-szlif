@@ -27,8 +27,11 @@ jobs:
           cache: npm
       - name: Install pinned project dependencies
         run: npm ci --ignore-scripts --no-audit --no-fund
-      - name: Execution truth portable tests
-        run: npx --no-install vitest run mcp/paperclip/src/execution-truth-portable.test.ts
+      - name: Execution truth unit and mocked-handler regression tests
+        run: |
+          npx --no-install vitest run \
+            mcp/paperclip/src/execution-truth-portable.test.ts \
+            mcp/paperclip/src/execution-truth-regression.test.ts
       - name: Check execution truth module TypeScript
         run: npx --no-install tsc --noEmit --skipLibCheck --target ES2022 --module nodenext --moduleResolution nodenext mcp/paperclip/src/execution-truth.ts
       # The control-plane integration tests import Paperclip Core packages.
