@@ -718,6 +718,9 @@ function runTools(client: PaperclipApiClient): ControlPlaneToolDefinition[] {
         if (hasFalseInProgress(status, liveRuns)) {
           return { woke: false, issueId, status, reason: "false_progress_requires_reconciliation", verified: true };
         }
+        if (confirmedIssueBoundRuns(liveRuns).length > 0) {
+          return { woke: false, issueId, status, reason: "issue_already_has_live_run", verified: true };
+        }
         if (!force && (status === "blocked" || blockerCount > 0 || hold)) {
           return {
             woke: false, issueId, status: issueStatusOf(issue), blockerCount, executionHold: hold,
@@ -802,6 +805,7 @@ async function getEligibility(client: PaperclipApiClient, issueId: string): Prom
   if (status === "in_review") reasons.push("review_pending");
   if (isNativeReviewPending(status, executionState) && status !== "in_review") reasons.push("review_stage_pending");
   if (hasFalseInProgress(status, liveList)) reasons.push("false_progress_no_issue_run");
+  if (status === "in_progress" && confirmedIssueBoundRuns(liveList).length > 0) reasons.push("already_running_issue");
   if (status !== "todo" && status !== "backlog" && status !== "in_progress" && status !== "in_review" && status !== "blocked" && status !== "done" && status !== "cancelled") reasons.push("not_executable_status");
   if (blockerList.length > 0) reasons.push(`blocked_by_${blockerList.length}`);
   if (hold) reasons.push("execution_hold");
@@ -2797,6 +2801,10 @@ async function checkoutWake(
   const checkoutGate = allowNativeCheckout(status, workflow, null);
   if (!checkoutGate.allowed) {
     return { woke: false, issueId, reason: checkoutGate.reason, status };
+  }
+  const liveBefore = await getJsonOrNull(client, `/issues/${enc(issueId)}/live-runs`);
+  if (confirmedIssueBoundRuns(liveBefore).length > 0) {
+    return { woke: false, issueId, reason: "issue_already_has_live_run", status };
   }
   try {
     const checkout = await client.requestJson("POST", `/issues/${enc(issueId)}/checkout`, {
