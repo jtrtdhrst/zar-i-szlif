@@ -9,7 +9,8 @@ COPY services/plasmic-mcp/package.json ./services/plasmic-mcp/
 COPY services/opendesign-bridge-mcp/package.json ./services/opendesign-bridge-mcp/
 COPY design-sync/package.json ./design-sync/
 COPY workflows/package.json ./workflows/
-RUN npm ci --omit=dev 2>/dev/null || npm install --omit=dev
+# Reproducible release: never silently fall back to unpinned npm install.
+RUN npm ci --omit=dev --ignore-scripts
 COPY libs ./libs
 COPY services ./services
 COPY design-sync ./design-sync
