@@ -27,6 +27,76 @@ import {
 } from "./workspace-native.js";
 import { formatErrorResponse, formatTextResponse } from "./format.js";
 
+export interface PrChecksEvaluation {
+  state: "success" | "failure" | "pending" | "unverified";
+  failures: string[];
+  reason?: string;
+}
+
+// `gh pr checks` exit codes are not a status signal: it exits non-zero while
+// checks are pending, on failure, and also when the token cannot read checks.
+// Treat empty/ambiguous output as UNVERIFIED, never as success.
+export function evaluatePrChecks(exitCode: number, stdout: string): PrChecksEvaluation {
+  const lines = String(stdout ?? "")
+    .split(/\r?\n/)
+    .map((line) => line.trim())
+    .filter(Boolean)
+    .filter((line) => !/^no checks reported/i.test(line))
+    .filter((line) => !/^NAME\s+STATUS/i.test(line));
+  if (lines.length === 0) {
+    return {
+      state: "unverified",
+      failures: [],
+      reason: `no check results were readable (exit ${exitCode}); check-read permission or gh output is unavailable`,
+    };
+  }
+  const failures = lines.filter((line) => /\b(fail|failed|failure|cancelled|canceled|timed_out|action_required)\b/i.test(line));
+  if (failures.length > 0) return { state: "failure", failures };
+  if (lines.some((line) => /\b(pending|queued|in_progress|waiting|requested)\b/i.test(line))) {
+    return { state: "pending", failures: [] };
+  }
+  const conclusive = lines.every((line) => /\b(pass|passed|success|successful|skipping|skipped|neutral)\b/i.test(line));
+  if (!conclusive) {
+    return { state: "unverified", failures: [], reason: "check output did not conclusively report pass/fail" };
+  }
+  if (exitCode !== 0) {
+    return { state: "unverified", failures: [], reason: `gh exited ${exitCode} without a reportable failure; refusing to infer green` };
+  }
+  return { state: "success", failures: [] };
+}
+
+export interface MergeGateDecision {
+  ok: boolean;
+  code: string;
+  message: string;
+}
+
+// Refuse to merge unless the exact head and required-gate state are readable
+// and satisfied. An unreadable checks context (PAT without checks:read) yields
+// UNKNOWN here and must fail closed rather than be treated as merge-ready.
+export function evaluateMergeGate(meta: Record<string, unknown>, expectedHeadSha: string): MergeGateDecision {
+  const headSha = String(meta?.headRefOid ?? "");
+  if (!headSha) {
+    return { ok: false, code: "unverified", message: "PR head SHA is unreadable; refusing merge" };
+  }
+  const headMatches = headSha === expectedHeadSha || (expectedHeadSha.length >= 7 && headSha.startsWith(expectedHeadSha));
+  if (!headMatches) {
+    return { ok: false, code: "version_conflict", message: `expectedHeadSha mismatch: PR head is ${headSha}, expected ${expectedHeadSha}. Re-read and re-confirm.` };
+  }
+  if (String(meta?.reviewDecision ?? "").toUpperCase() === "CHANGES_REQUESTED") {
+    return { ok: false, code: "refused", message: "required review not satisfied (CHANGES_REQUESTED); branch protection is never bypassed" };
+  }
+  const mergeable = String(meta?.mergeable ?? "").toUpperCase();
+  if (mergeable !== "MERGEABLE") {
+    return { ok: false, code: "refused", message: `mergeable=${mergeable || "UNKNOWN"} does not prove the PR can merge` };
+  }
+  const mergeState = String(meta?.mergeStateStatus ?? "").toUpperCase();
+  if (!["CLEAN", "HAS_HOOKS", "UNSTABLE"].includes(mergeState)) {
+    return { ok: false, code: "refused", message: `mergeStateStatus=${mergeState || "UNKNOWN"} does not prove required checks and review are satisfied` };
+  }
+  return { ok: true, code: "ok", message: "mergeable" };
+}
+
 export interface P1GitToolDefinition {
   name: string;
   description: string;
@@ -528,21 +598,53 @@ export function createP1GitTools(client: PaperclipApiClient): P1GitToolDefinitio
             operationId: null,
           })) as unknown as Record<string, unknown>;
           const out = scrub(String(r.stdout ?? ""));
-          const fail = Number(r.exitCode ?? 1) !== 0;
-          // gh pr checks exit code != 0 while checks pending/failing; parse lines.
-          const lines = out.split("\n").filter(Boolean);
-          const conclusions = lines.map((l) => l.trim().slice(0, 200));
-          const pending = conclusions.some((c) => /pending|queued|in_progress|waiting|requested/i.test(c));
-          last = { workflowRuns: [], requiredChecks: [], checkConclusions: conclusions, failureSummaries: fail ? [out.slice(0, 2000)] : [], rawExitCode: r.exitCode };
-          if (!pending) {
-            const failed = conclusions.some((c) => /fail|cancelled|timed_out|action_required/i.test(c));
+          const exitCode = Number(r.exitCode ?? 1);
+          const conclusions = out.split("\n").filter(Boolean).map((l) => l.trim().slice(0, 200));
+          const evaluation = evaluatePrChecks(exitCode, out);
+          last = {
+            workflowRuns: [],
+            requiredChecks: [],
+            checkConclusions: conclusions,
+            failureSummaries: evaluation.failures.slice(0, 50),
+            rawExitCode: r.exitCode,
+          };
+          if (evaluation.state === "success") {
             return {
               status: "ok",
               operationId,
               ...(last as object),
-              failureSummaries: failed ? (last as Record<string, unknown>).failureSummaries : [],
               terminal: true,
-              overallStatus: failed ? "failure" : "success",
+              overallStatus: "success",
+              possiblyCommitted: false,
+              evidenceReference: `ledger:${operationId}`,
+            };
+          }
+          if (evaluation.state === "failure") {
+            return {
+              status: "ok",
+              operationId,
+              ...(last as object),
+              terminal: true,
+              overallStatus: "failure",
+              possiblyCommitted: false,
+              evidenceReference: `ledger:${operationId}`,
+            };
+          }
+          if (evaluation.state === "unverified") {
+            return {
+              status: "unverified",
+              operationId,
+              ...(last as object),
+              terminal: false,
+              overallStatus: "unverified",
+              error: {
+                code: "CHECKS_UNVERIFIED",
+                category: "UNVERIFIED",
+                retryable: false,
+                retryRequiresChange: true,
+                remediationOwner: "CTO",
+                requiredAction: evaluation.reason,
+              },
               possiblyCommitted: false,
               evidenceReference: `ledger:${operationId}`,
             };
@@ -611,17 +713,10 @@ export function createP1GitTools(client: PaperclipApiClient): P1GitToolDefinitio
           throw err("invalid_arguments", `Unparseable gh pr view output for #${pullRequestNumber}`);
         }
         const headSha = String(meta.headRefOid ?? "");
-        if (headSha && !headSha.startsWith(expectedHeadSha) && expectedHeadSha !== headSha) {
-          throw err("version_conflict", `expectedHeadSha mismatch for #${pullRequestNumber}: PR head is ${headSha}, expected ${expectedHeadSha}. Re-read and re-confirm.`);
-        }
-        if (String(meta.reviewDecision ?? "").toUpperCase() === "CHANGES_REQUESTED") {
-          throw err("refused", `Merge refused for #${pullRequestNumber}: required review not satisfied (CHANGES_REQUESTED). Branch protection is never bypassed.`, {
-            remediationOwner: "operator",
-          });
-        }
-        if (String(meta.mergeable ?? "").toUpperCase() === "CONFLICTING") {
-          throw err("refused", `Merge refused for #${pullRequestNumber}: mergeable=CONFLICTING. Resolve conflicts first.`, {
-            remediationOwner: "operator",
+        const gate = evaluateMergeGate(meta, expectedHeadSha);
+        if (!gate.ok) {
+          throw err(gate.code, `Merge refused for #${pullRequestNumber}: ${gate.message}.`, {
+            remediationOwner: gate.code === "unverified" ? "CTO" : "operator",
           });
         }
         const methodFlag = mergeMethod === "squash" ? "--squash" : mergeMethod === "rebase" ? "--rebase" : "--merge";

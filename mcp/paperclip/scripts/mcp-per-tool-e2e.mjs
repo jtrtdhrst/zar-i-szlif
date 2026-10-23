@@ -22,6 +22,7 @@
 import assert from "node:assert/strict";
 import { createHash } from "node:crypto";
 import { writeFileSync } from "node:fs";
+import { isReadOnlyTool } from "./read-only-tools.mjs";
 
 const origins = (process.env.MCP_E2E_ORIGINS || "https://paperclip-mcp.kompaszbiorek.pl")
   .split(",").map((value) => value.trim().replace(/\/+$/, "")).filter(Boolean);
@@ -38,9 +39,9 @@ if (origins.some((origin) => !/^https:\/\//i.test(origin))) {
   process.exit(2);
 }
 
-// Read-only dispatch allowlist. Everything else is validated from tools/list
-// only: an empty-argument call on a mutating tool is not a safe canary.
-const READ_ONLY = /^paperclip(Get|List|Search|Inspect|Verify|Me$|InboxLite$|WikiList|WikiSearch|WikiGetPage|HostCapabilities|HostGetEffectivePolicy|HostListOperations|HostGetOperation|Schedule)/;
+// Read-only dispatch allowlist lives in ./read-only-tools.mjs as an explicit
+// Set. Everything else is validated from tools/list only: an empty-argument
+// call on a mutating tool is not a safe canary.
 const FIXTURE_ARGS = {
   paperclipWikiList: { limit: 5 },
   paperclipWikiSearch: { query: "mcp", limit: 5 },
@@ -133,7 +134,7 @@ async function forOrigin(origin) {
       verdict(tool?.name ?? "(missing)", "FAIL", "schema");
       continue;
     }
-    if (!READ_ONLY.test(tool.name)) {
+    if (!isReadOnlyTool(tool.name)) {
       record.schemaOnly += 1;
       verdict(tool.name, "UNTESTED", "mutation/schema-only");
       continue;
