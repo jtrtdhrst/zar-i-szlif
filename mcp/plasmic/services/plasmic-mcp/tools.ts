@@ -135,6 +135,14 @@ function resolve(
   throw new Error(`NOT_FOUND "${ref}" — użyj plasmic_list_* aby poznać elementId`);
 }
 
+function redactProjectMetadata(project: unknown): Record<string, unknown> {
+  if (!project || typeof project !== "object" || Array.isArray(project)) {
+    throw new Error("INVALID_PROJECT_METADATA");
+  }
+  const { projectApiToken: _redacted, ...safe } = project as Record<string, unknown>;
+  return safe;
+}
+
 function summarize(bundle: BundleDoc, client: PlasmicClient) {
   return {
     pages: client.listPages(bundle).map((e) => ({ id: e.iid, name: e.name })),
@@ -210,7 +218,7 @@ export function plasmicTools(ctx: PlasmicCtx): ToolDef[] {
       annotations: A_READ,
       description: "List Plasmic Studio projects accessible to the configured identity.",
       schema: {},
-      handler: async () => ({ projects: await c.listProjects() }),
+      handler: async () => ({ projects: (await c.listProjects()).map(redactProjectMetadata) }),
     },
     {
       name: "plasmic_list_branches",
@@ -285,7 +293,7 @@ export function plasmicTools(ctx: PlasmicCtx): ToolDef[] {
         const rev = await c.getProjectRev(a.projectId as string, a.branchId as string | undefined);
         const s = summarize(rev.bundle, c);
         return {
-          project: rev.project,
+          project: redactProjectMetadata(rev.project),
           revision: rev.revision,
           pages: s.pages.length,
           components: s.components.length,
@@ -700,9 +708,12 @@ export function plasmicTools(ctx: PlasmicCtx): ToolDef[] {
                 a.branchId as string | undefined,
                 (bundle) => {
                   const { iid } = resolve(bundle, a.componentId as string);
-                  const inst = Object.entries(bundle.map).find(
-                    ([k, v]) => k !== iid && JSON.stringify(v).includes(iid),
-                  );
+                  const inst = Object.entries(bundle.map).find(([, value]) => {
+                    if (!value || typeof value !== "object") return false;
+                    const entry = value as Record<string, unknown>;
+                    const component = entry.component as Record<string, unknown> | undefined;
+                    return entry.__type === "TplComponent" && component?.__ref === iid;
+                  });
                   if (!inst) {
                     throw new Error(
                       "NO_INSTANCE: brak instancji tego komponentu do sklonowania — wstaw pierwszą w Studio, potem klonuj przez MCP",

@@ -39,12 +39,12 @@ async function setup() {
     fetchImpl: async () => { throw new Error("NO_NETWORK_IN_FIXTURE"); },
   });
   Object.assign(client, {
-    listProjects: async () => [{ id: "project-1", name: "Fixture" }],
+    listProjects: async () => [{ id: "project-1", name: "Fixture", projectApiToken: "fixture-secret-never-return" }],
     listBranches: async () => ({ branches: [] }),
     previewMerge: async () => ({ status: "can be merged", pretend: true }),
     getComments: async () => ({ threads: [] }),
     getProjectRev: async () => ({
-      revision, revId: "revision", project: { id: "project-1", name: "Fixture" },
+      revision, revId: "revision", project: { id: "project-1", name: "Fixture", projectApiToken: "fixture-secret-never-return" },
       bundle: { map: structuredClone(map) },
     }),
     mutate: async (
@@ -88,6 +88,13 @@ test("matrix: list_projects returns the fixture project", async () => {
   const { tool } = await setup();
   const out = await tool("plasmic_list_projects").handler({}) as { projects: unknown[] };
   assert.equal(out.projects.length, 1);
+  assert.equal(JSON.stringify(out).includes("fixture-secret-never-return"), false);
+});
+
+test("matrix: get_project redacts projectApiToken", async () => {
+  const { tool } = await setup();
+  const out = await tool("plasmic_get_project").handler({ projectId: "project-1" });
+  assert.equal(JSON.stringify(out).includes("fixture-secret-never-return"), false);
 });
 
 test("matrix: list_tokens returns StyleToken entries", async () => {
@@ -171,6 +178,7 @@ test("matrix: use_component clones an existing instance", async () => {
   }) as { changed: string[] };
   assert.equal(Object.keys(mapNow()).length, before + 1);
   assert.equal(out.changed.length, 1);
+  assert.equal(mapNow()[out.changed[0]!]!.__type, "TplComponent", "only a TplComponent instance is cloned");
 });
 
 test("matrix: validate reports a structurally valid fixture", async () => {
