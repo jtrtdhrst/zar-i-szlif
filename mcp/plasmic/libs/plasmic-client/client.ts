@@ -40,6 +40,41 @@ export interface BundleEntry {
   raw: Record<string, unknown>;
 }
 
+/** Plasmic WAB Studio comments are stored outside design-revision bundles. */
+export interface PlasmicModelAddr {
+  uuid: string;
+  iid: string;
+}
+export interface PlasmicComment {
+  id: string;
+  body: string;
+  commentThreadId: string;
+  createdAt?: string;
+  updatedAt?: string;
+  createdById?: string;
+  deletedAt?: string | null;
+}
+export interface PlasmicCommentThread {
+  id: string;
+  location: { subject: PlasmicModelAddr; variants: PlasmicModelAddr[] };
+  resolved: boolean;
+  comments: PlasmicComment[];
+  createdAt?: string;
+  updatedAt?: string;
+  createdById?: string;
+}
+export interface PlasmicCommentResponse {
+  threads: PlasmicCommentThread[];
+  reactions: Array<Record<string, unknown>>;
+  users: Array<{
+    id: string;
+    firstName?: string;
+    lastName?: string;
+    name?: string;
+  }>;
+  selfNotificationSettings?: { notifyAbout: string };
+}
+
 function isObj(v: unknown): v is Record<string, unknown> {
   return !!v && typeof v === "object" && !Array.isArray(v);
 }
@@ -148,6 +183,40 @@ export class PlasmicClient {
     return res.project;
   }
 
+
+  /**
+   * Read Studio comments including element locations and thread replies.
+   * WAB: GET /api/v1/comments/:projectBranchId, branchId omitted for main.
+   * WAB independently requires commenter-level access to that branch.
+   */
+  async getComments(projectId: string, branchId?: string): Promise<PlasmicCommentResponse> {
+    if (!projectId.trim() || projectId !== projectId.trim() ||
+        (branchId !== undefined && (!branchId.trim() || branchId !== branchId.trim()))) {
+      throw new Error("INVALID_COMMENT_PROJECT_BRANCH");
+    }
+    await this.ensureAuth();
+    const projectBranchId = branchId ? `${projectId}.${branchId}` : projectId;
+    const result = await this.req<PlasmicCommentResponse>(
+      `/api/v1/comments/${encodeURIComponent(projectBranchId)}`,
+    );
+    // Fail closed if WAB version or authentication proxy returns a mismatched shape.
+    if (!isObj(result) || !Array.isArray(result.threads) || !Array.isArray(result.users) ||
+        !Array.isArray(result.reactions) ||
+        !result.threads.every((thread) => isObj(thread) &&
+          typeof thread.id === "string" && typeof thread.resolved === "boolean" &&
+          isObj(thread.location) && isObj(thread.location.subject) &&
+          typeof thread.location.subject.iid === "string" &&
+          typeof thread.location.subject.uuid === "string" &&
+          Array.isArray(thread.location.variants) &&
+          thread.location.variants.every((v: unknown) => isObj(v) &&
+            typeof v.iid === "string" && typeof v.uuid === "string") &&
+          Array.isArray(thread.comments) &&
+          thread.comments.every((c: unknown) => isObj(c) && typeof c.id === "string" &&
+            typeof c.body === "string"))) {
+      throw new Error("COMMENTS_RESPONSE_INVALID: unexpected WAB comments schema");
+    }
+    return result;
+  }
 
   /** Studio WAB REST: GET /api/v1/projects/:projectId/branches. */
   async listBranches(projectId: string): Promise<{ branches: Array<{
