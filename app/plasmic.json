@@ -16,7 +16,58 @@
   },
   "srcDir": "components",
   "defaultPlasmicDir": "./plasmic",
-  "projects": [],
+  "projects": [
+    {
+      "projectId": "uSQPKY9PsZvrZSxJGSdBbi",
+      "projectApiToken": "7XgYD7B685ZczkdCgAShfZvxp3sB7Z7OF3kaRejsy1mUuCola4avks7xmbERQDQnuopnrTxrDTbm6NuOA",
+      "projectName": "Panel użytkownika",
+      "version": "latest",
+      "cssFilePath": "plasmic/panel_uzytkownika/plasmic.css",
+      "components": [
+        {
+          "id": "GbEqMbU9Qdgx",
+          "name": "NewPage",
+          "type": "managed",
+          "projectId": "uSQPKY9PsZvrZSxJGSdBbi",
+          "renderModuleFilePath": "plasmic/panel_uzytkownika/PlasmicNewPage.tsx",
+          "importSpec": {
+            "modulePath": "../app/new-page/page.tsx"
+          },
+          "cssFilePath": "plasmic/panel_uzytkownika/PlasmicNewPage.module.css",
+          "scheme": "blackbox",
+          "componentType": "page",
+          "path": "/new-page",
+          "rsc": {
+            "serverModulePath": "plasmic/panel_uzytkownika/PlasmicNewPageServer.tsx",
+            "clientModulePath": "../app/new-page/page-client.tsx"
+          }
+        }
+      ],
+      "icons": [],
+      "images": [],
+      "indirect": false,
+      "globalContextsFilePath": "",
+      "splitsProviderFilePath": "",
+      "styleTokensProviderFilePath": "plasmic/panel_uzytkownika/PlasmicStyleTokensProvider.tsx",
+      "dataTokensFilePath": "",
+      "projectModuleFilePath": "plasmic/panel_uzytkownika/plasmic.tsx",
+      "codeComponents": [
+        {
+          "id": "iUXcAjajKOlg",
+          "name": "PlasmicHead",
+          "displayName": "hostless-plasmic-head",
+          "componentImportPath": "@plasmicapp/react-web"
+        },
+        {
+          "id": "A5U5h3Bpv-da",
+          "name": "Fetcher",
+          "displayName": "plasmic-data-source-fetcher",
+          "componentImportPath": "@plasmicapp/react-web/lib/data-sources"
+        }
+      ],
+      "customFunctions": []
+    }
+  ],
   "globalVariants": {
     "variantGroups": []
   },
