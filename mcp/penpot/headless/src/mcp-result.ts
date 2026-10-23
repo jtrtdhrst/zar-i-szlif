@@ -6,7 +6,10 @@
  * can confuse the Penpot field with the MCP CallToolResult.content array.
  * Normal tools keep their original payload shape.
  */
-export function toMcpToolResult(toolName: string, result: unknown) {
+export function toMcpToolResult(
+  toolName: string,
+  result: unknown,
+): { content: Array<{ type: 'text'; text: string }>; structuredContent?: Record<string, unknown> } {
   if (toolName === 'penpot_get_shape' && result !== null && typeof result === 'object' && !Array.isArray(result)) {
     const shape = result as Record<string, unknown>
     const wrapped = { shape }
