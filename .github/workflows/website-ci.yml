@@ -1,0 +1,62 @@
+name: Website CI
+
+on:
+  pull_request:
+    branches: [product/www]
+    paths:
+      - 'app/website/**'
+      - '.github/workflows/website-ci.yml'
+  push:
+    branches: [product/www]
+    paths:
+      - 'app/website/**'
+      - '.github/workflows/website-ci.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: website-ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+jobs:
+  verify-website:
+    name: verify-website
+    runs-on: ubuntu-24.04
+    timeout-minutes: 25
+    defaults:
+      run:
+        working-directory: app/website
+    steps:
+      - name: Checkout exact revision
+        uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - name: Install pnpm 10 (lockfile v9)
+        uses: pnpm/action-setup@v4
+        with:
+          version: 10
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+          cache: pnpm
+          cache-dependency-path: app/website/pnpm-lock.yaml
+      - name: Verify locked dependencies
+        run: pnpm install --ignore-workspace --frozen-lockfile
+      - name: Typecheck
+        run: pnpm run typecheck
+      - name: Production static export
+        run: pnpm run build
+      - name: Check production artifact
+        run: |
+          test -s out/index.html
+          echo "Built website artifact from ${GITHUB_SHA}"
+      - name: Upload SHA-bound build artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: website-out-${{ github.sha }}
+          path: app/website/out/
+          if-no-files-found: error
+          retention-days: 7
