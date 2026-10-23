@@ -162,4 +162,22 @@ describe("KOMAA-841: execution truth and no fake progress", () => {
     expect(obj.retryReason).toBe("native_retry_eligibility_unavailable");
     expect(calls.filter((x) => x.method === "POST")).toHaveLength(0);
   });
+
+  it("unblock composite preserves native pending review even when explicitly asked for todo", async () => {
+    const { execute, calls } = runTool("paperclipUnblockAndWake", mockIssue("in_review", pendingReview));
+    const obj = readResult(await execute({ issueId: ISSUE, setStatus: "todo" }));
+    expect(obj.reason).toBe("review_pending_no_manual_status_or_wake");
+    expect(calls.filter((x) => x.method === "PATCH" || x.method === "POST")).toHaveLength(0);
+  });
+
+  it("fresh wake never mints another checkout when an issue already has a live run", async () => {
+    const { execute, calls } = runTool("paperclipWakeIssueFresh", mockIssue("todo", requestedChanges), {
+      live: [{ id: "r1", status: "running" }],
+    });
+    const obj = readResult(await execute({ issueId: ISSUE }));
+    expect(obj.woke).toBe(false);
+    expect(obj.reason).toBe("issue_already_has_live_run");
+    expect(calls.some((x) => x.url.endsWith("/checkout"))).toBe(false);
+  });
+
 });
