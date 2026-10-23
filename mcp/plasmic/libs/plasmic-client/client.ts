@@ -1,3 +1,5 @@
+import { isDeepStrictEqual } from "node:util";
+
 // Cienki klient WAB REST (zweryfikowane w AppServer.ts self-hosta):
 // POST /api/v1/auth/login, GET/POST /api/v1/projects,
 // GET /api/v1/projects/:projectBranchId (pełny bundle),
@@ -380,7 +382,12 @@ export class PlasmicClient {
       bundleDeps: (rev.bundle as Record<string, unknown>).deps as unknown[] | undefined,
     });
     const after = await this.getProjectRev(projectId, branchId);
-    const missingWrites = Object.keys(patch.map ?? {}).filter((id) => !after.bundle.map[id]);
+    const missingWrites = Object.entries(patch.map ?? {}).filter(([id, expected]) => {
+      const actual = after.bundle.map[id];
+      return !actual || Object.entries(expected).some(([field, value]) =>
+        !isDeepStrictEqual(actual[field], value),
+      );
+    }).map(([id]) => id);
     const failedDeletes = (patch.toDeleteIids ?? []).filter((id) => !!after.bundle.map[id]);
     if (after.revision < intendedRevision || missingWrites.length || failedDeletes.length) {
       throw new Error(
