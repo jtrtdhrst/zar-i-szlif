@@ -243,13 +243,22 @@ export function plasmicTools(ctx: PlasmicCtx): ToolDef[] {
         // One project-scoped mutex guards list-then-create. A stable key dedupes
         // completed retries, but ambiguous remote failures remain fail-closed.
         const key = `create_branch:${projectId}:${(a.idempotencyKey as string | undefined) ?? `${name}:${opts.sourceBranchId ?? "latest"}`}`;
+        const payloadDigest = sha256(JSON.stringify({
+          name, sourceBranchId: opts.sourceBranchId ?? null, base: opts.base ?? "latest",
+        }));
         const { result, deduped } = await idempotentLive(
           ctx.stateDir + "/idempotency", key, false,
-          () => withProjectLock(ctx.stateDir + "/locks", projectId, () =>
-            c.createBranch(projectId, name, opts),
-          ),
+          async () => ({
+            payloadDigest,
+            created: await withProjectLock(ctx.stateDir + "/locks", projectId, () =>
+              c.createBranch(projectId, name, opts),
+            ),
+          }),
         );
-        return { ...result, deduped };
+        if (result.payloadDigest !== payloadDigest) {
+          throw new Error("IDEMPOTENCY_CONFLICT: same idempotencyKey with different branch inputs");
+        }
+        return { ...result.created, deduped };
       },
     },
     {
