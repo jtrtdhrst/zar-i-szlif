@@ -27,6 +27,8 @@ jobs:
           cache: npm
       - name: Install pinned project dependencies
         run: npm ci --ignore-scripts --no-audit --no-fund
+      - name: Install pinned MCP compatibility dependencies
+        run: npm install --no-save --ignore-scripts --no-audit --no-fund zod@4.1.13
       - name: Execution truth unit and mocked-handler regression tests
         run: |
           npx --no-install vitest run \
