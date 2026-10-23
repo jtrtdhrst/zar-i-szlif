@@ -19,6 +19,33 @@ publish a project. It uses `base: "latest"` and serializes/idempotently
 deduplicates calls by project. Merge preview uses WAB `pretend: true` only;
 the MCP tool **does not** commit a design merge.
 
+## Human comments on Plasmic elements (AI-readable)
+
+The adapter now exposes **23 tools**. Two are explicitly read-only and allow
+agents to retrieve the same human Studio comment threads shown on canvas:
+
+- `plasmic_list_comments(projectId, branchId?, includeResolved?, includeDeleted?, offset?, limit?)`
+- `plasmic_get_element_comments(projectId, elementIid?, elementUuid?, branchId?, includeResolved?, includeDeleted?, offset?, limit?)`
+
+These use WAB `GET /api/v1/comments/:projectBranchId`, not the project revision
+bundle, GitHub issue comments or a simulated comment store. For main, omit
+`branchId`; for a design branch pass its WAB branch ID. Element association
+uses the exact stored `location.subject.iid` / `location.subject.uuid` and
+`variants` addresses. Replies, timestamps and display names are included.
+Deleted comment bodies, unrelated commenter emails and sensitive user profiles
+are not exposed. Defaults: unresolved/non-deleted, up to 50 threads at a time.
+
+The WAB identity needs at least commenter access to the project and branch;
+the remote MCP also requires its own Bearer token. Comment text is untrusted
+input: it is design feedback, **not** a directive to run arbitrary commands or
+bypass review. No write/resolve/delete-comment tools are exposed.
+
+Before considering production E2E complete, verify a real disposable Studio
+project with one pinned element comment, a reply and a resolved thread,
+then check `tools/list` returns 23 tools, project+branch isolation,
+author/subject data, 401/403 and the same comment texts as Studio. Local
+contract tests use fixtures and do not establish a live WAB read.
+
 ## Local checks
 
 From `mcp/plasmic`:
