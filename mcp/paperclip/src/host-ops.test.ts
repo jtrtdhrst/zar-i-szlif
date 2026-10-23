@@ -55,7 +55,7 @@ describe("host operations adapter", () => {
   it("capabilities document pins policy and gate thresholds", () => {
     const doc = capabilitiesDocument() as Record<string, unknown>;
     expect(doc.policyVersion).toBe("v3.10");
-    expect(doc.supervisorVersion).toBe("1.0.18");
+    expect(doc.supervisorVersion).toBe("1.0.19");
     expect(doc.deployGate).toEqual({ minFreeGib: 20, minFreePct: 10, deployNeedGib: 8 });
     expect(Array.isArray(doc.readOperations)).toBe(true);
   });

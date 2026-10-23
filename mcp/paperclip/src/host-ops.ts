@@ -27,7 +27,7 @@ import { formatErrorResponse, formatTextResponse } from "./format.js";
 // pointer instead of implying execution.
 
 export const HOST_BRIDGE_POLICY_VERSION = "v3.10";
-export const HOST_SUPERVISOR_VERSION = "1.0.18";
+export const HOST_SUPERVISOR_VERSION = "1.0.19";
 export const HOST_BRIDGE_TAG = "v3";
 export const HOST_REQUEST_TTL_SEC = 900;
 
