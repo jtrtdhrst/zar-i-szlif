@@ -12,6 +12,7 @@ import { readFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { z } from "zod";
+import { plasmicCommentTools } from "./comment-tools.ts";
 
 export interface PlasmicCtx {
   client: PlasmicClient;
@@ -202,6 +203,7 @@ function idempotentLive<T>(
 export function plasmicTools(ctx: PlasmicCtx): ToolDef[] {
   const c = ctx.client;
   return [
+    ...plasmicCommentTools(ctx),
 
     {
       name: "plasmic_list_projects",
