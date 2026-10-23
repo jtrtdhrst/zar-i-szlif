@@ -40,6 +40,41 @@ export interface BundleEntry {
   raw: Record<string, unknown>;
 }
 
+/** Plasmic WAB Studio comments are stored outside design-revision bundles. */
+export interface PlasmicModelAddr {
+  uuid: string;
+  iid: string;
+}
+export interface PlasmicComment {
+  id: string;
+  body: string;
+  commentThreadId: string;
+  createdAt?: string;
+  updatedAt?: string;
+  createdById?: string;
+  deletedAt?: string | null;
+}
+export interface PlasmicCommentThread {
+  id: string;
+  location: { subject: PlasmicModelAddr; variants: PlasmicModelAddr[] };
+  resolved: boolean;
+  comments: PlasmicComment[];
+  createdAt?: string;
+  updatedAt?: string;
+  createdById?: string;
+}
+export interface PlasmicCommentResponse {
+  threads: PlasmicCommentThread[];
+  reactions: Array<Record<string, unknown>>;
+  users: Array<{
+    id: string;
+    firstName?: string;
+    lastName?: string;
+    name?: string;
+  }>;
+  selfNotificationSettings?: { notifyAbout: string };
+}
+
 function isObj(v: unknown): v is Record<string, unknown> {
   return !!v && typeof v === "object" && !Array.isArray(v);
 }
@@ -73,6 +108,7 @@ export class PlasmicClient {
   }
 
   private csrf?: string;
+  private authenticating = false;
 
   private storeCookies(res: Response): void {
     // Zachowaj wszystkie ciasteczka (sesja + CSRF), nie tylko pierwsze.
@@ -87,7 +123,11 @@ export class PlasmicClient {
       this.cookies = [...this.cookies.filter((x) => !x.startsWith(name + "=")), pair];
     }
   }
-  private async req<T>(path: string, init?: RequestInit): Promise<T> {
+  private async req<T>(
+    path: string,
+    init?: RequestInit,
+    retriedAuth = false,
+  ): Promise<T> {
     const res = await this.fetchImpl(this.base + path, {
       ...init,
       headers: {
@@ -102,9 +142,27 @@ export class PlasmicClient {
     });
     this.storeCookies(res);
     if (!res.ok) {
-      throw new Error(
-        `Plasmic ${res.status} ${path}: ${(await res.text()).slice(0, 300)}`,
-      );
+      const body = (await res.text()).slice(0, 300);
+      // WAB rotation/restart invalidates the cached session while the process
+      // stays up. A GET is safe to replay once after a fresh login; a write is
+      // not replayed implicitly because the first request may have committed.
+      const method = (init?.method ?? "GET").toUpperCase();
+      const replaySafe = method === "GET" || method === "HEAD";
+      const sessionLost =
+        res.status === 401 ||
+        (res.status === 403 && /must be a normal user/i.test(body));
+      if (sessionLost && !this.authenticating && !replaySafe) {
+        throw new Error(
+          `Plasmic ${res.status} ${path}: session lost during ${method}; re-authenticate and retry the write explicitly: ${body}`,
+        );
+      }
+      if (!retriedAuth && !this.authenticating && sessionLost && replaySafe &&
+          this.opts.email && this.opts.password) {
+        this.loggedIn = false;
+        await this.login();
+        return this.req<T>(path, init, true);
+      }
+      throw new Error(`Plasmic ${res.status} ${path}: ${body}`);
     }
     const text = await res.text();
     return (text ? JSON.parse(text) : undefined) as T;
@@ -115,16 +173,21 @@ export class PlasmicClient {
     if (!email || !password) {
       throw new Error("PLASMIC_EMAIL/PLASMIC_PASSWORD not configured (read-only mode)");
     }
-    // WAB wymaga tokenu CSRF: najpierw pobierz (ustawia też ciasteczka).
-    const csrf = await this.req<{ csrf: string }>("/api/v1/auth/csrf");
-    this.csrf = csrf.csrf;
-    await this.req("/api/v1/auth/login", {
-      method: "POST",
-      body: JSON.stringify({ email, password }),
-    });
-    // Serwer rotuje token po zalogowaniu — odśwież.
-    this.csrf = (await this.req<{ csrf: string }>("/api/v1/auth/csrf")).csrf;
-    this.loggedIn = true;
+    this.authenticating = true;
+    try {
+      // WAB wymaga tokenu CSRF: najpierw pobierz (ustawia też ciasteczka).
+      const csrf = await this.req<{ csrf: string }>("/api/v1/auth/csrf");
+      this.csrf = csrf.csrf;
+      await this.req("/api/v1/auth/login", {
+        method: "POST",
+        body: JSON.stringify({ email, password }),
+      });
+      // Serwer rotuje token po zalogowaniu — odśwież.
+      this.csrf = (await this.req<{ csrf: string }>("/api/v1/auth/csrf")).csrf;
+      this.loggedIn = true;
+    } finally {
+      this.authenticating = false;
+    }
   }
 
   async ensureAuth(): Promise<void> {
@@ -148,6 +211,40 @@ export class PlasmicClient {
     return res.project;
   }
 
+
+  /**
+   * Read Studio comments including element locations and thread replies.
+   * WAB: GET /api/v1/comments/:projectBranchId, where the separator is "@" (project@branch); branchId is omitted for main.
+   * WAB independently requires commenter-level access to that branch.
+   */
+  async getComments(projectId: string, branchId?: string): Promise<PlasmicCommentResponse> {
+    if (!projectId.trim() || projectId !== projectId.trim() ||
+        (branchId !== undefined && (!branchId.trim() || branchId !== branchId.trim()))) {
+      throw new Error("INVALID_COMMENT_PROJECT_BRANCH");
+    }
+    await this.ensureAuth();
+    const projectBranchId = branchId ? `${projectId}@${branchId}` : projectId;
+    const result = await this.req<PlasmicCommentResponse>(
+      `/api/v1/comments/${encodeURIComponent(projectBranchId)}`,
+    );
+    // Fail closed if WAB version or authentication proxy returns a mismatched shape.
+    if (!isObj(result) || !Array.isArray(result.threads) || !Array.isArray(result.users) ||
+        !Array.isArray(result.reactions) ||
+        !result.threads.every((thread) => isObj(thread) &&
+          typeof thread.id === "string" && typeof thread.resolved === "boolean" &&
+          isObj(thread.location) && isObj(thread.location.subject) &&
+          typeof thread.location.subject.iid === "string" &&
+          typeof thread.location.subject.uuid === "string" &&
+          Array.isArray(thread.location.variants) &&
+          thread.location.variants.every((v: unknown) => isObj(v) &&
+            typeof v.iid === "string" && typeof v.uuid === "string") &&
+          Array.isArray(thread.comments) &&
+          thread.comments.every((c: unknown) => isObj(c) && typeof c.id === "string" &&
+            typeof c.body === "string"))) {
+      throw new Error("COMMENTS_RESPONSE_INVALID: unexpected WAB comments schema");
+    }
+    return result;
+  }
 
   /** Studio WAB REST: GET /api/v1/projects/:projectId/branches. */
   async listBranches(projectId: string): Promise<{ branches: Array<{
@@ -216,7 +313,7 @@ export class PlasmicClient {
     branchId?: string,
   ): Promise<ProjectRev> {
     await this.ensureAuth();
-    const spec = branchId ? `${projectId}.${branchId}` : projectId;
+    const spec = branchId ? `${projectId}@${branchId}` : projectId;
     const res = await this.req<{
       rev: { id: string; revision: number; data: string };
       project: ApiProject;
@@ -299,7 +396,7 @@ export class PlasmicClient {
     },
   ): Promise<unknown> {
     await this.ensureAuth();
-    const spec = branchId ? `${projectId}.${branchId}` : projectId;
+    const spec = branchId ? `${projectId}@${branchId}` : projectId;
     return this.req(
       `/api/v1/projects/${encodeURIComponent(spec)}/revisions/${nextRevision}`,
       {
@@ -336,7 +433,7 @@ export class PlasmicClient {
     meta?: { modelVersion?: number; hostlessDataVersion?: number },
   ): Promise<unknown> {
     await this.ensureAuth();
-    const spec = branchId ? `${projectId}.${branchId}` : projectId;
+    const spec = branchId ? `${projectId}@${branchId}` : projectId;
     return this.req(
       `/api/v1/projects/${encodeURIComponent(spec)}/revisions/${nextRevision}`,
       {

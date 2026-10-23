@@ -18,6 +18,8 @@ const DESIGN_STACK_ROOT = join(dirname(fileURLToPath(import.meta.url)), "..");
 /** Manifest agent-visible plasmic-mcp (kontrakt publiczny). */
 const EXPECTED_TOOLS = [
   "plasmic_list_projects",
+  "plasmic_list_comments",
+  "plasmic_get_element_comments",
   "plasmic_list_branches",
   "plasmic_create_branch",
   "plasmic_preview_merge",
@@ -43,6 +45,8 @@ const EXPECTED_TOOLS = [
 /** Narzędzia tylko do odczytu — nie zmieniają projektu Plasmic. */
 const READ_ONLY_TOOLS = [
   "plasmic_list_projects",
+  "plasmic_list_comments",
+  "plasmic_get_element_comments",
   "plasmic_list_branches",
   "plasmic_preview_merge",
   "plasmic_get_project",
@@ -168,7 +172,7 @@ async function withServer<T>(
 }
 
 describe("Plasmic MCP: katalog MCP == tools/list żywego serwera", () => {
-  it("tools/list zwraca dokładnie 21 narzędzi zgodnych z kontraktem", async () => {
+  it("tools/list zwraca dokładnie 23 narzędzia zgodnych z kontraktem", async () => {
     const tools = await withServer(async (client) => {
       const res = await client.request("tools/list", {});
       assert.ok(res.result, `tools/list nie powiodło się: ${JSON.stringify(res.error)}`);
