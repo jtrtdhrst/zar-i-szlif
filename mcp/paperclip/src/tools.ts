@@ -1078,8 +1078,38 @@ export function createToolDefinitions(client: PaperclipApiClient): ToolDefinitio
       CRITICAL_UPDATE_ISSUE,
       updateIssueToolSchema,
       async ({ issueId, runId, operatorRunId, ...body }) => {
-        enforceTaskAssignmentPolicy("PATCH", `/issues/${encodeURIComponent(issueId)}`, body);
-        return client.requestJson("PATCH", `/issues/${encodeURIComponent(issueId)}`, { body, runId, operatorRunId });
+        const issuePath = `/issues/${encodeURIComponent(issueId)}`;
+        enforceTaskAssignmentPolicy("PATCH", issuePath, body);
+        // KOMAA-1415: a metadata-only PATCH (title/description/comment) of a
+        // terminal issue has been observed to return it to `todo` upstream.
+        // Pin the observed terminal status and prove it survived the write.
+        let pinnedTerminalStatus: string | null = null;
+        if (body.status === undefined && body.reopen !== true) {
+          const current = await client.requestJson("GET", issuePath);
+          const currentStatus = isRecord(current) && typeof current.status === "string" ? current.status : "";
+          if (currentStatus === "done" || currentStatus === "cancelled") {
+            pinnedTerminalStatus = currentStatus;
+          }
+        }
+        const effectiveBody = pinnedTerminalStatus ? { ...body, status: pinnedTerminalStatus } : body;
+        const result = await client.requestJson("PATCH", issuePath, { body: effectiveBody, runId, operatorRunId });
+        if (pinnedTerminalStatus) {
+          let after = await client.requestJson("GET", issuePath);
+          let afterStatus = isRecord(after) && typeof after.status === "string" ? after.status : "";
+          if (afterStatus !== pinnedTerminalStatus) {
+            // Upstream ignored the pinned status: restore terminal state once,
+            // then prove it. Never report success on an unexpected reopen.
+            await client.requestJson("PATCH", issuePath, { body: { status: pinnedTerminalStatus }, runId, operatorRunId });
+            after = await client.requestJson("GET", issuePath);
+            afterStatus = isRecord(after) && typeof after.status === "string" ? after.status : "";
+          }
+          if (afterStatus !== pinnedTerminalStatus) {
+            throw new Error(
+              `Issue ${issueId} was ${pinnedTerminalStatus} and a metadata-only update left it ${afterStatus || "unknown"}; refusing to report success [errorCode=TERMINAL_STATUS_REOPENED]`,
+            );
+          }
+        }
+        return result;
       },
     ),
     makeTool(
