@@ -1,12 +1,13 @@
 name: Product MCP Worker CI
 on:
   pull_request:
+    branches: [product/www]
     paths:
       - "app/mcp-worker/**"
       - "app/plugin/knowledge/**"
       - ".github/workflows/product-mcp-ci.yml"
   push:
-    branches: [main]
+    branches: [product/www]
     paths:
       - "app/mcp-worker/**"
       - "app/plugin/knowledge/**"
