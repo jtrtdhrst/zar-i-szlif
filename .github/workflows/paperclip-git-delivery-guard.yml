@@ -31,5 +31,9 @@ jobs:
           node-version: 24
           cache: npm
       - run: npm ci --ignore-scripts --no-audit --no-fund
+      # Gateway runtime provides zod through its production dependency tree;
+      # the infrastructure root deliberately does not depend on it.
+      - name: Install gateway's isolated test dependency
+        run: npm install --no-save --no-package-lock --ignore-scripts --no-audit --no-fund zod@3.25.76
       - name: GitHub delivery fail-closed regression
         run: npx vitest run mcp/paperclip/src/p1-git.test.ts mcp/paperclip/src/p1-git-checks.test.ts
