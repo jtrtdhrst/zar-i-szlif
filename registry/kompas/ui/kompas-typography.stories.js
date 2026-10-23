@@ -1,4 +1,0 @@
-import { renderKompasTypography } from "./kompas-typography.js";
-export default { title: "Kompas/Foundations/Typografia", tags: ["autodocs"], render: renderKompasTypography };
-export const Default = {};
-export const OnDark = { render: () => `<section style="display:grid;gap:16px;padding:24px;background:var(--forest-950);color:var(--white)"><p style="margin:0;color:var(--gold-soft);font-size:12px;font-weight:850;letter-spacing:.105em;text-transform:uppercase;display:flex;align-items:center;gap:12px"><span style="width:32px;height:2px;background:var(--gold)"></span> Kicker — gold na ciemnym tle</p><h2 style="margin:0;font-family:var(--font-display);font-size:40px;line-height:44px;font-weight:900;letter-spacing:-.032em">Nagłówek na ciemnym tle</h2><p style="margin:0;color:rgba(255,255,255,.74);max-width:560px">Lead na ciemnym tle — rgba paper .74, ten sam rytm.</p></section>` };
