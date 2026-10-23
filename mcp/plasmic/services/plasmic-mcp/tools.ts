@@ -225,7 +225,9 @@ export function plasmicTools(ctx: PlasmicCtx): ToolDef[] {
         projectId: z.string(),
         name: z.string().min(1),
         sourceBranchId: z.string().optional(),
-        base: z.enum(["new", "latest"]).optional(),
+        // "new" is intentionally forbidden: WAB may auto-publish project content.
+        base: z.enum(["latest"]).optional(),
+        ...idKey,
         ...dry,
       },
       handler: async (a) => {
@@ -233,10 +235,20 @@ export function plasmicTools(ctx: PlasmicCtx): ToolDef[] {
         const name = a.name as string;
         const opts = {
           ...(a.sourceBranchId ? { sourceBranchId: a.sourceBranchId as string } : {}),
-          ...(a.base ? { base: a.base as "new" | "latest" } : {}),
+          ...(a.base ? { base: "latest" as const } : {}),
         };
+        if (opts.sourceBranchId && opts.base) throw new Error("INVALID_BRANCH_BASE");
         if (a.dryRun) return { dryRun: true, projectId, name, ...opts };
-        return c.createBranch(projectId, name, opts);
+        // One project-scoped mutex guards list-then-create. A stable key dedupes
+        // completed retries, but ambiguous remote failures remain fail-closed.
+        const key = `create_branch:${projectId}:${(a.idempotencyKey as string | undefined) ?? `${name}:${opts.sourceBranchId ?? "latest"}`}`;
+        const { result, deduped } = await idempotentLive(
+          ctx.stateDir + "/idempotency", key, false,
+          () => withProjectLock(ctx.stateDir + "/locks", projectId, () =>
+            c.createBranch(projectId, name, opts),
+          ),
+        );
+        return { ...result, deduped };
       },
     },
     {
