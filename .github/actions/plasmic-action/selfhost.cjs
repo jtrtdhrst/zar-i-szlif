@@ -116,6 +116,10 @@ try {
       "--projects", `${projectId}:${projectApiToken}`,
     ]);
     commitAndPush();
+    // GitHub resolves the next local-action step from the worktree; return to
+    // the dispatch branch so it loads this action instead of the stale copy on
+    // the publish branch.
+    checkoutRef(initialRef);
   } else if (run === "build") {
     sh("npm", ["run", "build"]);
     setOutput("publish_dir", "out");
