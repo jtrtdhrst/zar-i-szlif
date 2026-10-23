@@ -161,13 +161,17 @@ export class PlasmicClient {
   async createBranch(
     projectId: string,
     name: string,
-    opts: { sourceBranchId?: string; base?: "new" | "latest" } = {},
+    opts: { sourceBranchId?: string; base?: "latest" } = {},
   ): Promise<{ branch: { id: string; name: string; status?: string } }> {
     if (!name.trim() || name.trim() !== name) {
       throw new Error("INVALID_BRANCH_NAME: supply a nonempty trimmed name");
     }
     if (opts.sourceBranchId && opts.base) {
       throw new Error("INVALID_BRANCH_BASE: sourceBranchId and base are exclusive");
+    }
+    // WAB base:"new" may invoke publishProject(). Never expose that path.
+    if (opts.base && opts.base !== "latest") {
+      throw new Error("BRANCH_BASE_FORBIDDEN: only latest is allowed");
     }
     await this.ensureAuth();
     const existing = await this.listBranches(projectId);
@@ -176,7 +180,7 @@ export class PlasmicClient {
     }
     const created = await this.req<{ branch: { id: string; name: string; status?: string } }>(
       `/api/v1/projects/${encodeURIComponent(projectId)}/branches`,
-      { method: "POST", body: JSON.stringify({ name, ...opts }) },
+      { method: "POST", body: JSON.stringify({ name, ...opts, ...(!opts.sourceBranchId ? { base: "latest" } : {}) }) },
     );
     // Treat an unverified write as an error; avoid blindly retrying POST.
     const after = await this.listBranches(projectId);
