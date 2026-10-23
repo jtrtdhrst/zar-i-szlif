@@ -277,6 +277,53 @@ function githubRepositorySlug(value: string): string | null {
   return /^[A-Za-z0-9_.-]+\/[A-Za-z0-9_.-]+$/.test(path) ? path : null;
 }
 
+
+export type GitChecksAssessment = {
+  terminal: boolean;
+  overallStatus: "success" | "failure" | "pending" | "unverified";
+  checkConclusions: string[];
+  failureSummaries: string[];
+  rawExitCode: number | null;
+  reason: string | null;
+};
+
+/**
+ * The gh CLI may fail GraphQL permissions (exit 4) while printing zero checks.
+ * A zero-row or unreadable result is NEVER a green status. Only an exit-zero
+ * response with at least one explicitly successful check and no unknown,
+ * pending or failed check can count as verified.
+ */
+export function classifyGitCheckOutput(input: {
+  exitCode: number | null;
+  stdout: string;
+  stderr?: string;
+}): GitChecksAssessment {
+  const lines = input.stdout.split(/\r?\n/).map((l) => l.trim()).filter(Boolean);
+  const stderr = (input.stderr ?? "").trim();
+  const statuses = lines.map((line) => {
+    const columns = line.split(/\t+/).map((v) => v.trim());
+    return columns.length >= 2 ? columns[1].toLowerCase().split(/\s+/)[0] : "";
+  });
+  const pass = statuses.filter((s) => /^(pass|passed|success|successful)$/.test(s)).length;
+  const failed = statuses.some((s) => /^(fail|failed|failure|cancelled|canceled|timed_out|action_required)$/.test(s));
+  const pending = statuses.some((s) => /^(pending|queued|in_progress|waiting|requested)$/.test(s));
+  const unknown = statuses.some((s) => !/^(pass|passed|success|successful|skipped|neutral|fail|failed|failure|cancelled|canceled|timed_out|action_required|pending|queued|in_progress|waiting|requested)$/.test(s));
+  const rawExitCode = input.exitCode;
+  const base = { checkConclusions: lines.map((l) => l.slice(0, 200)), rawExitCode };
+  if (failed) return { ...base, terminal: true, overallStatus: "failure", failureSummaries: lines.filter((_, i) => /^(fail|failed|failure|cancelled|canceled|timed_out|action_required)$/.test(statuses[i])).slice(0, 20), reason: "GitHub check failed" };
+  if (pending) return { ...base, terminal: false, overallStatus: "pending", failureSummaries: [], reason: "GitHub checks still pending" };
+  if (rawExitCode === 0 && pass > 0 && !unknown) {
+    return { ...base, terminal: true, overallStatus: "success", failureSummaries: [], reason: null };
+  }
+  return {
+    ...base,
+    terminal: false,
+    overallStatus: "unverified",
+    failureSummaries: [stderr || input.stdout.trim() || "No readable GitHub check results"].slice(0, 1),
+    reason: rawExitCode !== 0 ? "GitHub checks query exited nonzero" : "No verified successful checks, or unknown check output",
+  };
+}
+
 export const P1_GIT_TOOL_NAMES: string[] = [
   "paperclipGitAuthStatus",
   "paperclipGitGetRemoteTopology",
@@ -528,35 +575,34 @@ export function createP1GitTools(client: PaperclipApiClient): P1GitToolDefinitio
             operationId: null,
           })) as unknown as Record<string, unknown>;
           const out = scrub(String(r.stdout ?? ""));
-          const fail = Number(r.exitCode ?? 1) !== 0;
-          // gh pr checks exit code != 0 while checks pending/failing; parse lines.
-          const lines = out.split("\n").filter(Boolean);
-          const conclusions = lines.map((l) => l.trim().slice(0, 200));
-          const pending = conclusions.some((c) => /pending|queued|in_progress|waiting|requested/i.test(c));
-          last = { workflowRuns: [], requiredChecks: [], checkConclusions: conclusions, failureSummaries: fail ? [out.slice(0, 2000)] : [], rawExitCode: r.exitCode };
-          if (!pending) {
-            const failed = conclusions.some((c) => /fail|cancelled|timed_out|action_required/i.test(c));
+          const stderr = scrub(String(r.stderr ?? ""));
+          const verdict = classifyGitCheckOutput({
+            exitCode: r.exitCode == null ? null : Number(r.exitCode),
+            stdout: out,
+            stderr,
+          });
+          last = { workflowRuns: [], requiredChecks: [], checkConclusions: verdict.checkConclusions, failureSummaries: verdict.failureSummaries, rawExitCode: verdict.rawExitCode };
+          if (verdict.overallStatus === "success" || verdict.overallStatus === "failure") {
             return {
-              status: "ok",
-              operationId,
-              ...(last as object),
-              failureSummaries: failed ? (last as Record<string, unknown>).failureSummaries : [],
-              terminal: true,
-              overallStatus: failed ? "failure" : "success",
-              possiblyCommitted: false,
-              evidenceReference: `ledger:${operationId}`,
+              status: "ok", operationId, ...(last as object),
+              terminal: true, overallStatus: verdict.overallStatus,
+              possiblyCommitted: false, evidenceReference: `ledger:${operationId}`,
+            };
+          }
+          if (verdict.overallStatus === "unverified") {
+            return {
+              status: "unverified", operationId, ...(last as object),
+              terminal: false, overallStatus: "unverified",
+              error: { code: "CHECKS_UNVERIFIED", category: "AUTHORIZATION", retryable: false, retryRequiresChange: true, remediationOwner: "CTO", requiredAction: "Restore GitHub Checks:Read and rerun against the exact PR SHA", reason: verdict.reason },
+              possiblyCommitted: false, evidenceReference: `ledger:${operationId}`,
             };
           }
           if (Date.now() >= deadline) {
             return {
-              status: "unverified",
-              operationId,
-              ...(last as object),
-              terminal: false,
-              overallStatus: "pending",
+              status: "unverified", operationId, ...(last as object),
+              terminal: false, overallStatus: "pending",
               error: { code: "TIMEOUT", category: "TIMEOUT", retryable: true, retryRequiresChange: false, remediationOwner: "caller", requiredAction: "Re-poll with the same pullRequestNumber; checks are still running" },
-              possiblyCommitted: false,
-              evidenceReference: `ledger:${operationId}`,
+              possiblyCommitted: false, evidenceReference: `ledger:${operationId}`,
             };
           }
           await new Promise((res) => setTimeout(res, (pollIntervalSec ?? 15) * 1000));
@@ -614,15 +660,29 @@ export function createP1GitTools(client: PaperclipApiClient): P1GitToolDefinitio
         if (headSha && !headSha.startsWith(expectedHeadSha) && expectedHeadSha !== headSha) {
           throw err("version_conflict", `expectedHeadSha mismatch for #${pullRequestNumber}: PR head is ${headSha}, expected ${expectedHeadSha}. Re-read and re-confirm.`);
         }
-        if (String(meta.reviewDecision ?? "").toUpperCase() === "CHANGES_REQUESTED") {
-          throw err("refused", `Merge refused for #${pullRequestNumber}: required review not satisfied (CHANGES_REQUESTED). Branch protection is never bypassed.`, {
-            remediationOwner: "operator",
-          });
+        if (!headSha || String(meta.reviewDecision ?? "").toUpperCase() !== "APPROVED") {
+          throw err("refused", `Merge refused for #${pullRequestNumber}: exact PR head and an independently approved GitHub review are required.`, { remediationOwner: "CTO" });
         }
         if (String(meta.mergeable ?? "").toUpperCase() === "CONFLICTING") {
           throw err("refused", `Merge refused for #${pullRequestNumber}: mergeable=CONFLICTING. Resolve conflicts first.`, {
             remediationOwner: "operator",
           });
+        }
+        // Branch protection may be disabled on private GitHub Free repositories.
+        // Never infer permission to merge from a green/empty reviewDecision or
+        // missing checks; verify exact PR checks again immediately before write.
+        const checksRun = (await runJailedExec({
+          ws,
+          argv: ["gh", "pr", "checks", String(pullRequestNumber), ...repoFlag],
+          timeoutSec: 30, outputLimit: 16384, operationId: null,
+        })) as unknown as Record<string, unknown>;
+        const checksVerdict = classifyGitCheckOutput({
+          exitCode: checksRun.exitCode == null ? null : Number(checksRun.exitCode),
+          stdout: scrub(String(checksRun.stdout ?? "")),
+          stderr: scrub(String(checksRun.stderr ?? "")),
+        });
+        if (checksVerdict.overallStatus !== "success") {
+          throw err("refused", `Merge refused for #${pullRequestNumber}: GitHub checks are ${checksVerdict.overallStatus} (${checksVerdict.reason ?? "not all passed"}).`, { remediationOwner: "CTO", requiredAction: "Verify all CI jobs against the exact head SHA and restore Checks:Read before merging" });
         }
         const methodFlag = mergeMethod === "squash" ? "--squash" : mergeMethod === "rebase" ? "--rebase" : "--merge";
         const merged = (await runJailedExec({
