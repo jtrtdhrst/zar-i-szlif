@@ -20,7 +20,7 @@ import {
   linkIssueApprovalSchema,
 } from "@paperclipai/shared";
 import { createHash } from "node:crypto";
-import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, readdirSync, readFileSync, writeFileSync } from "node:fs";
 import { dirname, resolve, sep } from "node:path";
 import { PaperclipApiClient } from "./client.js";
 import { CONTROL_PLANE_TOOL_NAMES, createControlPlaneTools } from "./control-plane.js";
@@ -146,22 +146,69 @@ function wikiScopeParams(input: { wikiId?: string; spaceSlug?: string }): Record
 
 
 // 1012 compat (MCP-side): the llm-wiki worker has no built entrypoints in the
-// 1012 image, so /actions/write-page answers 502/WORKER_UNAVAILABLE. Wiki pages
-// are plain files under the managed wiki-root, so fall back to a local,
-// hash-checked file write for the default space. Reads stay on the API path.
-const WIKI_FILE_ROOT = process.env.PAPERCLIP_WIKI_ROOT || "/paperclip/instances/default/data/wiki-root";
+// 1012 image, and Board-gated plugin routes fail closed for agent principals.
+// Either way /plugins/paperclipai.plugin-llm-wiki/{data,actions}/* is not
+// callable, which used to make every wiki tool unusable. Wiki pages are plain
+// files under the managed wiki-root, so reads AND writes fall back to the same
+// hash-checked local store for the default space.
+function wikiFileRoot(): string {
+  return process.env.PAPERCLIP_WIKI_ROOT || "/paperclip/instances/default/data/wiki-root";
+}
+
+function wikiScopeIsLocal(input: { wikiId?: string; spaceSlug?: string }): boolean {
+  return (!input.wikiId || input.wikiId === "default") && (!input.spaceSlug || input.spaceSlug === "default");
+}
 
 function wikiLocalPath(input: { wikiId?: string; spaceSlug?: string; path: string }): string | null {
-  const scopeOk = (!input.wikiId || input.wikiId === "default") && (!input.spaceSlug || input.spaceSlug === "default");
-  if (!scopeOk) return null;
-  const full = resolve(WIKI_FILE_ROOT + sep + input.path);
-  if (full !== WIKI_FILE_ROOT && !full.startsWith(WIKI_FILE_ROOT + sep)) return null;
+  if (!wikiScopeIsLocal(input)) return null;
+  const root = wikiFileRoot();
+  const full = resolve(root + sep + input.path);
+  if (full !== root && !full.startsWith(root + sep)) return null;
   return full;
 }
 
 function isWikiWorkerDown(error: unknown): boolean {
   const msg = String((error as any)?.message ?? error ?? "");
-  return /502|WORKER_UNAVAILABLE|not ready|API route not found|failed with 502|failed with 404/i.test(msg);
+  return /502|WORKER_UNAVAILABLE|not ready|API route not found|failed with 502|failed with 404|CONFIGURATION_MISSING|explicitly configured Board credential/i.test(msg);
+}
+
+function wikiTitleFrom(contents: string, fallbackPath: string): string | null {
+  const heading = contents.match(/^#\s+(.+)$/m);
+  if (heading) return heading[1].trim();
+  const name = fallbackPath.split("/").pop() ?? fallbackPath;
+  return name.replace(/\.md$/i, "");
+}
+
+function wikiFileList(input: { wikiId?: string; spaceSlug?: string; limit?: number }): WikiPageListItem[] {
+  const root = wikiFileRoot();
+  if (!wikiScopeIsLocal(input) || !existsSync(root)) return [];
+  const pages: WikiPageListItem[] = [];
+  const walk = (dir: string): void => {
+    for (const entry of readdirSync(dir, { withFileTypes: true })) {
+      const full = resolve(dir, entry.name);
+      if (entry.isDirectory()) {
+        walk(full);
+        continue;
+      }
+      if (!entry.isFile() || !entry.name.toLowerCase().endsWith(".md")) continue;
+      const path = full.slice(root.length + 1).split(sep).join("/");
+      if (!path.startsWith("wiki/") || path.includes("..")) continue;
+      const contents = (() => {
+        try { return readFileSync(full, "utf8"); } catch { return ""; }
+      })();
+      pages.push({ path, title: wikiTitleFrom(contents, path) });
+    }
+  };
+  walk(root);
+  pages.sort((a, b) => a.path.localeCompare(b.path));
+  return pages.slice(0, input.limit ?? 100);
+}
+
+function wikiFileGetPage(input: { wikiId?: string; spaceSlug?: string; path: string }): { contents: string; hash: string; title: string | null } | null {
+  const file = wikiLocalPath(input);
+  if (!file || !existsSync(file)) return null;
+  const contents = readFileSync(file, "utf8");
+  return { contents, hash: sha256Hex(contents), title: wikiTitleFrom(contents, input.path) };
 }
 
 function wikiFileApply(input: { wikiId?: string; spaceSlug?: string; path: string; contents: string; expectedHash?: string; summary?: string }): Record<string, unknown> {
@@ -223,20 +270,29 @@ interface WikiPageListItem {
 
 async function wikiListPages(
   client: PaperclipApiClient,
-  input: { wikiId?: string; spaceSlug?: string; limit?: number },
+  input: { wikiId?: string; spaceSlug?: string; pageType?: string; limit?: number },
 ): Promise<WikiPageListItem[]> {
   const companyId = client.resolveCompanyId();
-  const result = await client.requestJson<{ data?: { pages?: WikiPageListItem[] } }>(
-    "POST",
-    `/plugins/${WIKI_PLUGIN_ID}/data/pages`,
-    {
-      body: {
-                companyId: client.resolveCompanyId(),
-                params: { ...wikiScopeParams(input), limit: input.limit ?? 100 },
+  try {
+    const result = await client.requestJson<{ data?: { pages?: WikiPageListItem[] } }>(
+      "POST",
+      `/plugins/${WIKI_PLUGIN_ID}/data/pages`,
+      {
+        body: {
+                  companyId: client.resolveCompanyId(),
+                  params: {
+                    ...wikiScopeParams(input),
+                    ...(input.pageType ? { pageType: input.pageType } : {}),
+                    limit: input.limit ?? 100,
+                  },
+        },
       },
-    },
-  );
-  return result.data?.pages ?? [];
+    );
+    return result.data?.pages ?? [];
+  } catch (error) {
+    if (!isWikiWorkerDown(error)) throw error;
+    return wikiFileList(input);
+  }
 }
 
 async function wikiGetPage(
@@ -247,16 +303,23 @@ async function wikiGetPage(
   const scope: Record<string, unknown> = {};
   if (input.wikiId) scope.wikiId = input.wikiId;
   if (input.spaceSlug) scope.spaceSlug = input.spaceSlug;
-  const result = await client.requestJson<{ data?: { contents?: string; hash?: string; title?: string | null } }>(
-    "POST",
-    `/plugins/${WIKI_PLUGIN_ID}/data/page-content`,
-    {
-      body: {
-                companyId: client.resolveCompanyId(),
-                params: { ...scope, path: input.path } },
-    },
-  );
-  return result.data ?? {};
+  try {
+    const result = await client.requestJson<{ data?: { contents?: string; hash?: string; title?: string | null } }>(
+      "POST",
+      `/plugins/${WIKI_PLUGIN_ID}/data/page-content`,
+      {
+        body: {
+                  companyId: client.resolveCompanyId(),
+                  params: { ...scope, path: input.path } },
+      },
+    );
+    return result.data ?? {};
+  } catch (error) {
+    if (!isWikiWorkerDown(error)) throw error;
+    const local = wikiFileGetPage(input);
+    if (!local) throw new Error(`No such wiki page: ${input.path} [errorCode=NOT_FOUND]`);
+    return local;
+  }
 }
 
 function isMissingPageError(error: unknown): boolean {
@@ -1337,21 +1400,11 @@ export function createToolDefinitions(client: PaperclipApiClient): ToolDefinitio
         limit: z.number().int().positive().max(200).optional(),
       }),
       async (input: any) => {
-        const companyId = client.resolveCompanyId();
-        return client.requestJson(
-          "POST",
-          `/plugins/${WIKI_PLUGIN_ID}/data/pages`,
-          {
-            body: {
-                companyId: client.resolveCompanyId(),
-                params: {
-                ...wikiScopeParams(input),
-                ...(input.pageType ? { pageType: input.pageType } : {}),
-                limit: input.limit ?? 100,
-              },
-            },
-          },
-        );
+        const pages = await wikiListPages(client, {
+          ...input,
+          limit: input.limit ?? 100,
+        });
+        return { data: { pages } };
       },
     ),
     makeTool(
@@ -1379,17 +1432,8 @@ export function createToolDefinitions(client: PaperclipApiClient): ToolDefinitio
       "Read one full wiki page as markdown, with its current hash for edits.",
       z.object({ ...wikiScopeFields, path: wikiPagePathSchema }),
       async (input: any) => {
-        const companyId = client.resolveCompanyId();
         try {
-          return await client.requestJson(
-            "POST",
-            `/plugins/${WIKI_PLUGIN_ID}/data/page-content`,
-            {
-              body: {
-                companyId: client.resolveCompanyId(),
-                params: { ...wikiScopeParams(input), path: input.path } },
-            },
-          );
+          return { data: await wikiGetPage(client, input) };
         } catch (error) {
           if (isMissingPageError(error)) {
             throw new Error(`No such wiki page: ${input.path} [errorCode=NOT_FOUND]`);
@@ -1408,22 +1452,13 @@ export function createToolDefinitions(client: PaperclipApiClient): ToolDefinitio
         summary: z.string().trim().max(500).optional(),
       }),
       async (input: any) => {
-        const companyId = client.resolveCompanyId();
-        const current = await client.requestJson<{ data?: { contents?: string; hash?: string } }>(
-          "POST",
-          `/plugins/${WIKI_PLUGIN_ID}/data/page-content`,
-          {
-            body: {
-                companyId: client.resolveCompanyId(),
-                params: { ...wikiScopeParams(input), path: input.path } },
-          },
-        );
-        const currentContents = current.data?.contents ?? "";
+        const current = await wikiGetPageOrNull(client, input);
+        const currentContents = current?.contents ?? "";
         const stat = wikiDiffStat(currentContents, input.contents as string);
         return {
           path: input.path,
           summary: input.summary ?? null,
-          currentHash: current.data?.hash ?? sha256Hex(currentContents),
+          currentHash: current?.hash ?? sha256Hex(currentContents),
           proposedHash: sha256Hex(input.contents as string),
           addedLines: stat.added,
           removedLines: stat.removed,

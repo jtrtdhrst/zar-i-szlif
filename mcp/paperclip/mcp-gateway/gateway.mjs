@@ -7,11 +7,19 @@ import { createPaperclipMcpServer } from "/paperclip/mcp-patch/src/index.ts";
 import { allLiveToolNames } from "/paperclip/mcp-patch/src/live-verify.ts";
 import { profileToolNames } from "/paperclip/mcp-patch/src/execution-broker.ts";
 import { resolvePrincipal, describePrincipal, jwtRunId, isVerifiedOwnerBoardGrant } from "./principal.mjs";
+import { createOriginResolver } from "./public-origin.mjs";
 
 const HOST = process.env.MCP_HOST || "0.0.0.0";
 const PORT = Number(process.env.MCP_PORT || 3101);
 const API_URL = (process.env.PAPERCLIP_API_URL || "http://127.0.0.1:3100/api").replace(/\/+$/, "");
 const PUBLIC_BASE_URL = (process.env.MCP_PUBLIC_BASE_URL || "").replace(/\/+$/, "");
+// One gateway, several public hostnames (canonical + alias). OAuth metadata
+// must be self-consistent per host; only listed origins may override the
+// canonical origin, so a spoofed Host/X-Forwarded-Host cannot rewrite it.
+const ORIGIN_RESOLVER = createOriginResolver({
+  publicBaseUrl: PUBLIC_BASE_URL,
+  publicOrigins: process.env.MCP_PUBLIC_ORIGINS || "",
+});
 
 // --- Minimal OAuth 2.1 + MCP Protected Resource layer for Claude Web custom connectors ---
 // Claude.ai supports only OAuth (CIMD/DCR), not static Bearer. This bridge issues
@@ -59,7 +67,8 @@ function urlTokenFromRequest(req, url) {
 }
 
 function publicBaseUrl(req) {
-  if (PUBLIC_BASE_URL) return PUBLIC_BASE_URL;
+  const origin = ORIGIN_RESOLVER.resolve(req);
+  if (origin) return origin;
   const forwardedProto = (req.headers["x-forwarded-proto"] || "").split(",")[0]?.trim();
   const host = (req.headers["x-forwarded-host"] || req.headers.host || `127.0.0.1:${PORT}`).split(",")[0]?.trim();
   const isLocal = /^(localhost|127\.|10\.|192\.168\.|172\.(1[6-9]|2\d|3[01])\.)/.test(host);

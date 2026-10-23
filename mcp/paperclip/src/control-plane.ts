@@ -538,45 +538,51 @@ function runTools(client: PaperclipApiClient): ControlPlaneToolDefinition[] {
       },
     ),
     makeTool(
-      // KOMAA-630: first-class operator session. Mints a server-side operator
-      // run (POST /companies/:id/operator-runs) bound to the authenticated
-      // user/board actor. The returned operatorRunId is sent as
-      // X-Paperclip-Operator-Run-Id and accepted by ALL board/operator
-      // mutation endpoints with board/user authority. NOT a heartbeat run,
-      // never subject to cross-issue influence caps.
-      // 2026-10-16: route removed in Paperclip 1012; fails closed as CAPABILITY_REMOVED.
+      // KOMAA-1415: Paperclip 2026.1012.0 removed POST /companies/:id/operator-runs,
+      // so operator sessions cannot be minted. The tool name is kept (stable
+      // public tool surface) but it now RESOLVES the caller's sanctioned
+      // execution context instead of advertising a dead mutation:
+      //   1. the session's own live PAPERCLIP_RUN_ID, verified against the API
+      //      (the run's end IS the credential's expiration), or
+      //   2. the Board lane when the session carries an enrolled Board credential.
+      // It never fabricates a run id and never falls back to another principal.
       "paperclipStartOperatorRun",
-      "Open a bounded, audited operator session for user-directed control-plane work. UNAVAILABLE on Paperclip 2026.1012.0: the server route POST /companies/:id/operator-runs was removed in 1012, so this tool fails closed with CAPABILITY_REMOVED and mints nothing. Pass an existing runId where a tool accepts it, or use board-key tools without operator scope; restoring operator sessions requires a CTO-owned upstream decision.",
+      "Resolve the caller's sanctioned execution context for user-directed control-plane work. Paperclip 2026.1012.0 removed operator sessions (POST /companies/:id/operator-runs), so this tool mints nothing: it returns the session's own live PAPERCLIP_RUN_ID (verified) or the Board lane, and fails closed with NO_RUN_CONTEXT when neither exists. Pass the returned runId to tools that accept one.",
       z.object({
         reason: z.string().trim().min(1).max(500),
         scopeIssueIds: z.array(z.string().min(1)).max(20).optional().default([]),
         agentId: z.string().uuid().optional(),
       }),
       async ({ reason, scopeIssueIds, agentId }) => {
-        const companyId = client.resolveCompanyId();
-        let rec: Record<string, unknown>;
-        try {
-          rec = await client.requestJson<Record<string, unknown>>(
-            "POST",
-            `/companies/${companyId}/operator-runs`,
-            { body: { reason, scopeIssueIds, agentId: agentId ?? client.resolveAgentId() } },
-          );
-        } catch (error) {
-          throw new Error(
-            "paperclipStartOperatorRun requires POST /companies/:id/operator-runs, removed in Paperclip 1012 (API route not found). Operator sessions cannot be minted on 1012; pass an existing runId where accepted, or run control-plane tools without operator scope. Original: " +
-            (error instanceof Error ? error.message : String(error)) + " [errorCode=CAPABILITY_REMOVED]",
-          );
+        const runId = client.defaults.runId;
+        if (runId) {
+          const run = await getJsonOrNull(client, `/heartbeat-runs/${enc(runId)}`);
+          return {
+            authority: "agent-run",
+            operatorRunId: null,
+            runId,
+            run,
+            reason,
+            scopeIssueIds,
+            agentId: agentId ?? client.defaults.agentId ?? null,
+            usage: "Own live run context: pass this runId to tools that accept one. It is issue-bound and expires when the run ends; operator sessions are removed upstream.",
+          };
         }
-        return {
-          operatorRunId: rec.operatorRunId ?? rec.id ?? null,
-          companyId: rec.companyId ?? companyId,
-          reason: rec.reason ?? reason,
-          scopeIssueIds: rec.scopeIssueIds ?? scopeIssueIds,
-          createdAt: rec.createdAt ?? null,
-          expiresAt: rec.expiresAt ?? null,
-          createdByUserId: rec.createdByUserId ?? null,
-          usage: "Pass operatorRunId to every mutating paperclip* tool instead of runId. No heartbeat run required.",
-        };
+        if (client.hasBoardCredential) {
+          return {
+            authority: "board",
+            operatorRunId: null,
+            runId: null,
+            run: null,
+            reason,
+            scopeIssueIds,
+            agentId: agentId ?? client.defaults.agentId ?? null,
+            usage: "Board lane: call board-scoped tools directly (no operatorRunId exists on 2026.1012.0). Agent-scoped tools still require the caller's own live run.",
+          };
+        }
+        throw new Error(
+          "No sanctioned execution context: this session has neither an active PAPERCLIP_RUN_ID nor an enrolled Board credential. Operator sessions were removed in Paperclip 2026.1012.0, so none can be minted. Run inside your own live heartbeat run (PAPERCLIP_RUN_ID) or use the Board-authenticated MCP lane [errorCode=NO_RUN_CONTEXT]",
+        );
       },
     ),
     makeTool(

@@ -17,7 +17,15 @@ WORKDIR /app
 
 COPY mcp-gateway /opt/paperclip-mcp/mcp-gateway
 COPY src /opt/paperclip-mcp/src
+COPY plugin-runtime /opt/paperclip-mcp/plugin-runtime-builder
 COPY entrypoint.sh /usr/local/bin/paperclip-mcp-entrypoint.sh
+
+# KOMAA-1415: bundled plugin dist is git-ignored upstream and therefore absent
+# from the image, which made llm-wiki / workspace-diff / file-browser fail
+# activation ("no longer exposes a Paperclip manifest") on every boot. Build it
+# once, here, from the base image's own plugin sources; the entrypoint then
+# stages the immutable tree into the persistent /paperclip volume.
+RUN node /opt/paperclip-mcp/plugin-runtime-builder/build.mjs /app /opt/paperclip-mcp/plugin-runtime
 RUN chmod +x /usr/local/bin/paperclip-mcp-entrypoint.sh
 
 ENV PAPERCLIP_HOME=/paperclip \

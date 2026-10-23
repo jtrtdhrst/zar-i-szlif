@@ -37,3 +37,25 @@ describe("KOMAA-1156 gateway Mantic read lane", () => {
     expect(HOST_RECREATE_TARGETS).toEqual([]);
   });
 });
+
+// KOMAA-1415: pin the ACTUAL deployed public MCP edge by exact container name.
+describe("KOMAA-1415 public gateway read lane", () => {
+  it("admits paperclip-mcp-gateway-pub for read-only inspect/logs/status ops", () => {
+    for (const op of ["inspect", "logs", "host.container_inspect", "host.container_logs", "host.service_status", "host.service_logs"]) {
+      expect(targetError(op, "paperclip-mcp-gateway-pub")).toBeNull();
+    }
+    expect(HOST_INSPECT_TARGETS).toContain("paperclip-mcp-gateway-pub");
+  });
+
+  it("keeps the short/legacy name and wildcards denied", () => {
+    for (const target of ["paperclip-mcp-gateway", "paperclip-mcp-gateway-pub:latest", "*", "PAPERCLIP-MCP-GATEWAY-PUB", ""]) {
+      expect(targetError("host.container_inspect", target)).toMatch(/not_allowlisted/);
+    }
+  });
+
+  it("does not widen a mutation lane for the gateway", () => {
+    expect(HOST_RESTART_TARGETS).not.toContain("paperclip-mcp-gateway-pub");
+    expect(targetError("restart", "paperclip-mcp-gateway-pub")).toMatch(/not_allowlisted/);
+    expect(HOST_RECREATE_TARGETS).toEqual([]);
+  });
+});

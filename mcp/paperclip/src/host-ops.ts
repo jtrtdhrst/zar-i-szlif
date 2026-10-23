@@ -166,6 +166,11 @@ export const HOST_INSPECT_TARGETS = [
   // Narrow, exact target name only - no wildcard; unrelated services stay denied.
   // The supervisor still enforces its own per-target pin (policy v3.9) host-side.
   "mantic-mcp-http",
+  // KOMAA-1415: the deployed public MCP edge. Exact container name only; the
+  // lane is read-only (inspect/logs/service_status/service_logs) so an agent
+  // can read the artifact/digest it is actually serving. Build/recreate still
+  // needs the separate supervisor deployment gates (image digest + CTO pin).
+  "paperclip-mcp-gateway-pub",
 ] as const;
 
 export const HOST_RESTART_TARGETS = [
