@@ -1,0 +1,36 @@
+name: Paperclip MCP source and gateway tests
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - 'mcp/paperclip/**'
+      - '.github/workflows/paperclip-mcp-ci.yml'
+  push:
+    branches: [main]
+    paths:
+      - 'mcp/paperclip/**'
+      - '.github/workflows/paperclip-mcp-ci.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  paperclip-mcp-tests:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+      - name: Install repository test dependencies (no lifecycle scripts)
+        run: npm ci --ignore-scripts --no-audit --no-fund
+      - name: MCP source regression tests
+        run: npx --no-install vitest run mcp/paperclip/src
+      - name: Gateway identity and origin tests
+        run: node --test mcp/paperclip/mcp-gateway/test/*.test.mjs
+      - name: Check gateway and transport scripts
+        run: |
+          node --check mcp/paperclip/mcp-gateway/gateway.mjs
+          node --check mcp/paperclip/scripts/mcp-per-tool-e2e.mjs
+          bash -n mcp/paperclip/entrypoint.sh

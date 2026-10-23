@@ -1,3 +1,4 @@
+import { fetchAgentMe as fetchAgentMeWithRetry } from "./identity-retry.mjs";
 import { createHash, randomBytes, randomUUID } from "node:crypto";
 import { readFileSync, writeFileSync } from "node:fs";
 import { createServer } from "node:http";
@@ -472,23 +473,8 @@ const SERVICE_TOKENS = [
   process.env.OAUTH_DEFAULT_PAPERCLIP_TOKEN,
 ].filter((value) => typeof value === "string" && value.trim().length > 0);
 
-async function fetchAgentMe(token, runId) {
-  try {
-    const headers = { Authorization: `Bearer ${token}`, Accept: "application/json" };
-    if (runId) headers["X-Paperclip-Run-Id"] = runId;
-    const response = await fetch(`${API_URL}/agents/me`, {
-      headers,
-      signal: AbortSignal.timeout(5000),
-    });
-    if (response.status === 401 || response.status === 403) return null;
-    if (!response.ok) return null;
-    const agent = await response.json();
-    if (!UUID_RE.test(agent?.id || "")) return null;
-    return { id: agent.id, companyId: agent.companyId };
-  } catch {
-    return null;
-  }
-}
+// Bounded transient-only retry. Never retry credential denial or change the caller.
+const fetchAgentMe = (token, runId) => fetchAgentMeWithRetry(token, runId, { apiUrl: API_URL });
 
 async function resolveMcpPrincipal(token, rawBoardToken, rawRunId) {
   return resolvePrincipal(
