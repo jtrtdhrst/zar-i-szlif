@@ -219,7 +219,8 @@ export function plasmicTools(ctx: PlasmicCtx): ToolDef[] {
     },
     {
       name: "plasmic_create_branch",
-      annotations: A_ADD,
+      // Retries with an identical key are serialized and deduplicated.
+      annotations: A_WRITE,
       description: "Create a Plasmic design branch. Use GitHub MCP for Git branches and PRs.",
       schema: {
         projectId: z.string(),
