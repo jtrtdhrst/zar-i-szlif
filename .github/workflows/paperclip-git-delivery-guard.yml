@@ -1,0 +1,35 @@
+name: Paperclip Git Delivery Guard
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - 'mcp/paperclip/src/p1-git.ts'
+      - 'mcp/paperclip/src/p1-git*.test.ts'
+      - '.github/workflows/paperclip-git-delivery-guard.yml'
+  push:
+    branches: [main]
+    paths:
+      - 'mcp/paperclip/src/p1-git.ts'
+      - 'mcp/paperclip/src/p1-git*.test.ts'
+      - '.github/workflows/paperclip-git-delivery-guard.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  verify-git-delivery:
+    name: verify-git-delivery
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+      - run: npm ci --ignore-scripts --no-audit --no-fund
+      - name: GitHub delivery fail-closed regression
+        run: npx vitest run mcp/paperclip/src/p1-git.test.ts mcp/paperclip/src/p1-git-checks.test.ts
