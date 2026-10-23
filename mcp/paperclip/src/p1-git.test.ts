@@ -1,6 +1,6 @@
 import { EventEmitter } from "node:events";
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { createP1GitTools, deriveGitPermissions, evaluateMergeGate, evaluatePrChecks } from "./p1-git.js";
+import { buildMergeArgv, createP1GitTools, deriveGitPermissions, evaluateMergeGate, evaluatePrChecks } from "./p1-git.js";
 import type { PaperclipApiClient } from "./client.js";
 
 const { spawnMock } = vi.hoisted(() => ({ spawnMock: vi.fn() }));
@@ -178,5 +178,24 @@ describe("paperclipGitMergePR gate (fail-closed)", () => {
     expect(evaluateMergeGate(base, "0000000000000000000000000000000000000000").ok).toBe(false);
     expect(evaluateMergeGate({ ...base, reviewDecision: "CHANGES_REQUESTED" }, "df09a549").ok).toBe(false);
     expect(evaluateMergeGate({ ...base, mergeStateStatus: "BLOCKED" }, "df09a549").ok).toBe(false);
+  });
+});
+
+describe("paperclipGitMergePR head-race guard", () => {
+  const headSha = "fd281ca51f67207dabbeaaa7a832555071d81b6f";
+
+  it("pins the merge to the verified full head SHA", () => {
+    // A head push between the gate read and the merge must make gh refuse.
+    expect(buildMergeArgv(98, ["--repo", "owner/repo"], "--merge", headSha)).toEqual([
+      "gh", "pr", "merge", "98", "--repo", "owner/repo", "--merge", "--match-head-commit", headSha,
+    ]);
+  });
+
+  it("pins every merge method, not just the default", () => {
+    for (const methodFlag of ["--merge", "--squash", "--rebase"]) {
+      const argv = buildMergeArgv(7, [], methodFlag, headSha);
+      expect(argv).toContain("--match-head-commit");
+      expect(argv[argv.indexOf("--match-head-commit") + 1]).toBe(headSha);
+    }
   });
 });

@@ -97,6 +97,17 @@ export function evaluateMergeGate(meta: Record<string, unknown>, expectedHeadSha
   return { ok: true, code: "ok", message: "mergeable" };
 }
 
+// Pin the merge to the head SHA verified a moment earlier so a head push
+// between the gate read and the merge cannot ride in unnoticed.
+export function buildMergeArgv(
+  pullRequestNumber: number,
+  repoFlag: string[],
+  methodFlag: string,
+  verifiedHeadSha: string,
+): string[] {
+  return ["gh", "pr", "merge", String(pullRequestNumber), ...repoFlag, methodFlag, "--match-head-commit", verifiedHeadSha];
+}
+
 export interface P1GitToolDefinition {
   name: string;
   description: string;
@@ -722,7 +733,7 @@ export function createP1GitTools(client: PaperclipApiClient): P1GitToolDefinitio
         const methodFlag = mergeMethod === "squash" ? "--squash" : mergeMethod === "rebase" ? "--rebase" : "--merge";
         const merged = (await runJailedExec({
           ws,
-          argv: ["gh", "pr", "merge", String(pullRequestNumber), ...repoFlag, methodFlag],
+          argv: buildMergeArgv(pullRequestNumber, repoFlag, methodFlag, headSha),
           timeoutSec: 60,
           outputLimit: 8192,
           operationId: null,
