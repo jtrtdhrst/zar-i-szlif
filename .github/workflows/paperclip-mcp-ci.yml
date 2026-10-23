@@ -25,6 +25,12 @@ jobs:
           cache: npm
       - name: Install repository test dependencies (no lifecycle scripts)
         run: npm ci --ignore-scripts --no-audit --no-fund
+      # The test fixture imports zod directly, while the minimal repository
+      # root package.json only carries generic infrastructure dependencies.
+      # Pin this CI-only package to the existing package-lock transitive version;
+      # do not change the shipped Paperclip/Core runtime or root lockfile.
+      - name: Provision MCP test-only runtime dependency
+        run: npm install --no-save --no-package-lock --ignore-scripts --no-audit --no-fund zod@3.25.76
       - name: MCP source regression tests
         run: npx --no-install vitest run mcp/paperclip/src
       - name: Gateway identity and origin tests
