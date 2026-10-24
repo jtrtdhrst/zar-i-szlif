@@ -49,11 +49,13 @@ function mockWab() {
       });
     }
     if (url.pathname === project + "/revisions/5" && method === "POST") {
-      assert.equal(body?.incremental, true);
+      // Structural saves use a full WAB bundle, while small edits stay incremental.
       const patch = JSON.parse(String(body?.data)) as typeof bundle;
       if (!suppressReadback) {
         revision = 5;
-        bundle = { ...bundle, map: { ...bundle.map, ...patch.map } };
+        bundle = body?.incremental === true
+          ? { ...bundle, map: { ...bundle.map, ...patch.map } }
+          : patch;
         if (tamperReadback && bundle.map.child) {
           bundle.map.child = { ...bundle.map.child, name: "Unexpected server value" };
         }
@@ -116,6 +118,21 @@ test("incremental write verifies saved state through a fresh read", async () => 
   assert.equal(result.dryRun, false);
   assert.ok(requests.some((r) => r.path.endsWith("/revisions/5")));
   assert.equal(requests.filter((r) => r.method === "GET" && r.path === "/api/v1/projects/project-1").length, 2);
+});
+
+test("structural full save keeps existing WAB bundle references", async () => {
+  const { client, requests } = mockWab();
+  const result = await client.mutate("project-1", undefined, () => ({
+    map: { child: { __type: "TplTag", name: "New element", parent: { __ref: "root" } } },
+  }), { saveMode: "full" });
+  assert.equal(result.revision, 5);
+  const save = requests.find((r) => r.method === "POST" && r.path.endsWith("/revisions/5"));
+  assert.ok(save);
+  assert.equal(save.body?.incremental, undefined);
+  const saved = JSON.parse(String(save.body?.data)) as { map: Record<string, Record<string, unknown>> };
+  assert.equal(saved.map.root.__type, "Site");
+  assert.equal(saved.map.child.name, "New element");
+  assert.equal((await client.getProjectRev("project-1")).bundle.map.root.__type, "Site");
 });
 
 test("unverified write fails closed and requests inspection instead of silent success", async () => {

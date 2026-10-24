@@ -435,7 +435,7 @@ export function plasmicTools(ctx: PlasmicCtx): ToolDef[] {
                   };
                   return { map };
                 },
-                { dryRun: a.dryRun as boolean | undefined },
+                { dryRun: a.dryRun as boolean | undefined, saveMode: "full" },
               );
               return out;
             }),
@@ -494,7 +494,7 @@ export function plasmicTools(ctx: PlasmicCtx): ToolDef[] {
                   };
                   return { map };
                 },
-                { dryRun: a.dryRun as boolean | undefined },
+                { dryRun: a.dryRun as boolean | undefined, saveMode: "full" },
               );
               return { ...out, id: createdId };
             }),

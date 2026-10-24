@@ -1,5 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
+import { readFileSync } from "node:fs";
 import { mkdtemp } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
@@ -188,4 +189,23 @@ test("matrix: validate reports a structurally valid fixture", async () => {
   };
   assert.equal(out.valid, true);
   assert.ok(out.entries > 0);
+});
+
+test("fixtures: page/component templates have no unresolved refs", () => {
+  for (const file of ["page-template.json", "comp-template.json"]) {
+    const fixture = JSON.parse(
+      readFileSync(new URL(`../services/plasmic-mcp/${file}`, import.meta.url), "utf8"),
+    ) as { entries: Record<string, unknown> };
+    const iids = new Set(Object.keys(fixture.entries));
+    const dangling = new Set<string>();
+    const walk = (v: unknown): void => {
+      if (Array.isArray(v)) { v.forEach(walk); return; }
+      if (!v || typeof v !== "object") return;
+      const o = v as Record<string, unknown>;
+      if (typeof o.__ref === "string" && !iids.has(o.__ref)) dangling.add(o.__ref);
+      Object.values(o).forEach(walk);
+    };
+    walk(fixture.entries);
+    assert.deepEqual([...dangling], [], `${file} references entries outside its own map`);
+  }
 });
