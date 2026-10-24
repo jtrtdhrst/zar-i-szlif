@@ -5,6 +5,7 @@ import { createHash, randomUUID } from "node:crypto";
 import { promises as fs } from "node:fs";
 import { join } from "node:path";
 import { formatErrorResponse, formatTextResponse } from "./format.js";
+import { resolveHostRunContext } from "./host-run-context.js";
 
 // Host Operations Adapter (P0 §3): exposes the EXISTING vps-ops-supervisor
 // bridge (policy v3.8, supervisor 1.0.16) as typed public MCP tools.
@@ -321,7 +322,8 @@ export interface HostBridgeHandle {
 // artifact matches; otherwise FAILED/UNVERIFIED with evidence — never a
 // bare PASS.
 async function submitDeploymentVerify(input: HostOperationInput): Promise<HostBridgeHandle> {
-  const effectiveRun = input.runId ?? input.operatorRunId ?? process.env.PAPERCLIP_RUN_ID ?? null;
+  const runContext = resolveHostRunContext(input);
+  const effectiveRun = runContext?.runId ?? null;
   if (!effectiveRun) {
     throw new Error("host op requires a live run context: pass runId of your current heartbeat run (legacy operatorRunId alias; PAPERCLIP_RUN_ID is applied automatically in agent sessions) [errorCode=auth_failed]");
   }
@@ -380,7 +382,8 @@ export async function submitHostIntent(input: HostOperationInput): Promise<HostB
   if (op === "host.deployment_verify") {
     return submitDeploymentVerify(input);
   }
-  const effectiveRunId = input.runId ?? input.operatorRunId ?? process.env.PAPERCLIP_RUN_ID ?? null;
+  const runContext = resolveHostRunContext(input);
+  const effectiveRunId = runContext?.runId ?? null;
   if (!effectiveRunId) {
     throw new Error("host op requires a live run context: pass runId of your current heartbeat run (legacy operatorRunId alias; PAPERCLIP_RUN_ID is applied automatically in agent sessions) [errorCode=auth_failed]");
   }
@@ -411,7 +414,7 @@ export async function submitHostIntent(input: HostOperationInput): Promise<HostB
     ...(input.migrationId ? { migrationId: input.migrationId } : {}),
     ...(input.reason ? { reason: input.reason } : {}),
     ...(effectiveRunId ? { runId: effectiveRunId } : {}),
-    ...(input.operatorRunId && input.operatorRunId !== effectiveRunId ? { operatorRunId: input.operatorRunId } : {}),
+    ...(runContext ?? {}),
   };
   const curDigest = payloadDigestForIntent(intent);
 

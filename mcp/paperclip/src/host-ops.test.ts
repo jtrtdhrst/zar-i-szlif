@@ -91,7 +91,20 @@ describe("host operations adapter", () => {
     expect(text).not.toContain("CAPABILITY_REMOVED");
     const intent = JSON.parse(await fs.readFile(join(req, `${REQ}.json`), "utf8")) as Record<string, unknown>;
     expect(intent.runId).toBe(RUN);
-    expect(intent.operatorRunId).toBeUndefined();
+    expect(intent.operatorRunId).toBe(RUN);
+  });
+
+  it("replaces an expired legacy operatorRunId with the authenticated session run", async () => {
+    const { req, res } = await sandbox();
+    process.env.PAPERCLIP_RUN_ID = RUN;
+    const tool = getTool("paperclipHostOperation");
+    const p = tool.execute({ operation: "restart", target: "discord-mcp", agentId: AGENT, issueId: "KOMAA-1458", operatorRunId: "5d94e761-8b96-45f8-8155-51b9214df038", requestId: REQ });
+    await new Promise((r) => setTimeout(r, 150));
+    await fs.writeFile(join(res, `${REQ}.json`), JSON.stringify({ requestId: REQ, operationId: REQ, bridge: "v3", status: "ok", ok: true, result: "restart-ok" }), "utf8");
+    await p;
+    const intent = JSON.parse(await fs.readFile(join(req, `${REQ}.json`), "utf8")) as Record<string, unknown>;
+    expect(intent.runId).toBe(RUN);
+    expect(intent.operatorRunId).toBe(RUN);
   });
 
   it("rejects reads without any run context before touching the bridge", async () => {
