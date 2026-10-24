@@ -9,5 +9,5 @@
     "types": ["node"],
     "noEmit": true
   },
-  "include": ["libs", "services", "design-sync", "workflows", "tests"]
+  "include": ["libs", "services", "design-sync", "workflows", "tests", "scripts"]
 }

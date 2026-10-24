@@ -51,6 +51,13 @@ save a complete WAB bundle to preserve cross-entry references; tests reject
 dangling fixture references. Verify live disposable-project readback before
 claiming 23/23 E2E.
 
+The MCP catalog stays at 23 tools. E2E branch cleanup is an opt-in support
+script: set `PLASMIC_ALLOW_E2E_BRANCH_DELETE=true` and
+`PLASMIC_E2E_PROJECT_ID`, then run `npm run cleanup:e2e-branch -- <branchId>`.
+It deletes only an existing `mcp-e2e-` branch and verifies its removal; use a
+dedicated disposable project because deleting the branch also discards its
+unpublished page/component test changes.
+
 ## Local checks
 
 From `mcp/plasmic`:

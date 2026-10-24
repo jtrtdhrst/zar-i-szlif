@@ -38,6 +38,13 @@ function mockWab() {
         return json({ branch: created });
       }
     }
+    const branchDelete = url.pathname.match(/^\/api\/v1\/projects\/project-1\/branches\/([^/]+)$/);
+    if (branchDelete && method === "DELETE") {
+      const index = branches.findIndex((branch) => branch.id === decodeURIComponent(branchDelete[1]!));
+      if (index < 0) return json({ error: "not found" }, 404);
+      branches.splice(index, 1);
+      return json({});
+    }
     if (url.pathname === project + "/merge" && method === "POST") {
       return json({ status: "can be merged", pretend: body?.pretend });
     }
@@ -96,6 +103,18 @@ test("Plasmic design branches use native WAB REST, not GitHub", async () => {
     client.createBranch("project-1", "second", { sourceBranchId: "a", base: "latest" }),
     /INVALID_BRANCH_BASE/,
   );
+});
+
+test("branch cleanup deletes only an existing non-main branch and verifies readback", async () => {
+  const { client, requests } = mockWab();
+  await client.createBranch("project-1", "mcp-e2e-test", { base: "latest" });
+  await client.deleteBranch("project-1", "branch-1");
+  assert.deepEqual(requests.find((r) => r.method === "DELETE"), {
+    method: "DELETE", path: "/api/v1/projects/project-1/branches/branch-1", body: undefined,
+  });
+  assert.equal((await client.listBranches("project-1")).branches.length, 0);
+  await assert.rejects(client.deleteBranch("project-1", "main"), /INVALID_BRANCH_DELETE_TARGET/);
+  await assert.rejects(client.deleteBranch("project-1", "missing"), /BRANCH_NOT_FOUND/);
 });
 
 test("merge preview is WAB pretend=true without a commit", async () => {

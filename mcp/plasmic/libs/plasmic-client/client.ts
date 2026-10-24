@@ -287,6 +287,26 @@ export class PlasmicClient {
     return created;
   }
 
+  /** Delete one existing non-main design branch and verify it is gone. */
+  async deleteBranch(projectId: string, branchId: string): Promise<void> {
+    if (!projectId.trim() || projectId !== projectId.trim() ||
+        !branchId.trim() || branchId !== branchId.trim() || branchId === "main") {
+      throw new Error("INVALID_BRANCH_DELETE_TARGET");
+    }
+    await this.ensureAuth();
+    const { branches } = await this.listBranches(projectId);
+    if (!branches.some((branch) => branch.id === branchId)) {
+      throw new Error(`BRANCH_NOT_FOUND: ${branchId}`);
+    }
+    await this.req(
+      `/api/v1/projects/${encodeURIComponent(projectId)}/branches/${encodeURIComponent(branchId)}`,
+      { method: "DELETE" },
+    );
+    if ((await this.listBranches(projectId)).branches.some((branch) => branch.id === branchId)) {
+      throw new Error(`BRANCH_DELETE_UNVERIFIED: ${branchId}`);
+    }
+  }
+
   /** Plasmic server performs the merge computation, but never commits. */
   async previewMerge(
     projectId: string,
