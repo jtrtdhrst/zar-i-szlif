@@ -33,7 +33,7 @@ import {
   type WorkspaceMutationContext,
 } from "./workspace-native.js";
 import { capabilitiesDocument, hostLaneOperations } from "./host-ops.js";
-import { missingRequiredInPlan, noDeploymentExecutorResult, resolveDeploymentOps, unsupportedPlannedOps } from "./host-plan-ops.js";
+import { hostPolicyDigest, missingRequiredInPlan, noDeploymentExecutorResult, resolveDeploymentOps, unsupportedPlannedOps } from "./host-plan-ops.js";
 import { formatErrorResponse, formatTextResponse } from "./format.js";
 import { enforceWriteScope } from "./write-scope.js";
 import { enforceDeploymentRoot } from "./deployment-root.js";
@@ -82,15 +82,6 @@ function sha256Hex(text: string): string {
   return createHash("sha256").update(text, "utf8").digest("hex");
 }
 
-/** Single policy identity shared by read, plan and apply.
- * The capabilities document has readOperations + mutatingOperations,
- * NOT a supportedOperations field.
- */
-function hostPolicyDigest(caps: Record<string, unknown>): string {
-  const read = Array.isArray(caps.readOperations) ? (caps.readOperations as string[]) : [];
-  const mutating = Array.isArray(caps.mutatingOperations) ? (caps.mutatingOperations as string[]) : [];
-  return sha256Hex(`${String(caps.policyVersion)}:${String(caps.supervisorVersion)}:${[...read, ...mutating].join(",")}`);
-}
 
 
 const workspaceIdSchema = z.string().uuid().optional().nullable();
