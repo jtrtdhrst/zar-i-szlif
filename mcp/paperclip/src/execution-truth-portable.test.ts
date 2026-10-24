@@ -1,4 +1,6 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
+import { noDeploymentExecutorResult } from "./host-plan-ops.js";
+import { createHostTools } from "./host-ops.js";
 import {
   allowNativeCheckout,
   confirmedIssueBoundRuns,
@@ -66,5 +68,33 @@ describe("KOMAA-841 portable fail-closed execution contract", () => {
     expect(nativeRetryRouteMissing(new Error("PERMISSION_DENIED HTTP 403"))).toBe(false);
     expect(nativeRetryRouteMissing(new Error("review pending HTTP 409"))).toBe(false);
     expect(nativeRetryRouteMissing(new Error("ETIMEDOUT"))).toBe(false);
+  });
+});
+
+describe("deployment truth portable regression", () => {
+  it("refuses plan-only apply instead of reporting a deployment", () => {
+    const r = noDeploymentExecutorResult("plan-1", "op-1", "paperclip-mcp-gateway");
+    expect(r).toMatchObject({ status: "refused", state: "FAILED", errorCode: "deployment_executor_missing", possiblyCommitted: false });
+    expect(r.operationIds).toHaveLength(0);
+    expect(r.deployedImageDigest).toBeNull();
+  });
+
+  it("cannot verify a Plasmic artifact against Paperclip health", async () => {
+    const fetchSpy = vi.spyOn(globalThis, "fetch");
+    try {
+      const verify = createHostTools().find((tool) => tool.name === "paperclipHostOperation");
+      expect(verify).toBeDefined();
+      const out = await verify!.execute({
+        operation: "host.deployment_verify",
+        service: "plasmic-mcp", artifactDigest: "12345678",
+        agentId: "22222222-2222-2222-2222-222222222222",
+        issueId: "KOMAA-1459",
+        runId: "33333333-3333-3333-3333-333333333333",
+      });
+      const payload = out.content[0]?.text ?? "";
+      expect(payload).toContain("unsupported_service");
+      expect(payload).toMatch(/"verified"\s*:\s*false/);
+      expect(fetchSpy).not.toHaveBeenCalled();
+    } finally { fetchSpy.mockRestore(); }
   });
 });
