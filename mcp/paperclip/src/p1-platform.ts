@@ -33,7 +33,7 @@ import {
   type WorkspaceMutationContext,
 } from "./workspace-native.js";
 import { capabilitiesDocument, hostLaneOperations } from "./host-ops.js";
-import { missingRequiredInPlan, resolveDeploymentOps, unsupportedPlannedOps } from "./host-plan-ops.js";
+import { missingRequiredInPlan, noDeploymentExecutorResult, resolveDeploymentOps, unsupportedPlannedOps } from "./host-plan-ops.js";
 import { formatErrorResponse, formatTextResponse } from "./format.js";
 import { enforceWriteScope } from "./write-scope.js";
 import { enforceDeploymentRoot } from "./deployment-root.js";
@@ -715,7 +715,7 @@ export function createP1PlatformTools(client: PaperclipApiClient): P1PlatformToo
     ),
     makeTool(
       "paperclipHostApplyDeployment",
-      "Apply a PLANNED deployment (state machine PLANNED->...->VERIFIED; VERIFIED only after live health+version readback). Validates plan, policy digest, authority (board key or the caller's own live run for non-production), and idempotencyKey; records every transition with evidence. Refuses fail-closed when the supervisor has no lane for a planned operation.",
+      "Apply a PLANNED deployment only if actual host execution exists. Currently returns deployment_executor_missing/FAILED, with zero host operations submitted, rather than a false PREFLIGHT_PASSED success. Validates plan and authority first.",
       z.object({
         planId: z.string().uuid(),
         runId: runIdSchema,
@@ -763,26 +763,12 @@ export function createP1PlatformTools(client: PaperclipApiClient): P1PlatformToo
             { remediationOwner: "CTO", remediation: "Pin canary targets/images via a CTO-owned supervisor policy bump, then re-plan" },
           );
         }
-        await recordStep("AUTHORIZED", { authority: mutationCtx.authority, runId: mutationCtx.runId ?? null, agentId: mutationCtx.agentId ?? null, operatorRunId: mutationCtx.operatorRunId ?? null });
-        await recordStep("PREFLIGHT_PASSED", { checks: plan.prerequisiteChecks ?? [] });
-        const result = {
-          status: "ok",
-          operationId,
-          deploymentId: operationId,
-          planId,
-          state: "PREFLIGHT_PASSED",
-          operationIds: [],
-          deployedImageDigest: null,
-          sourceSha: null,
-          verification: null,
-          health: null,
-          rollbackAvailable: Boolean(plan.rollbackTarget),
-          note: "Host execution lanes for container recreation are fail-closed until CTO pins targets; this deployment authorized the plan and passed preflight only. Re-apply after the lane exists to reach VERIFIED.",
-          possiblyCommitted: false,
-          evidenceReference: `ledger:${operationId}`,
-        };
-        if (ledgerKey) await writeLedger(ledgerKey, { ...result, state: "PREFLIGHT_PASSED" });
-        await writeLedger(`op-${operationId}`, result);
+        // Plan validation is not host execution. In particular, do NOT persist
+        // AUTHORIZED/PREFLIGHT_PASSED without submitting any supervisor intents.
+        const result = noDeploymentExecutorResult(planId, operationId, String(plan.service ?? ""));
+        await recordStep("FAILED", { reason: result.note, errorCode: result.errorCode, possiblyCommitted: false });
+        if (ledgerKey) await writeLedger(ledgerKey, result);
+        await writeLedger("op-" + operationId, result);
         return result;
       },
     ),
