@@ -4,14 +4,15 @@ export interface HostRunContextInput {
 }
 
 export interface HostRunContext {
-  runId: string;
-  operatorRunId: string;
+  runId?: string;
+  operatorRunId?: string;
 }
 
 export function resolveHostRunContext(
   input: HostRunContextInput,
   sessionRunId: string | null = process.env.PAPERCLIP_RUN_ID ?? null,
 ): HostRunContext | null {
-  const runId = input.runId ?? sessionRunId ?? input.operatorRunId ?? null;
-  return runId ? { runId, operatorRunId: runId } : null;
+  const runId = input.runId ?? sessionRunId ?? null;
+  const operatorRunId = runId ? null : input.operatorRunId ?? null;
+  return runId || operatorRunId ? { ...(runId ? { runId } : {}), ...(operatorRunId ? { operatorRunId } : {}) } : null;
 }

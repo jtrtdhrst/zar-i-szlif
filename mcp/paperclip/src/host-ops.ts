@@ -274,11 +274,11 @@ const hostOperationSchema = z.object({
   service: z.string().min(1).max(128).optional().describe("Service name for host.deployment_verify / host.service_* operations"),
   artifactDigest: z.string().min(1).max(256).optional().describe("Expected artifact digest for host.deployment_verify"),
   reason: z.string().trim().min(1).max(500).optional(),
-  requestId: z.string().guid().optional(),
-  agentId: z.string().guid(),
+  requestId: z.string().uuid().optional(),
+  agentId: z.string().uuid(),
   issueId: z.string().min(1).describe("Issue UUID or human identifier (KOMAA-xxx); supervisor resolves both host-side with same company/ownership guards"),
-  runId: z.string().guid().optional().nullable(),
-  operatorRunId: z.string().guid().optional().nullable(),
+  runId: z.string().uuid().optional().nullable(),
+  operatorRunId: z.string().uuid().optional().nullable(),
 });
 
 type HostOperationInput = z.infer<typeof hostOperationSchema>;
@@ -383,8 +383,7 @@ export async function submitHostIntent(input: HostOperationInput): Promise<HostB
     return submitDeploymentVerify(input);
   }
   const runContext = resolveHostRunContext(input);
-  const effectiveRunId = runContext?.runId ?? null;
-  if (!effectiveRunId) {
+  if (!runContext) {
     throw new Error("host op requires a live run context: pass runId of your current heartbeat run (legacy operatorRunId alias; PAPERCLIP_RUN_ID is applied automatically in agent sessions) [errorCode=auth_failed]");
   }
   const terr = targetError(op, input.target);
@@ -413,7 +412,6 @@ export async function submitHostIntent(input: HostOperationInput): Promise<HostB
     ...(input.backupName ? { backupName: input.backupName } : {}),
     ...(input.migrationId ? { migrationId: input.migrationId } : {}),
     ...(input.reason ? { reason: input.reason } : {}),
-    ...(effectiveRunId ? { runId: effectiveRunId } : {}),
     ...(runContext ?? {}),
   };
   const curDigest = payloadDigestForIntent(intent);

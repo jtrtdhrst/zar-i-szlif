@@ -79,7 +79,7 @@ describe("host operations adapter", () => {
     expect(files).toEqual([]);
   });
 
-  it("accepts a mutating op with a live runId (no operatorRunId) and submits the intent", async () => {
+  it("submits a live runId without fabricating an operatorRunId", async () => {
     const { req, res } = await sandbox();
     const tool = getTool("paperclipHostOperation");
     const p = tool.execute({ operation: "restart", target: "discord-mcp", agentId: AGENT, issueId: "x", runId: RUN, requestId: REQ });
@@ -91,10 +91,10 @@ describe("host operations adapter", () => {
     expect(text).not.toContain("CAPABILITY_REMOVED");
     const intent = JSON.parse(await fs.readFile(join(req, `${REQ}.json`), "utf8")) as Record<string, unknown>;
     expect(intent.runId).toBe(RUN);
-    expect(intent.operatorRunId).toBe(RUN);
+    expect(intent).not.toHaveProperty("operatorRunId");
   });
 
-  it("replaces an expired legacy operatorRunId with the authenticated session run", async () => {
+  it("omits a stale legacy operatorRunId when a session run is present", async () => {
     const { req, res } = await sandbox();
     process.env.PAPERCLIP_RUN_ID = RUN;
     const tool = getTool("paperclipHostOperation");
@@ -104,7 +104,7 @@ describe("host operations adapter", () => {
     await p;
     const intent = JSON.parse(await fs.readFile(join(req, `${REQ}.json`), "utf8")) as Record<string, unknown>;
     expect(intent.runId).toBe(RUN);
-    expect(intent.operatorRunId).toBe(RUN);
+    expect(intent).not.toHaveProperty("operatorRunId");
   });
 
   it("rejects reads without any run context before touching the bridge", async () => {
