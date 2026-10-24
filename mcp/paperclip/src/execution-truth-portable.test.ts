@@ -1,4 +1,7 @@
 import { describe, expect, it, vi } from "vitest";
+import { readFileSync } from "node:fs";
+import { hostPolicyDigest } from "./host-plan-ops.js";
+import { capabilitiesDocument } from "./host-ops.js";
 import { noDeploymentExecutorResult } from "./host-plan-ops.js";
 import { createHostTools } from "./host-ops.js";
 import {
@@ -112,5 +115,28 @@ describe("delivery saga truth regression", () => {
     expect(result.recoveryAction).toBe("none");
     expect(result.possiblyCommitted).toBe(false);
     expect(result.steps).toEqual(prior);
+  });
+});
+
+describe("control-plane deployment wiring evidence", () => {
+  it("uses the same policy identity in policy read, plan, and apply", () => {
+    const caps = capabilitiesDocument() as Record<string, unknown>;
+    const digest = hostPolicyDigest(caps);
+    expect(digest).toMatch(/^[a-f0-9]{64}$/);
+    const source = readFileSync(new URL("./p1-platform.ts", import.meta.url), "utf8");
+    const uses = source.match(/hostPolicyDigest\(caps\)/g) ?? [];
+    expect(uses).toHaveLength(4); // policy read(2), plan, apply
+    expect(source).not.toContain("caps.supportedOperations ?? []");
+  });
+
+  it("refuses a non-executing delivery saga without fabricating progress", () => {
+    const source = readFileSync(new URL("./p1-platform.ts", import.meta.url), "utf8");
+    const start = source.indexOf('      "paperclipExecuteDeliveryUnit",');
+    expect(start).toBeGreaterThan(0);
+    const saga = source.slice(start);
+    expect(saga).toContain("noDeliveryExecutorResult(executionId, issueId, steps)");
+    expect(saga).not.toContain('status: "in_progress"');
+    expect(saga).not.toContain('step(gated, "deferred"');
+    expect(saga).toContain("resumed: false");
   });
 });
