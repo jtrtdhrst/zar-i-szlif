@@ -42,3 +42,25 @@ export function nativeRetryRouteMissing(error: unknown): boolean {
   const message = error instanceof Error ? error.message : String(error);
   return /(404|UPSTREAM_NOT_FOUND|API route not found)/i.test(message);
 }
+
+/** No executable saga driver exists beyond read-only eligibility/workspace. */
+export function noDeliveryExecutorResult(executionId: string, issueId: string, steps: ReadonlyArray<Record<string, unknown>>) {
+  return {
+    status: "refused" as const,
+    executionId,
+    issueId,
+    steps,
+    errorCode: "delivery_executor_missing" as const,
+    error: {
+      code: "DELIVERY_EXECUTOR_MISSING" as const,
+      category: "CONFIGURATION_MISSING" as const,
+      retryable: false,
+      retryRequiresChange: true,
+      remediationOwner: "cto" as const,
+      requiredAction: "Implement real issue-bound implement/test/git/deploy/verify/close phase drivers; use existing authorized tools with actual readback. No phases were executed.",
+    },
+    recoveryAction: "none" as const,
+    possiblyCommitted: false,
+    evidenceReference: "ledger:" + executionId,
+  };
+}
