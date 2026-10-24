@@ -19,16 +19,16 @@ import { resolveHostRunContext } from "./host-run-context.js";
 // The MCP layer NEVER touches docker, host credentials, or the board key.
 // The gateway Bearer (OAuth-mapped pcp key) is only Paperclip API auth;
 // host authorization is re-validated supervisor-side from issue/run context
-// (owned non-terminal issue + live run context for reads and mutations —
-// runId of the current heartbeat run, operatorRunId legacy alias, session
-// default PAPERCLIP_RUN_ID; 900 s TTL, single-flight, persistent ledger).
+// (owned non-terminal issue + issue-bound live run for reads; runId grants only
+// canary host.file.patch mutations, while every other mutation keeps audited
+// operatorRunId auth; 900 s TTL, single-flight, persistent ledger).
 // Unknown P0 catalog
 // names (service_start/stop, container_build, database_*, cron, firewall…)
 // are NOT in the schema enum: zod rejects them fail-closed with the bootstrap
 // pointer instead of implying execution.
 
-export const HOST_BRIDGE_POLICY_VERSION = "v3.10";
-export const HOST_SUPERVISOR_VERSION = "1.0.19";
+export const HOST_BRIDGE_POLICY_VERSION = "v3.11";
+export const HOST_SUPERVISOR_VERSION = "1.0.20";
 export const HOST_BRIDGE_TAG = "v3";
 export const HOST_REQUEST_TTL_SEC = 900;
 
@@ -492,9 +492,9 @@ export function capabilitiesDocument(): Record<string, unknown> {
     recreateTargets: [...HOST_RECREATE_TARGETS],
     restartTargets: [...HOST_RESTART_TARGETS],
     auth: {
-      read: "owned non-terminal issue (UUID or KOMAA-xxx, same guards) + live run context (runId of your current heartbeat run; operatorRunId legacy alias; PAPERCLIP_RUN_ID session default)",
-      mutating: "live run context required (runId; operatorRunId legacy alias; PAPERCLIP_RUN_ID session default) — verified server-side by the supervisor; an absent context fails with auth_failed",
-      notes: "Supervisor re-validates everything host-side; the gateway Bearer is never a host credential. Expired intents (>900 s) fail closed. Replays never re-execute (ledger, replayed:true).",
+      read: "owned non-terminal issue + live heartbeat runId bound host-side to the exact issue and same agent/company, or an audited operatorRunId",
+      mutating: "audited operatorRunId remains required for every mutation except host.file.patch; that operation also accepts a live heartbeat runId only after the supervisor verifies running status, agent/company and context_snapshot binding to the exact owned issue, then applies the existing canary-path guard",
+      notes: "Supervisor re-validates every intent host-side; the gateway Bearer is never a host credential. Existing operatorRunId validation and TTL remain unchanged; request TTL is 900 s and replays never re-execute.",
     },
     idempotency: "Pass requestId (uuid) to retry safely; omit it to mint a new intent. Same requestId + same payload replays with replayed:true and never re-executes; same requestId + different payload fails closed with IDEMPOTENCY_CONFLICT (errorCode=idempotency_conflict, policyDecision=deny). On pending, re-call with the same requestId and same payload.",
     p1Expansion: {
@@ -505,8 +505,8 @@ export function capabilitiesDocument(): Record<string, unknown> {
     },
     notCovered: {
       operations: ["host.database_*", "host.cron/*", "host.firewall/DNS/TLS write", "host.build_candidate (bare)"],
-      reason: "No supervisor implementation in policy v3.8 (immutable for agents). Rejected fail-closed at the schema layer. v3.8 covers host.file.read/patch, host.container.recreate (empty allowlist until canary), host.service.reload (no handler pinned), host.backup.create/restore_to_staging (staging only), host.migration.apply (staging only).",
-      bootstrap: "Owner-approved supervisor policy bump (new image version + POLICY.md revision + audit) is required before any of these can execute. Ask the owner; do not retry via another path.",
+      reason: "No supervisor lane for these operations in enforced policy v3.11; they remain fail-closed at the schema layer. Live-run authorization is narrowly limited to canary-scoped host.file.patch; other mutations still require an audited operatorRunId.",
+      bootstrap: "A reviewed supervisor image release and matching POLICY.md digest are required before any of these can execute; do not retry via another path.",
     },
     evidence: "Every result carries operationId/timestamp/target/status/result/durationMs/errorCode/policyDecision/evidenceReference (ledger:<requestId> log:watcher.log) plus additive payloadDigest (empty when unknown) and replayed flag on replays.",
   };
@@ -548,13 +548,13 @@ export function createHostTools(client?: PaperclipApiClient): HostToolDefinition
   return [
     makeHostTool(
       "paperclipHostCapabilities",
-      "Static allowlist of the host-operations bridge (policy v3.8, supervisor 1.0.16): allowed operations, targets, auth rules, deploy gate, idempotency, and what is NOT covered (fail-closed bootstrap list). No host call is made.",
+      "Static allowlist of the host-operations bridge (policy v3.11, supervisor 1.0.20): allowed operations, targets, authentication rules, deploy gate, idempotency and fail-closed gaps. No host call is made.",
       z.object({}),
       async () => capabilitiesDocument(),
     ),
     makeHostTool(
       "paperclipHostOperation",
-      "Execute one allowlisted host-supervisor intent via the file bridge and read back its evidence envelope (operationId/timestamp/target/status/result/durationMs/errorCode/policyDecision/evidenceReference). Both reads and mutations need a live run context: pass runId of your current heartbeat run (legacy operatorRunId alias; PAPERCLIP_RUN_ID is applied automatically in agent sessions); the supervisor re-validates it host-side and an absent context fails with auth_failed. Same requestId + same payload replays with replayed:true and never re-executes; same requestId + different payload fails closed with IDEMPOTENCY_CONFLICT. P0-D: host.service_reload/container_recreate/deployment_rollback alias existing lanes; host.deployment_verify is read-only MCP-side verification; host.container_build/service_start/stop/restart/backup.verify/migration.dry_run/verify fail closed (configuration_missing, owner CTO) until a supervisor lane exists. Supervisor policy v3.8 mutations still require a host-verified operator run (owner-approved policy bump pending) — such refusals surface as auth_failed. Unsupported names are schema-rejected fail-closed — see paperclipHostCapabilities.",
+      "Execute one allowlisted host-supervisor intent via the file bridge and read back its evidence envelope (operationId/timestamp/target/status/result/durationMs/errorCode/policyDecision/evidenceReference). Reads accept an issue-bound live runId or an audited operatorRunId. Only host.file.patch accepts a heartbeat runId for mutation, after the supervisor validates live status, same agent/company and exact issue binding; the existing canary-path guard remains in force. Every other mutation still requires an audited operatorRunId. Same requestId + same payload replays with replayed:true and never re-executes; different payload fails closed with IDEMPOTENCY_CONFLICT. P0-D aliases keep their target operation's auth; unsupported lanes fail closed as described by paperclipHostCapabilities.",
       hostOperationSchema,
       async (input) => {
         // Deployment-root admission (KOMAA-1005): a host operation must belong to
