@@ -86,6 +86,7 @@ export function redactWorkspaceOutput(text: string): string {
     .replace(/mcp_(at|rt)_[A-Za-z0-9_-]{8,}/g, "[REDACTED_OAUTH_TOKEN]")
     .replace(/gh[pousr]_[A-Za-z0-9_]{8,}/g, "[REDACTED_GITHUB_TOKEN]")
     .replace(/github_pat_[A-Za-z0-9_]{8,}/g, "[REDACTED_GITHUB_TOKEN]")
+    .replace(/(https?:\/\/)[^/@\s]+@/gi, "$1[REDACTED]@")
     .replace(/-----BEGIN [A-Z ]*PRIVATE KEY-----[\s\S]*?-----END [A-Z ]*PRIVATE KEY-----/g, "[REDACTED_PRIVATE_KEY]")
     .replace(/Bearer\s+[A-Za-z0-9._~-]{12,}/gi, "Bearer [REDACTED]")
     .replace(/("?(?:password|secret|token|api[_-]?key)"?\s*[:=]\s*"?)[^",\s}]{6,}("?)/gi, "$1[REDACTED]$2");
@@ -886,7 +887,16 @@ export function createWorkspaceNativeTools(client: PaperclipApiClient): Workspac
         if (issueId) await verifyIssueWritable(client, issueId);
         await enforceWriteScope(client, { issueId: issueId ?? ws.sourceIssueId, argv: argv as string[], tool: "paperclipWorkspaceExec" });
         await enforceDeploymentRoot(client, { issueId: issueId ?? ws.sourceIssueId, targetPath: ws.realCwd, workspacePath: ws.realCwd, tool: "paperclipWorkspaceExec" });
-        const execResult = await runJailedExec({ ws, argv: argv as string[], cwdRel: cwd ?? null, timeoutSec: timeoutSec ?? 60, outputLimit: outputLimit ?? 32768, operationId: operationId ?? null });
+        const fetchCredentialEnv = await gitFetchCredentialEnvForWorkspace(ws, argv as string[]);
+        const execResult = await runJailedExec({
+          ws,
+          argv: argv as string[],
+          cwdRel: cwd ?? null,
+          timeoutSec: timeoutSec ?? 60,
+          outputLimit: outputLimit ?? 32768,
+          operationId: operationId ?? null,
+          ...(fetchCredentialEnv ? { extraEnv: fetchCredentialEnv } : {}),
+        });
         await recordWorkspaceMutationAudit(mutationCtx, ws, { action: "exec", argv: (argv as string[]).slice(0, 8), exitCode: execResult.exitCode, operationId: execResult.operationId });
         return { ...execResult, attribution: mutationCtx };
       },
@@ -1313,6 +1323,51 @@ export function gitCredentialEnv(env: NodeJS.ProcessEnv = process.env): Record<s
     GITHUB_TOKEN: token,
     GIT_TERMINAL_PROMPT: "0",
   };
+}
+
+export function gitFetchCredentialEnv(
+  argv: string[],
+  originUrl: string,
+  env: NodeJS.ProcessEnv = process.env,
+): Record<string, string> | null {
+  let subcommandIndex = 1;
+  while (argv[subcommandIndex] === "-c" && typeof argv[subcommandIndex + 1] === "string") subcommandIndex += 2;
+  if (argv[subcommandIndex] !== "fetch" || argv[subcommandIndex + 1] !== "origin") return null;
+  if (argv.some((arg) => arg === "--recurse-submodules" || arg.startsWith("--recurse-submodules="))) return null;
+
+  let origin: URL;
+  try {
+    if (/[\r\n]/.test(originUrl)) return null;
+    origin = new URL(originUrl.trim());
+  } catch {
+    return null;
+  }
+  if (
+    origin.protocol !== "https:" ||
+    origin.hostname.toLowerCase() !== "github.com" ||
+    origin.username ||
+    origin.password ||
+    !["/miloszspyrka-code/zar-i-szlif", "/miloszspyrka-code/zar-i-szlif.git"].includes(origin.pathname.replace(/\/$/, ""))
+  ) {
+    return null;
+  }
+
+  const credential = gitCredentialEnv(env);
+  if (!credential) return null;
+  const { GH_TOKEN: _ghToken, GITHUB_TOKEN: _githubToken, ...gitOnlyEnv } = credential;
+  gitOnlyEnv.GIT_CONFIG_COUNT = "4";
+  gitOnlyEnv.GIT_CONFIG_KEY_3 = "fetch.recurseSubmodules";
+  gitOnlyEnv.GIT_CONFIG_VALUE_3 = "false";
+  return gitOnlyEnv;
+}
+
+async function gitFetchCredentialEnvForWorkspace(ws: ResolvedWorkspace, argv: string[]): Promise<Record<string, string> | null> {
+  let subcommandIndex = 1;
+  while (argv[subcommandIndex] === "-c" && typeof argv[subcommandIndex + 1] === "string") subcommandIndex += 2;
+  if (argv[subcommandIndex] !== "fetch" || argv[subcommandIndex + 1] !== "origin") return null;
+
+  const remote = await runJailedExec({ ws, argv: ["git", "remote", "get-url", "--all", "origin"], timeoutSec: 10, outputLimit: 2048 });
+  return remote.exitCode === 0 ? gitFetchCredentialEnv(argv, remote.stdout) : null;
 }
 
 export function ghEnv(): Record<string, string> {
