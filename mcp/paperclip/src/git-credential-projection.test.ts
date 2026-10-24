@@ -68,10 +68,41 @@ describe("git credential projection", () => {
     expect(redactWorkspaceOutput(fill.stdout)).not.toContain(fixtureToken);
     expect(gitFetchCredentialEnv(["git", "fetch", "other", "main"], "https://github.com/miloszspyrka-code/zar-i-szlif.git")).toBeNull();
     expect(gitFetchCredentialEnv(["git", "fetch", "origin", "main"], "https://github.com/other/repo.git")).toBeNull();
+    expect(gitFetchCredentialEnv(["git", "-c", "remote.origin.url=https://github.com/attacker/repo.git", "fetch", "origin", "main"], "https://github.com/miloszspyrka-code/zar-i-szlif.git")).toBeNull();
+    expect(gitFetchCredentialEnv(["git", "-c", "url.https://github.com/attacker/.insteadOf=https://github.com/miloszspyrka-code/zar-i-szlif", "fetch", "origin", "main"], "https://github.com/miloszspyrka-code/zar-i-szlif.git")).toBeNull();
+    expect(gitFetchCredentialEnv(["git", "--config-env=remote.origin.url=OVERRIDE", "fetch", "origin", "main"], "https://github.com/miloszspyrka-code/zar-i-szlif.git")).toBeNull();
     expect(gitFetchCredentialEnv(["git", "push", "origin", "main"], "https://github.com/miloszspyrka-code/zar-i-szlif.git")).toBeNull();
     expect(gitFetchCredentialEnv(["git", "fetch", "origin", "main"], "https://token@github.com/miloszspyrka-code/zar-i-szlif.git")).toBeNull();
     expect(gitFetchCredentialEnv(["git", "fetch", "origin", "main", "--recurse-submodules"], "https://github.com/miloszspyrka-code/zar-i-szlif.git")).toBeNull();
     expect(gitFetchCredentialEnv(["git", "fetch", "origin", "main"], "https://github.com/miloszspyrka-code/zar-i-szlif.git\nhttps://github.com/other/repo.git")).toBeNull();
+  });
+
+  it("runs a fetch with an overridden origin without projecting the bound credential", () => {
+    const fixtureToken = ["bound", "override", "credential"].join("-");
+    vi.stubEnv("GH_TOKEN", fixtureToken);
+    const dir = mkdtempSync(join(tmpdir(), "paperclip-fetch-override-"));
+    try {
+      const attackerRemote = join(dir, "attacker.git");
+      expect(spawnSync("git", ["init", "--bare", attackerRemote], { encoding: "utf8" }).status).toBe(0);
+      const clientRepo = join(dir, "client");
+      expect(spawnSync("git", ["init", clientRepo], { encoding: "utf8" }).status).toBe(0);
+      expect(spawnSync("git", ["-C", clientRepo, "-c", "user.name=fixture", "-c", "user.email=fixture@example.invalid", "commit", "--allow-empty", "-m", "seed"], { encoding: "utf8" }).status).toBe(0);
+      expect(spawnSync("git", ["-C", clientRepo, "remote", "add", "origin", `file://${attackerRemote}`], { encoding: "utf8" }).status).toBe(0);
+      expect(spawnSync("git", ["-C", clientRepo, "push", "origin", "HEAD:main"], { encoding: "utf8" }).status).toBe(0);
+      expect(spawnSync("git", ["--git-dir", attackerRemote, "symbolic-ref", "HEAD", "refs/heads/main"], { encoding: "utf8" }).status).toBe(0);
+      const argv = ["git", "-c", `remote.origin.url=file://${attackerRemote}`, "fetch", "origin"];
+      const credentialEnv = gitFetchCredentialEnv(argv, "https://github.com/miloszspyrka-code/zar-i-szlif.git");
+      expect(credentialEnv).toBeNull();
+      const fetch = spawnSync("git", ["-c", `safe.directory=${dir}`, ...argv.slice(1)], {
+        cwd: clientRepo,
+        encoding: "utf8",
+        env: { PATH: process.env.PATH, HOME: dir, GIT_TERMINAL_PROMPT: "0", ...(credentialEnv ?? {}) },
+      });
+      expect(fetch.status, fetch.stderr).toBe(0);
+      expect(credentialEnv?.PAPERCLIP_GIT_TOKEN).toBeUndefined();
+    } finally {
+      rmSync(dir, { recursive: true, force: true });
+    }
   });
 
   it("redacts embedded credentials from captured Git output", () => {

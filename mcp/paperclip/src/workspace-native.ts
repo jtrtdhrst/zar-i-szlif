@@ -1330,9 +1330,7 @@ export function gitFetchCredentialEnv(
   originUrl: string,
   env: NodeJS.ProcessEnv = process.env,
 ): Record<string, string> | null {
-  let subcommandIndex = 1;
-  while (argv[subcommandIndex] === "-c" && typeof argv[subcommandIndex + 1] === "string") subcommandIndex += 2;
-  if (argv[subcommandIndex] !== "fetch" || argv[subcommandIndex + 1] !== "origin") return null;
+  if (argv[1] !== "fetch" || argv[2] !== "origin") return null;
   if (argv.some((arg) => arg === "--recurse-submodules" || arg.startsWith("--recurse-submodules="))) return null;
 
   let origin: URL;
