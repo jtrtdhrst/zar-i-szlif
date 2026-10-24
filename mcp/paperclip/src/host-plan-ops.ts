@@ -63,3 +63,29 @@ export function missingRequiredInPlan(plannedOps: string[]): string[] {
   const have = new Set(plannedOps.map(canonicalOp));
   return REQUIRED_DEPLOY_OPS.filter((op) => !have.has(op));
 }
+
+/**
+ * A plan is not a deployment. Until the host executor is actually wired to
+ * supervisor intents and their readbacks, fail closed instead of reporting
+ * PREFLIGHT_PASSED as a successful deployment.
+ */
+export function noDeploymentExecutorResult(planId: string, operationId: string, service: string) {
+  return {
+    status: "refused" as const,
+    operationId,
+    deploymentId: operationId,
+    planId,
+    service,
+    state: "FAILED" as const,
+    errorCode: "deployment_executor_missing" as const,
+    operationIds: [] as string[],
+    deployedImageDigest: null,
+    sourceSha: null,
+    verification: null,
+    health: null,
+    rollbackAvailable: false,
+    note: "No host deployment intents were submitted. Wire backup/recreate/verify/rollback to the supervisor with image-provenance readback before applying plans.",
+    possiblyCommitted: false,
+    evidenceReference: "ledger:" + operationId,
+  };
+}
