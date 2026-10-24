@@ -7,6 +7,7 @@ import {
   hasFalseInProgress,
   isNativeReviewPending,
   nativeRetryRouteMissing,
+  noDeliveryExecutorResult,
 } from "./execution-truth.js";
 
 const pending = { status: "pending", currentStageType: "review", currentStageId: "review-1" };
@@ -96,5 +97,20 @@ describe("deployment truth portable regression", () => {
       expect(payload).toMatch(/"verified"\s*:\s*false/);
       expect(fetchSpy).not.toHaveBeenCalled();
     } finally { fetchSpy.mockRestore(); }
+  });
+});
+
+describe("delivery saga truth regression", () => {
+  it("cannot report in_progress or resumable after read-only preflight", () => {
+    const prior = [{ stepId: "eligibility", status: "done" }, { stepId: "workspace", status: "done" },
+      { stepId: "implement", status: "not_executed", errorCode: "delivery_executor_missing" }];
+    const result = noDeliveryExecutorResult("delivery-1", "KOMAA-1458", prior);
+    expect(result.status).toBe("refused");
+    expect(result.error.code).toBe("DELIVERY_EXECUTOR_MISSING");
+    expect(result.error.retryable).toBe(false);
+    expect(result.error.retryRequiresChange).toBe(true);
+    expect(result.recoveryAction).toBe("none");
+    expect(result.possiblyCommitted).toBe(false);
+    expect(result.steps).toEqual(prior);
   });
 });
