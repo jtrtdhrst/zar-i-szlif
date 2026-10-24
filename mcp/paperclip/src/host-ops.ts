@@ -320,8 +320,13 @@ async function submitDeploymentVerify(input: HostOperationInput): Promise<HostBr
     throw new Error("host op requires a live run context: pass runId of your current heartbeat run (legacy operatorRunId alias; PAPERCLIP_RUN_ID is applied automatically in agent sessions) [errorCode=auth_failed]");
   }
   const requestId = input.requestId ?? randomUUID();
-  let gateway: Record<string, unknown> = { reachable: false };
-  try {
+  const expected = input.artifactDigest ?? null;
+  // The built-in health endpoint verifies ONLY the Paperclip MCP gateway.
+  // Never verify Plasmic/other services using the gateway health or omit
+  // the expected immutable artifact identity.
+  const supportedService = input.service === "paperclip-mcp-gateway";
+  let gateway: Record<string, unknown> = { reachable: false, notChecked: true };
+  if (supportedService && expected) try {
     const r = await fetch("http://127.0.0.1:3101/health", { signal: AbortSignal.timeout(8000) });
     const body = (await r.json().catch(() => null)) as unknown;
     gateway = { reachable: r.ok, status: r.status, body };
@@ -332,8 +337,10 @@ async function submitDeploymentVerify(input: HostOperationInput): Promise<HostBr
     gateway.body && typeof gateway.body === "object" && typeof (gateway.body as Record<string, unknown>).commit === "string"
       ? ((gateway.body as Record<string, unknown>).commit as string)
       : null;
-  const expected = input.artifactDigest ?? null;
   const match = Boolean(expected && runningCommit && expected === runningCommit);
+  const verified = supportedService && Boolean(expected) && gateway.reachable === true && match;
+  const verifyError = !supportedService ? "unsupported_service" : !expected ? "invalid_arguments" :
+    !gateway.reachable ? "runtime_unavailable" : !match ? "verification_failed" : null;
   const prior = await readResult(requestId);
   const result = {
     operationId: requestId,
@@ -341,14 +348,14 @@ async function submitDeploymentVerify(input: HostOperationInput): Promise<HostBr
     operation: "host.deployment_verify",
     requestedOperation: input.operation,
     service: input.service ?? null,
-    status: gateway.reachable ? (match ? "succeeded" : expected ? "failed" : "succeeded") : "failed",
-    verified: gateway.reachable === true && (expected ? match : true),
+    status: verified ? "succeeded" : "failed",
+    verified,
     runningCommit,
     expectedArtifactDigest: expected,
     gateway,
     timestamp: new Date().toISOString(),
-    errorCode: gateway.reachable ? (expected && !match ? "verification_failed" : null) : "runtime_unavailable",
-    policyDecision: "allow",
+    errorCode: verifyError,
+    policyDecision: supportedService && expected ? "allow" : "deny",
     evidenceReference: `ledger:${requestId}`,
     replayed: prior !== null,
   };
