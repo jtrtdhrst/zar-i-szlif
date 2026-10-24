@@ -1360,9 +1360,7 @@ export function gitFetchCredentialEnv(
 }
 
 async function gitFetchCredentialEnvForWorkspace(ws: ResolvedWorkspace, argv: string[]): Promise<Record<string, string> | null> {
-  let subcommandIndex = 1;
-  while (argv[subcommandIndex] === "-c" && typeof argv[subcommandIndex + 1] === "string") subcommandIndex += 2;
-  if (argv[subcommandIndex] !== "fetch" || argv[subcommandIndex + 1] !== "origin") return null;
+  if (argv[1] !== "fetch" || argv[2] !== "origin") return null;
 
   const remote = await runJailedExec({ ws, argv: ["git", "remote", "get-url", "--all", "origin"], timeoutSec: 10, outputLimit: 2048 });
   return remote.exitCode === 0 ? gitFetchCredentialEnv(argv, remote.stdout) : null;
