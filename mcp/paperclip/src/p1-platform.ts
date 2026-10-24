@@ -30,13 +30,13 @@ import {
   authorizeWorkspaceMutation,
   assertWorkspaceMutationScope,
   recordWorkspaceMutationAudit,
-  type WorkspaceMutationContext,
 } from "./workspace-native.js";
 import { capabilitiesDocument, hostLaneOperations } from "./host-ops.js";
 import { hostPolicyDigest, missingRequiredInPlan, noDeploymentExecutorResult, resolveDeploymentOps, unsupportedPlannedOps } from "./host-plan-ops.js";
 import { formatErrorResponse, formatTextResponse } from "./format.js";
 import { enforceWriteScope } from "./write-scope.js";
 import { enforceDeploymentRoot } from "./deployment-root.js";
+import { noDeliveryExecutorResult } from "./execution-truth.js";
 
 export interface P1PlatformToolDefinition {
   name: string;
@@ -776,7 +776,7 @@ export function createP1PlatformTools(client: PaperclipApiClient): P1PlatformToo
     ),
     makeTool(
       "paperclipExecuteDeliveryUnit",
-      "Saga orchestrator over the EXISTING delivery lifecycle (no new statuses): eligibility -> workspace -> implement -> test -> git -> deploy -> verify -> close. Durable, resumable (mode resume replays completed steps), idempotent via idempotencyKey, per-step evidence ledger, retryable-only retries with circuit breaker, stopAt for staged execution. Never creates new issues. Mutation phases beyond eligibility/workspace reads require a live execution context: the caller's own running heartbeat run bound to the issue (runId), or a board key; operator sessions were removed in Paperclip 2026.1012.0. stopAt=workspace runs the read-only phases without a context.",
+      "Read-only issue delivery preflight (eligibility and workspace). Actual implement/test/git/deploy/verify/close phase drivers are not implemented: returns explicit delivery_executor_missing/refused, never in_progress, and never treats resume as execution. No issues created or mutations performed.",
       z.object({
         issueId: z.string().min(1).max(128),
         expectedRevision: z.string().min(1).max(128).optional().nullable(),
@@ -791,7 +791,8 @@ export function createP1PlatformTools(client: PaperclipApiClient): P1PlatformToo
         if (mode === "resume") {
           const prior = await readLedger(executionId);
           if (!prior) throw err("not_found", `No prior execution ${executionId} to resume (start first with the same idempotencyKey)`);
-          return { ...(prior as object), replayed: true, resumed: true };
+          // An identical ledger reply is NOT execution or advancement of any phase.
+          return { ...(prior as object), replayed: true, resumed: false };
         }
         const steps: Array<Record<string, unknown>> = [];
         const step = (stepId: string, status: string, extra?: Record<string, unknown>) => {
@@ -826,45 +827,11 @@ export function createP1PlatformTools(client: PaperclipApiClient): P1PlatformToo
           await writeLedger(executionId, res);
           return res;
         }
-        // 3+. mutation gates: everything beyond workspace+eligibility needs a
-        // live execution context (own running run bound to the issue, or board).
-        let mutationCtx: WorkspaceMutationContext;
-        try {
-          mutationCtx = await authorizeWorkspaceMutation(client, { runId: runId ?? null, operatorRunId: operatorRunId ?? null });
-        } catch (e) {
-          const detail = (e as { detail?: { errorCode?: string } }).detail;
-          if (detail?.errorCode !== "run_context_required") throw e;
-          const res = {
-            status: "awaiting_run_context",
-            executionId,
-            issueId,
-            steps,
-            error: { code: "RUN_CONTEXT_REQUIRED", category: "AUTHORIZATION", retryable: false, retryRequiresChange: true, remediationOwner: "caller", requiredAction: "Resume requires a live execution context: pass runId of your own running heartbeat run bound to this issue ($PAPERCLIP_RUN_ID), or use a board key. Operator sessions were removed in Paperclip 2026.1012.0 — do not mint run IDs" },
-            recoveryAction: "resume",
-            possiblyCommitted: false,
-            evidenceReference: `ledger:${executionId}`,
-          };
-          await writeLedger(executionId, res);
-          return res;
-        }
-        if (mutationCtx.authority === "agent-run" && mutationCtx.runIssueId !== issueId) {
-          throw err("scope_denied", `runId is bound to issue ${mutationCtx.runIssueId ?? "?"}; delivery unit for ${issueId} refused (cross-issue)`, { remediationOwner: "caller", remediation: "Use the run bound to this issue, or a board key" });
-        }
-        for (const gated of ["implement", "test", "git", "deploy", "verify", "close"] as const) {
-          step(gated, "deferred", { note: `Authorized (${mutationCtx.authority}); ${gated} executes via the existing workspace/git/host tools with this execution context`, recoveryAction: "resume" });
-          if (stopAt === gated) break;
-        }
-        const res = {
-          status: "in_progress",
-          executionId,
-          issueId,
-          authority: mutationCtx,
-          steps,
-          recoveryAction: "resume",
-          note: "Eligibility + workspace verified and recorded; gated phases are authorized and resume with mode=resume (same idempotencyKey) without duplicating completed steps. No new issues were created.",
-          possiblyCommitted: false,
-          evidenceReference: `ledger:${executionId}`,
-        };
+        // The existing saga never implemented any mutation phase; it previously
+        // returned in_progress + recoveryAction:resume for a list of "deferred"
+        // phases. This generated repeated wakes with no deployment.
+        step("implement", "not_executed", { errorCode: "delivery_executor_missing" });
+        const res = noDeliveryExecutorResult(executionId, issueId, steps);
         await writeLedger(executionId, res);
         return res;
       },
