@@ -60,6 +60,45 @@ describe("host operations adapter", () => {
     expect(Array.isArray(doc.readOperations)).toBe(true);
   });
 
+  it("does not verify Plasmic deployment using Paperclip gateway health", async () => {
+    await sandbox();
+    const fetchSpy = vi.spyOn(globalThis, "fetch");
+    const out = await getTool("paperclipHostOperation").execute({
+      operation: "host.deployment_verify", service: "plasmic-mcp", artifactDigest: "candidate-123",
+      agentId: AGENT, issueId: "KOMAA-1459", runId: RUN,
+    });
+    const payload = out.content?.[0]?.text ?? "";
+    expect(payload).toContain("unsupported_service");
+    expect(payload).toMatch(/"verified"\s*:\s*false/);
+    expect(fetchSpy).not.toHaveBeenCalled();
+  });
+
+  it("does not verify without an expected immutable artifact", async () => {
+    await sandbox();
+    const fetchSpy = vi.spyOn(globalThis, "fetch");
+    const out = await getTool("paperclipHostOperation").execute({
+      operation: "host.deployment_verify", service: "paperclip-mcp-gateway",
+      agentId: AGENT, issueId: "KOMAA-1458", runId: RUN,
+    });
+    const payload = out.content?.[0]?.text ?? "";
+    expect(payload).toContain("invalid_arguments");
+    expect(payload).toMatch(/"verified"\s*:\s*false/);
+    expect(fetchSpy).not.toHaveBeenCalled();
+  });
+
+  it("verifies the matching Paperclip gateway artifact only", async () => {
+    await sandbox();
+    vi.spyOn(globalThis, "fetch").mockResolvedValue({
+      ok: true, status: 200, json: async () => ({ commit: "candidate-123" }),
+    } as Response);
+    const out = await getTool("paperclipHostOperation").execute({
+      operation: "host.deployment_verify", service: "paperclip-mcp-gateway", artifactDigest: "candidate-123",
+      agentId: AGENT, issueId: "KOMAA-1458", runId: RUN,
+    });
+    const payload = out.content?.[0]?.text ?? "";
+    expect(payload).toMatch(/"verified"\s*:\s*true/);
+    expect(payload).toContain("candidate-123");
+  });
   it("redacts keys and tokens from output", () => {
     const out = redactHostOutput("key pcp_abcdefgh12345678 and Bearer abcdefghijklmnop q");
     expect(out).not.toContain("pcp_abcdefgh12345678");
