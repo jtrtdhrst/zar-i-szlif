@@ -1,3 +1,5 @@
+import { createHash } from "node:crypto";
+
 // Fail-closed operation resolution for the host deployment plan/apply pair
 // (paperclipHostPlanDeployment / paperclipHostApplyDeployment).
 //
@@ -88,4 +90,14 @@ export function noDeploymentExecutorResult(planId: string, operationId: string, 
     possiblyCommitted: false,
     evidenceReference: "ledger:" + operationId,
   };
+}
+
+/** Canonical digest for the host capabilities source of truth (read + mutation).
+ * Never hash caps.supportedOperations: this field does not exist.
+ */
+export function hostPolicyDigest(caps: Record<string, unknown>): string {
+  const reads = Array.isArray(caps.readOperations) ? (caps.readOperations as string[]) : [];
+  const writes = Array.isArray(caps.mutatingOperations) ? (caps.mutatingOperations as string[]) : [];
+  const canonical = `${String(caps.policyVersion)}:${String(caps.supervisorVersion)}:${[...reads, ...writes].join(",")}`;
+  return createHash("sha256").update(canonical, "utf8").digest("hex");
 }
