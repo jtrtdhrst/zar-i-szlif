@@ -64,7 +64,7 @@ apply() {
   hashes="$(dkr run --rm --network none --read-only --entrypoint sha256sum "$CANDIDATE" /opt/sup/watcher.sh /opt/sup/POLICY.md)"
   [[ "$hashes" == *"$EXPECTED_WATCHER  /opt/sup/watcher.sh"* ]] || fail "candidate watcher digest mismatch"
   [[ "$hashes" == *"$EXPECTED_POLICY  /opt/sup/POLICY.md"* ]] || fail "candidate policy digest mismatch"
-  dkr run --rm --network none --read-only --entrypoint bash "$CANDIDATE" /opt/sup/candidate-test/auth-matrix.test.sh /opt/sup/watcher.sh
+  dkr run --rm --network none --read-only --tmpfs /tmp:rw,noexec,nosuid,size=1m --entrypoint bash "$CANDIDATE" /opt/sup/candidate-test/auth-matrix.test.sh /opt/sup/watcher.sh
 
   dkr stop --time 15 "$NAME" >/dev/null
   dkr rename "$NAME" "$BACKUP"
