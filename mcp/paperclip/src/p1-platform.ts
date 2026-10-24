@@ -82,6 +82,17 @@ function sha256Hex(text: string): string {
   return createHash("sha256").update(text, "utf8").digest("hex");
 }
 
+/** Single policy identity shared by read, plan and apply.
+ * The capabilities document has readOperations + mutatingOperations,
+ * NOT a supportedOperations field.
+ */
+function hostPolicyDigest(caps: Record<string, unknown>): string {
+  const read = Array.isArray(caps.readOperations) ? (caps.readOperations as string[]) : [];
+  const mutating = Array.isArray(caps.mutatingOperations) ? (caps.mutatingOperations as string[]) : [];
+  return sha256Hex(`${String(caps.policyVersion)}:${String(caps.supervisorVersion)}:${[...read, ...mutating].join(",")}`);
+}
+
+
 const workspaceIdSchema = z.string().uuid().optional().nullable();
 const issueIdSchema = z.string().min(1).max(128).optional().nullable();
 const operatorRunIdSchema = z.string().uuid().optional().nullable();
@@ -326,10 +337,10 @@ export function createP1PlatformTools(client: PaperclipApiClient): P1PlatformToo
           operationId,
           runningSupervisorVersion: enforced.supervisorVersion,
           activePolicyVersion: enforced.policyVersion,
-          activePolicyDigest: sha256Hex(`${enforced.policyVersion}:${enforced.supervisorVersion}:${supported.join(",")}`),
+          activePolicyDigest: hostPolicyDigest(caps),
           mirroredPolicyVersion: mirrorVersion,
           mirroredPolicyDigest: mirrorDigest,
-          expectedReleasePolicyDigest: sha256Hex(`${enforced.policyVersion}:${enforced.supervisorVersion}:${supported.join(",")}`),
+          expectedReleasePolicyDigest: hostPolicyDigest(caps),
           supportedOperations: supported,
           enabledOperations: enabled,
           disabledOperations: disabled,
@@ -673,7 +684,7 @@ export function createP1PlatformTools(client: PaperclipApiClient): P1PlatformToo
         const operationId = randomUUID();
         const planId = randomUUID();
         const caps = capabilitiesDocument() as unknown as Record<string, unknown>;
-        const activeDigest = sha256Hex(`${String(caps.policyVersion)}:${String(caps.supervisorVersion)}:${JSON.stringify(caps.supportedOperations ?? [])}`);
+        const activeDigest = hostPolicyDigest(caps);
         if (expectedPolicyDigest && expectedPolicyDigest !== activeDigest) {
           throw err("version_conflict", `expectedPolicyDigest mismatch: active ${activeDigest}`, { remediationOwner: "owner" });
         }
@@ -737,7 +748,7 @@ export function createP1PlatformTools(client: PaperclipApiClient): P1PlatformToo
           throw err("scope_denied", "Production deployments require board authority; an agent's live run may not apply a production deployment", { remediationOwner: "caller", remediation: "Use a board key for production, or plan against a non-production environment" });
         }
         const caps = capabilitiesDocument() as unknown as Record<string, unknown>;
-        const activeDigest = sha256Hex(`${String(caps.policyVersion)}:${String(caps.supervisorVersion)}:${JSON.stringify(caps.supportedOperations ?? [])}`);
+        const activeDigest = hostPolicyDigest(caps);
         if (expectedPolicyDigest && expectedPolicyDigest !== activeDigest) {
           throw err("version_conflict", `expectedPolicyDigest mismatch: active ${activeDigest}`, { remediationOwner: "owner" });
         }
