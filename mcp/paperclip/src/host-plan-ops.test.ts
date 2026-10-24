@@ -3,6 +3,7 @@ import {
   REQUIRED_DEPLOY_OPS,
   canonicalOp,
   missingRequiredInPlan,
+  noDeploymentExecutorResult,
   resolveDeploymentOps,
   unsupportedPlannedOps,
 } from "./host-plan-ops.js";
@@ -13,6 +14,18 @@ const lane = hostLaneOperations();
 const recreateTargets = Array.isArray(caps.recreateTargets) ? (caps.recreateTargets as string[]) : [];
 
 describe("host deployment plan/apply fail-closed (KOMAA-1156)", () => {
+  it("never counts plan-only apply as a deployment", () => {
+    const result = noDeploymentExecutorResult("test-plan", "test-operation", "plasmic-mcp");
+    expect(result.status).toBe("refused");
+    expect(result.state).toBe("FAILED");
+    expect(result.errorCode).toBe("deployment_executor_missing");
+    expect(result.operationIds).toEqual([]);
+    expect(result.deployedImageDigest).toBeNull();
+    expect(result.verification).toBeNull();
+    expect(result.health).toBeNull();
+    expect(result.rollbackAvailable).toBe(false);
+    expect(result.possiblyCommitted).toBe(false);
+  });
   it("root cause witness: the capabilities document never had supportedOperations", () => {
     expect(caps.supportedOperations).toBeUndefined();
     expect(Array.isArray(caps.supportedOperations)).toBe(false);
