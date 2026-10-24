@@ -1,8 +1,10 @@
 import { describe, expect, it } from "vitest";
+import { createHash } from "node:crypto";
 import {
   REQUIRED_DEPLOY_OPS,
   canonicalOp,
   missingRequiredInPlan,
+  hostPolicyDigest,
   noDeploymentExecutorResult,
   resolveDeploymentOps,
   unsupportedPlannedOps,
@@ -14,6 +16,21 @@ const lane = hostLaneOperations();
 const recreateTargets = Array.isArray(caps.recreateTargets) ? (caps.recreateTargets as string[]) : [];
 
 describe("host deployment plan/apply fail-closed (KOMAA-1156)", () => {
+  it("effective policy digest is identical for read, plan, and apply", () => {
+    const read = caps.readOperations as string[];
+    const writes = caps.mutatingOperations as string[];
+    const digest = hostPolicyDigest(caps);
+    const expected = createHash("sha256")
+      .update(`${String(caps.policyVersion)}:${String(caps.supervisorVersion)}:${[...read, ...writes].join(",")}`)
+      .digest("hex");
+    expect(digest).toBe(expected);
+    expect(digest).toMatch(/^[0-9a-f]{64}$/);
+    const oldBroken = createHash("sha256")
+      .update(`${String(caps.policyVersion)}:${String(caps.supervisorVersion)}:${JSON.stringify(caps.supportedOperations ?? [])}`)
+      .digest("hex");
+    expect(digest).not.toBe(oldBroken);
+  });
+
   it("never counts plan-only apply as a deployment", () => {
     const result = noDeploymentExecutorResult("test-plan", "test-operation", "plasmic-mcp");
     expect(result.status).toBe("refused");
