@@ -32,6 +32,15 @@ RUN mkdir -p src/wab/gen && make
 RUN git init -q \
     && git -c user.email=ci@plasmic.local -c user.name=ci commit --allow-empty -qm build
 
+# rsbuild.config.ts imports html-webpack-plugin, but upstream does not declare it
+# in any package.json at this commit. Install it outside the pnpm workspace so the
+# frozen lockfile (and the missing @plasmic-shared/hosting link) stays untouched.
+RUN mkdir -p /opt/studio-extra \
+    && cd /opt/studio-extra \
+    && npm init -y >/dev/null \
+    && npm install --no-package-lock --no-audit --no-fund html-webpack-plugin@5.6.3 \
+    && cp -a /opt/studio-extra/node_modules/. /platform/node_modules/
+
 # PUBLIC_URL/STATIC_URL control the absolute asset origin baked into index.html.
 ARG PUBLIC_URL=https://plasmic.kompaszbiorek.pl
 ENV PUBLIC_URL=$PUBLIC_URL \
