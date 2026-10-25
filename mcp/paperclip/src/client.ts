@@ -117,7 +117,7 @@ const ROUTE_PERMISSION_MATRIX: readonly RoutePermissionRule[] = [
     methods: ["POST"],
     path: /^\/issues\/[^/]+\/recovery-actions\/resolve$/,
     credential: "board",
-    when: (body) => body?.outcome === "false_positive" || body?.outcome === "cancelled",
+    when: (body) => body?.outcome === "false_positive" || body?.outcome === "cancelled" || body?.executionReconciliation !== undefined,
   },
   {
     id: "cancel-other-run",
