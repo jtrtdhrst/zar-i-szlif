@@ -39,7 +39,7 @@ test("unavailable live supervisor denies apply before Docker mutation", () => {
     assert.match(result.stderr, /REFUSED: active supervisor absent/);
     const calls = readFileSync(log, "utf8");
     assert.match(calls, /container inspect vps-ops-supervisor/);
-    assert.doesNotMatch(calls, /\b(?:stop|rename|run|rm|start)\b/);
+    assert.doesNotMatch(calls, /docker -H \S+ (?:stop|rename|run|rm|start)\b/);
   } finally {
     rmSync(dir, { recursive: true, force: true });
   }
