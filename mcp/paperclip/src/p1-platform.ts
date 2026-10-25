@@ -844,7 +844,8 @@ export function createP1PlatformTools(client: PaperclipApiClient): P1PlatformToo
         const resultText = typeof envelope.result === "string" ? envelope.result :
           typeof envelope.output === "string" ? envelope.output : "";
         const verified = /DEPLOY_VERIFIED source_sha=([a-f0-9]{40}) image_id=(sha256:[a-f0-9]{64})/.exec(resultText);
-        if (envelope.ok !== true || envelope.status !== "ok" || !verified || verified[1] !== sourceSha) {
+        if (envelope.requestId !== planId || envelope.target !== "recreate-paperclip-mcp-gateway" ||
+            envelope.ok !== true || envelope.status !== "ok" || !verified || verified[1] !== sourceSha) {
           await recordStep("UNVERIFIED", { requestId: planId, errorCode: envelope.errorCode ?? "verification_failed" });
           throw err("verification_failed", `Host release not verified; inspect supervisor result for requestId ${planId}`,
             { remediationOwner: "CTO", possiblyCommitted: true });

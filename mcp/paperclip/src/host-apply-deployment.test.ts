@@ -79,7 +79,7 @@ describe("gateway deployment E2E bridge (host supervisor simulated)", () => {
       sourceSha: SOURCE, issueId: ISSUE, agentId: AGENT, runId: RUN, requestId: plan.planId,
     });
     await writeFile(join(results, plan.planId + ".json"), JSON.stringify({
-      requestId: plan.planId, status: "ok", ok: true,
+      requestId: plan.planId, target: "recreate-paperclip-mcp-gateway", status: "ok", ok: true,
       result: "DEPLOY_VERIFIED source_sha=" + SOURCE + " image_id=" + IMAGE,
     }));
     const response = JSON.parse((await p).content[0]!.text);
@@ -96,11 +96,33 @@ describe("gateway deployment E2E bridge (host supervisor simulated)", () => {
     await new Promise((resolve) => setTimeout(resolve, 350));
     await readFile(join(req, plan.planId + ".json"), "utf8").catch(async (e) => { throw new Error("No host intent; early result " + JSON.stringify(await p) + " " + String(e)); });
     await writeFile(join(results, plan.planId + ".json"), JSON.stringify({
-      requestId: plan.planId, status: "ok", ok: true, result: "PREFLIGHT_PASSED",
+      requestId: plan.planId, target: "recreate-paperclip-mcp-gateway", status: "ok", ok: true, result: "PREFLIGHT_PASSED",
     }));
     const message = JSON.stringify(await p);
     expect(message).toContain("verification_failed");
     const files = await readdir(ledger);
     expect(files.some((f) => f.endsWith("-VERIFIED.json"))).toBe(false);
+  });
+  it("finishes a completed host release from a later run without executing Docker again", async () => {
+    const { applyTool, plan, req, results } = await fixture();
+    await writeFile(join(results, plan.planId + ".json"), JSON.stringify({
+      requestId: plan.planId, target: "recreate-paperclip-mcp-gateway",
+      status: "ok", ok: true,
+      result: "DEPLOY_VERIFIED source_sha=" + SOURCE + " image_id=" + IMAGE,
+    }));
+    const response = JSON.parse((await applyTool.execute({ planId: plan.planId, runId: RUN })).content[0]!.text);
+    expect(response.state).toBe("VERIFIED");
+    expect(await readdir(req)).toEqual([]);
+  });
+
+  it("does not submit a duplicate deployment while an earlier run's intent is pending", async () => {
+    const { applyTool, plan, req } = await fixture();
+    const path = join(req, plan.planId + ".json");
+    const previous = { requestId: plan.planId, operation: "mcp.gateway.release", runId: "previous-live-run" };
+    await writeFile(path, JSON.stringify(previous));
+    const response = JSON.parse((await applyTool.execute({ planId: plan.planId, runId: RUN })).content[0]!.text);
+    expect(response.status).toBe("pending");
+    expect(response.state).toBe("DEPLOYING");
+    expect(JSON.parse(await readFile(path, "utf8"))).toEqual(previous);
   });
 });

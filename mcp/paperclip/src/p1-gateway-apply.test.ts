@@ -70,7 +70,7 @@ describe("gateway apply real host-result contract",()=>{
       const work=tool.execute({planId:f.planId,runId:RUN});
       await new Promise(r=>setTimeout(r,100));
       await writeFile(join(f.res,f.planId+".json"),JSON.stringify({
-        requestId:f.planId,status:"ok",ok:true,result:"PREFLIGHT_PASSED",errorCode:null,
+        requestId:f.planId,target:"recreate-paperclip-mcp-gateway",status:"ok",ok:true,result:"PREFLIGHT_PASSED",errorCode:null,
       }));
       const r=await work;
       expect(r.content[0]!.text).toContain("verification_failed");
@@ -84,7 +84,7 @@ describe("gateway apply real host-result contract",()=>{
       const work=tool.execute({planId:f.planId,runId:RUN});
       await new Promise(r=>setTimeout(r,100));
       await writeFile(join(f.res,f.planId+".json"),JSON.stringify({
-        requestId:f.planId,status:"ok",ok:true,
+        requestId:f.planId,target:"recreate-paperclip-mcp-gateway",status:"ok",ok:true,
         result:"DEPLOY_VERIFIED source_sha="+SHA+" image_id="+IMAGE+" rollback_container=previous",
       }));
       const r=await work;
