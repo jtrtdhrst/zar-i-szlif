@@ -103,9 +103,97 @@ apply() {
   printf 'CANARY_DEPLOYED image=%s watcher=%s policy=%s rollback=%s\n' "$live_image" "$EXPECTED_WATCHER" "$EXPECTED_POLICY" "$BACKUP"
 }
 
+
+# Exact-image second-stage provision; preserve the original 1.0.19 rollback.
+# Neither this operation nor its success implies a gateway deployment.
+GATEWAY=paperclip-mcp-gateway
+GATEWAY_IMAGE=sha256:e00d1ff3139d8671d38dc55e86855cbac577270577df82051b0cb206a777d104
+GATEWAY_TAG=local/paperclip-mcp-gateway:komaa1458-c519
+GATEWAY_PREVIOUS=sha256:531fa0b9d361104c9ca271bb4c9e88136bed5146e01aff0705af3c422fbf5eb0
+SUP_IMAGE=sha256:395595bb698a39832579ad4d15fbfc6ec07e9a2e763cb276a153b56cb93e8d69
+GATEWAY_BACKUP=vps-ops-supervisor-pre-gateway-komaa1458
+TARGET_ENV="RECREATE_TARGETS=$GATEWAY"
+IMAGE_ENV="RECREATE_IMAGES=$GATEWAY=$GATEWAY_IMAGE"
+
+gateway_preflight() {
+  exists "$NAME" || fail "active supervisor absent"
+  exists "$GATEWAY" || fail "exact gateway container absent"
+  ! exists "$GATEWAY_BACKUP" || fail "pre-gateway rollback already exists; refuse overwrite"
+  [ "$(dkr inspect --format '{{.Image}}' "$NAME")" = "$SUP_IMAGE" ] || fail "not the verified supervisor v1.0.20 image"
+  [ "$(dkr inspect --format '{{.State.Running}}' "$NAME")" = true ] || fail "supervisor not running"
+  [ "$(dkr inspect --format '{{.Image}}' "$GATEWAY")" = "$GATEWAY_PREVIOUS" ] || fail "gateway image differs from pinned pre-release image"
+  [ "$(dkr image inspect --format '{{.Id}}' "$GATEWAY_TAG")" = "$GATEWAY_IMAGE" ] || fail "gateway candidate tag not the reviewed image"
+  [ "$(dkr image inspect --format '{{.Id}}' "$GATEWAY_IMAGE")" = "$GATEWAY_IMAGE" ] || fail "immutable gateway candidate is unavailable"
+  [ "$(dkr inspect --format '{{.HostConfig.NetworkMode}}' "$NAME")" = bridge ] || fail "supervisor network mismatch"
+  local mounts envs locks hashes
+  mounts="$(dkr inspect --format '{{range .Mounts}}{{.Type}}|{{.Name}}|{{.Destination}}|{{.RW}}{{println}}{{end}}' "$NAME")"
+  [[ "$mounts" == *"volume|$STATE_VOLUME|/state|true"* && "$mounts" == *"bind||/var/run/docker.sock|false"* ]] || fail "supervisor mounts mismatch"
+  envs="$(dkr inspect --format '{{range .Config.Env}}{{println .}}{{end}}' "$NAME")"
+  printf '%s\n' "$envs" | python3 -c 'import sys; x=[s.strip() for s in sys.stdin if s.strip()]; assert {s.split("=",1)[0] for s in x}=={"PATH","STATE_DIR"} and "STATE_DIR=/state" in x' || fail "unexpected supervisor environment"
+  locks="$(dkr exec "$NAME" sh -lc 'ls -A /state/locks 2>/dev/null')"
+  [ -z "$locks" ] || fail "host operations in flight"
+  hashes="$(dkr exec "$NAME" sha256sum /opt/sup/watcher.sh /opt/sup/POLICY.md)"
+  [[ "$hashes" == *"$EXPECTED_WATCHER  /opt/sup/watcher.sh"* && "$hashes" == *"$EXPECTED_POLICY  /opt/sup/POLICY.md"* ]] || fail "supervisor source/policy hashes mismatch"
+  printf 'GATEWAY_LANE_PREFLIGHT_OK target=%s image=%s\n' "$GATEWAY" "$GATEWAY_IMAGE"
+}
+
+gateway_rollback() {
+  exists "$GATEWAY_BACKUP" || fail "pre-gateway rollback absent"
+  [ "$(dkr inspect --format '{{.Image}}' "$GATEWAY_BACKUP")" = "$SUP_IMAGE" ] || fail "rollback supervisor image mismatch"
+  if exists "$NAME"; then
+    [ "$(dkr inspect --format '{{.Image}}' "$NAME")" = "$SUP_IMAGE" ] || fail "unexpected supervisor image; refusing removal"
+    dkr rm -f "$NAME" >/dev/null
+  fi
+  dkr rename "$GATEWAY_BACKUP" "$NAME"
+  dkr start "$NAME" >/dev/null
+  [ "$(dkr inspect --format '{{.State.Running}}' "$NAME")" = true ] || fail "restored supervisor not running"
+  printf 'GATEWAY_LANE_ROLLBACK_OK image=%s\n' "$SUP_IMAGE"
+}
+
+gateway_apply() {
+  gateway_preflight
+  dkr stop --time 15 "$NAME" >/dev/null
+  if ! dkr rename "$NAME" "$GATEWAY_BACKUP"; then
+    dkr start "$NAME" >/dev/null || true
+    fail "failed to retain old supervisor"
+  fi
+  if ! dkr run -d --name "$NAME" --network bridge --restart unless-stopped \
+      --mount "type=volume,source=$STATE_VOLUME,target=/state" \
+      --mount "type=bind,source=$DOCKER_SOCKET,target=/var/run/docker.sock,readonly" \
+      --env STATE_DIR=/state --env "$TARGET_ENV" --env "$IMAGE_ENV" "$CANDIDATE" >/dev/null; then
+    gateway_rollback
+    fail "candidate supervisor recreate failed"
+  fi
+  local envs hashes live
+  for _ in $(seq 1 15); do
+    live="$(dkr inspect --format '{{.State.Running}}' "$NAME" 2>/dev/null || true)"
+    [ "$live" = true ] && break
+    sleep 1
+  done
+  if [ "$live" != true ]; then gateway_rollback; fail "candidate supervisor not running"; fi
+  envs="$(dkr inspect --format '{{range .Config.Env}}{{println .}}{{end}}' "$NAME")"
+  if ! printf '%s\n' "$envs" | grep -Fxq "$TARGET_ENV" ||
+     ! printf '%s\n' "$envs" | grep -Fxq "$IMAGE_ENV"; then
+    gateway_rollback; fail "pinned target/image config was not persisted"
+  fi
+  hashes="$(dkr exec "$NAME" sha256sum /opt/sup/watcher.sh /opt/sup/POLICY.md)"
+  if [[ "$hashes" != *"$EXPECTED_WATCHER  /opt/sup/watcher.sh"* ||
+        "$hashes" != *"$EXPECTED_POLICY  /opt/sup/POLICY.md"* ]]; then
+    gateway_rollback; fail "supervisor policy source differs from reviewed canary"
+  fi
+  if ! dkr exec "$NAME" bash -n /opt/sup/watcher.sh; then
+    gateway_rollback; fail "supervisor watcher syntax test failed"
+  fi
+  printf 'GATEWAY_LANE_PROVISIONED target=%s image=%s rollback=%s\n' "$GATEWAY" "$GATEWAY_IMAGE" "$GATEWAY_BACKUP"
+  printf '%s\n' 'NOT DEPLOYED: validate native planner and release the matching gateway image separately.'
+}
+
 case "${1:-status}" in
+  gateway-preflight) gateway_preflight ;;
+  gateway-apply) gateway_apply ;;
+  gateway-rollback) gateway_rollback ;;
   status) status ;;
   apply) apply ;;
   rollback) rollback ;;
-  *) fail "usage: $0 {status|apply|rollback}" ;;
+  *) fail "usage: $0 {status|apply|rollback|gateway-preflight|gateway-apply|gateway-rollback}" ;;
 esac
