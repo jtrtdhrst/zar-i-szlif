@@ -68,6 +68,8 @@ apply() {
 
   dkr stop --time 15 "$NAME" >/dev/null
   dkr rename "$NAME" "$BACKUP"
+  GW_SWAP_PENDING=1
+  trap 'if [ "${GW_SWAP_PENDING:-0}" = 1 ]; then gateway_rollback || printf "GATEWAY_LANE_RECOVERY_FAILED\\n" >&2; fi' EXIT
   if ! dkr run -d --name "$NAME" --network bridge --restart unless-stopped \
     --mount "type=volume,source=$STATE_VOLUME,target=/state" \
     --mount "type=bind,source=$DOCKER_SOCKET,target=/var/run/docker.sock,readonly" \
@@ -124,6 +126,7 @@ gateway_preflight() {
   [ "$(dkr inspect --format '{{.Image}}' "$GATEWAY")" = "$GATEWAY_PREVIOUS" ] || fail "gateway image differs from pinned pre-release image"
   [ "$(dkr image inspect --format '{{.Id}}' "$GATEWAY_TAG")" = "$GATEWAY_IMAGE" ] || fail "gateway candidate tag not the reviewed image"
   [ "$(dkr image inspect --format '{{.Id}}' "$GATEWAY_IMAGE")" = "$GATEWAY_IMAGE" ] || fail "immutable gateway candidate is unavailable"
+  [ "$(dkr image inspect --format '{{.Id}}' "$CANDIDATE")" = "$SUP_IMAGE" ] || fail "candidate supervisor tag differs from pinned image"
   [ "$(dkr inspect --format '{{.HostConfig.NetworkMode}}' "$NAME")" = bridge ] || fail "supervisor network mismatch"
   local mounts envs locks hashes
   mounts="$(dkr inspect --format '{{range .Mounts}}{{.Type}}|{{.Name}}|{{.Destination}}|{{.RW}}{{println}}{{end}}' "$NAME")"
@@ -161,7 +164,6 @@ gateway_apply() {
       --mount "type=volume,source=$STATE_VOLUME,target=/state" \
       --mount "type=bind,source=$DOCKER_SOCKET,target=/var/run/docker.sock,readonly" \
       --env STATE_DIR=/state --env "$TARGET_ENV" --env "$IMAGE_ENV" "$CANDIDATE" >/dev/null; then
-    gateway_rollback
     fail "candidate supervisor recreate failed"
   fi
   local envs hashes live
@@ -170,20 +172,22 @@ gateway_apply() {
     [ "$live" = true ] && break
     sleep 1
   done
-  if [ "$live" != true ]; then gateway_rollback; fail "candidate supervisor not running"; fi
+  if [ "$live" != true ]; then fail "candidate supervisor not running"; fi
   envs="$(dkr inspect --format '{{range .Config.Env}}{{println .}}{{end}}' "$NAME")"
   if ! printf '%s\n' "$envs" | grep -Fxq "$TARGET_ENV" ||
      ! printf '%s\n' "$envs" | grep -Fxq "$IMAGE_ENV"; then
-    gateway_rollback; fail "pinned target/image config was not persisted"
+    fail "pinned target/image config was not persisted"
   fi
   hashes="$(dkr exec "$NAME" sha256sum /opt/sup/watcher.sh /opt/sup/POLICY.md)"
   if [[ "$hashes" != *"$EXPECTED_WATCHER  /opt/sup/watcher.sh"* ||
         "$hashes" != *"$EXPECTED_POLICY  /opt/sup/POLICY.md"* ]]; then
-    gateway_rollback; fail "supervisor policy source differs from reviewed canary"
+    fail "supervisor policy source differs from reviewed canary"
   fi
   if ! dkr exec "$NAME" bash -n /opt/sup/watcher.sh; then
-    gateway_rollback; fail "supervisor watcher syntax test failed"
+    fail "supervisor watcher syntax test failed"
   fi
+  GW_SWAP_PENDING=0
+  trap - EXIT
   printf 'GATEWAY_LANE_PROVISIONED target=%s image=%s rollback=%s\n' "$GATEWAY" "$GATEWAY_IMAGE" "$GATEWAY_BACKUP"
   printf '%s\n' 'NOT DEPLOYED: validate native planner and release the matching gateway image separately.'
 }
