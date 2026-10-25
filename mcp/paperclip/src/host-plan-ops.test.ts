@@ -7,6 +7,7 @@ import {
   unsupportedPlannedOps,
 } from "./host-plan-ops.js";
 import { capabilitiesDocument, hostLaneOperations } from "./host-ops.js";
+import { capabilityPolicyDigest, createP1PlatformTools } from "./p1-platform.js";
 
 const caps = capabilitiesDocument() as Record<string, unknown>;
 const lane = hostLaneOperations();
@@ -63,5 +64,30 @@ describe("host deployment plan/apply fail-closed (KOMAA-1156)", () => {
   it("legacy op spelling is canonicalised instead of treated as unknown", () => {
     expect(canonicalOp("host.deployment.verify")).toBe("host.deployment_verify");
     expect(unsupportedPlannedOps(["host.deployment.verify"], lane)).toEqual([]);
+  });
+});
+
+describe("host deployment policy digest consistency (KOMAA-1463)", () => {
+  const deploymentArgs = {
+    service: "paperclip-mcp-gateway",
+    artifactDigest: "sha256:e00d1ff3139d8671d38dc55e86855cbac577270577df82051b0cb206a777d104",
+    environment: "production",
+  };
+
+  it("accepts the effective-policy capability digest and reports the REAL missing target", async () => {
+    const tool = createP1PlatformTools({} as never).find((entry) => entry.name === "paperclipHostPlanDeployment");
+    expect(tool).toBeDefined();
+    const response = await tool!.execute({ ...deploymentArgs, expectedPolicyDigest: capabilityPolicyDigest(caps) });
+    const message = response.content.map((part) => part.text).join("\n");
+    expect(message).toContain("not a provisioned container-recreate target");
+    expect(message).not.toContain("version_conflict");
+  });
+
+  it("still denies a genuinely stale capability digest", async () => {
+    const tool = createP1PlatformTools({} as never).find((entry) => entry.name === "paperclipHostPlanDeployment");
+    expect(tool).toBeDefined();
+    const response = await tool!.execute({ ...deploymentArgs, expectedPolicyDigest: "stale-version" });
+    const message = response.content.map((part) => part.text).join("\n");
+    expect(message).toContain("version_conflict");
   });
 });
