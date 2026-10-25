@@ -107,6 +107,9 @@ services:
 
   plasmic-studio:
     image: plasmic-studio:local
+    networks:
+      - default
+      - coolify
     build:
       context: .
       dockerfile: studio.Dockerfile
@@ -122,6 +125,10 @@ services:
       timeout: 5s
       retries: 6
       start_period: 30s
+
+networks:
+  coolify:
+    external: true
 
 volumes:
   plasmic_pgdata:
