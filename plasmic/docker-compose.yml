@@ -1,0 +1,138 @@
+# Self-hosted Plasmic (Studio + WAB + codegen) built from the vendored
+# upstream source in ./platform (plasmicapp/plasmic @ 85b8611).
+#
+# Coolify: Docker Compose build pack, base directory /, compose docker-compose.yml.
+# All values below come from Coolify environment variables (see .env.example).
+
+services:
+  plasmic-db:
+    image: postgres:15
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-wab}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?POSTGRES_PASSWORD is required}
+      POSTGRES_DB: ${POSTGRES_DB:-wab}
+    volumes:
+      - plasmic_pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test:
+        ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-wab} -d ${POSTGRES_DB:-wab}"]
+      interval: 5s
+      timeout: 5s
+      retries: 30
+
+  plasmic-wab:
+    image: plasmic-wab:local
+    build:
+      context: ./platform
+      dockerfile: wab/Dockerfile
+    restart: unless-stopped
+    depends_on:
+      plasmic-db:
+        condition: service_healthy
+    environment:
+      HOST: ${PLASMIC_PUBLIC_URL:?PLASMIC_PUBLIC_URL is required}
+      REACT_APP_DEFAULT_HOST_URL: https://host.plasmicdev.com/static/host.html
+      NODE_ENV: production
+      DISABLE_EMAIL: "1"
+      GENERIC_WORKER_POOL_SIZE: "1"
+      LOADER_WORKER_POOL_SIZE: "1"
+      TERMINATION_GRACE_PERIOD_MS: "5500"
+      SERVER_KEEP_ALIVE_TIMEOUT: "60000"
+      NODE_OPTIONS: --max-old-space-size=3584
+      ADMIN_EMAILS: ${ADMIN_EMAILS:?ADMIN_EMAILS is required}
+      DATABASE_URI: postgresql://${POSTGRES_USER:-wab}:${POSTGRES_PASSWORD}@plasmic-db:5432/${POSTGRES_DB:-wab}
+      SESSION_SECRET: ${SESSION_SECRET:?SESSION_SECRET is required}
+      PLASMIC_GITHUB_SECRETS_B64: ${PLASMIC_GITHUB_SECRETS_B64:?PLASMIC_GITHUB_SECRETS_B64 is required}
+    # The GitHub App private key lives in Coolify env (base64), never in the image.
+    command:
+      - sh
+      - -c
+      - |
+        mkdir -p /home/node/.plasmic
+        printf '%s' "$$PLASMIC_GITHUB_SECRETS_B64" | base64 -d > /home/node/.plasmic/secrets.json
+        chmod 600 /home/node/.plasmic/secrets.json
+        exec node -r esbuild-register src/wab/server/main.ts
+    expose:
+      - "3004"
+    healthcheck:
+      test:
+        ["CMD-SHELL", "wget -qO- http://127.0.0.1:3004/healthcheck >/dev/null"]
+      interval: 20s
+      timeout: 10s
+      retries: 9
+      start_period: 90s
+
+  plasmic-codegen:
+    image: plasmic-wab:local
+    build:
+      context: ./platform
+      dockerfile: wab/Dockerfile
+    restart: unless-stopped
+    depends_on:
+      plasmic-db:
+        condition: service_healthy
+    environment:
+      HOST: ${PLASMIC_PUBLIC_URL:?PLASMIC_PUBLIC_URL is required}
+      REACT_APP_DEFAULT_HOST_URL: https://host.plasmicdev.com/static/host.html
+      NODE_ENV: production
+      DISABLE_EMAIL: "1"
+      BACKEND_PORT: "3005"
+      GENERIC_WORKER_POOL_SIZE: "1"
+      LOADER_WORKER_POOL_SIZE: "1"
+      TERMINATION_GRACE_PERIOD_MS: "5500"
+      SERVER_KEEP_ALIVE_TIMEOUT: "60000"
+      NODE_OPTIONS: --max-old-space-size=3584
+      ADMIN_EMAILS: ${ADMIN_EMAILS:?ADMIN_EMAILS is required}
+      DATABASE_URI: postgresql://${POSTGRES_USER:-wab}:${POSTGRES_PASSWORD}@plasmic-db:5432/${POSTGRES_DB:-wab}
+      SESSION_SECRET: ${SESSION_SECRET:?SESSION_SECRET is required}
+      PLASMIC_GITHUB_SECRETS_B64: ${PLASMIC_GITHUB_SECRETS_B64:?PLASMIC_GITHUB_SECRETS_B64 is required}
+    command:
+      - sh
+      - -c
+      - |
+        mkdir -p /home/node/.plasmic
+        printf '%s' "$$PLASMIC_GITHUB_SECRETS_B64" | base64 -d > /home/node/.plasmic/secrets.json
+        chmod 600 /home/node/.plasmic/secrets.json
+        exec node -r esbuild-register src/wab/server/codegen-backend.ts
+    expose:
+      - "3005"
+    healthcheck:
+      test:
+        ["CMD-SHELL", "wget -qO- http://127.0.0.1:3005/healthcheck >/dev/null"]
+      interval: 20s
+      timeout: 10s
+      retries: 9
+      start_period: 60s
+
+  plasmic-studio:
+    image: plasmic-studio:local
+    networks:
+      - default
+      - coolify
+    build:
+      context: .
+      dockerfile: studio.Dockerfile
+      # The studio bundle is built for the final origin (Dockerfile ARG default,
+      # https://plasmic.kompaszbiorek.pl). Changing PLASMIC_PUBLIC_URL only changes
+      # WAB's HOST at runtime; a different final domain needs a rebuild with
+      # --build-arg PUBLIC_URL=<origin>.
+    restart: unless-stopped
+    depends_on:
+      - plasmic-wab
+      - plasmic-codegen
+    expose:
+      - "8080"
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://127.0.0.1:8080/ >/dev/null"]
+      interval: 20s
+      timeout: 5s
+      retries: 6
+      start_period: 30s
+
+networks:
+  coolify:
+    external: true
+
+volumes:
+  plasmic_pgdata:
