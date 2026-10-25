@@ -40,7 +40,10 @@ async function setup() {
     fetchImpl: async () => { throw new Error("NO_NETWORK_IN_FIXTURE"); },
   });
   Object.assign(client, {
-    listProjects: async () => [{ id: "project-1", name: "Fixture", projectApiToken: "fixture-secret-never-return" }],
+    listProjects: async () => [{
+      id: "project-1", name: "Fixture", projectApiToken: "fixture-secret-never-return",
+      settings: [{ nested: { projectApiToken: "nested-fixture-secret-never-return", label: "safe" } }],
+    }],
     listBranches: async () => ({ branches: [] }),
     previewMerge: async () => ({ status: "can be merged", pretend: true }),
     getComments: async () => ({ threads: [] }),
@@ -87,9 +90,13 @@ async function setup() {
 
 test("matrix: list_projects returns the fixture project", async () => {
   const { tool } = await setup();
-  const out = await tool("plasmic_list_projects").handler({}) as { projects: unknown[] };
+  const out = await tool("plasmic_list_projects").handler({}) as {
+    projects: Array<{ id: string; settings: Array<{ nested: { label: string } }> }>;
+  };
   assert.equal(out.projects.length, 1);
   assert.equal(JSON.stringify(out).includes("fixture-secret-never-return"), false);
+  assert.equal(JSON.stringify(out).includes("nested-fixture-secret-never-return"), false);
+  assert.equal(out.projects[0]!.settings[0]!.nested.label, "safe");
 });
 
 test("matrix: get_project redacts projectApiToken", async () => {

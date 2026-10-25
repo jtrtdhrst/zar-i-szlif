@@ -139,8 +139,16 @@ function redactProjectMetadata(project: unknown): Record<string, unknown> {
   if (!project || typeof project !== "object" || Array.isArray(project)) {
     throw new Error("INVALID_PROJECT_METADATA");
   }
-  const { projectApiToken: _redacted, ...safe } = project as Record<string, unknown>;
-  return safe;
+  const redact = (value: unknown): unknown => {
+    if (Array.isArray(value)) return value.map(redact);
+    if (!value || typeof value !== "object") return value;
+    return Object.fromEntries(
+      Object.entries(value as Record<string, unknown>)
+        .filter(([key]) => key !== "projectApiToken")
+        .map(([key, nested]) => [key, redact(nested)]),
+    );
+  };
+  return redact(project) as Record<string, unknown>;
 }
 
 function summarize(bundle: BundleDoc, client: PlasmicClient) {
