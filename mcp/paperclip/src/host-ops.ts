@@ -315,6 +315,21 @@ async function readRequest(requestId: string): Promise<Record<string, unknown> |
   }
 }
 
+// Read the host-owned request/result envelope before any retry. The backend
+// permits only one Docker mutation per planId, even after an agent's run ends.
+// No replayed request is submitted with a new runId while an old request is
+// still pending. This is read-only and must be called AFTER issue/run auth.
+export async function peekHostIntent(requestId: string): Promise<{ exists: boolean; result: unknown | null; pending: boolean }> {
+  if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(requestId)) {
+    throw new Error("invalid host requestId [errorCode=invalid_arguments]");
+  }
+  const result = await readResult(requestId);
+  if (result !== null) return { exists: true, result, pending: false };
+  const req = await readRequest(requestId);
+  if (req !== null) return { exists: true, result: null, pending: true };
+  return { exists: false, result: null, pending: false };
+}
+
 export interface HostBridgeHandle {
   requestId: string;
   result: unknown | null;

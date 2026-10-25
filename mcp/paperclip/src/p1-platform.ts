@@ -32,7 +32,7 @@ import {
   recordWorkspaceMutationAudit,
   type WorkspaceMutationContext,
 } from "./workspace-native.js";
-import { capabilitiesDocument, hostLaneOperations, submitHostIntent } from "./host-ops.js";
+import { capabilitiesDocument, hostLaneOperations, submitHostIntent, peekHostIntent } from "./host-ops.js";
 import { missingRequiredInPlan, resolveDeploymentOps, unsupportedPlannedOps } from "./host-plan-ops.js";
 import { formatErrorResponse, formatTextResponse } from "./format.js";
 import { enforceWriteScope } from "./write-scope.js";
@@ -820,7 +820,10 @@ export function createP1PlatformTools(client: PaperclipApiClient): P1PlatformToo
         await recordStep("PREFLIGHT_PASSED", { service, sourceSha });
         // Stable requestId = planId. Replaying this plan cannot create a
         // second host deploy, even when an MCP retry races a slow image build.
-        const handle = await submitHostIntent({
+        const priorHost = await peekHostIntent(planId);
+        // A new agent run can finish an old host release by reading its result;
+        // it must NEVER enqueue the same plan again under a different runId.
+        const handle = priorHost.exists ? { requestId: planId, result: priorHost.result, pending: priorHost.pending } : await submitHostIntent({
           operation: "mcp.gateway.release",
           target: "paperclip-mcp-gateway",
           sourceSha,
