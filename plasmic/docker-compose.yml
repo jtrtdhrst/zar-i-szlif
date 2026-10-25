@@ -113,6 +113,9 @@ services:
     build:
       context: .
       dockerfile: studio.Dockerfile
+      args:
+        # Baked into index.html; must match the public origin at build time.
+        PUBLIC_URL: ${PLASMIC_PUBLIC_URL}
     restart: unless-stopped
     depends_on:
       - plasmic-wab
