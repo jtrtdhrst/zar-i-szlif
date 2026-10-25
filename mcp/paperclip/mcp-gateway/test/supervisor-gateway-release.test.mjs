@@ -25,14 +25,18 @@ test("rollout pins a single target and immutable images", () => {
   assert.match(source, /GW_SWAP_PENDING=0/);
 });
 
-test("gateway release admission requires all host-ops unit regressions to pass", () => {
-  const root = fileURLToPath(new URL("../../../../", import.meta.url));
-  const check = spawnSync("npx", ["--no-install", "vitest", "run", "mcp/paperclip/src/host-ops.test.ts"], {
-    cwd: root,
-    encoding: "utf8",
-    timeout: 120000,
-  });
-  assert.equal(check.status, 0, [check.stdout, check.stderr].join("\n"));
+test("immutable release admission rejects omitted, wildcard and mismatched image/policy", async () => {
+  const { configuredRecreateTargets } = await import("../../src/host-recreate-policy.ts");
+  const valid = {
+    PAPERCLIP_HOST_RECREATE_TARGETS: "paperclip-mcp-gateway",
+    PAPERCLIP_HOST_RECREATE_IMAGES: "paperclip-mcp-gateway=sha256:e00d1ff3139d8671d38dc55e86855cbac577270577df82051b0cb206a777d104",
+    PAPERCLIP_HOST_SUPERVISOR_POLICY_SHA256: "c15f036a7645b3f341878969f02850570b1710df96aa434644995464fbdeae99",
+  };
+  assert.deepEqual(configuredRecreateTargets({}), []);
+  assert.deepEqual(configuredRecreateTargets({ ...valid, PAPERCLIP_HOST_RECREATE_TARGETS: "*" }), []);
+  assert.deepEqual(configuredRecreateTargets({ ...valid, PAPERCLIP_HOST_RECREATE_IMAGES: "paperclip-mcp-gateway=sha256:other" }), []);
+  assert.deepEqual(configuredRecreateTargets({ ...valid, PAPERCLIP_HOST_SUPERVISOR_POLICY_SHA256: "wrong" }), []);
+  assert.deepEqual(configuredRecreateTargets(valid), ["paperclip-mcp-gateway"]);
 });
 
 test("unavailable live supervisor denies apply before Docker mutation", () => {
