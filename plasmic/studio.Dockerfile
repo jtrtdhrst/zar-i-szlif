@@ -37,7 +37,7 @@ ARG PUBLIC_URL=https://plasmic.kompaszbiorek.pl
 ENV PUBLIC_URL=$PUBLIC_URL \
     STATIC_URL=$PUBLIC_URL \
     NODE_ENV=production \
-    NODE_OPTIONS=--max-old-space-size=8192
+    NODE_OPTIONS=--max-old-space-size=4096
 RUN pnpm build
 
 FROM nginx:1.27-alpine
