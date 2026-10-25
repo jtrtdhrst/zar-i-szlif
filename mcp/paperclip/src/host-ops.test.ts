@@ -5,6 +5,7 @@ import { join } from "node:path";
 import {
   HOST_TOOL_NAMES,
   capabilitiesDocument,
+  configuredRecreateTargets,
   createHostTools,
   isMutatingOperation,
   payloadDigestForIntent,
@@ -59,6 +60,22 @@ describe("host operations adapter", () => {
     expect(doc.deployGate).toEqual({ minFreeGib: 20, minFreePct: 10, deployNeedGib: 8 });
     expect(JSON.stringify(doc.auth)).toContain("except host.file.patch");
     expect(Array.isArray(doc.readOperations)).toBe(true);
+  });
+
+  it("does not advertise a gateway host recreate lane without all exact release pins", () => {
+    const image = "sha256:e00d1ff3139d8671d38dc55e86855cbac577270577df82051b0cb206a777d104";
+    const policy = "c15f036a7645b3f341878969f02850570b1710df96aa434644995464fbdeae99";
+    const provisioned = {
+      PAPERCLIP_HOST_RECREATE_TARGETS: "paperclip-mcp-gateway",
+      PAPERCLIP_HOST_RECREATE_IMAGES: "paperclip-mcp-gateway=" + image,
+      PAPERCLIP_HOST_SUPERVISOR_POLICY_SHA256: policy,
+    };
+    expect(configuredRecreateTargets({})).toEqual([]);
+    expect(configuredRecreateTargets({ ...provisioned, PAPERCLIP_HOST_RECREATE_TARGETS: "" })).toEqual([]);
+    expect(configuredRecreateTargets({ ...provisioned, PAPERCLIP_HOST_RECREATE_TARGETS: "*" })).toEqual([]);
+    expect(configuredRecreateTargets({ ...provisioned, PAPERCLIP_HOST_RECREATE_IMAGES: "paperclip-mcp-gateway=sha256:wrong" })).toEqual([]);
+    expect(configuredRecreateTargets({ ...provisioned, PAPERCLIP_HOST_SUPERVISOR_POLICY_SHA256: "wrong" })).toEqual([]);
+    expect(configuredRecreateTargets(provisioned)).toEqual(["paperclip-mcp-gateway"]);
   });
 
   it("redacts keys and tokens from output", () => {
