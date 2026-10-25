@@ -113,9 +113,10 @@ services:
     build:
       context: .
       dockerfile: studio.Dockerfile
-      args:
-        # Baked into index.html; must match the public origin at build time.
-        PUBLIC_URL: ${PLASMIC_PUBLIC_URL}
+      # The studio bundle is built for the final origin (Dockerfile ARG default,
+      # https://plasmic.kompaszbiorek.pl). Changing PLASMIC_PUBLIC_URL only changes
+      # WAB's HOST at runtime; a different final domain needs a rebuild with
+      # --build-arg PUBLIC_URL=<origin>.
     restart: unless-stopped
     depends_on:
       - plasmic-wab
