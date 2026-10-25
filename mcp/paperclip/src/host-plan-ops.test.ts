@@ -76,15 +76,19 @@ describe("host deployment policy digest consistency (KOMAA-1463)", () => {
   const deploymentArgs = {
     service: "paperclip-mcp-gateway",
     artifactDigest: "sha256:e00d1ff3139d8671d38dc55e86855cbac577270577df82051b0cb206a777d104",
+    sourceSha: "a".repeat(40),
+    issueId: "KOMAA-1463",
     environment: "production",
   };
 
-  it("accepts the effective-policy capability digest and reports the REAL missing target", async () => {
+  it("plans the exact gateway release without opening generic recreate targets", async () => {
     const tool = createP1PlatformTools({} as never).find((entry) => entry.name === "paperclipHostPlanDeployment");
     expect(tool).toBeDefined();
     const response = await tool!.execute({ ...deploymentArgs, expectedPolicyDigest: capabilityPolicyDigest(caps) });
     const message = response.content.map((part) => part.text).join("\n");
-    expect(message).toContain("not a provisioned container-recreate target");
+    expect(message).toContain("mcp.gateway.release");
+    expect(message).toContain("PLANNED");
+    expect(message).not.toContain("host.container.recreate");
     expect(message).not.toContain("version_conflict");
   });
 
@@ -129,7 +133,7 @@ describe("host deployment policy digest consistency (KOMAA-1463)", () => {
       const response = await tool!.execute({ planId });
       const message = response.content.map((part) => part.text).join("\n");
       expect(message).toContain("configuration_missing");
-      expect(message).toContain("not provisioned");
+      expect(message).toContain("mcp.gateway.release");
       expect(message).not.toContain('"state":"PREFLIGHT_PASSED"');
       const files = await readdir(dir);
       expect(files.some((file) => file.includes("PREFLIGHT_PASSED"))).toBe(false);

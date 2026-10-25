@@ -32,7 +32,7 @@ import {
   recordWorkspaceMutationAudit,
   type WorkspaceMutationContext,
 } from "./workspace-native.js";
-import { capabilitiesDocument, hostLaneOperations } from "./host-ops.js";
+import { capabilitiesDocument, hostLaneOperations, submitHostIntent } from "./host-ops.js";
 import { missingRequiredInPlan, resolveDeploymentOps, unsupportedPlannedOps } from "./host-plan-ops.js";
 import { formatErrorResponse, formatTextResponse } from "./format.js";
 import { enforceWriteScope } from "./write-scope.js";
@@ -679,13 +679,18 @@ export function createP1PlatformTools(client: PaperclipApiClient): P1PlatformToo
       z.object({
         service: z.string().min(1).max(128),
         artifactDigest: z.string().min(8).max(256),
+        sourceSha: z.string().regex(/^[a-f0-9]{40}$/).optional().nullable(),
+        issueId: z.string().min(1).max(128).optional().nullable(),
         expectedCurrentDigest: z.string().min(1).max(256).optional().nullable(),
         environment: z.string().min(1).max(64).optional().default("staging"),
         expectedPolicyDigest: z.string().min(1).max(128).optional().nullable(),
       }),
-      async ({ service, artifactDigest, expectedCurrentDigest, environment, expectedPolicyDigest }) => {
+      async ({ service, artifactDigest, sourceSha, issueId, expectedCurrentDigest, environment, expectedPolicyDigest }) => {
         const operationId = randomUUID();
         const planId = randomUUID();
+        if (service === "paperclip-mcp-gateway" && (!sourceSha || !issueId)) {
+          throw err("invalid_arguments", "Gateway release requires a full sourceSha and issueId for live-run scope");
+        }
         const caps = capabilitiesDocument() as unknown as Record<string, unknown>;
         const activeDigest = capabilityPolicyDigest(caps);
         if (expectedPolicyDigest && expectedPolicyDigest !== activeDigest) {
@@ -711,15 +716,19 @@ export function createP1PlatformTools(client: PaperclipApiClient): P1PlatformToo
           state: "PLANNED",
           service,
           artifactDigest,
+          sourceSha: sourceSha ?? null,
+          issueId: issueId ?? null,
           expectedCurrentDigest: expectedCurrentDigest ?? null,
           environment: environment ?? "staging",
           risk,
           operations,
           policyDecision: { allow: true, policyVersion: String(caps.policyVersion), supervisorVersion: String(caps.supervisorVersion) },
-          prerequisiteChecks: ["disk-preflight", "backup.create", "artifact digest pinned", "staging health gate (non-production)"],
+          prerequisiteChecks: service === "paperclip-mcp-gateway"
+            ? ["host verifies merged main SHA", "disk preflight", "config-preserving recreate", "live health/image readback", "rollback"]
+            : ["disk-preflight", "backup.create", "artifact digest pinned", "staging health gate (non-production)"],
           backupReference: null,
           rollbackTarget: expectedCurrentDigest ?? "previous-verified-artifact",
-          requiredAuthority: environment === "production" ? "board" : "operator",
+          requiredAuthority: service === "paperclip-mcp-gateway" ? "issue-bound agent-run" : environment === "production" ? "board" : "operator",
           possiblyCommitted: false,
           evidenceReference: `ledger:${planId}`,
         };
@@ -729,7 +738,7 @@ export function createP1PlatformTools(client: PaperclipApiClient): P1PlatformToo
     ),
     makeTool(
       "paperclipHostApplyDeployment",
-      "Disabled production apply stub: validates identity, plan, scope and the current recreate target, then explicitly refuses with configuration_missing. The host deployment executor is not wired; never interpret PREFLIGHT_PASSED ledger entries as deployed artifacts.",
+      "Apply an exact gateway release plan through the scoped live-run supervisor lane. Status is pending during build, and VERIFIED requires actual production image, source SHA and health evidence; other services fail closed.",
       z.object({
         planId: z.string().uuid(),
         runId: runIdSchema,
@@ -743,13 +752,11 @@ export function createP1PlatformTools(client: PaperclipApiClient): P1PlatformToo
         const ledgerKey = idempotencyKey ? `deploy-${idempotencyKey}` : null;
         if (ledgerKey) {
           const prior = await readLedger(ledgerKey);
-          if (prior) return { ...(prior as object), replayed: true };
+          if (prior?.state === "VERIFIED" && prior.planId === planId) return { ...prior, replayed: true };
+          if (prior && prior.planId !== planId) throw err("idempotency_conflict", "idempotencyKey belongs to another plan");
         }
         const plan = await readLedger(`plan-${planId}`);
         if (!plan) throw err("not_found", `Unknown planId ${planId}: plan first via paperclipHostPlanDeployment`);
-        if (String(plan.environment ?? "staging") === "production" && mutationCtx.authority === "agent-run") {
-          throw err("scope_denied", "Production deployments require board authority; an agent's live run may not apply a production deployment", { remediationOwner: "caller", remediation: "Use a board key for production, or plan against a non-production environment" });
-        }
         const caps = capabilitiesDocument() as unknown as Record<string, unknown>;
         const activeDigest = capabilityPolicyDigest(caps);
         if (expectedPolicyDigest && expectedPolicyDigest !== activeDigest) {
@@ -762,7 +769,7 @@ export function createP1PlatformTools(client: PaperclipApiClient): P1PlatformToo
         // a plan that does not cover every required op (legacy backup-only plans
         // included), is refused instead of silently applied.
         const unsupported = unsupportedPlannedOps(plannedOps, supported);
-        const missingRequired = missingRequiredInPlan(plannedOps);
+        const missingRequired = missingRequiredInPlan(plannedOps, String(plan.service ?? ""));
         const recordStep = async (state: (typeof DEPLOY_STATES)[number], extra?: Record<string, unknown>) => {
           const rec = { deploymentId: operationId, planId, state, at: new Date().toISOString(), ...(extra ?? {}) };
           await writeLedger(`deploy-state-${operationId}-${state}`, rec);
@@ -786,11 +793,67 @@ export function createP1PlatformTools(client: PaperclipApiClient): P1PlatformToo
           await recordStep("FAILED", { errorCode: "configuration_missing", service, reason: "Recreate target not provisioned at apply time" });
           throw err("configuration_missing", `Apply refused: recreate target ${service || "<missing>"} is not provisioned; no host operation executed`, { remediationOwner: "CTO" });
         }
-        // This handler has never called submitHostIntent, so returning
-        // status:ok/PREFLIGHT_PASSED was a false deployment success.
-        // Until a real supervised executor is wired, refuse even pinned plans.
-        await recordStep("FAILED", { errorCode: "configuration_missing", service, reason: "No host execution driver wired" });
-        throw err("configuration_missing", "Apply refused: no host deployment executor is wired; use the existing authorized release lane and confirm host image/health readback", { remediationOwner: "CTO" });
+        if (service !== "paperclip-mcp-gateway") {
+          await recordStep("FAILED", { reason: "No safe release executor is wired for this service" });
+          throw err("configuration_missing", "Generic container recreation is not a safe deployment executor");
+        }
+        // A run-bound release can only deploy a full source commit already
+        // merged into main. The host checks this again before touching Docker.
+        const sourceSha = String(plan.sourceSha ?? "");
+        const issueId = String(plan.issueId ?? "");
+        if (!/^[a-f0-9]{40}$/.test(sourceSha) || !issueId) {
+          await recordStep("FAILED", { reason: "Missing pinned source SHA or issue identity" });
+          throw err("invalid_arguments", "Release plan must pin a full sourceSha and issueId");
+        }
+        if (plan.environment !== "production") {
+          throw err("scope_denied", "Gateway release is production-only: staging plans cannot trigger a production container mutation");
+        }
+        if (mutationCtx.authority !== "agent-run" || !mutationCtx.runId || !mutationCtx.agentId) {
+          throw err("auth_failed", "Gateway release requires the caller's own active, issue-bound agent run");
+        }
+        if (!mutationCtx.runIssueId || mutationCtx.runIssueId !== issueId) {
+          throw err("scope_denied",
+            "Gateway deployment plan issueId must match the active caller run's contextSnapshot.issueId",
+            { remediationOwner: "caller" });
+        }
+        await recordStep("AUTHORIZED", { agentId: mutationCtx.agentId, runId: mutationCtx.runId });
+        await recordStep("PREFLIGHT_PASSED", { service, sourceSha });
+        // Stable requestId = planId. Replaying this plan cannot create a
+        // second host deploy, even when an MCP retry races a slow image build.
+        const handle = await submitHostIntent({
+          operation: "mcp.gateway.release",
+          target: "paperclip-mcp-gateway",
+          sourceSha,
+          agentId: mutationCtx.agentId,
+          issueId,
+          runId: mutationCtx.runId,
+          requestId: planId,
+        });
+        if (handle.pending) {
+          await recordStep("DEPLOYING", { requestId: planId });
+          const pending = { status: "pending", state: "DEPLOYING", operationId, deploymentId: operationId,
+            planId, operationIds: [planId], sourceSha, deployedImageDigest: null,
+            verification: null, possiblyCommitted: true, evidenceReference: `host:${planId}` };
+          if (ledgerKey) await writeLedger(ledgerKey, pending);
+          return pending;
+        }
+        const envelope = isRecord(handle.result) ? handle.result : {};
+        const resultText = typeof envelope.result === "string" ? envelope.result :
+          typeof envelope.output === "string" ? envelope.output : "";
+        const verified = /DEPLOY_VERIFIED source_sha=([a-f0-9]{40}) image_id=(sha256:[a-f0-9]{64})/.exec(resultText);
+        if (envelope.ok !== true || envelope.status !== "ok" || !verified || verified[1] !== sourceSha) {
+          await recordStep("UNVERIFIED", { requestId: planId, errorCode: envelope.errorCode ?? "verification_failed" });
+          throw err("verification_failed", `Host release not verified; inspect supervisor result for requestId ${planId}`,
+            { remediationOwner: "CTO", possiblyCommitted: true });
+        }
+        const finished = { status: "ok", state: "VERIFIED", operationId, deploymentId: operationId,
+          planId, operationIds: [planId], sourceSha, deployedImageDigest: verified[2],
+          verification: { runningImageMatches: true, sourceShaMatches: true, gatewayHealth: "healthy",
+            evidenceReference: `host:${planId}` }, possiblyCommitted: true, evidenceReference: `host:${planId}` };
+        await recordStep("VERIFIED", { requestId: planId, imageDigest: verified[2], sourceSha });
+        if (ledgerKey) await writeLedger(ledgerKey, finished);
+        await writeLedger(`op-${operationId}`, finished);
+        return finished;
       },
     ),
     makeTool(
