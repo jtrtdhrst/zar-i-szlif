@@ -39,6 +39,15 @@ jobs:
           node --check mcp/paperclip/mcp-gateway/gateway.mjs
       - name: Gateway identity and origin tests
         run: node --test mcp/paperclip/mcp-gateway/test/*.test.mjs
+      - name: Gateway production recreate invariants (no Docker needed)
+        run: |
+          node --test mcp/paperclip/scripts/recreate-gateway-argv.test.mjs
+          bash -n mcp/paperclip/scripts/deploy-gateway-vps.sh
+          python3 -m py_compile mcp/paperclip/scripts/recreate-gateway-argv.py
+          bash -n mcp/paperclip/vps-ops-supervisor/deploy-gateway-supervisor.sh
+          bash -n mcp/paperclip/vps-ops-supervisor/test/gateway-release-matrix.test.sh
+          python3 -m py_compile mcp/paperclip/vps-ops-supervisor/apply-gateway-release.py
+          test -f mcp/paperclip/vps-ops-supervisor/Dockerfile.gateway-release
       - name: Check gateway and transport scripts
         run: |
           node --check mcp/paperclip/mcp-gateway/gateway.mjs

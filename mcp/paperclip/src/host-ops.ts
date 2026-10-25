@@ -27,8 +27,8 @@ import { resolveHostRunContext } from "./host-run-context.js";
 // are NOT in the schema enum: zod rejects them fail-closed with the bootstrap
 // pointer instead of implying execution.
 
-export const HOST_BRIDGE_POLICY_VERSION = "v3.11";
-export const HOST_SUPERVISOR_VERSION = "1.0.20";
+export const HOST_BRIDGE_POLICY_VERSION = "v3.12";
+export const HOST_SUPERVISOR_VERSION = "1.0.21";
 export const HOST_BRIDGE_TAG = "v3";
 export const HOST_REQUEST_TTL_SEC = 900;
 
@@ -86,6 +86,7 @@ export const HOST_MUT_OPERATIONS = [
   "mcp.test_candidate",
   "mcp.deploy_candidate",
   "mcp.rollback",
+  "mcp.gateway.release",
   "host.file.patch",
   "host.container.recreate",
   "host.service.reload",
@@ -183,6 +184,9 @@ export const HOST_RESTART_TARGETS = [
 ] as const;
 
 export function targetError(op: string, target: string | undefined): string | null {
+  if (op === "mcp.gateway.release" && target !== "paperclip-mcp-gateway") {
+    return `gateway release target not allowlisted: ${target ?? "(missing)"} [errorCode=not_allowlisted]`;
+  }
   if (op === "inspect" || op === "logs" || op === "host.service_status" || op === "host.container_inspect" || op === "host.service_logs" || op === "host.container_logs") {
     if (!target || !(HOST_INSPECT_TARGETS as readonly string[]).includes(target)) {
       return `target not allowlisted for ${op}: ${target ?? "(missing)"} (want one of ${(HOST_INSPECT_TARGETS as readonly string[]).join(", ")}) [errorCode=not_allowlisted]`;
@@ -269,6 +273,7 @@ const hostOperationSchema = z.object({
   contentSha: z.string().length(64).optional().describe("sha256 of content for host.file.patch"),
   expectedSha: z.string().length(64).optional().describe("Current sha256 from host.file.read, required for host.file.patch"),
   image: z.string().min(1).max(256).optional().describe("Image for host.container.recreate (must be allowlisted)"),
+  sourceSha: z.string().regex(/^[0-9a-f]{40}$/).optional().describe("Merged full Git SHA for a pinned Paperclip gateway release"),
   backupName: z.string().min(1).max(128).optional().describe("Bare file name for host.backup.restore_to_staging"),
   migrationId: z.string().min(1).max(128).optional().describe("Bare file name from migrations-allowlisted/ for host.migration.apply"),
   service: z.string().min(1).max(128).optional().describe("Service name for host.deployment_verify / host.service_* operations"),
@@ -409,6 +414,7 @@ export async function submitHostIntent(input: HostOperationInput): Promise<HostB
     ...(input.contentSha ? { contentSha: input.contentSha } : {}),
     ...(input.expectedSha ? { expectedSha: input.expectedSha } : {}),
     ...(input.image ? { image: input.image } : {}),
+    ...(input.sourceSha ? { sourceSha: input.sourceSha } : {}),
     ...(input.backupName ? { backupName: input.backupName } : {}),
     ...(input.migrationId ? { migrationId: input.migrationId } : {}),
     ...(input.reason ? { reason: input.reason } : {}),
@@ -493,7 +499,7 @@ export function capabilitiesDocument(): Record<string, unknown> {
     restartTargets: [...HOST_RESTART_TARGETS],
     auth: {
       read: "owned non-terminal issue + live heartbeat runId bound host-side to the exact issue and same agent/company, or an audited operatorRunId",
-      mutating: "audited operatorRunId remains required for every mutation except host.file.patch; that operation also accepts a live heartbeat runId only after the supervisor verifies running status, agent/company and context_snapshot binding to the exact owned issue, then applies the existing canary-path guard",
+      mutating: "audited operatorRunId or issue-bound live runId for host.file.patch (canary path only) and mcp.gateway.release (exact gateway, merged main SHA, rollback). Other mutations retain audited operatorRunId; every live run is verified host-side for status, agent/company and owned issue binding",
       notes: "Supervisor re-validates every intent host-side; the gateway Bearer is never a host credential. Existing operatorRunId validation and TTL remain unchanged; request TTL is 900 s and replays never re-execute.",
     },
     idempotency: "Pass requestId (uuid) to retry safely; omit it to mint a new intent. Same requestId + same payload replays with replayed:true and never re-executes; same requestId + different payload fails closed with IDEMPOTENCY_CONFLICT (errorCode=idempotency_conflict, policyDecision=deny). On pending, re-call with the same requestId and same payload.",
@@ -505,7 +511,7 @@ export function capabilitiesDocument(): Record<string, unknown> {
     },
     notCovered: {
       operations: ["host.database_*", "host.cron/*", "host.firewall/DNS/TLS write", "host.build_candidate (bare)"],
-      reason: "No supervisor lane for these operations in enforced policy v3.11; they remain fail-closed at the schema layer. Live-run authorization is narrowly limited to canary-scoped host.file.patch; other mutations still require an audited operatorRunId.",
+      reason: "No supervisor lane for these operations in the proposed v3.12 policy; generic container recreate remains unprovisioned. Only canary host.file.patch and the dedicated merged-SHA gateway release are eligible for issue-bound runId.",
       bootstrap: "A reviewed supervisor image release and matching POLICY.md digest are required before any of these can execute; do not retry via another path.",
     },
     evidence: "Every result carries operationId/timestamp/target/status/result/durationMs/errorCode/policyDecision/evidenceReference (ledger:<requestId> log:watcher.log) plus additive payloadDigest (empty when unknown) and replayed flag on replays.",

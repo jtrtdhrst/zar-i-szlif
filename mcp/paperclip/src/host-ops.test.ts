@@ -48,16 +48,17 @@ describe("host operations adapter", () => {
   it("classifies mutating operations", () => {
     expect(isMutatingOperation("restart")).toBe(true);
     expect(isMutatingOperation("mcp.rollback")).toBe(true);
+    expect(isMutatingOperation("mcp.gateway.release")).toBe(true);
     expect(isMutatingOperation("ps")).toBe(false);
     expect(isMutatingOperation("host.health")).toBe(false);
   });
 
   it("capabilities document pins policy and gate thresholds", () => {
     const doc = capabilitiesDocument() as Record<string, unknown>;
-    expect(doc.policyVersion).toBe("v3.11");
-    expect(doc.supervisorVersion).toBe("1.0.20");
+    expect(doc.policyVersion).toBe("v3.12");
+    expect(doc.supervisorVersion).toBe("1.0.21");
     expect(doc.deployGate).toEqual({ minFreeGib: 20, minFreePct: 10, deployNeedGib: 8 });
-    expect(JSON.stringify(doc.auth)).toContain("except host.file.patch");
+    expect(JSON.stringify(doc.auth)).toContain("mcp.gateway.release");
     expect(Array.isArray(doc.readOperations)).toBe(true);
   });
 
@@ -92,6 +93,27 @@ describe("host operations adapter", () => {
     expect(text).not.toContain("CAPABILITY_REMOVED");
     const intent = JSON.parse(await fs.readFile(join(req, `${REQ}.json`), "utf8")) as Record<string, unknown>;
     expect(intent.runId).toBe(RUN);
+    expect(intent).not.toHaveProperty("operatorRunId");
+  });
+
+  it("submits an exact gateway release with full source SHA and live runId", async () => {
+    const { req, res } = await sandbox();
+    const sha = "a".repeat(40);
+    const tool = getTool("paperclipHostOperation");
+    const p = tool.execute({
+      operation: "mcp.gateway.release", target: "paperclip-mcp-gateway",
+      sourceSha: sha, agentId: AGENT, issueId: "KOMAA-1463",
+      runId: RUN, requestId: REQ,
+    });
+    await new Promise((r) => setTimeout(r, 150));
+    await fs.writeFile(join(res, `${REQ}.json`), JSON.stringify({
+      requestId: REQ, operationId: REQ, bridge: "v3", status: "ok",
+      ok: true, result: "DEPLOY_VERIFIED",
+    }), "utf8");
+    const out = await p;
+    expect(JSON.stringify(out)).toContain("DEPLOY_VERIFIED");
+    const intent = JSON.parse(await fs.readFile(join(req, `${REQ}.json`), "utf8"));
+    expect(intent).toMatchObject({ operation: "mcp.gateway.release", target: "paperclip-mcp-gateway", sourceSha: sha, runId: RUN });
     expect(intent).not.toHaveProperty("operatorRunId");
   });
 
