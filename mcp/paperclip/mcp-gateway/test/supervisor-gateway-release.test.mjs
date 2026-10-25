@@ -25,6 +25,16 @@ test("rollout pins a single target and immutable images", () => {
   assert.match(source, /GW_SWAP_PENDING=0/);
 });
 
+test("gateway release admission requires all host-ops unit regressions to pass", () => {
+  const root = fileURLToPath(new URL("../../../../", import.meta.url));
+  const check = spawnSync("npx", ["--no-install", "vitest", "run", "mcp/paperclip/src/host-ops.test.ts"], {
+    cwd: root,
+    encoding: "utf8",
+    timeout: 120000,
+  });
+  assert.equal(check.status, 0, [check.stdout, check.stderr].join("\n"));
+});
+
 test("unavailable live supervisor denies apply before Docker mutation", () => {
   const dir = mkdtempSync(join(tmpdir(), "supervisor-release-test-"));
   try {
