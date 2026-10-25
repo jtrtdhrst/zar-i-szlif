@@ -77,7 +77,7 @@ describe("KOMAA-1459 exact Board recovery reconciliation", () => {
     expect(result).toMatchObject({ reconciled: true, verified: true, reason: "execution_blocker_cleared" });
     const write = calls.find(x => x.method === "POST");
     expect(write?.auth).toBe("Bearer board-token");
-    expect(write?.body).toMatchObject(input);
+    expect(write?.body).toMatchObject({ actionId: ACTION, outcome: "restored", sourceIssueStatus: "todo", executionReconciliation: reconciliation });
     expect(calls.filter(x => x.method === "GET")).toHaveLength(2);
   });
 
