@@ -729,7 +729,7 @@ export function createP1PlatformTools(client: PaperclipApiClient): P1PlatformToo
     ),
     makeTool(
       "paperclipHostApplyDeployment",
-      "Apply a PLANNED deployment (state machine PLANNED->...->VERIFIED; VERIFIED only after live health+version readback). Validates plan, policy digest, authority (board key or the caller's own live run for non-production), and idempotencyKey; records every transition with evidence. Refuses fail-closed when the supervisor has no lane for a planned operation.",
+      "Disabled production apply stub: validates identity, plan, scope and the current recreate target, then explicitly refuses with configuration_missing. The host deployment executor is not wired; never interpret PREFLIGHT_PASSED ledger entries as deployed artifacts.",
       z.object({
         planId: z.string().uuid(),
         runId: runIdSchema,
@@ -777,27 +777,20 @@ export function createP1PlatformTools(client: PaperclipApiClient): P1PlatformToo
             { remediationOwner: "CTO", remediation: "Pin canary targets/images via a CTO-owned supervisor policy bump, then re-plan" },
           );
         }
-        await recordStep("AUTHORIZED", { authority: mutationCtx.authority, runId: mutationCtx.runId ?? null, agentId: mutationCtx.agentId ?? null, operatorRunId: mutationCtx.operatorRunId ?? null });
-        await recordStep("PREFLIGHT_PASSED", { checks: plan.prerequisiteChecks ?? [] });
-        const result = {
-          status: "ok",
-          operationId,
-          deploymentId: operationId,
-          planId,
-          state: "PREFLIGHT_PASSED",
-          operationIds: [],
-          deployedImageDigest: null,
-          sourceSha: null,
-          verification: null,
-          health: null,
-          rollbackAvailable: Boolean(plan.rollbackTarget),
-          note: "Host execution lanes for container recreation are fail-closed until CTO pins targets; this deployment authorized the plan and passed preflight only. Re-apply after the lane exists to reach VERIFIED.",
-          possiblyCommitted: false,
-          evidenceReference: `ledger:${operationId}`,
-        };
-        if (ledgerKey) await writeLedger(ledgerKey, { ...result, state: "PREFLIGHT_PASSED" });
-        await writeLedger(`op-${operationId}`, result);
-        return result;
+        // Plans are historical ledger entries; revalidate the actual service
+        // target at apply time. Otherwise a crafted or stale plan can pass.
+        const recreateTargets = Array.isArray(caps.recreateTargets) ? (caps.recreateTargets as string[]) : [];
+        const service = String(plan.service ?? "");
+        const { missingTargets } = resolveDeploymentOps({ laneOperations: supported, recreateTargets }, service);
+        if (missingTargets.length > 0) {
+          await recordStep("FAILED", { errorCode: "configuration_missing", service, reason: "Recreate target not provisioned at apply time" });
+          throw err("configuration_missing", `Apply refused: recreate target ${service || "<missing>"} is not provisioned; no host operation executed`, { remediationOwner: "CTO" });
+        }
+        // This handler has never called submitHostIntent, so returning
+        // status:ok/PREFLIGHT_PASSED was a false deployment success.
+        // Until a real supervised executor is wired, refuse even pinned plans.
+        await recordStep("FAILED", { errorCode: "configuration_missing", service, reason: "No host execution driver wired" });
+        throw err("configuration_missing", "Apply refused: no host deployment executor is wired; use the existing authorized release lane and confirm host image/health readback", { remediationOwner: "CTO" });
       },
     ),
     makeTool(

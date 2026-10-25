@@ -1,4 +1,9 @@
 import { describe, expect, it } from "vitest";
+import { randomUUID } from "node:crypto";
+import { mkdtemp, readdir, rm, writeFile } from "node:fs/promises";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
+
 import {
   REQUIRED_DEPLOY_OPS,
   canonicalOp,
@@ -102,5 +107,37 @@ describe("host deployment policy digest consistency (KOMAA-1463)", () => {
     expect(policy.driftStatus).toBe("unverified");
     expect(policy.driftDetected).toBe(false);
     expect(policy.gatewayCapabilityDigest).toBe(capabilityPolicyDigest(caps));
+  });
+
+  it("rejects a hand-written stale apply plan rather than faking PREFLIGHT_PASSED", async () => {
+    const dir = await mkdtemp(join(tmpdir(), "mcp-apply-regression-"));
+    const previous = process.env.PAPERCLIP_PLATFORM_OPS_LEDGER_DIR;
+    process.env.PAPERCLIP_PLATFORM_OPS_LEDGER_DIR = dir;
+    try {
+      const planId = randomUUID();
+      await writeFile(join(dir, `plan-${planId}.json`), JSON.stringify({
+        planId,
+        service: "paperclip-mcp-gateway",
+        environment: "production",
+        operations: [...REQUIRED_DEPLOY_OPS],
+      }));
+      // Board authority: any refusal here is from target/executor checks.
+      const tool = createP1PlatformTools({ callerApiKey: "pcp_board_" } as never).find(
+        (entry) => entry.name === "paperclipHostApplyDeployment",
+      );
+      expect(tool).toBeDefined();
+      const response = await tool!.execute({ planId });
+      const message = response.content.map((part) => part.text).join("\n");
+      expect(message).toContain("configuration_missing");
+      expect(message).toContain("not provisioned");
+      expect(message).not.toContain('"state":"PREFLIGHT_PASSED"');
+      const files = await readdir(dir);
+      expect(files.some((file) => file.includes("PREFLIGHT_PASSED"))).toBe(false);
+      expect(files.some((file) => file.includes("FAILED"))).toBe(true);
+    } finally {
+      if (previous === undefined) delete process.env.PAPERCLIP_PLATFORM_OPS_LEDGER_DIR;
+      else process.env.PAPERCLIP_PLATFORM_OPS_LEDGER_DIR = previous;
+      await rm(dir, { recursive: true, force: true });
+    }
   });
 });
