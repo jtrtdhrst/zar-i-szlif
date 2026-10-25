@@ -293,7 +293,7 @@ export function createP1PlatformTools(client: PaperclipApiClient): P1PlatformToo
   return [
     makeTool(
       "paperclipHostGetEffectivePolicy",
-      "Effective host policy: runningSupervisorVersion/activePolicyVersion+digest vs mirroredPolicyVersion+digest vs expectedReleasePolicyDigest, supported/enabled/disabled operations, driftDetected+differences+remediationOwner. Read-only. Mutating ops are rejected while material drift is unresolved.",
+      "Gateway capability projection versus read-only supervisor policy mirror. This tool cannot inspect the host Docker image, so enforced supervisor version and runtime drift are unverified; never impose host holds from these build constants.",
       z.object({}),
       async () => {
         const operationId = randomUUID();
@@ -323,18 +323,24 @@ export function createP1PlatformTools(client: PaperclipApiClient): P1PlatformToo
         const disabled = supported.filter((op) => !enabled.includes(op));
         const differences: string[] = [];
         if (mirrorVersion !== "unknown" && mirrorVersion !== enforced.policyVersion) {
-          differences.push(`policy version: enforced=${enforced.policyVersion} mirror=${mirrorVersion}`);
+          differences.push(`gateway-compiled policy=${enforced.policyVersion} mirror=${mirrorVersion} (running policy unverified)`);
         }
         if (mirrorSupervisor !== "unknown" && mirrorSupervisor !== enforced.supervisorVersion) {
-          differences.push(`supervisor: enforced=${enforced.supervisorVersion} mirror Mentions=${mirrorSupervisor}`);
+          differences.push(`gateway-compiled supervisor=${enforced.supervisorVersion} mirror=${mirrorSupervisor} (running image unverified)`);
         }
-        const driftDetected = differences.length > 0;
+        // Compiled MCP constants are NOT a host-side Docker image readback.
+        // These differences are build-vs-mirror diagnostics, not proof that
+        // the running supervisor enforces a different policy.
+        const driftDetected = false;
         return {
           status: "ok",
           operationId,
-          runningSupervisorVersion: enforced.supervisorVersion,
-          activePolicyVersion: enforced.policyVersion,
-          activePolicyDigest: capabilityPolicyDigest(caps),
+          runningSupervisorVersion: "unverified",
+          activePolicyVersion: "unverified",
+          activePolicyDigest: "unverified",
+          gatewayDeclaredSupervisorVersion: enforced.supervisorVersion,
+          gatewayDeclaredPolicyVersion: enforced.policyVersion,
+          gatewayCapabilityDigest: capabilityPolicyDigest(caps),
           mirroredPolicyVersion: mirrorVersion,
           mirroredPolicyDigest: mirrorDigest,
           expectedReleasePolicyDigest: capabilityPolicyDigest(caps),
@@ -342,11 +348,11 @@ export function createP1PlatformTools(client: PaperclipApiClient): P1PlatformToo
           enabledOperations: enabled,
           disabledOperations: disabled,
           driftDetected,
+          driftVerified: false,
+          driftStatus: "unverified",
           differences,
-          remediationOwner: driftDetected ? "owner" : null,
-          remediation: driftDetected
-            ? "Mirror differs from enforced policy: promote only via a CTO-owned supervisor image bump with baked SHA256SUMS; never promote on version number alone. Mutating host ops stay fail-closed until digests reconcile."
-            : null,
+          remediationOwner: null,
+          remediation: "Host Docker-image and baked-watcher readback is required to verify enforced policy; do not block production solely on MCP build constants.",
           possiblyCommitted: false,
           evidenceReference: `ledger:${operationId}`,
         };

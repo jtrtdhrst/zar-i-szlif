@@ -90,4 +90,17 @@ describe("host deployment policy digest consistency (KOMAA-1463)", () => {
     const message = response.content.map((part) => part.text).join("\n");
     expect(message).toContain("version_conflict");
   });
+
+  it("never presents gateway compile-time versions as proven running-host policy drift", async () => {
+    const tool = createP1PlatformTools({} as never).find((entry) => entry.name === "paperclipHostGetEffectivePolicy");
+    expect(tool).toBeDefined();
+    const response = await tool!.execute({});
+    const policy = JSON.parse(response.content[0]!.text);
+    expect(policy.runningSupervisorVersion).toBe("unverified");
+    expect(policy.activePolicyVersion).toBe("unverified");
+    expect(policy.driftVerified).toBe(false);
+    expect(policy.driftStatus).toBe("unverified");
+    expect(policy.driftDetected).toBe(false);
+    expect(policy.gatewayCapabilityDigest).toBe(capabilityPolicyDigest(caps));
+  });
 });
