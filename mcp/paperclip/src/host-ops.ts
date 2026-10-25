@@ -594,10 +594,20 @@ export function createHostTools(client?: PaperclipApiClient): HostToolDefinition
 
 export const HOST_TOOL_NAMES: string[] = ["paperclipHostCapabilities", "paperclipHostOperation"];
 
-// v3.8 supervisor mirror: RECREATE_TARGETS/RECREATE_IMAGES are empty, so no
-// service may be container-recreated yet. Keep in sync with the CTO-owned
-// supervisor policy bump (same pattern as HOST_INSPECT_TARGETS/HOST_RESTART_TARGETS).
-export const HOST_RECREATE_TARGETS = [] as string[];
+// Release pin: the public MCP planner must not advertise a recreate lane merely
+// because the image exists. A trusted gateway operator explicitly provisions
+// the SAME exact target, image and reviewed supervisor policy hash that are
+// installed by the supervisor rollout. Omission or ANY mismatch is deny-all.
+// The host watcher remains authoritative and revalidates every mutation.
+export const GATEWAY_RECREATE_IMAGE_SHA256 = "sha256:e00d1ff3139d8671d38dc55e86855cbac577270577df82051b0cb206a777d104";
+export const GATEWAY_SUPERVISOR_POLICY_SHA256 = "c15f036a7645b3f341878969f02850570b1710df96aa434644995464fbdeae99";
+export function configuredRecreateTargets(env: Readonly<Record<string, string | undefined>> = process.env): string[] {
+  return env.PAPERCLIP_HOST_RECREATE_TARGETS === "paperclip-mcp-gateway"
+    && env.PAPERCLIP_HOST_RECREATE_IMAGES === `paperclip-mcp-gateway=${GATEWAY_RECREATE_IMAGE_SHA256}`
+    && env.PAPERCLIP_HOST_SUPERVISOR_POLICY_SHA256 === GATEWAY_SUPERVISOR_POLICY_SHA256
+    ? ["paperclip-mcp-gateway"] : [];
+}
+export const HOST_RECREATE_TARGETS = configuredRecreateTargets();
 
 // Operations with a REAL supervisor lane: read ops + mutating ops, minus the
 // schema-accepted-but-no-lane set (failClosedNoLane) which can never execute.
