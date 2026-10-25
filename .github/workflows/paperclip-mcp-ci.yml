@@ -28,7 +28,9 @@ jobs:
       # This checkout contains only custom MCP code, not the upstream Paperclip
       # Core monorepo. These source tests are portable; the full 504-test suite
       # must additionally run in the pinned Paperclip 2026.1012.0 runtime.
-      - name: Portable MCP credential isolation tests
+      - name: Install pinned isolated Paperclip MCP integration test dependency
+        run: npm install --no-save --ignore-scripts --no-audit --no-fund zod@4.1.12
+      - name: Portable MCP credential and reconciliation tests
         run: |
           npx --no-install vitest run \
             mcp/paperclip/src/config-board-credential-isolation.test.ts \
