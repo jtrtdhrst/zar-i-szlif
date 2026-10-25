@@ -34,12 +34,36 @@ First build takes ~30–60 minutes (pnpm install + `make` + rsbuild Studio bundl
 
 ## Coolify
 
-- Resource type: Application, Git repository `miloszspyrka-code/plasmic-production`.
-- Build pack: Docker Compose, base directory `/`, compose `docker-compose.yml`.
-- Domain: `plasmic-studio` service on port 8080.
-- Environment: every key from `.env.example`.
+- Resource type: Application (`plasmic`, project `Plasmic`), Git repository
+  `miloszspyrka-code/zar-i-szlif`, branch `deploy/plasmic-selfhost-20261025`
+  (later: `main`).
+- Build pack: Docker Compose, base directory `/plasmic`, compose
+  `docker-compose.yml`.
+- Domain: `plasmic-studio` service on port 8080 (`plasmic.kompaszbiorek.pl`,
+  plus staging `plasmic-next.kompaszbiorek.pl`).
+- Environment: every key from `.env.example`. `ADMIN_EMAILS` must be JSON
+  (e.g. `["admin@example.com"]`) — a bare `[a@b.c]` crash-loops WAB in
+  `parseConfigFromEnv`.
 - Persistent volume: `plasmic_pgdata` (database).
-- Resource sizing: first build needs ~4 GB RAM and ~8 GB free disk for build cache.
+- Resource sizing: first build needs ~4 GB RAM and ~20 GB free disk
+  (pnpm store + parallel builders); the host otherwise sits at ~90% disk,
+  so watch headroom before rebuilding.
+
+## Build cache (learned 2026-10-25)
+
+- `studio.Dockerfile` pins an explicit `PNPM_STORE_DIR=/pnpm/store` with a
+  BuildKit cache mount on every `pnpm fetch/install`, plus an npm cache mount
+  for the `/opt/studio-extra` workaround. A lockfile change refetches only
+  missing packages; an empty/pruned cache degrades into a full refetch.
+- Never run `docker builder prune -af` on the host to "make room": it wipes
+  the layer cache and forces a from-scratch rebuild that needs the ~20 GB
+  you were trying to free. Prefer Coolify's Docker Cleanup with a disk-usage
+  threshold, which keeps recent layers.
+- Env-only changes (e.g. `ADMIN_EMAILS`, `HOST`) need no rebuild: the images
+  are fine, only the containers need recreating. Coolify's redeploy rebuilds
+  anyway (fast when cache is hot); if disk is too tight for even a cached
+  rebuild, recreate `plasmic-wab`/`plasmic-codegen` manually from
+  `docker inspect` output with the fixed env instead.
 
 ## Data migration from the old instance
 

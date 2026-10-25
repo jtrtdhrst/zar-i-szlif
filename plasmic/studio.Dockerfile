@@ -14,14 +14,23 @@ ENV PNPM_HOME="/pnpm"
 ENV PATH="$PNPM_HOME:$PATH"
 RUN corepack enable
 
+# Explicit content-addressable store shared by every pnpm fetch/install below.
+# Each RUN mounts a BuildKit cache at the same path, so a lockfile change
+# refetches only the missing packages instead of the whole registry round-trip.
+# If the builder cache is pruned the mounts start empty and pnpm degrades into
+# a full refetch — slower, never broken.
+ENV PNPM_STORE_DIR="/pnpm/store"
+
 WORKDIR /platform
 
 COPY platform/package.json platform/pnpm-workspace.yaml platform/pnpm-lock.yaml ./
 COPY platform/patches/ ./patches/
-RUN pnpm fetch
+RUN --mount=type=cache,target=/pnpm/store \
+    pnpm fetch --store-dir=/pnpm/store
 
 COPY platform/ ./
-RUN pnpm install --frozen-lockfile --prefer-offline
+RUN --mount=type=cache,target=/pnpm/store \
+    pnpm install --frozen-lockfile --prefer-offline --store-dir=/pnpm/store
 
 RUN pnpm --filter "loader-bundle-env..." --filter "@plasmicapp/loader-html-hydrate..." build
 
@@ -41,7 +50,8 @@ RUN git init -q \
 # Install the missing packages outside the pnpm workspace so the frozen lockfile
 # (and the missing @plasmic-shared/hosting link) stays untouched, then run the
 # missing builds here. Verified 2026-10-25 against a throwaway container.
-RUN mkdir -p /opt/studio-extra \
+RUN --mount=type=cache,target=/root/.npm \
+    mkdir -p /opt/studio-extra \
     && cd /opt/studio-extra \
     && npm init -y >/dev/null \
     && npm install --no-package-lock --no-audit --no-fund html-webpack-plugin@5.6.3 process@0.11.10 buffer@6.0.3 path@0.12.7 raw-loader@4.0.2 \
@@ -49,9 +59,12 @@ RUN mkdir -p /opt/studio-extra \
 
 RUN pnpm build-css
 
-RUN cd /platform/sub && pnpm install --prefer-offline && pnpm build
-RUN cd /platform/react-web-bundle && pnpm install --prefer-offline && pnpm build
-RUN cd /platform/live-frame && pnpm install --prefer-offline && pnpm build
+RUN --mount=type=cache,target=/pnpm/store \
+    cd /platform/sub && pnpm install --prefer-offline --store-dir=/pnpm/store && pnpm build
+RUN --mount=type=cache,target=/pnpm/store \
+    cd /platform/react-web-bundle && pnpm install --prefer-offline --store-dir=/pnpm/store && pnpm build
+RUN --mount=type=cache,target=/pnpm/store \
+    cd /platform/live-frame && pnpm install --prefer-offline --store-dir=/pnpm/store && pnpm build
 RUN cd /platform && pnpm --filter canvas-packages build
 RUN cp /platform/loader-html-hydrate/build/* /platform/wab/public/static/js/
 

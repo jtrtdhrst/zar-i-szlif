@@ -2,11 +2,14 @@
 # dependencies or build output to the daemon.
 **/node_modules
 **/build
+**/dev-build
+**/dist
 **/.git
 **/.pnpm-store
 **/.cache
 **/.nx
 **/.env
+**/*.tsbuildinfo
 **/coverage
 **/storybook-static
 **/cypress/videos
