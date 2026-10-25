@@ -1370,7 +1370,7 @@ function recoveryDecisionTools(client: PaperclipApiClient): ControlPlaneToolDefi
     ),
     makeTool(
       "paperclipResolveRecoveryAction",
-      "Resolve an issue recovery action: restored / blocked / false_positive / cancelled. Board-only outcomes (false_positive, cancelled) require board auth. sourceIssueStatus is REQUIRED and must be one of todo|done|in_review|blocked, and it must match the outcome: restored -> todo|done|in_review, blocked -> blocked, false_positive|cancelled -> done|in_review. A mismatched pair, a missing value or a value outside the enum is rejected locally with a typed error and no upstream request. outcome=blocked additionally requires an unresolved first-class blocker on the source issue (the server answers 422 otherwise) - never synthesize blocker relations to satisfy it. A run scope is required: pass operatorRunId (preferred) or runId.",
+      "Resolve an issue recovery action: restored / blocked / false_positive / cancelled. Board-only outcomes and explicit executionReconciliation require Board auth. Verified reconciliations require exact actionId, stopped source run, observed outcome evidence and live blocker readback; a 200 with another blocker is NOT recovered. sourceIssueStatus is REQUIRED and must be one of todo|done|in_review|blocked, and it must match the outcome: restored -> todo|done|in_review, blocked -> blocked, false_positive|cancelled -> done|in_review. A mismatched pair, a missing value or a value outside the enum is rejected locally with a typed error and no upstream request. outcome=blocked additionally requires an unresolved first-class blocker on the source issue (the server answers 422 otherwise) - never synthesize blocker relations to satisfy it. A run scope is required: pass operatorRunId (preferred) or runId.",
       z.object({
         issueId: issueIdSchema,
         actionId: z.string().guid().optional().nullable(),
@@ -1379,23 +1379,72 @@ function recoveryDecisionTools(client: PaperclipApiClient): ControlPlaneToolDefi
         // so the gateway advertises and forwards it the same way.
         sourceIssueStatus: z.enum(["todo", "done", "in_review", "blocked"]),
         resolutionNote: z.string().trim().max(2000).optional(),
+        // Paperclip 2026.1012.0 supports this exact verified-outcome shape.
+        // A settled automatic replay-blocked recovery is a NO-OP without it.
+        executionReconciliation: z.object({
+          runId: z.string().guid(),
+          providerStopped: z.literal(true),
+          actionOutcome: z.enum(["completed", "not_performed", "mixed"]),
+          outcomeEvidence: z.string().trim().min(20).max(12000),
+          workspaceRepairEvidence: z.string().trim().min(20).max(12000).optional(),
+        }).strict().optional(),
         runId: runIdOptional,
         operatorRunId: operatorRunIdOptional, // KOMAA-630
       }),
-      async ({ issueId, actionId, outcome, sourceIssueStatus, resolutionNote, runId, operatorRunId }) => {
-        // KOMAA-1366: enforce the server's outcome<->sourceIssueStatus coupling
-        // before a single request leaves the gateway.
+      async ({ issueId, actionId, outcome, sourceIssueStatus, resolutionNote, executionReconciliation, runId, operatorRunId }) => {
         const coupling = recoveryOutcomeStatusSchema.safeParse({ outcome, sourceIssueStatus });
         if (!coupling.success) throw coupling.error;
-        return client.requestJson("POST", `/issues/${enc(issueId)}/recovery-actions/resolve`, {
-          body: { ...(actionId ? { actionId } : {}), outcome, sourceIssueStatus, ...(resolutionNote ? { resolutionNote } : {}) },
-          // KOMAA-630: dropping the per-call operator id left the request with no
-          // run scope, and the resolve route answers an unscoped agent caller with
-          // 401 `Agent run id required` - the operator could not retire a recovery
-          // card at all without lying about the source issue status.
+        if (executionReconciliation) {
+          // Do not let a valid-looking Board request settle an unrelated run or
+          // silently replay an already resolved row. The source run and recovery
+          // id must agree with the current blocker visible on the live issue.
+          if (!actionId || outcome !== "restored" || sourceIssueStatus !== "todo") {
+            throw new Error("Verified execution reconciliation requires exact actionId, outcome=restored and sourceIssueStatus=todo.");
+          }
+          const issue = await client.requestJson<Record<string, unknown>>("GET", `/issues/${enc(issueId)}`);
+          const blocker = isRecord(issue) ? issue.executionBlocker : null;
+          if (!isRecord(blocker) ||
+              blocker.recoveryActionId !== actionId ||
+              blocker.runId !== executionReconciliation.runId) {
+            throw new Error("Execution reconciliation is not bound to the current recovery blocker and source run; refresh live issue evidence.");
+          }
+        }
+        const resolution = await client.requestJson("POST", `/issues/${enc(issueId)}/recovery-actions/resolve`, {
+          body: {
+            ...(actionId ? { actionId } : {}), outcome, sourceIssueStatus,
+            ...(resolutionNote ? { resolutionNote } : {}),
+            ...(executionReconciliation ? { executionReconciliation } : {}),
+          },
+          // Board routing for verified evidence is explicit in client.ts;
+          // never invent run credentials or downgrade this authority.
           runId: runId ?? undefined,
           operatorRunId: operatorRunId ?? undefined,
         });
+        if (!executionReconciliation) return resolution;
+        // A successful POST is not an E2E recovery. A different older settled
+        // action can still block this issue (Paperclip upstream #14082).
+        try {
+          const after = await client.requestJson<Record<string, unknown>>("GET", `/issues/${enc(issueId)}`);
+          if (!isRecord(after) || !Object.prototype.hasOwnProperty.call(after, "executionBlocker")) {
+            return { resolution, reconciled: false, verified: false, reason: "execution_blocker_readback_unavailable" };
+          }
+          const remaining = after.executionBlocker;
+          const reconciled = remaining == null && after.status === "todo";
+          return {
+            resolution, reconciled, verified: true,
+            reason: remaining != null ? "another_or_unsettled_execution_blocker_remains" :
+              (after.status !== "todo" ? "unexpected_issue_status_after_reconciliation" : "execution_blocker_cleared"),
+            remainingExecutionBlocker: remaining ?? null,
+            sourceIssueStatus: after.status ?? null,
+          };
+        } catch (error) {
+          // An unknown readback MUST NOT encourage retrying an ambiguous write.
+          return {
+            resolution, reconciled: false, verified: false,
+            reason: "post_commit_readback_failed_do_not_blind_retry",
+            readbackError: error instanceof Error ? error.message : String(error),
+          };
+        }
       },
     ),
     makeTool(
