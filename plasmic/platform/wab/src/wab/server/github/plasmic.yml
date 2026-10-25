@@ -20,6 +20,12 @@ jobs:
         with:
           persist-credentials: false
           fetch-depth: 0
+          # repository_dispatch has no branch context: without ref the runner
+          # gets the default branch, and the init step then fails with
+          # "spawn bash ENOENT" when directory/ is missing there. Check out
+          # the branch this push targets instead. (Local self-host fix; upstream
+          # plasmic.yml at 85b8611 lacks ref.)
+          ref: ${{ github.event.client_payload.data.branch }}
       - id: node
         name: Setting up node v24...
         uses: actions/setup-node@v6
