@@ -58,8 +58,50 @@ Build directory `/mcp/paperclip`, Dockerfile `Dockerfile`, port `3101`, and a vo
 on `/paperclip`. The Paperclip core API (`3100`) is a separate service (upstream
 image) — the gateway talks to it over `PAPERCLIP_API_URL`.
 
+## Production release (Coolify; no VPS Ops Supervisor)
+
+This repository deliberately does not use the custom VPS Ops Supervisor for deployments.
+The canonical release cycle is: existing Paperclip issue and isolated issue branch,
+scoped tests/CI, independent exact-SHA CTO review, merge to `main`, deploy only
+the matching Coolify application, live MCP/OAuth verification, immutable-image
+readback, rollback evidence, then native issue `done`.
+
+The dedicated workflow `.github/workflows/paperclip-mcp-release.yml` runs only
+for changes to `mcp/paperclip/**` merged to `main` (or an explicitly
+dispatched previous-main-SHA rollback). Its deployment job uses the GitHub
+`production` environment and a narrowly scoped Coolify API credential.
+
+Required deployment configuration in the existing self-hosted Coolify installation:
+- Repository `miloszspyrka-code/zar-i-szlif`, branch `main`.
+- Dockerfile build, base directory `/mcp/paperclip`, Dockerfile `Dockerfile`,
+  HTTP port `3101`; persistent volume `/paperclip` with the existing OAuth
+  client registry and Paperclip state. The Paperclip core API runs separately.
+- GitHub Actions variable `COOLIFY_URL` (HTTPS origin) and
+  `COOLIFY_PAPERCLIP_MCP_APP_UUID` (existing app UUID).
+- GitHub Actions secrets `COOLIFY_PAPERCLIP_DEPLOY_TOKEN` and
+  `PAPERCLIP_MCP_CANARY_TOKEN`. Do NOT commit or print tokens.
+- Keep the existing public hostname `paperclip-mcp.kompaszbiorek.pl`
+  and Cloudflare Tunnel/OAuth issuer unchanged during cutover.
+
+`node scripts/coolify-release.mjs preflight` checks the real Coolify application
+without mutation; `deploy` pins the merged source SHA and queues only that
+application. A successful deployment API response is NOT release acceptance:
+the driver independently confirms the deployment record's exact commit, public
+health, OAuth discovery, unauthenticated 401, authenticated `initialize` and
+`tools/list`. It explicitly returns
+`RUNTIME_VERIFIED_DIGEST_PENDING` and `acceptedAsDone:false` until an
+independent running container image digest/readback is attached.
+
+Emergency rollback is the same verified service-specific release for a known
+previous `main` SHA via the workflow's `rollback_sha` input; ancestry is
+checked before any Coolify mutation. Record the previous digest and verify the
+rollback live. Do NOT stop or delete the currently running supervisor container
+before Coolify has verifiably taken over this service and rollback works.
+
 ## Provenance
 
 Extracted from the running containers `paperclip-mcp-gateway` /
 `paperclip-mcp-gateway-pub` (image `local/paperclip-opencode-runtime:1.18.32-mcpfix-20261013`,
 Paperclip build `v2026.1012.0-0-gbba6a45f0`).
+
+

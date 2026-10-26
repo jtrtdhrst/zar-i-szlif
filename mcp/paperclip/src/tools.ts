@@ -24,8 +24,6 @@ import { existsSync, mkdirSync, readdirSync, readFileSync, writeFileSync } from 
 import { dirname, resolve, sep } from "node:path";
 import { PaperclipApiClient } from "./client.js";
 import { CONTROL_PLANE_TOOL_NAMES, createControlPlaneTools } from "./control-plane.js";
-import { HOST_TOOL_NAMES, createHostTools } from "./host-ops.js";
-import { HOST_QUERY_TOOL_NAMES, createHostQueryTools } from "./host-query.js";
 import { WORKSPACE_NATIVE_TOOL_NAMES, createWorkspaceNativeTools } from "./workspace-native.js";
 import { EFFECTIVE_ACCESS_TOOL_NAMES, createEffectiveAccessTools } from "./effective-access.js";
 import { LIVE_VERIFY_TOOL_NAMES, createLiveVerifyTools } from "./live-verify.js";
@@ -47,8 +45,6 @@ import { createAgentChatTools } from "./agent-chats.js";
 // jawnie ustawiony przez PAPERCLIP_MCP_TOOL_FILTER.
 const ALL_TOOL_NAMES = new Set<string>([
   ...CONTROL_PLANE_TOOL_NAMES,
-  ...HOST_TOOL_NAMES,
-  ...HOST_QUERY_TOOL_NAMES,
   ...WORKSPACE_NATIVE_TOOL_NAMES,
   ...EFFECTIVE_ACCESS_TOOL_NAMES,
   ...LIVE_VERIFY_TOOL_NAMES,
@@ -1748,13 +1744,11 @@ export function createToolDefinitions(client: PaperclipApiClient): ToolDefinitio
     ),
     ];
   all.push(...createControlPlaneTools(client));
-  all.push(...createHostTools(client));
-  all.push(...createHostQueryTools());
   all.push(...createWorkspaceNativeTools(client));
   all.push(...createEffectiveAccessTools(client));
   all.push(...createLiveVerifyTools(client));
   all.push(...createP1GitTools(client));
-  all.push(...createP1PlatformTools(client));
+  // Supervisor-backed deployment and fake delivery saga are retired. Keep\n  // the independent workspace/test/OAuth tools from this module.\n  all.push(...createP1PlatformTools(client).filter(t =>\n    !t.name.startsWith("paperclipHost") && t.name !== "paperclipExecuteDeliveryUnit"));
   all.push(...createIssueFieldTools(client));
   // --- Filter to whitelist / env override ---
   const filtered = all.filter(t => isToolEnabled(t.name));
@@ -1763,3 +1757,5 @@ export function createToolDefinitions(client: PaperclipApiClient): ToolDefinitio
   }
   return filtered;
 }
+
+

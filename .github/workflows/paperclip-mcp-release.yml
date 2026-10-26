@@ -1,0 +1,82 @@
+name: Paperclip MCP — scoped Coolify production deployment
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'mcp/paperclip/**'
+  workflow_dispatch:
+    inputs:
+      rollback_sha:
+        description: 'Optional previous approved main SHA for emergency rollback'
+        required: false
+        type: string
+permissions:
+  contents: read
+concurrency:
+  group: paperclip-mcp-production
+  cancel-in-progress: false
+jobs:
+  verify-code:
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+      - name: Run isolated release contract and retired-supervisor checks
+        run: |
+          node --test mcp/paperclip/scripts/coolify-release.test.mjs
+          node --test mcp/paperclip/scripts/retired-supervisor.test.mjs
+  deploy:
+    needs: verify-code
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    environment: production
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+      - name: Validate release ancestry and exact SHA
+        env:
+          SOURCE_SHA: ${{ github.sha }}
+          ROLLBACK_SHA: ${{ inputs.rollback_sha }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -z "$ROLLBACK_SHA" || [[ "$ROLLBACK_SHA" =~ ^[a-f0-9]{40}$ ]]
+          CANDIDATE="$SOURCE_SHA"
+          if [ -n "$ROLLBACK_SHA" ]; then CANDIDATE="$ROLLBACK_SHA"; fi
+          git cat-file -e "$CANDIDATE^{commit}"
+          git fetch --quiet origin main
+          git merge-base --is-ancestor "$CANDIDATE" origin/main
+      - name: Deploy ONLY the Paperclip MCP application via Coolify API and verify its public MCP
+        env:
+          SOURCE_SHA: ${{ github.sha }}
+          ROLLBACK_SHA: ${{ inputs.rollback_sha }}
+          COOLIFY_URL: ${{ vars.COOLIFY_URL }}
+          COOLIFY_APP_UUID: ${{ vars.COOLIFY_PAPERCLIP_MCP_APP_UUID }}
+          COOLIFY_TOKEN: ${{ secrets.COOLIFY_PAPERCLIP_DEPLOY_TOKEN }}
+          MCP_PUBLIC_URL: https://paperclip-mcp.kompaszbiorek.pl
+          MCP_CANARY_TOKEN: ${{ secrets.PAPERCLIP_MCP_CANARY_TOKEN }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [ -n "$ROLLBACK_SHA" ]; then
+            node mcp/paperclip/scripts/coolify-release.mjs rollback | tee coolify-release-evidence.json
+          else
+            node mcp/paperclip/scripts/coolify-release.mjs deploy | tee coolify-release-evidence.json
+          fi
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: paperclip-mcp-release-evidence
+          path: coolify-release-evidence.json
+          if-no-files-found: ignore
+          retention-days: 14
+
