@@ -173,3 +173,23 @@ test('script remains syntactically valid Bash', () => {
   const r = spawnSync('bash', ['-n', SCRIPT], { encoding: 'utf8' });
   if (r.status !== 0) throw Error(r.stderr);
 });
+
+test('gateway startup avoids the upstream full-home chown on rootless Docker', () => {
+  const entrypoint = resolve(dirname(fileURLToPath(import.meta.url)), '../entrypoint.sh');
+  const source = readFileSync(entrypoint, 'utf8');
+  const syntax = spawnSync('sh', ['-n', entrypoint], { encoding: 'utf8' });
+  if (syntax.status !== 0) throw Error('invalid gateway entrypoint: '+syntax.stderr);
+  if (!source.includes('exec gosu node /usr/local/bin/docker-entrypoint.sh "$@"')) {
+    throw Error('gateway failed to use the upstream non-root fast path');
+  }
+  if (!source.includes('usermod -o -u "$PUID" node') || !source.includes('groupmod -o -g "$PGID" node')) {
+    throw Error('runtime USER_UID / USER_GID mapping was lost');
+  }
+  if (!source.includes('chown node:node /paperclip')) throw Error('home root ownership check missing');
+  if (/chown\s+-R\s+node:node\s+\/paperclip(?:\s|$)/m.test(source)) {
+    throw Error('gateway startup recursively changes the entire shared /paperclip volume');
+  }
+  for (const managed of ['/paperclip/mcp-gateway', '/paperclip/mcp-patch', '/paperclip/plugin-runtime']) {
+    if (!source.includes(managed)) throw Error('gateway-owned volume dir not handled: '+managed);
+  }
+});
