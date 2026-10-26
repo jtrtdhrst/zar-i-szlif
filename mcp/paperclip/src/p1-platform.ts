@@ -1,4 +1,4 @@
-// Workspace and OAuth tools; retired custom host supervisor removed.
+// Workspace and OAuth only. Retired host supervisor tooling removed.
 import { z } from "zod";
 import { createHash, randomUUID } from "node:crypto";
 import { promises as fs } from "node:fs";
@@ -351,4 +351,183 @@ export function createP1PlatformTools(client: PaperclipApiClient): P1PlatformToo
           if (ch.content) next = ch.content;
           else next = applyUnifiedDiffToText(before ?? "", parseUnifiedDiff(ch.unifiedDiff!)).text;
           prepared.push({ path: ch.path, abs, before, beforeSha, next, nextSha: sha256Hex(next) });
+        }
+        if (dryRun) {
+          return {
+            status: "ok",
+            operationId,
+            workspaceId: ws.workspaceId,
+            dryRun: true,
+            files: prepared.map((p) => ({ path: p.path, beforeSha: p.beforeSha, afterSha: p.nextSha })),
+            note: "dryRun: verified all changes, no writes performed",
+            possiblyCommitted: false,
+            evidenceReference: `ledger:${operationId}`,
+          };
+        }
+        // Phase 2: journal then apply (rollback restores completed files).
+        const journalKey = `journal-${operationId}`;
+        await writeLedger(journalKey, { operationId, workspaceId: ws.workspaceId, startedAt: new Date().toISOString(), files: prepared.map((p) => ({ path: p.path, beforeSha: p.beforeSha, before: p.before })) });
+        const applied: string[] = [];
+        try {
+          for (const p of prepared) {
+            if (p.nextSha === p.beforeSha) {
+              applied.push(p.path);
+              continue;
+            }
+            const tmp = `${p.abs}.paperclip-tmp-${operationId}`;
+            try {
+              await fs.writeFile(tmp, p.next, "utf8");
+              const verify = sha256Hex(await fs.readFile(tmp, "utf8"));
+              if (verify !== p.nextSha) throw err("internal", `Tmp verification failed for ${p.path}; rolling back`);
+              await fs.rename(tmp, p.abs);
+            } finally {
+              await fs.rm(tmp, { force: true });
+            }
+            const reread = sha256Hex(await fs.readFile(p.abs, "utf8"));
+            if (reread !== p.nextSha) throw err("internal", `Readback mismatch for ${p.path}; rolling back`);
+            applied.push(p.path);
+          }
+        } catch (applyError) {
+          // Rollback completed files from the journal.
+          const journal = await readLedger(journalKey);
+          const files = (journal?.files as Array<{ path: string; before: string | null }> | undefined) ?? [];
+          for (const f of files) {
+            if (!applied.includes(f.path)) continue;
+            try {
+              const abs = await resolveWorkspacePath(ws, f.path);
+              if (f.before === null) await fs.rm(abs, { force: true });
+              else await fs.writeFile(abs, f.before, "utf8");
+            } catch {
+              /* best-effort rollback */
+            }
+          }
+          throw err(
+            "internal",
+            `Batch failed and rolled back (${applied.length} files restored): ${applyError instanceof Error ? applyError.message.slice(0, 300) : String(applyError)}`,
+            { remediationOwner: "operator", remediation: `Inspect journal ${journalKey}, fix the cause, retry with a fresh idempotencyKey` },
+          );
+        }
+        const result = {
+          status: "ok",
+          operationId,
+          workspaceId: ws.workspaceId,
+          files: prepared.map((p) => ({ path: p.path, beforeSha: p.beforeSha, afterSha: p.nextSha })),
+          journal: journalKey,
+          possiblyCommitted: false,
+          evidenceReference: `ledger:${operationId}`,
+          attribution: mutationCtx,
+        };
+        if (ledgerKey) await writeLedger(ledgerKey, result);
+        await writeLedger(`op-${operationId}`, result);
+        await recordWorkspaceMutationAudit(mutationCtx, ws, { action: "batch.apply", files: prepared.map((p) => p.path), operationId });
+        return result;
+      },
+    ),
+    makeTool(
+      "paperclipWorkspaceRunChecks",
+      "Run an explicit check profile jailed to an authorized workspace (no shell; allowlisted binaries; bounded time/output; secrets redacted; result bound to source SHA; replayable via operationId). Profiles: typecheck | lint | unit | integration | build | e2e. Authorized by the caller's own live heartbeat run (issue-bound) or a board key; operator sessions were removed in Paperclip 2026.1012.0.",
+      z.object({
+        workspaceId: workspaceIdSchema,
+        issueId: issueIdSchema,
+        profile: z.enum(["typecheck", "lint", "unit", "integration", "build", "e2e"]),
+        timeoutSec: z.number().int().min(5).max(110).optional().default(60),
+        runId: runIdSchema,
+        operatorRunId: operatorRunIdSchema,
+        operationId: z.string().uuid().optional().nullable(),
+      }),
+      async ({ workspaceId, issueId, profile, timeoutSec, runId, operatorRunId, operationId }) => {
+        if (operationId && !profile) {
+          throw err("invalid_arguments", "Pass profile, or extend the client to replay by operationId");
+        }
+        const mutationCtx = await authorizeWorkspaceMutation(client, { runId: runId ?? null, operatorRunId: operatorRunId ?? null });
+        const ws = await resolveWorkspace(client, { workspaceId: workspaceId ?? null, issueId: issueId ?? null });
+        assertWorkspaceMutationScope(mutationCtx, ws, issueId ?? null);
+        if (issueId) await verifyIssueWritable(client, issueId);
+        const def = RUN_CHECKS_PROFILES[profile as RunChecksProfile];
+        if (!def) throw err("invalid_arguments", `Unknown profile (want one of ${Object.keys(RUN_CHECKS_PROFILES).join(", ")})`);
+        const head = (await runJailedExec({ ws, argv: ["git", "rev-parse", "HEAD"], timeoutSec: 15, outputLimit: 256, operationId: null })) as unknown as Record<string, unknown>;
+        const sourceSha = String(head.stdout ?? "").trim() || null;
+        const r = (await runJailedExec({ ws, argv: [...def.argv], timeoutSec: timeoutSec ?? 60, outputLimit: 65536, operationId: null })) as unknown as Record<string, unknown>;
+        const exitCode = Number(r.exitCode ?? 1);
+        return {
+          status: exitCode === 0 ? "ok" : "failed",
+          operationId: r.operationId,
+          profile,
+          command: def.argv,
+          describe: def.describe,
+          sourceSha,
+          exitCode,
+          timedOut: r.timedOut,
+          stdout: r.stdout,
+          stderr: r.stderr,
+          durationMs: r.durationMs,
+          error: exitCode === 0 ? null : { code: "TEST_FAILED", category: "TEST_FAILED", retryable: false, retryRequiresChange: true, remediationOwner: "operator", requiredAction: `Fix the failing ${profile} output above, then re-run this profile` },
+          possiblyCommitted: false,
+          evidenceReference: `ledger:${String(r.operationId)}`,
+          attribution: mutationCtx,
+        };
+      },
+    ),
+    makeTool(
+      "paperclipOAuthDiagnoseSession",
+      "Stage-by-stage OAuth diagnostics without logging secrets (no tokens/codes/cookies/headers ever recorded). Stages: discovery, resource metadata, auth initiation, redirect validation, callback, code exchange, PKCE, token/audience/scope validation, MCP initialize, tools/list, authenticated tools/call, refresh. Server-testable stages are probed live; browser-mediated stages return the exact next step.",
+      z.object({
+        correlationId: z.string().min(1).max(128).optional().nullable(),
+        clientId: z.string().min(1).max(256).optional().nullable(),
+      }),
+      async ({ correlationId, clientId }) => {
+        const cid = correlationId ?? randomUUID();
+        const ts = () => new Date().toISOString();
+        const stages: Array<Record<string, unknown>> = [];
+        const push = (stage: string, status: string, extra?: Record<string, unknown>) => {
+          stages.push({ stage, status, timestamp: ts(), correlationId: cid, remediationOwner: status === "fail" ? "owner" : null, ...(extra ?? {}) });
+        };
+        const base = (process.env.MCP_PUBLIC_BASE_URL || process.env.PAPERCLIP_PUBLIC_URL || "https://paperclip-mcp.kompaszbiorek.pl").replace(/\/+$/, "");
+        // 1. discovery
+        try {
+          const r = await fetch(`${base}/.well-known/oauth-authorization-server`, { signal: AbortSignal.timeout(10000) });
+          const body = (await r.json().catch(() => null)) as unknown;
+          const ok = r.ok && isRecord(body) && typeof (body as Record<string, unknown>).authorization_endpoint === "string";
+          push("discovery", ok ? "pass" : "fail", { errorCode: ok ? null : "OAUTH_DISCOVERY_FAILED", nextStep: ok ? "Fetch protected-resource metadata" : "Owner: restore /.well-known/oauth-authorization-server on the public gateway" });
+        } catch (e) {
+          push("discovery", "fail", { errorCode: "OAUTH_DISCOVERY_FAILED", detail: redactWorkspaceOutput(e instanceof Error ? e.message : String(e)).slice(0, 200), nextStep: "Owner: check tunnel paperclip-mcp-tunnel and gateway :3101" });
+        }
+        // 2. protected resource metadata
+        try {
+          const r = await fetch(`${base}/.well-known/oauth-protected-resource`, { signal: AbortSignal.timeout(10000) });
+          push("resource_metadata", r.ok ? "pass" : "unverified", { errorCode: r.ok ? null : "OAUTH_RESOURCE_METADATA_MISSING", nextStep: r.ok ? "Initiate authorization" : "Optional metadata missing; continue with discovery document" });
+        } catch {
+          push("resource_metadata", "unverified", { nextStep: "Optional metadata unreachable; continue with discovery document" });
+        }
+        // 3-7. browser-mediated: exact next steps, no secrets.
+        push("authorization_initiation", "client_action_required", { nextStep: "Open ${authorization_endpoint}?response_type=code&client_id=<id>&redirect_uri=<https-callback>&scope=mcp&state=<random>&code_challenge=<S256>&code_challenge_method=S256".replace("${authorization_endpoint}", "authorization_endpoint"), clientId: clientId ?? null });
+        push("redirect_validation", "client_action_required", { nextStep: "Register an exact https redirect_uri (loopback http://127.0.0.1 allowed for native apps); mismatch fails closed with invalid_redirect_uri" });
+        push("oauth_callback", "client_action_required", { nextStep: "If the browser shows 'Brak danych zwrotnych OAuth', the callback never reached the local port: keep exactly one `mcp auth` process and verify the 127.0.0.1:19876 -> container :19877 bridge chain" });
+        push("code_exchange", "client_action_required", { nextStep: "Exchange the code within 60s with the original code_verifier; reuse fails closed with invalid_grant" });
+        push("pkce_validation", "client_action_required", { nextStep: "Use code_challenge_method S256; plain is accepted only where the server advertises it" });
+        // 8-10. token/audience/scope: validated live on the next authenticated call.
+        push("token_validation", "unverified", { nextStep: "Call tools/list with the access token; expired tokens fail closed and require refresh" });
+        push("audience_validation", "unverified", { nextStep: "Request resource=https://paperclip.kompaszbiorek.pl/mcp; wrong audience fails closed" });
+        push("scope_validation", "unverified", { nextStep: "Request scope=mcp; insufficient scope fails closed on tools/call" });
+        // 11-12. gateway live probes (unauthenticated tools/list must be denied).
+        try {
+          const r = await fetch(`${base}/mcp`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json", Accept: "application/json,text/event-stream" },
+            body: JSON.stringify({ jsonrpc: "2.0", id: 1, method: "tools/list", params: {} }),
+            signal: AbortSignal.timeout(10000),
+          });
+          const denied = r.status === 401 || r.status === 403;
+          push("mcp_tools_list_deny_unauth", denied ? "pass" : "fail", { errorCode: denied ? null : "OAUTH_UNAUTH_ACCEPTED", nextStep: denied ? "Authenticate, then list tools" : "Owner: unauthenticated tools/list was NOT denied" });
+        } catch (e) {
+          push("mcp_tools_list_deny_unauth", "unverified", { detail: redactWorkspaceOutput(e instanceof Error ? e.message : String(e)).slice(0, 200), nextStep: "Owner: check public /mcp reachability" });
+        }
+        push("authenticated_tools_call", "client_action_required", { nextStep: "With a valid token, call initialize then tools/list then an authenticated read (e.g. paperclipMe)" });
+        push("refresh_reconnect", "unverified", { nextStep: "Use the refresh_token grant before access-token expiry; replay initialize on reconnect" });
+        const failed = stages.filter((s) => s.status === "fail").length;
+        return { status: failed === 0 ? "ok" : "degraded", correlationId: cid, failed, stages, possiblyCommitted: false, evidenceReference: `ledger:${cid}` };
+      },
+    ),
+  ];
+}
 
