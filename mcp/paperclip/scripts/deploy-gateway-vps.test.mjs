@@ -60,7 +60,11 @@ async function setup(t) {
     'fi',
     'if [ "$1" = "exec" ] && [ "$2" = "paperclip" ] && [ "$3" = "df" ]; then',
     '  echo "Filesystem 1024-blocks Used Available Capacity Mounted"',
-    '  echo "/dev/fake 100000000 1000 50000000 10% /paperclip"',
+    '  if [ "${MOCK_POST_AVAIL_K:-}" != "" ] && [ "$(grep -c "^exec paperclip df" "$MOCK_LOG")" -gt 1 ]; then',
+    '    echo "/dev/fake 100000000 1000 $MOCK_POST_AVAIL_K ${MOCK_POST_USED_PCT:-10}% /paperclip"',
+    '  else',
+    '    echo "/dev/fake 100000000 1000 ${MOCK_AVAIL_K:-50000000} ${MOCK_USED_PCT:-10}% /paperclip"',
+    '  fi',
     '  exit 0',
     'fi',
     'exit 0',
@@ -133,6 +137,36 @@ test('prepared image with wrong source SHA is rejected before service mutation',
   if (r.status === 0 || !r.stderr.includes('source revision mismatch')) throw Error('revision mismatch was not rejected');
   const log = readFileSync(x.log, 'utf8');
   if (log.includes('stop ') || log.includes('rename ')) throw Error('revision mismatch modified service');
+});
+
+test('17GiB free at 92% used is sufficient for cached-base prepare', async (t) => {
+  const x = await setup(t);
+  const env = { ...x.env, MOCK_AVAIL_K: String(17 * 1024 * 1024), MOCK_USED_PCT: '92' };
+  const r = spawnSync('bash', [SCRIPT, 'prepare', SHA], { env, encoding: 'utf8', timeout: 10000 });
+  if (r.status !== 0 || !r.stdout.includes('CANDIDATE_PREPARED')) throw Error('reasonable headroom rejected: ' + r.stderr + r.stdout);
+  const log = readFileSync(x.log, 'utf8');
+  if (log.includes('stop ') || log.includes('rename ')) throw Error('prepare changed the live gateway');
+});
+
+test('below 12GiB free or above 94% used refuses before build', async (t) => {
+  for (const [available, used] of [[11 * 1024 * 1024, '92'], [17 * 1024 * 1024, '95']]) {
+    const x = await setup(t);
+    const env = { ...x.env, MOCK_AVAIL_K: String(available), MOCK_USED_PCT: used };
+    const r = spawnSync('bash', [SCRIPT, 'prepare', SHA], { env, encoding: 'utf8', timeout: 10000 });
+    if (r.status === 0 || !r.stderr.includes('disk preflight blocked')) throw Error('unsafe prebuild capacity accepted');
+    const log = readFileSync(x.log, 'utf8');
+    if (log.includes('build ') || log.includes('stop ') || log.includes('rename ')) throw Error('unsafe preflight mutated images or service');
+  }
+});
+
+test('pre-switch reserve below 10GiB refuses before stopping the running gateway', async (t) => {
+  const x = await setup(t);
+  const env = { ...x.env, MOCK_AVAIL_K: String(17 * 1024 * 1024), MOCK_USED_PCT: '92',
+    MOCK_POST_AVAIL_K: String(9 * 1024 * 1024), MOCK_POST_USED_PCT: '95' };
+  const r = spawnSync('bash', [SCRIPT, SHA, ID], { env, encoding: 'utf8', timeout: 10000 });
+  if (r.status === 0 || !r.stderr.includes('pre-switch disk check blocked')) throw Error('low post-build headroom not rejected: '+r.stderr+r.stdout);
+  const log = readFileSync(x.log, 'utf8');
+  if (log.includes('stop ') || log.includes('rename ')) throw Error('low headroom changed the live gateway');
 });
 
 test('script remains syntactically valid Bash', () => {
