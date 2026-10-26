@@ -13,10 +13,10 @@ test('hash pin baseline and apply narrowed gateway release policy',()=>{
   const r=run('python3',[script],{SUP_PATCH_ROOT:dir});
   if(r.status!==0)throw Error(r.stderr+r.stdout);
   const s=readFileSync(join(dir,'watcher.sh'),'utf8');
-  for(const x of ['LIVE_RUN_MUT_OPS="host.file.patch mcp.gateway.release"',
+  for(const x of ["mcp.gateway.prepare)","mcp.gateway.prepare|mcp.gateway.release)",'LIVE_RUN_MUT_OPS="host.file.patch mcp.gateway.prepare mcp.gateway.release"',
     'mcp.gateway.release) target="recreate-paperclip-mcp-gateway"',
     'gateway release target not allowlisted','deploy-gateway-vps.sh',
-    'max_seconds=830','timeout --signal=TERM'])if(!s.includes(x))throw Error('missing '+x);
+    'max_seconds=830','timeout --signal=TERM','artifactDigest','sourceSha'])if(!s.includes(x))throw Error('missing '+x);
   if(!s.includes('RECREATE_TARGETS="${RECREATE_TARGETS:-}"'))throw Error('generic recreate gate changed');
   const c=run('bash',['-n',join(dir,'watcher.sh')]);if(c.status!==0)throw Error(c.stderr);
   const matrix=run('bash',['mcp/paperclip/vps-ops-supervisor/test/gateway-release-matrix.test.sh',join(dir,'watcher.sh'),'mcp/paperclip/vps-ops-supervisor/test/auth-matrix.test.sh']);

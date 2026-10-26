@@ -86,6 +86,7 @@ export const HOST_MUT_OPERATIONS = [
   "mcp.test_candidate",
   "mcp.deploy_candidate",
   "mcp.rollback",
+  "mcp.gateway.prepare",
   "mcp.gateway.release",
   "host.file.patch",
   "host.container.recreate",
@@ -184,7 +185,7 @@ export const HOST_RESTART_TARGETS = [
 ] as const;
 
 export function targetError(op: string, target: string | undefined): string | null {
-  if (op === "mcp.gateway.release" && target !== "paperclip-mcp-gateway") {
+  if ((op === "mcp.gateway.prepare" || op === "mcp.gateway.release") && target !== "paperclip-mcp-gateway") {
     return `gateway release target not allowlisted: ${target ?? "(missing)"} [errorCode=not_allowlisted]`;
   }
   if (op === "inspect" || op === "logs" || op === "host.service_status" || op === "host.container_inspect" || op === "host.service_logs" || op === "host.container_logs") {
@@ -222,8 +223,8 @@ export function redactHostOutput(text: string): string {
 // Canonical digest key list MUST match watcher.sh payload_digest() EXACTLY
 // (supervisor image owns the stamp; any MCP-side deviation false-conflicts
 // every replay of a supervisor-completed result). New intent fields
-// (service/artifactDigest) stay OUT of the digest until a supervisor policy
-// bump adopts them — the supervisor re-validates the full intent anyway.
+// The v3.12 supervisor includes sourceSha and artifactDigest in this digest.
+// They must never be omitted: changing either cannot safely replay a release.
 const PAYLOAD_DIGEST_KEYS = [
   "operation",
   "target",
@@ -238,6 +239,8 @@ const PAYLOAD_DIGEST_KEYS = [
   "digest",
   "dryRun",
   "tail",
+  "sourceSha",
+  "artifactDigest",
 ] as const;
 
 // Python-str canonicalization: the supervisor stamps digests with Python

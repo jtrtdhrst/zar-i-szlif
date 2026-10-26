@@ -76,7 +76,7 @@ describe("gateway deployment E2E bridge (host supervisor simulated)", () => {
     const intent = JSON.parse(await readFile(join(req, plan.planId + ".json"), "utf8").catch(async (e) => { throw new Error("No host intent; early result " + JSON.stringify(await p) + " " + String(e)); }));
     expect(intent).toMatchObject({
       operation: "mcp.gateway.release", target: "paperclip-mcp-gateway",
-      sourceSha: SOURCE, issueId: ISSUE, agentId: AGENT, runId: RUN, requestId: plan.planId,
+      sourceSha: SOURCE, artifactDigest: IMAGE, issueId: ISSUE, agentId: AGENT, runId: RUN, requestId: plan.planId,
     });
     await writeFile(join(results, plan.planId + ".json"), JSON.stringify({
       requestId: plan.planId, target: "recreate-paperclip-mcp-gateway", status: "ok", ok: true,
@@ -103,6 +103,21 @@ describe("gateway deployment E2E bridge (host supervisor simulated)", () => {
     const files = await readdir(ledger);
     expect(files.some((f) => f.endsWith("-VERIFIED.json"))).toBe(false);
   });
+  it("rejects host success with image ID different from the approved plan", async () => {
+    const { applyTool, plan, req, results, ledger } = await fixture();
+    const p = applyTool.execute({ planId: plan.planId, runId: RUN });
+    await new Promise((resolve) => setTimeout(resolve, 350));
+    const intent = JSON.parse(await readFile(join(req, plan.planId + ".json"), "utf8"));
+    expect(intent.artifactDigest).toBe(IMAGE);
+    await writeFile(join(results, plan.planId + ".json"), JSON.stringify({
+      requestId: plan.planId, target: "recreate-paperclip-mcp-gateway", status: "ok", ok: true,
+      result: "DEPLOY_VERIFIED source_sha=" + SOURCE + " image_id=sha256:" + "c".repeat(64),
+    }));
+    const response = JSON.stringify(await p);
+    expect(response).toContain("verification_failed");
+    expect((await readdir(ledger)).some((f) => f.endsWith("-VERIFIED.json"))).toBe(false);
+  });
+
   it("finishes a completed host release from a later run without executing Docker again", async () => {
     const { applyTool, plan, req, results } = await fixture();
     await writeFile(join(results, plan.planId + ".json"), JSON.stringify({

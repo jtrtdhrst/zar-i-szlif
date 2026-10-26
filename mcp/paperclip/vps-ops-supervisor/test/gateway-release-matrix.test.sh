@@ -13,11 +13,13 @@ ARTIFACT_DIGEST=sha256:e00d1ff3139d8671d38dc55e86855cbac577270577df82051b0cb206a
 mkreq() {
   python3 -c 'import json,sys; op,agent,issue,run,opr,path,target,sha,digest=sys.argv[1:10];print(json.dumps({"v":"1","operation":op,"agentId":agent,"issueId":issue,"runId":run,"operatorRunId":opr,"path":path,"target":target,"sourceSha":sha,"artifactDigest":digest}))' "$@" "$TARGET" "$SOURCE_SHA" "$ARTIFACT_DIGEST"
 }
+case_ "valid issue-bound gateway prepare" OK mcp.gateway.prepare "$AGENT" "$IID" "$RUN" "" ""
 case_ "valid issue-bound approved gateway release" OK mcp.gateway.release "$AGENT" "$IID" "$RUN" "" ""
 ARTIFACT_DIGEST=sha256:not-a-docker-image-id
 case_ "malformed Docker image ID denied" "gateway release requires full Docker image ID" mcp.gateway.release "$AGENT" "$IID" "$RUN" "" ""
 ARTIFACT_DIGEST=sha256:e00d1ff3139d8671d38dc55e86855cbac577270577df82051b0cb206a777d104
 TARGET=paperclip-db
+case_ "foreign gateway prepare target denied" "gateway release target not allowlisted" mcp.gateway.prepare "$AGENT" "$IID" "$RUN" "" ""
 case_ "foreign release target denied" "gateway release target not allowlisted" mcp.gateway.release "$AGENT" "$IID" "$RUN" "" ""
 TARGET=paperclip-mcp-gateway; SOURCE_SHA=bad
 case_ "short SHA denied" "gateway release requires full sourceSha" mcp.gateway.release "$AGENT" "$IID" "$RUN" "" ""

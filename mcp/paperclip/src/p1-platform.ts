@@ -827,6 +827,7 @@ export function createP1PlatformTools(client: PaperclipApiClient): P1PlatformToo
           operation: "mcp.gateway.release",
           target: "paperclip-mcp-gateway",
           sourceSha,
+          artifactDigest: String(plan.artifactDigest),
           agentId: mutationCtx.agentId,
           issueId,
           runId: mutationCtx.runId,
@@ -845,7 +846,7 @@ export function createP1PlatformTools(client: PaperclipApiClient): P1PlatformToo
           typeof envelope.output === "string" ? envelope.output : "";
         const verified = /DEPLOY_VERIFIED source_sha=([a-f0-9]{40}) image_id=(sha256:[a-f0-9]{64})/.exec(resultText);
         if (envelope.requestId !== planId || envelope.target !== "recreate-paperclip-mcp-gateway" ||
-            envelope.ok !== true || envelope.status !== "ok" || !verified || verified[1] !== sourceSha) {
+            envelope.ok !== true || envelope.status !== "ok" || !verified || verified[1] !== sourceSha || verified[2] !== String(plan.artifactDigest)) {
           await recordStep("UNVERIFIED", { requestId: planId, errorCode: envelope.errorCode ?? "verification_failed" });
           throw err("verification_failed", `Host release not verified; inspect supervisor result for requestId ${planId}`,
             { remediationOwner: "CTO", possiblyCommitted: true });
