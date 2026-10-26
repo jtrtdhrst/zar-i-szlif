@@ -1,5 +1,5 @@
 import { fetchAgentMe as fetchAgentMeWithRetry } from "./identity-retry.mjs";
-import { createHash, randomBytes, randomUUID } from "node:crypto";
+import { randomBytes, randomUUID } from "node:crypto";
 import { readFileSync, writeFileSync } from "node:fs";
 import { createServer } from "node:http";
 import { z } from "/app/packages/mcp-server/node_modules/zod/index.js";
@@ -10,6 +10,7 @@ import { profileToolNames } from "/paperclip/mcp-patch/src/execution-broker.ts";
 import { resolvePrincipal, describePrincipal, jwtRunId, isVerifiedOwnerBoardGrant } from "./principal.mjs";
 import { createOriginResolver } from "./public-origin.mjs";
 import { getReleaseIdentity } from "./release-identity.mjs";
+import { loadSkills } from "./skills.mjs";
 
 const HOST = process.env.MCP_HOST || "0.0.0.0";
 const PORT = Number(process.env.MCP_PORT || 3101);
@@ -234,8 +235,6 @@ const COMPANY_ID = requireEnvUuid("PAPERCLIP_COMPANY_ID");
 const RUN_CONTEXT = {
   companyId: COMPANY_ID,
   agentId: requireEnvUuid("PAPERCLIP_MCP_AGENT_ID"),
-  runId: requireEnvUuid("PAPERCLIP_MCP_RUN_ID"),
-  projectId: requireEnvUuid("PAPERCLIP_MCP_PROJECT_ID"),
 };
 
 const SERVER_AGENT_API_KEY = (() => {
@@ -270,36 +269,7 @@ const SKILL_DEFINITIONS = [
   { name: "paperclip-repair", path: "/app/paperclip-public-mcp/plugin-skills/paperclip-repair/SKILL.md" },
 ];
 
-function parseSkillFrontmatter(content, path) {
-  const match = content.match(/^---\r?\n([\s\S]*?)\r?\n---(?:\r?\n|$)/);
-  if (!match) throw new Error(`Skill ${path} has no frontmatter`);
-
-  const frontmatter = {};
-  for (const line of match[1].split(/\r?\n/)) {
-    const field = line.match(/^([A-Za-z0-9_-]+):\s*(.*)$/);
-    if (!field) continue;
-    const value = field[2].trim();
-    frontmatter[field[1]] = value.replace(/^(['"])(.*)\1$/, "$2");
-  }
-  if (!frontmatter.name || !frontmatter.description) {
-    throw new Error(`Skill ${path} frontmatter needs name and description`);
-  }
-  return frontmatter;
-}
-
-const SKILLS = SKILL_DEFINITIONS.map(({ name, path }) => {
-  const content = readFileSync(path, "utf8");
-  const uri = `skill://paperclip/${name}/SKILL.md`;
-  const entry = Object.freeze({
-    uri,
-    frontmatter: Object.freeze(parseSkillFrontmatter(content, path)),
-    resources: Object.freeze([{
-      uri,
-      digest: `sha256:${createHash("sha256").update(content, "utf8").digest("hex")}`,
-    }]),
-  });
-  return Object.freeze({ name, uri, content, entry });
-});
+const SKILLS = loadSkills(SKILL_DEFINITIONS);
 const SKILLS_BY_URI = new Map(SKILLS.map((skill) => [skill.uri, skill]));
 
 const SkillsListRequestSchema = z.object({

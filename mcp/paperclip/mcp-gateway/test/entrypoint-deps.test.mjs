@@ -18,6 +18,7 @@ test("production entrypoint copies every relative gateway import", () => {
     return segment ? segment.split(/['"]/)[0] : null;
   }).filter((value) => value?.endsWith(".mjs"));
   assert.ok(imports.includes("identity-retry.mjs"), "retry helper must be imported by gateway");
+  assert.ok(imports.includes("skills.mjs"), "skill loader must be imported by gateway");
   for (const file of imports) {
     assert.ok(entrypoint.includes(`/opt/paperclip-mcp/mcp-gateway/${file}`), `missing staged gateway dependency: ${file}`);
   }
