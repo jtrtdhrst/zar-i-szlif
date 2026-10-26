@@ -109,7 +109,9 @@ describe("host deployment policy digest consistency (KOMAA-1463)", () => {
     expect(policy.activePolicyVersion).toBe("unverified");
     expect(policy.driftVerified).toBe(false);
     expect(policy.driftStatus).toBe("unverified");
-    expect(policy.driftDetected).toBe(false);
+    expect(policy.driftDetected).toBeNull();
+    expect(policy.expectedReleasePolicyDigest).toBeNull();
+    expect(policy.gatewayCapabilityDigest).not.toBe(policy.expectedReleasePolicyDigest);
     expect(policy.gatewayCapabilityDigest).toBe(capabilityPolicyDigest(caps));
   });
 

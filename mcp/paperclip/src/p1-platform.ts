@@ -331,7 +331,8 @@ export function createP1PlatformTools(client: PaperclipApiClient): P1PlatformToo
         // Compiled MCP constants are NOT a host-side Docker image readback.
         // These differences are build-vs-mirror diagnostics, not proof that
         // the running supervisor enforces a different policy.
-        const driftDetected = false;
+        // Without an enforced host readback, drift is unknown, never 'false'.
+        const driftDetected = null;
         return {
           status: "ok",
           operationId,
@@ -343,7 +344,8 @@ export function createP1PlatformTools(client: PaperclipApiClient): P1PlatformToo
           gatewayCapabilityDigest: capabilityPolicyDigest(caps),
           mirroredPolicyVersion: mirrorVersion,
           mirroredPolicyDigest: mirrorDigest,
-          expectedReleasePolicyDigest: capabilityPolicyDigest(caps),
+          // A capability fingerprint is not a baked supervisor POLICY.md digest.
+          expectedReleasePolicyDigest: null,
           supportedOperations: supported,
           enabledOperations: enabled,
           disabledOperations: disabled,
