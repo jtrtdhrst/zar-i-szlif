@@ -63,6 +63,19 @@ for (const [name, change] of [
   assert.equal(f.requests.some(x => x.method !== 'GET'), false, 'must not mutate any target');
 });
 
+test('Coolify GitHub App shorthand and SSH repo both pass exact source verification', async () => {
+  for (const git_repository of ['miloszspyrka-code/zar-i-szlif', 'git@github.com:miloszspyrka-code/zar-i-szlif.git']) {
+    const f = backend({ ...app(), git_repository });
+    const preflight = await createCoolifyRelease(cfg(), f.fetcher).preflight();
+    assert.equal(preflight.sourceSha, SHA);
+  }
+});
+
+test('reject lookalike repository on other Git hosts', async () => {
+  const f = backend({ ...app(), git_repository: 'https://other.example/miloszspyrka-code/zar-i-szlif' });
+  await assert.rejects(createCoolifyRelease(cfg(), f.fetcher).preflight(), /Wrong source repository/);
+});
+
 test('exact SHA is pinned and deploy request targets only Paperclip application', async () => {
   const f = backend();
   const release = createCoolifyRelease(cfg(), f.fetcher);

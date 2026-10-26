@@ -1,7 +1,7 @@
 import { pathToFileURL } from 'node:url';
 
 const validSha = (s) => /^[0-9a-f]{40}$/.test(String(s || ''));
-const cleanRepo = (s) => String(s || '').replace(/^git@github\.com:/, 'https://github.com/').replace(/\.git$/, '').replace(/\/$/, '').toLowerCase();
+const cleanRepo = (s) => String(s || '').trim().replace(/^git@github\.com:/i, '').replace(/^https:\/\/github\.com\//i, '').replace(/\.git$/i, '').replace(/\/$/, '').toLowerCase();
 const terminalFailure = new Set(['failed', 'error', 'cancelled', 'canceled']);
 
 export function createCoolifyRelease(config, fetcher = globalThis.fetch) {
@@ -23,7 +23,7 @@ export function createCoolifyRelease(config, fetcher = globalThis.fetch) {
   const readApp = () => api('GET', appPath);
   const assertApp = (app) => {
     if (app?.uuid !== applicationUuid) throw Error('Wrong Coolify application UUID');
-    if (cleanRepo(app.git_repository || app.git_full_url) !== 'https://github.com/miloszspyrka-code/zar-i-szlif') throw Error('Wrong source repository');
+    if (cleanRepo(app.git_repository || app.git_full_url) !== 'miloszspyrka-code/zar-i-szlif') throw Error('Wrong source repository');
     if (app.git_branch !== 'main') throw Error('Only approved main branch can be released');
     if (!['/mcp/paperclip', 'mcp/paperclip'].includes(app.base_directory)) throw Error('Wrong Coolify base directory');
     if (app.build_pack !== 'dockerfile') throw Error('Paperclip MCP requires Dockerfile build');
