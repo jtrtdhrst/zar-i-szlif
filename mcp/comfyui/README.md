@@ -33,7 +33,7 @@ the durable deployable unit (mirrors `/opt/comfy` on the host).
   images `local/comfyui-cpu:0.42.1`, `local/comfyui-mcp:0.52.206`; restore compose/Caddy
   + `docker compose up -d` + DNS revert (Worker custom domain → DNS-only A).
 - Codex-only (owner decision 2026-10-26): pipelines use ONLY Codex custom nodes
-  ( model  -> `ArkCodexImageGen` -> `SaveImage`).
+  (`ArkCodexLLM` model `gpt-6-luna` -> `ArkCodexImageGen` -> `SaveImage`).
   No ComfyUI.org / fal nodes. Auth resolves `CODEX_HOME` -> `~/.codex`;
   compose pins `CODEX_HOME=/app/user/.codex` (persistent volume; the
   container-layer `/root/.codex` copy is identical, SHA-verified, but lost on
