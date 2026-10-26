@@ -140,8 +140,8 @@ describe("run-bound Git delivery tool handlers", () => {
         let stdout = "";
         if (joined.includes("rev-parse --abbrev-ref HEAD")) stdout = "KOMAA-1465\n";
         else if (joined.includes("rev-parse HEAD")) stdout = `${head}\n`;
-        else if (joined.includes("diff --cached --name-only")) stdout = "mcp/paperclip/src/workspace-native.test.ts\n";
-        else if (joined.includes("diff --cached")) stdout = "diff --git a/mcp/paperclip/src/workspace-native.test.ts b/mcp/paperclip/src/workspace-native.test.ts\n+test\n";
+        else if (joined.includes("diff --cached --name-only")) stdout = "src/workspace-native.test.ts\n";
+        else if (joined.includes("diff --cached")) stdout = "diff --git a/src/workspace-native.test.ts b/src/workspace-native.test.ts\n+test\n";
         else if (joined.includes("ls-remote origin KOMAA-1465")) stdout = `${head}\trefs/heads/KOMAA-1465\n`;
         else if (joined.includes("commit -m")) { head = nextHead; stdout = "[KOMAA-1465 bbbbbbb] test\n"; }
         child.stdout.emit("data", Buffer.from(stdout));
@@ -154,7 +154,7 @@ describe("run-bound Git delivery tool handlers", () => {
   it.each(["paperclipGitCommit", "paperclipGitPush"] as const)("refuses %s for a live run bound to another issue before any Git subprocess", async (name) => {
     const requests = mockRun("running", OTHER_ISSUE);
     const input = name === "paperclipGitCommit"
-      ? { issueId: ISSUE, workspaceId: WORKSPACE, files: ["mcp/paperclip/src/workspace-native.test.ts"], message: "test: KOMAA-1465 deny cross issue", runId: RUN }
+      ? { issueId: ISSUE, workspaceId: WORKSPACE, files: ["src/workspace-native.test.ts"], message: "test: KOMAA-1465 deny cross issue", runId: RUN }
       : { issueId: ISSUE, workspaceId: WORKSPACE, runId: RUN };
 
     const result = await gitTool(name).execute(input);
@@ -167,7 +167,7 @@ describe("run-bound Git delivery tool handlers", () => {
   it.each(["paperclipGitCommit", "paperclipGitPush"] as const)("refuses %s when the supplied run has ended before any Git subprocess", async (name) => {
     const requests = mockRun("succeeded", ISSUE);
     const input = name === "paperclipGitCommit"
-      ? { issueId: ISSUE, workspaceId: WORKSPACE, files: ["mcp/paperclip/src/workspace-native.test.ts"], message: "test: KOMAA-1465 deny ended run", runId: RUN }
+      ? { issueId: ISSUE, workspaceId: WORKSPACE, files: ["src/workspace-native.test.ts"], message: "test: KOMAA-1465 deny ended run", runId: RUN }
       : { issueId: ISSUE, workspaceId: WORKSPACE, runId: RUN };
 
     const result = await gitTool(name).execute(input);
@@ -184,7 +184,7 @@ describe("run-bound Git delivery tool handlers", () => {
     vi.stubEnv("GH_TOKEN", "test-token");
     vi.stubEnv("PAPERCLIP_GITHUB_OPS_LEDGER_DIR", process.env.TMPDIR || "/tmp");
     const input = name === "paperclipGitCommit"
-      ? { issueId: ISSUE, workspaceId: WORKSPACE, files: ["mcp/paperclip/src/workspace-native.test.ts"], message: "test: KOMAA-1465 authorized commit", runId: RUN }
+      ? { issueId: ISSUE, workspaceId: WORKSPACE, files: ["src/workspace-native.test.ts"], message: "test: KOMAA-1465 authorized commit", runId: RUN }
       : { issueId: ISSUE, workspaceId: WORKSPACE, runId: RUN };
 
     const result = await gitTool(name).execute(input);
