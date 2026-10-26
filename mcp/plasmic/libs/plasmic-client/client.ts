@@ -287,6 +287,26 @@ export class PlasmicClient {
     return created;
   }
 
+  /** Delete one existing non-main design branch and verify it is gone. */
+  async deleteBranch(projectId: string, branchId: string): Promise<void> {
+    if (!projectId.trim() || projectId !== projectId.trim() ||
+        !branchId.trim() || branchId !== branchId.trim() || branchId === "main") {
+      throw new Error("INVALID_BRANCH_DELETE_TARGET");
+    }
+    await this.ensureAuth();
+    const { branches } = await this.listBranches(projectId);
+    if (!branches.some((branch) => branch.id === branchId)) {
+      throw new Error(`BRANCH_NOT_FOUND: ${branchId}`);
+    }
+    await this.req(
+      `/api/v1/projects/${encodeURIComponent(projectId)}/branches/${encodeURIComponent(branchId)}`,
+      { method: "DELETE" },
+    );
+    if ((await this.listBranches(projectId)).branches.some((branch) => branch.id === branchId)) {
+      throw new Error(`BRANCH_DELETE_UNVERIFIED: ${branchId}`);
+    }
+  }
+
   /** Plasmic server performs the merge computation, but never commits. */
   async previewMerge(
     projectId: string,
@@ -460,7 +480,7 @@ export class PlasmicClient {
       map?: Record<string, Record<string, unknown>>;
       toDeleteIids?: string[];
     } | null,
-    opts?: { dryRun?: boolean },
+    opts?: { dryRun?: boolean; saveMode?: "incremental" | "full" },
   ): Promise<{ revision: number; dryRun: boolean; changed: string[] }> {
     const rev = await this.getProjectRev(projectId, branchId);
     const patch = mutate(rev.bundle);
@@ -475,13 +495,25 @@ export class PlasmicClient {
       return { revision: rev.revision, dryRun: true, changed };
     }
     const intendedRevision = rev.revision + 1;
-    await this.saveIncremental(projectId, intendedRevision, patch, branchId, {
-      modelVersion: rev.modelVersion,
-      hostlessDataVersion: rev.hostlessDataVersion,
-      bundleVersion: (rev.bundle as Record<string, unknown>).version as string | undefined,
-      bundleRoot: (rev.bundle as Record<string, unknown>).root as string | undefined,
-      bundleDeps: (rev.bundle as Record<string, unknown>).deps as unknown[] | undefined,
-    });
+    if (opts?.saveMode === "full") {
+      // WAB validates a complete reference graph for structural changes.
+      // Sending only new Component/Arena entries as an incremental patch
+      // can trigger UnknownReferencesError (412) on existing Site refs.
+      const map = { ...rev.bundle.map, ...(patch.map ?? {}) };
+      for (const iid of patch.toDeleteIids ?? []) delete map[iid];
+      await this.saveFull(projectId, intendedRevision, { ...rev.bundle, map }, branchId, {
+        modelVersion: rev.modelVersion,
+        hostlessDataVersion: rev.hostlessDataVersion,
+      });
+    } else {
+      await this.saveIncremental(projectId, intendedRevision, patch, branchId, {
+        modelVersion: rev.modelVersion,
+        hostlessDataVersion: rev.hostlessDataVersion,
+        bundleVersion: (rev.bundle as Record<string, unknown>).version as string | undefined,
+        bundleRoot: (rev.bundle as Record<string, unknown>).root as string | undefined,
+        bundleDeps: (rev.bundle as Record<string, unknown>).deps as unknown[] | undefined,
+      });
+    }
     const after = await this.getProjectRev(projectId, branchId);
     const missingWrites = Object.entries(patch.map ?? {}).filter(([id, expected]) => {
       const actual = after.bundle.map[id];

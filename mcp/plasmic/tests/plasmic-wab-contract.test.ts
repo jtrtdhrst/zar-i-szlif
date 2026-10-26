@@ -38,6 +38,13 @@ function mockWab() {
         return json({ branch: created });
       }
     }
+    const branchDelete = url.pathname.match(/^\/api\/v1\/projects\/project-1\/branches\/([^/]+)$/);
+    if (branchDelete && method === "DELETE") {
+      const index = branches.findIndex((branch) => branch.id === decodeURIComponent(branchDelete[1]!));
+      if (index < 0) return json({ error: "not found" }, 404);
+      branches.splice(index, 1);
+      return json({});
+    }
     if (url.pathname === project + "/merge" && method === "POST") {
       return json({ status: "can be merged", pretend: body?.pretend });
     }
@@ -49,11 +56,13 @@ function mockWab() {
       });
     }
     if (url.pathname === project + "/revisions/5" && method === "POST") {
-      assert.equal(body?.incremental, true);
+      // Structural saves use a full WAB bundle, while small edits stay incremental.
       const patch = JSON.parse(String(body?.data)) as typeof bundle;
       if (!suppressReadback) {
         revision = 5;
-        bundle = { ...bundle, map: { ...bundle.map, ...patch.map } };
+        bundle = body?.incremental === true
+          ? { ...bundle, map: { ...bundle.map, ...patch.map } }
+          : patch;
         if (tamperReadback && bundle.map.child) {
           bundle.map.child = { ...bundle.map.child, name: "Unexpected server value" };
         }
@@ -96,6 +105,18 @@ test("Plasmic design branches use native WAB REST, not GitHub", async () => {
   );
 });
 
+test("branch cleanup deletes only an existing non-main branch and verifies readback", async () => {
+  const { client, requests } = mockWab();
+  await client.createBranch("project-1", "mcp-e2e-test", { base: "latest" });
+  await client.deleteBranch("project-1", "branch-1");
+  assert.deepEqual(requests.find((r) => r.method === "DELETE"), {
+    method: "DELETE", path: "/api/v1/projects/project-1/branches/branch-1", body: undefined,
+  });
+  assert.equal((await client.listBranches("project-1")).branches.length, 0);
+  await assert.rejects(client.deleteBranch("project-1", "main"), /INVALID_BRANCH_DELETE_TARGET/);
+  await assert.rejects(client.deleteBranch("project-1", "missing"), /BRANCH_NOT_FOUND/);
+});
+
 test("merge preview is WAB pretend=true without a commit", async () => {
   const { client, requests } = mockWab();
   const result = await client.previewMerge("project-1", "feature", "main");
@@ -116,6 +137,21 @@ test("incremental write verifies saved state through a fresh read", async () => 
   assert.equal(result.dryRun, false);
   assert.ok(requests.some((r) => r.path.endsWith("/revisions/5")));
   assert.equal(requests.filter((r) => r.method === "GET" && r.path === "/api/v1/projects/project-1").length, 2);
+});
+
+test("structural full save keeps existing WAB bundle references", async () => {
+  const { client, requests } = mockWab();
+  const result = await client.mutate("project-1", undefined, () => ({
+    map: { child: { __type: "TplTag", name: "New element", parent: { __ref: "root" } } },
+  }), { saveMode: "full" });
+  assert.equal(result.revision, 5);
+  const save = requests.find((r) => r.method === "POST" && r.path.endsWith("/revisions/5"));
+  assert.ok(save);
+  assert.equal(save.body?.incremental, undefined);
+  const saved = JSON.parse(String(save.body?.data)) as { map: Record<string, Record<string, unknown>> };
+  assert.equal(saved.map.root.__type, "Site");
+  assert.equal(saved.map.child.name, "New element");
+  assert.equal((await client.getProjectRev("project-1")).bundle.map.root.__type, "Site");
 });
 
 test("unverified write fails closed and requests inspection instead of silent success", async () => {

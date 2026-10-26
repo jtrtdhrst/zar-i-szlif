@@ -13,6 +13,7 @@
     "test:all": "npm test --workspaces --if-present && npm run test",
     "lint": "node --check $(find libs services design-sync workflows -name '*.ts' -not -path '*/node_modules/*' | tr '\\n' ' ')",
     "typecheck": "tsc --noEmit -p tsconfig.json",
+    "cleanup:e2e-branch": "node scripts/cleanup-e2e-branch.ts",
     "preflight:source": "node scripts/release-preflight.mjs --source-only",
     "preflight:release": "node scripts/release-preflight.mjs"
   },
