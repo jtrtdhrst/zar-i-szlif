@@ -1,0 +1,13 @@
+FROM python:3.12-slim
+ENV DEBIAN_FRONTEND=noninteractive PIP_NO_CACHE_DIR=1
+RUN apt-get update && apt-get install -y --no-install-recommends git libgl1 libglib2.0-0 ca-certificates curl gnupg && rm -rf /var/lib/apt/lists/*
+RUN mkdir -p /etc/apt/keyrings && curl -fsSL https://deb.nodesource.com/gpgkey/nodesource-repo.gpg.key | gpg --dearmor -o /etc/apt/keyrings/nodesource.gpg && echo 'deb [signed-by=/etc/apt/keyrings/nodesource.gpg] https://deb.nodesource.com/node_22.x nodistro main' > /etc/apt/sources.list.d/nodesource.list && apt-get update && apt-get install -y --no-install-recommends nodejs && rm -rf /var/lib/apt/lists/*
+RUN npm i -g @openai/codex
+RUN pip install --no-cache-dir torch torchvision torchaudio --index-url https://download.pytorch.org/whl/cpu
+RUN git clone --depth 1 --branch v0.42.1 https://github.com/Comfy-Org/ComfyUI.git /app || git clone --depth 1 https://github.com/Comfy-Org/ComfyUI.git /app
+ENV CODEX_HOME=/app/user/.codex
+WORKDIR /app
+RUN pip install --no-cache-dir -r requirements.txt
+RUN pip install --no-cache-dir httpx
+EXPOSE 8188
+CMD ["python", "main.py", "--listen", "0.0.0.0", "--port", "8188", "--cpu"]
