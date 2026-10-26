@@ -81,3 +81,13 @@ server exactly (verified live trio):
   intentionally OFF (owner decision 2026-10-26: endpoint OPEN).
 - Canvas bridge: panel not installed (intentional); saved workflows + API cover
   everything the loop needs. No supervisor was built, per spec.
+## Acceptance run 2026-10-26 (record)
+
+- W1 generate `0fadfc48`: `loop_cand_20261026_00001_.png`, 52.82 s, SHA-256 verified vs `/view`.
+- W2 vision x2 (pre-tolerant-parse): REAL node FAILs — `fail`/0.94 (shading) and `fail`/0.91 (unequal height), both quoted from server logs; both runs errored on trailing prose (`Extra data`), which motivated the tolerant-parse patch.
+- Agent pixel read (get_image, byte-exact): candidate matches brand marks; strict letter would fail the accepted reference too — recorded as contract-v2 task.
+- W3 edit `5a8028a7` (gate-wired corrected prompt): `loop_edit_20261026_00001_.png`, 49.53 s, SHA-verified.
+- W4 re-eval: clean success, cap reached (1 edit). Final judgment: reference-consistent PASS with the calibration note above (legs rendering in the fully-gated `loop_final_20261026_00001_.png` was then judged a NEW defect vs the reference).
+- REJECT branch executed for real: `loop_REJECTED_legs_regression_20261026_00001_.png` saved via SaveImage, status success, no exception. Node-level proofs: `REJECT`→False, JSON `null`→controlled False (both executed, no traceback).
+- Export: `loop_accepted_20261026_00001_.png` (1.23 MB); get_image bytes == `/view` bytes (SHA `14d3acd7`).
+- Rebuild proof: full `comfyui-cpu` image rebuilt WITH baked-in `httpx` (live `pip install` did not survive the earlier recreate — found by the repeat run failing with `ModuleNotFoundError`). Post-rebuild: generate `8acc001d` 40.97 s OK + vision workflow `7f9bc515` success, no exceptions, `httpx 0.28.1` + `CODEX_HOME` verified inside the new container, volume patches intact.
