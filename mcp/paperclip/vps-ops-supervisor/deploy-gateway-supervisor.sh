@@ -121,7 +121,7 @@ build() {
   dkr exec paperclip git -C "$repo" merge-base --is-ancestor "$sha" refs/remotes/origin/main ||
     fail "source SHA has not been merged to main"
   temp="$(mktemp -d /dev/shm/gateway-sup-build.XXXXXXXX)"
-  trap 'rm -rf "$temp"' EXIT
+  trap "rm -rf -- '$temp'" EXIT
   dkr exec paperclip git -C "$repo" archive "$sha" mcp/paperclip | tar -x -C "$temp"
   dkr build --pull=false -t "$CANDIDATE" \
     -f "$temp/mcp/paperclip/vps-ops-supervisor/Dockerfile.gateway-release" \
