@@ -1,0 +1,35 @@
+{
+  "contract": "zar-szlif-brand",
+  "version": 1,
+  "status": "active",
+  "updated": "2026-10-26",
+  "characters": {
+    "iskra": {
+      "species": "orange fox, cheerful inventor",
+      "height": "equal to szlif",
+      "marks": [
+        "asymmetric forelock",
+        "tilted turquoise neckerchief with white stripes"
+      ],
+      "eyes": "tiny black dots with white catchlights",
+      "forbidden": ["symmetric fringe", "missing neckerchief", "realistic fur texture"]
+    },
+    "szlif": {
+      "species": "thoughtful dark raven",
+      "height": "equal to iskra",
+      "marks": [
+        "brown cap including brown underside",
+        "lighter feather-colored legs",
+        "clean beak without any spot"
+      ],
+      "eyes": "tiny black dots with white catchlights",
+      "forbidden": ["beak dot or spot", "cap without underside", "unequal height"]
+    }
+  },
+  "scene_defaults": {
+    "background": "#FFF6E9",
+    "composition": "centered friendly poses, generous whitespace",
+    "text": "none"
+  },
+  "qa_gates": ["no-text", "flat-fills-only", "character-marks", "equal-height"]
+}
