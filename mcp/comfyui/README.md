@@ -32,6 +32,13 @@ the durable deployable unit (mirrors `/opt/comfy` on the host).
 - Rollback: host backups `/opt/comfy/compose.yml.bak-*`, `/data/caddy/Caddyfile.bak-*`,
   images `local/comfyui-cpu:0.42.1`, `local/comfyui-mcp:0.52.206`; restore compose/Caddy
   + `docker compose up -d` + DNS revert (Worker custom domain → DNS-only A).
+- Codex-only (owner decision 2026-10-26): pipelines use ONLY Codex custom nodes
+  ( model  -> `ArkCodexImageGen` -> `SaveImage`).
+  No ComfyUI.org / fal nodes. Auth resolves `CODEX_HOME` -> `~/.codex`;
+  compose pins `CODEX_HOME=/app/user/.codex` (persistent volume; the
+  container-layer `/root/.codex` copy is identical, SHA-verified, but lost on
+  rebuild). Verified live: login ok, plan plus, token fresh (236h left),
+  end-to-end run 47.30s -> 1254x1254 PNG via the same MCP URL.
 - Verify: `get_system_stats(action:health)`, model-free `LoadImage→ImageScale→SaveImage`
   enqueue→history→`get_image(action:get)` SHA-256 match → `stage` → second pass;
   `upload_image data_base64` round-trip; `train_doctor` shows `ready_for_training:false`.
