@@ -466,7 +466,7 @@ async function writeLedger(operationId: string, envelope: Record<string, unknown
 const EXEC_ALLOW = new Set(["git", "pnpm", "npm", "node", "npx", "tsc", "vitest", "eslint", "gh"]);
 
 const GIT_SUBCOMMAND_ALLOW = new Set([
-  "status", "diff", "log", "rev-parse", "branch", "checkout", "switch", "add",
+  "status", "diff", "log", "rev-parse", "rev-list", "merge-base", "cat-file", "branch", "checkout", "switch", "add",
   "commit", "push", "show", "fetch", "remote", "ls-remote", "stash", "pull", "symbolic-ref",
   "clean", // single-file only: git clean -f -- <path> (validated below)
 ]);

@@ -1,6 +1,9 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
+import { mkdtemp, rm } from "node:fs/promises";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
 import { PaperclipApiClient } from "./client.js";
-import { createWorkspaceNativeTools, ghEnv } from "./workspace-native.js";
+import { createWorkspaceNativeTools, ghEnv, runJailedExec } from "./workspace-native.js";
 
 const COMPANY = "11111111-1111-1111-1111-111111111111";
 const AGENT = "22222222-2222-2222-2222-222222222222";
@@ -51,5 +54,30 @@ describe("GitHub checks fail closed without prompting", () => {
       GH_PROMPT_DISABLED: "1",
       GIT_TERMINAL_PROMPT: "0",
     });
+  });
+});
+
+describe("agent Git ancestry preflight under jailed workspace exec", () => {
+  it("permits read-only rev-list, merge-base and cat-file without opening destructive git commands", async () => {
+    const temp = await mkdtemp(join(tmpdir(), "paperclip-git-preflight-"));
+    const old = process.env.PAPERCLIP_WORKSPACE_OPS_LEDGER_DIR;
+    process.env.PAPERCLIP_WORKSPACE_OPS_LEDGER_DIR = temp;
+    const ws = { cwd: process.cwd(), workspaceId: WORKSPACE } as never;
+    try {
+      const rev = await runJailedExec({ ws, argv: ["git", "rev-list", "--count", "HEAD"] });
+      expect(rev.exitCode).toBe(0);
+      expect(Number(rev.stdout.trim())).toBeGreaterThan(0);
+      const base = await runJailedExec({ ws, argv: ["git", "merge-base", "HEAD", "HEAD"] });
+      expect(base.exitCode).toBe(0);
+      expect(base.stdout.trim()).toMatch(/^[a-f0-9]{40}$/);
+      const type = await runJailedExec({ ws, argv: ["git", "cat-file", "-t", "HEAD"] });
+      expect(type.exitCode).toBe(0);
+      expect(type.stdout.trim()).toBe("commit");
+      await expect(runJailedExec({ ws, argv: ["git", "reset", "--hard"] })).rejects.toThrow(/not allowlisted/);
+    } finally {
+      if (old === undefined) delete process.env.PAPERCLIP_WORKSPACE_OPS_LEDGER_DIR;
+      else process.env.PAPERCLIP_WORKSPACE_OPS_LEDGER_DIR = old;
+      await rm(temp, { recursive: true, force: true });
+    }
   });
 });
