@@ -1,5 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
+import { readFileSync } from 'node:fs';
 import { createCoolifyRelease } from './coolify-release.mjs';
 
 const SHA = 'a'.repeat(40);
@@ -112,4 +113,22 @@ test('OAuth negative 401 is mandatory and a 200 is rejected', async () => {
   await assert.rejects(createCoolifyRelease(cfg(),f.fetcher).verifyMcp(), /401/);
 });
 
+
+
+test('reject deployed registry that still exposes supervisor host tools', async () => {
+  const f = backend(); const orig = f.fetcher;
+  const replace = async (url,opts={}) => {
+    if (url.endsWith('/mcp') && opts?.headers?.Authorization && JSON.parse(opts.body).method === 'tools/list') {
+      const id = JSON.parse(opts.body).id;
+      return json({ jsonrpc:'2.0',id,result:{tools:[{name:'paperclipGetServerInfo'},{name:'paperclipHostOperation'}]} });
+    }
+    return orig(url,opts);
+  };
+  await assert.rejects(createCoolifyRelease(cfg(),replace).verifyMcp(), /Legacy supervisor-backed/);
+});
+
+test('production CLI must never return a success exit status without immutable digest acceptance', () => {
+  const code = readFileSync(new URL('./coolify-release.mjs', import.meta.url),'utf8');
+  assert.match(code, /acceptedAsDone === false\) process\.exitCode = 2/);
+});
 

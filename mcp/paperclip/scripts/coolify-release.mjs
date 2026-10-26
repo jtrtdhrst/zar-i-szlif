@@ -92,6 +92,7 @@ export function createCoolifyRelease(config, fetcher = globalThis.fetch) {
     if (!init?.serverInfo?.name) throw Error('MCP initialize did not return serverInfo');
     const list = await mcp(21, 'tools/list', {});
     if (!Array.isArray(list?.tools) || !list.tools.some(t => t.name === 'paperclipGetServerInfo')) throw Error('MCP tool registry incomplete');
+    if (list.tools.some(t => t.name.startsWith('paperclipHost') || t.name === 'paperclipExecuteDeliveryUnit')) throw Error('Legacy supervisor-backed MCP tools still exposed');
     return { initialized: true, tools: list.tools.length, oauthDiscovery: true, deniesUnauthenticated: true };
   }
   return { preflight, queue, verifyDeployment, verifyMcp };
@@ -123,9 +124,10 @@ export async function main(env = process.env) {
 }
 
 if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {
-  main().then(x => console.log(JSON.stringify(x))).catch(e => {
+  main().then(x => { console.log(JSON.stringify(x)); if (x.acceptedAsDone === false) process.exitCode = 2; }).catch(e => {
     console.error(JSON.stringify({ status: 'FAILED', error: e.message, acceptedAsDone: false }));
     process.exitCode = 1;
   });
 }
+
 
