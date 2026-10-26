@@ -1,0 +1,19 @@
+{
+  "contract": "zar-szlif-brand",
+  "version": 1,
+  "status": "active",
+  "updated": "2026-10-26",
+  "inputs_dir": "input/brand/",
+  "files": {
+    "iskra_szlif_campfire_v1.png": "5d85ed91ae6ec7f37793aea75c8e06fff7a9d3c10780e9756fb08572fd608691",
+    "mascot_verify_v1.png": "a47f66677416a954b33e8b17c75a601bdbaaad70bd3c88a0ba59176163767918"
+  },
+  "docs": [
+    "STYLE.v1.md",
+    "characters.v1.json"
+  ],
+  "sources": {
+    "iskra_szlif_campfire_v1.png": "output/zar_szlif_luna6_codex_image_fallback_00001_.png (accepted master, 2026-10-26)",
+    "mascot_verify_v1.png": "output/codex_verify_20261026_00001_.png (Codex verify run, 2026-10-26)"
+  }
+}
