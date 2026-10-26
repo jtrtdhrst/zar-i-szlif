@@ -91,3 +91,42 @@ server exactly (verified live trio):
 - REJECT branch executed for real: `loop_REJECTED_legs_regression_20261026_00001_.png` saved via SaveImage, status success, no exception. Node-level proofs: `REJECT`→False, JSON `null`→controlled False (both executed, no traceback).
 - Export: `loop_accepted_20261026_00001_.png` (1.23 MB); get_image bytes == `/view` bytes (SHA `14d3acd7`).
 - Rebuild proof: full `comfyui-cpu` image rebuilt WITH baked-in `httpx` (live `pip install` did not survive the earlier recreate — found by the repeat run failing with `ModuleNotFoundError`). Post-rebuild: generate `8acc001d` 40.97 s OK + vision workflow `7f9bc515` success, no exceptions, `httpx 0.28.1` + `CODEX_HOME` verified inside the new container, volume patches intact.
+
+## E2E acceptance: conditional reject (fixed workflow) 2026-10-26
+
+Independent E2E (prompt `b9d0d67c`) found a REAL defect in
+`mcp/comfyui/workflows/zar_szlif_visual_QA_edit_accept_only_v1.json`:
+`StringCompare -> ComfySwitchNode[on_false unwired] -> SaveImage` crashed on
+the REJECT path with `TypeError: 'NoneType' object is not subscriptable`
+(MCP validator passed it silently). Root causes fixed:
+
+1. **Workflow**: `on_false` wired to the candidate image (`links` +=
+   `[14,1,0,8,1,"IMAGE"]`). REJECT now completes routing the flawed candidate
+   to SaveImage — no exception.
+2. **Validator v4** (`COMFY_PATCH_SWITCH_V4`): unwired hard-switch branch with a
+   consumed output is an error naming the exact risk. The ORIGINAL (backup)
+   file now fails validation with precisely this error; the fixed file is clean.
+   Soft switch excluded (it falls back by design).
+3. **Validator v5** (`COMFY_PATCH_CYCLE_V1`): multi-node dependency cycles error
+   (`A->B->A`), matching the server's `dependency_cycle` 400 — proven live on
+   both sides. Consequence: in-graph self-contained retry-until-PASS loops are
+   impossible BY CONSTRUCTION; the loop is orchestrated (agent re-enqueues,
+   cap 1 edit + final verdict), as this pipeline does.
+4. **Validator v6** (`COMFY_PATCH_ENQUEUE_UI_V1` + continuation fix): `enqueue`
+   converts saved Web-UI graphs to API format exactly like validate does.
+   Previously UI-format enqueue died with server 500 in `node_replace_manager`
+   (`argument of type 'int' is not iterable`); the fixed workflow enqueues clean.
+5. **Both switch branches proven executing**: `sw_accept_...png` +
+   `sw_reject_...png` saved, success, no exceptions (free isomorphic proof).
+6. **Fixed workflow full run** (`b9d0d67c`, success, 82.44 s): both vision
+   verdicts REJECT (fail 0.43 pre-edit: shading + stripes; fail 0.68 post-edit).
+   Output pixel-identical to the candidate => the REJECT branch executed and the
+   controlled rejection holds end-to-end. SaveText QA JSONs
+   (`zar_szlif_{pre,post}_edit_visual_QA_*.json`) persist both verdicts on disk.
+7. **CORRECTION to an earlier claim in this doc**: plain STRING node outputs are
+   invisible in `/history`, BUT `SaveText` output nodes DO surface their text in
+   history and write the file to disk — that is the supported verdict channel
+   (used above), no new MCP tool needed for it.
+8. **LoadImage `loop_final...png` error**: single occurrence was a superseded
+   probe (output path fed to a loader); fixed by `stage` output->input before
+   load. No recurrence in fresh logs.
