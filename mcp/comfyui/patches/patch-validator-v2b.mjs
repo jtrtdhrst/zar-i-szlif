@@ -14,6 +14,7 @@ import { readFileSync, writeFileSync } from 'node:fs';
 
 const TARGET = '/usr/local/lib/node_modules/comfyui-mcp/dist/services/workflow-validator.js';
 let s = readFileSync(TARGET, 'utf8');
+if (s.includes('COMFY_PATCH_DYNAMIC_V1 (v2)')) { console.log('validator already at v2 - nothing to do'); process.exit(0); }
 if (!s.includes('COMFY_PATCH_DYNAMIC_V1')) throw new Error('v1 block not found - run patch-v2 first');
 
 const startMarker = '        // 2b2. COMFY_PATCH_DYNAMIC_V1';
