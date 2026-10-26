@@ -6,9 +6,9 @@
 #
 # Base image:
 #   ghcr.io/paperclipai/paperclip:<tag>            — upstream release (public)
-#   local/paperclip-opencode-runtime:<tag>         — the deployed runtime; it also
-#     carries /app/paperclip-public-mcp/plugin-skills, which the gateway lists as
-#     MCP resources. Use it when the gateway must expose the skill catalogue:
+#   local/paperclip-opencode-runtime:<tag>         — the deployed runtime, if needed
+#     for other locally customized runtime assets. The four optional MCP skills
+#     are packaged from this directory for the standard upstream base image:
 #       docker build --build-arg PAPERCLIP_BASE=local/paperclip-opencode-runtime:1.18.32-mcpfix-20261013 .
 ARG PAPERCLIP_BASE=ghcr.io/paperclipai/paperclip:2026.1012.0
 FROM ${PAPERCLIP_BASE}
@@ -17,6 +17,7 @@ WORKDIR /app
 
 COPY mcp-gateway /opt/paperclip-mcp/mcp-gateway
 COPY src /opt/paperclip-mcp/src
+COPY plugin-skills /app/paperclip-public-mcp/plugin-skills
 COPY plugin-runtime /opt/paperclip-mcp/plugin-runtime-builder
 COPY entrypoint.sh /usr/local/bin/paperclip-mcp-entrypoint.sh
 
