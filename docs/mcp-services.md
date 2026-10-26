@@ -3,7 +3,7 @@
 Wszystkie MCP tego repo są wystawione jako **Cloudflare Workers** (`*.zariszlif.pl`).
 Kod i konfiguracje w repo:
 
-- `mcp/worker-edge/` — 8 usług na wspólnej krawędzi; jedna instalacja zależności,
+- `mcp/worker-edge/` — 9 usług na wspólnej krawędzi; jedna instalacja zależności,
   jeden `src/index.ts`, a każda usługa ma **własny plik konfiguracji**
   `wrangler.<usługa>.jsonc` (nazwa, domena, `UPSTREAM_URL`).
 - `mcp/mantic/worker/` — natywny Worker (Mautic API, KV na refresh token).
@@ -24,6 +24,7 @@ GitHub Actions i bez crona). Repozytorium jest jedynym źródłem prawdy.
 | `paperclip-mcp.zariszlif.pl/mcp` | `paperclip-mcp` | `mcp/worker-edge/wrangler.paperclip.jsonc` | Paperclip (Docker, auth po stronie silnika) |
 | `emailens-mcp.zariszlif.pl/mcp` | `emailens-mcp` | `mcp/worker-edge/wrangler.emailens.jsonc` | `emailens-mcp-bridge` (Docker) |
 | `langfuse-mcp.zariszlif.pl/api/public/mcp` | `langfuse-mcp` | `mcp/worker-edge/wrangler.langfuse.jsonc` | `langfuse-basic-shim` (Python, Docker) |
+| `mcp-comfy.kompaszbiorek.pl/mcp` | `comfyui-mcp` | `mcp/worker-edge/wrangler.comfyui.jsonc` | `comfyui-mcp` (Docker, Caddy origin `comfy-engine.zariszlif.pl`) |
 
 Silniki (Docker) są za krawędzią Workerów pod hostami `*-engine.zariszlif.pl`
 (Cloudflare Tunnel). Workers nie uruchomią Pythona / TCP / SSH — dlatego te
@@ -42,7 +43,7 @@ Connect to repository** i ustaw:
 | Build command | `npm ci` | `npm ci && npm run build` |
 | Deploy command | `npx wrangler deploy --config wrangler.<usługa>.jsonc` | `npx wrangler deploy` |
 
-`<usługa>` to `emailens`, `langfuse`, `paperclip`, `penpot`, `plasmic`,
+`<usługa>` to `comfyui`, `emailens`, `langfuse`, `paperclip`, `penpot`, `plasmic`,
 `qdrant`, `supabase` albo `ubuntu` (kolumna „Katalog / konfiguracja” wyżej).
 
 Sekrety runtime (`MCP_AUTH_TOKEN`, `UPSTREAM_TOKEN`, `MAUTIC_*`) są w
