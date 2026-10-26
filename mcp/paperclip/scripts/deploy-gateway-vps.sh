@@ -2,8 +2,22 @@
 # VPS-only: merged source SHA -> immutable image -> clone live gateway -> health/readback.
 # No host Docker socket is ever handed to an agent. Previous container is rollback.
 set -euo pipefail
-[[ $# -eq 2 && "$1" =~ ^[a-f0-9]{40}$ && "$2" == "sha256:e00d1ff3139d8671d38dc55e86855cbac577270577df82051b0cb206a777d104" ]] || { echo "REFUSED: source SHA and approved immutable artifact digest are required" >&2; exit 2; }
-SHA="$1"; SHORT="$(printf '%s' "$SHA" | cut -c1-12)"
+# Two-phase release: PREPARE builds an image without stopping a service; APPLY
+# only starts the exact, independently approved Docker image ID prepared earlier.
+# "approved digest" is Docker's config image ID (.Id), NOT a registry manifest digest.
+MODE=apply
+if [[ ${1:-} == prepare && $# -eq 2 ]]; then
+  MODE=prepare; SHA="$2"; APPROVED_IMAGE_ID=""
+elif [[ $# -eq 2 ]]; then
+  SHA="$1"; APPROVED_IMAGE_ID="$2"
+else
+  echo "REFUSED: usage: $0 prepare <merged-source-sha> | <merged-source-sha> <approved-docker-image-id>" >&2; exit 2
+fi
+[[ "$SHA" =~ ^[a-f0-9]{40}$ ]] || { echo "REFUSED: full merged source SHA required" >&2; exit 2; }
+if [[ "$MODE" == apply && ! "$APPROVED_IMAGE_ID" =~ ^sha256:[a-f0-9]{64}$ ]]; then
+  echo "REFUSED: approved Docker image ID (sha256:64hex) required" >&2; exit 2
+fi
+SHORT="${SHA:0:12}"
 NAME="paperclip-mcp-gateway"
 SOCKET="$(printenv PAPERCLIP_DOCKER_SOCKET || printf '/run/user/1001/docker.sock')"
 REPO="$(printenv PAPERCLIP_RELEASE_REPO || true)"
@@ -62,12 +76,24 @@ USED_PCT="$(printf '%s\n' "$DFLINE" | awk '{gsub(/%/,"",$5);print $5}')"
 (( AVAIL_K >= 20*1024*1024 && USED_PCT <= 90 )) || refuse "disk preflight blocked: less than 20GiB or 10% free"
 python3 "$SCRIPT/recreate-gateway-argv.py" prepare "$TMP/old.json" "$NAME" "$BACKUP" "$TMP/args" "$TMP/env"
 mapfile -d '' -t ARGS < "$TMP/args"
-sourcegit archive "$SHA" mcp/paperclip | tar -x -C "$TMP"
-dkr build --pull=false --build-arg "PAPERCLIP_BASE=$BASE" \
-  --label "org.opencontainers.image.revision=$SHA" \
-  -t "$IMAGE" -f "$TMP/mcp/paperclip/Dockerfile" "$TMP/mcp/paperclip"
-CANDIDATE="$(dkr image inspect "$IMAGE" --format '{{.Id}}')"
-[[ "$CANDIDATE" == "$2" ]] || refuse "built image digest differs from approved artifact"
+if [[ "$MODE" == prepare ]]; then
+  sourcegit archive "$SHA" mcp/paperclip | tar -x -C "$TMP"
+  dkr build --pull=false --build-arg "PAPERCLIP_BASE=$BASE" \
+    --label "org.opencontainers.image.revision=$SHA" \
+    -t "$IMAGE" -f "$TMP/mcp/paperclip/Dockerfile" "$TMP/mcp/paperclip"
+fi
+# Never rebuild during APPLY: a rebuilt Docker image may have a DIFFERENT ID
+# despite identical source. Fail before touching the running gateway.
+CANDIDATE="$(dkr image inspect "$IMAGE" --format '{{.Id}}')" || refuse "prepared image missing"
+[[ "$CANDIDATE" =~ ^sha256:[a-f0-9]{64}$ ]] || refuse "invalid Docker image ID"
+CANDIDATE_SHA="$(dkr image inspect "$IMAGE" --format '{{index .Config.Labels "org.opencontainers.image.revision"}}')"
+[[ "$CANDIDATE_SHA" == "$SHA" ]] || refuse "prepared image source revision mismatch"
+if [[ "$MODE" == prepare ]]; then
+  echo "CANDIDATE_PREPARED source_sha=$SHA docker_image_id=$CANDIDATE (approve this exact ID before apply)"
+  PHASE=verified
+  exit 0
+fi
+[[ "$CANDIDATE" == "$APPROVED_IMAGE_ID" ]] || refuse "prepared Docker image ID differs from approved ID (before stop)"
 [[ "$CANDIDATE" != "$PREIMAGE" ]] || refuse "candidate is already live"
 dkr stop --time 25 "$NAME" >/dev/null; PHASE=stopped
 dkr rename "$NAME" "$BACKUP"; PHASE=renamed

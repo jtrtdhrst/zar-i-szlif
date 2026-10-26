@@ -42,6 +42,7 @@ jobs:
       - name: Gateway production recreate invariants (no Docker needed)
         run: |
           node --test mcp/paperclip/scripts/recreate-gateway-argv.test.mjs
+          node --test mcp/paperclip/scripts/deploy-gateway-vps.test.mjs
           bash -n mcp/paperclip/scripts/deploy-gateway-vps.sh
           python3 -m py_compile mcp/paperclip/scripts/recreate-gateway-argv.py
           bash -n mcp/paperclip/vps-ops-supervisor/deploy-gateway-supervisor.sh

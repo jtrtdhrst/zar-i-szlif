@@ -33,7 +33,7 @@ s = replace_once(s,
       vdig="$(jget artifactDigest "$req")"
       [ "$vtgt" = "paperclip-mcp-gateway" ] || { echo "gateway release target not allowlisted"; return; }
       [[ "$vsha" =~ ^[0-9a-f]{40}$ ]] || { echo "gateway release requires full sourceSha"; return; }
-      [ "$vdig" = "sha256:e00d1ff3139d8671d38dc55e86855cbac577270577df82051b0cb206a777d104" ] || { echo "gateway release artifact digest not approved"; return; } ;;
+      [[ "$vdig" =~ ^sha256:[0-9a-f]{64}$ ]] || { echo "gateway release requires full Docker image ID"; return; } ;;
     host.container.recreate)
       vtgt="$(jget target "$req")";''',
     "exact gateway target guard")
@@ -73,6 +73,9 @@ p = replace_once(p,
     """# VPS-OPS operational policy v3.12 (candidate supervisor 1.0.21):
 # mcp.gateway.release is the ONLY additional live-run mutation. Host verifies
 # issue ownership, agent/company, run liveness, exact gateway target and SHA.
+# The supplied Docker image ID must match the already-prepared image; a literal
+# hardcoded fake digest would prevent all real releases. Source MUST be merged
+# into origin/main and keep its exact revision label.
 # The release script also verifies the SHA is on origin/main, preserves env,
 # mounts, network and entrypoint, checks health and retains rollback.
 # Generic host.container.recreate remains unprovisioned and unsafe to use.
