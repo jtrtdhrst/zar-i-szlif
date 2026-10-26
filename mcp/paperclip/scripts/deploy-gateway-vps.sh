@@ -72,12 +72,19 @@ dkr container inspect "$NAME" > "$TMP/old.json" || refuse "running gateway absen
 BASE="$(dkr inspect "$NAME" --format '{{.Config.Image}}')"
 PREIMAGE="$(dkr inspect "$NAME" --format '{{.Image}}')"
 [[ -n "$BASE" && -n "$PREIMAGE" ]] || refuse "current image unverifiable"
-# Keep the same deployment disk gate as the existing supervisor.
-DFLINE="$(dkr exec paperclip df -Pk /paperclip | tail -n 1)"
-AVAIL_K="$(printf '%s\n' "$DFLINE" | awk '{print $4}')"
-USED_PCT="$(printf '%s\n' "$DFLINE" | awk '{gsub(/%/,"",$5);print $5}')"
-[[ "$AVAIL_K" =~ ^[0-9]+$ && "$USED_PCT" =~ ^[0-9]+$ ]] || refuse "disk preflight unreadable"
-(( AVAIL_K >= 20*1024*1024 && USED_PCT <= 90 )) || refuse "disk preflight blocked: less than 20GiB or 10% free"
+# A cached-base gateway overlay does not require a full 20GiB free.
+# Keep a 12GiB / 6% pre-build floor and re-check >=10GiB / 5% BEFORE
+# stopping the live service. A large unexpected build is refused before stop.
+disk_free_kb() {
+  local line available used
+  line="$(dkr exec paperclip df -Pk /paperclip | tail -n 1)"
+  available="$(printf '%s\n' "$line" | awk '{print $4}')"
+  used="$(printf '%s\n' "$line" | awk '{gsub(/%/,"",$5);print $5}')"
+  [[ "$available" =~ ^[0-9]+$ && "$used" =~ ^[0-9]+$ ]] || refuse "disk preflight unreadable"
+  printf '%s %s\n' "$available" "$used"
+}
+read -r AVAIL_K USED_PCT < <(disk_free_kb)
+(( AVAIL_K >= 12*1024*1024 && USED_PCT <= 94 )) || refuse "disk preflight blocked: below 12GiB free or over 94% used"
 python3 "$SCRIPT/recreate-gateway-argv.py" prepare "$TMP/old.json" "$NAME" "$BACKUP" "$TMP/args" "$TMP/env"
 mapfile -d '' -t ARGS < "$TMP/args"
 if [[ "$MODE" == prepare ]]; then
@@ -99,6 +106,9 @@ if [[ "$MODE" == prepare ]]; then
 fi
 [[ "$CANDIDATE" == "$APPROVED_IMAGE_ID" ]] || refuse "prepared Docker image ID differs from approved ID (before stop)"
 [[ "$CANDIDATE" != "$PREIMAGE" ]] || refuse "candidate is already live"
+# Apply never stops the old container when the post-build reserve is exhausted.
+read -r POST_AVAIL_K POST_USED_PCT < <(disk_free_kb)
+(( POST_AVAIL_K >= 10*1024*1024 && POST_USED_PCT <= 95 )) || refuse "pre-switch disk check blocked: below 10GiB free or over 95% used"
 dkr stop --time 25 "$NAME" >/dev/null; PHASE=stopped
 dkr rename "$NAME" "$BACKUP"; PHASE=renamed
 dkr run -d "${ARGS[@]}" "$IMAGE" >/dev/null; PHASE=new_started
