@@ -9,7 +9,7 @@
 set -e
 
 mkdir -p /paperclip/mcp-gateway /paperclip/mcp-patch/src
-cp -f /opt/paperclip-mcp/mcp-gateway/gateway.mjs /opt/paperclip-mcp/mcp-gateway/principal.mjs /opt/paperclip-mcp/mcp-gateway/public-origin.mjs /opt/paperclip-mcp/mcp-gateway/identity-retry.mjs /paperclip/mcp-gateway/ 2>/dev/null || true
+cp -f /opt/paperclip-mcp/mcp-gateway/gateway.mjs /opt/paperclip-mcp/mcp-gateway/principal.mjs /opt/paperclip-mcp/mcp-gateway/public-origin.mjs /opt/paperclip-mcp/mcp-gateway/identity-retry.mjs /opt/paperclip-mcp/mcp-gateway/release-identity.mjs /paperclip/mcp-gateway/ 2>/dev/null || true
 cp -rf /opt/paperclip-mcp/src/. /paperclip/mcp-patch/src/ 2>/dev/null || true
 # The patched MCP sources import bare specifiers (zod, @modelcontextprotocol/sdk);
 # they resolve through the Paperclip MCP package installed in the image.

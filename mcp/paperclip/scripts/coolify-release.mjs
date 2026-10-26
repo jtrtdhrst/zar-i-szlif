@@ -67,6 +67,12 @@ export function createCoolifyRelease(config, fetcher = globalThis.fetch) {
     const url = publicMcpUrl.replace(/\/$/, '');
     const health = await fetcher(url + '/health');
     if (health.status !== 200 || !(await health.json())?.ok) throw Error('Public MCP health failure');
+    const identityResponse = await fetcher(url + '/__release/identity');
+    if (identityResponse.status !== 200) throw Error('Public MCP release identity unavailable');
+    const identity = await identityResponse.json();
+    if (identity?.sourceSha !== sourceSha) throw Error('Public MCP route serves a different source SHA');
+    if (identity?.resourceUuid !== applicationUuid) throw Error('Public MCP route serves a different Coolify application');
+    if (typeof identity?.containerName !== 'string' || !identity.containerName) throw Error('Public MCP container identity missing');
     const oauth = await fetcher(url + '/.well-known/oauth-protected-resource/mcp');
     if (oauth.status !== 200) throw Error('OAuth discovery failure');
     const unauth = await fetcher(url + '/mcp', { method: 'POST', headers: { 'Content-Type': 'application/json', 'Accept': 'application/json, text/event-stream' },
@@ -93,7 +99,8 @@ export function createCoolifyRelease(config, fetcher = globalThis.fetch) {
     const list = await mcp(21, 'tools/list', {});
     if (!Array.isArray(list?.tools) || !list.tools.some(t => t.name === 'paperclipGetServerInfo')) throw Error('MCP tool registry incomplete');
     if (list.tools.some(t => t.name.startsWith('paperclipHost') || t.name === 'paperclipExecuteDeliveryUnit')) throw Error('Legacy supervisor-backed MCP tools still exposed');
-    return { initialized: true, tools: list.tools.length, oauthDiscovery: true, deniesUnauthenticated: true };
+    return { initialized: true, tools: list.tools.length, oauthDiscovery: true, deniesUnauthenticated: true,
+      releaseIdentity: identity };
   }
   return { preflight, queue, verifyDeployment, verifyMcp };
 }

@@ -9,6 +9,7 @@ import { allLiveToolNames } from "/paperclip/mcp-patch/src/live-verify.ts";
 import { profileToolNames } from "/paperclip/mcp-patch/src/execution-broker.ts";
 import { resolvePrincipal, describePrincipal, jwtRunId, isVerifiedOwnerBoardGrant } from "./principal.mjs";
 import { createOriginResolver } from "./public-origin.mjs";
+import { getReleaseIdentity } from "./release-identity.mjs";
 
 const HOST = process.env.MCP_HOST || "0.0.0.0";
 const PORT = Number(process.env.MCP_PORT || 3101);
@@ -860,6 +861,15 @@ const httpServer = createServer((req, res) => {
     }
     if (req.method === "POST" && (url.pathname === "/oauth/token" || url.pathname === "/token")) {
       return handleOAuthToken(req, res);
+    }
+    if (req.method === "GET" && url.pathname === "/__release/identity") {
+      const identity = getReleaseIdentity();
+      if (!identity) {
+        sendJson(res, 503, { error: "release identity unavailable" }, { "cache-control": "no-store" });
+      } else {
+        sendJson(res, 200, identity, { "cache-control": "no-store" });
+      }
+      return;
     }
     if (req.method === "GET" && url.pathname === "/health") {
       sendJson(res, 200, { ok: true, service: "paperclip-mcp", transport: "streamable-http", wiki: true, oauth: true });

@@ -31,6 +31,8 @@ function backend(customApp = app()) {
     if (url.endsWith('/api/v1/deployments/abcdef0123')) return json({
       deployment_uuid: 'abcdef0123', status: 'finished', commit: SHA });
     if (url.endsWith('/health')) return json({ ok: true });
+    if (url.endsWith('/__release/identity')) return json({
+      sourceSha: SHA, resourceUuid: UUID, containerName: 'paperclip-mcp-container' });
     if (url.includes('oauth-protected-resource')) return json({ resource: '/mcp' });
     if (url.endsWith('/mcp')) {
       const p = JSON.parse(opts.body);
@@ -88,7 +90,19 @@ test('exact SHA is pinned and deploy request targets only Paperclip application'
   assert.equal(patch.length,1);
   assert.equal(deploy.length,1);
   assert.deepEqual(await release.verifyMcp(),
-    {initialized:true,tools:1,oauthDiscovery:true,deniesUnauthenticated:true});
+    {initialized:true,tools:1,oauthDiscovery:true,deniesUnauthenticated:true,
+      releaseIdentity:{sourceSha:SHA,resourceUuid:UUID,containerName:'paperclip-mcp-container'}});
+});
+
+for (const [name, status, identity, expected] of [
+  ['old route SHA', 200, {sourceSha:'b'.repeat(40),resourceUuid:UUID,containerName:'old-container'}, /different source SHA/],
+  ['wrong Coolify application', 200, {sourceSha:SHA,resourceUuid:'other-app',containerName:'other-container'}, /different Coolify application/],
+  ['missing runtime identity', 503, {}, /release identity unavailable/],
+]) test('public route rejects ' + name, async () => {
+  const f = backend(); const original = f.fetcher;
+  f.fetcher = async (url, opts) => url.endsWith('/__release/identity')
+    ? json(identity, status) : original(url, opts);
+  await assert.rejects(createCoolifyRelease(cfg(), f.fetcher).verifyMcp(), expected);
 });
 
 test('wrong immutable deployment commit refuses success', async () => {
