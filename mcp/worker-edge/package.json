@@ -15,5 +15,5 @@
     "typescript": "^5.8.3",
     "wrangler": "^4.123.0"
   },
-  "description": "Wspolna krawedz MCP (8 uslug) — konfiguracje per usluga"
+  "description": "Wspolna krawedz MCP (9 uslug) — konfiguracje per usluga"
 }

@@ -13,6 +13,7 @@ containers that run in production today.
 | Supabase MCP | `supabase/` | `/mcp/supabase` | streamable-http `:3100` | `HenkDz/selfhosted-supabase-mcp` (MIT) |
 | Ubuntu MCP | `ubuntu/` | `/mcp/ubuntu` | streamable-http `:8765` | `bvisible/mcp-ssh-manager` (npm) |
 | Paperclip MCP | `paperclip/` | `/mcp/paperclip` | streamable-http `:3101` | Paperclip core: `paperclipai/paperclip` (image, **not vendored**) |
+| ComfyUI MCP | `comfyui/` | `/mcp/comfyui` | HTTP `:8188` (UI) / `:9100` (MCP) | `comfyui-mcp@0.52.206` (npm) + ComfyUI `0.42.1` (CPU) |
 
 The product MCP (`app/mcp-worker`, Cloudflare Worker) stays in `app/mcp-worker/`.
 ## Publiczne endpointy — Cloudflare Workers
@@ -20,7 +21,7 @@ The product MCP (`app/mcp-worker`, Cloudflare Worker) stays in `app/mcp-worker/`
 Każdy MCP jest wystawiony jako **Cloudflare Worker** (`*.zariszlif.pl`). Deploymenty
 w repo są dwa:
 
-- `mcp/worker-edge/` — 8 usług na **jednej wspólnej krawędzi**: jeden `package.json`,
+- `mcp/worker-edge/` — 9 usług na **jednej wspólnej krawędzi**: jeden `package.json`,
   jeden `src/index.ts`, a każda usługa ma własny plik konfiguracji
   `wrangler.<usługa>.jsonc` (nazwa skryptu, domena, `UPSTREAM_URL`). Dodanie usługi =
   jeden plik konfiguracji i jedna linia w `src/index.ts` nie jest potrzebna.

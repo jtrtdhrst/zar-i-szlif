@@ -1,0 +1,24 @@
+services:
+  comfyui:
+    build: { context: /opt/comfy, dockerfile: Dockerfile.comfyui }
+    image: local/comfyui-cpu:0.42.1
+    container_name: comfyui
+    restart: unless-stopped
+    networks: [coolify]
+    volumes: [comfy-models:/app/models, comfy-input:/app/input, comfy-output:/app/output, comfy-user:/app/user, comfy-custom:/app/custom_nodes]
+    environment:
+      # Codex auth: persistent volume copy (identical tokens, verified by SHA).
+      # Nodes resolve CODEX_HOME first, ~/.codex fallback. Pinning avoids depending
+      # on the container-layer /root/.codex (lost on rebuild).
+      - CODEX_HOME=/app/user/.codex
+  comfy-mcp:
+    build: { context: /opt/comfy, dockerfile: Dockerfile.mcp }
+    image: local/comfyui-mcp:0.52.206
+    container_name: comfy-mcp
+    restart: unless-stopped
+    networks: [coolify]
+    depends_on: [comfyui]
+    environment:
+      - COMFYUI_URL=http://comfyui:8188
+volumes: { comfy-models: {}, comfy-input: {}, comfy-output: {}, comfy-user: {}, comfy-custom: {} }
+networks: { coolify: { external: true } }

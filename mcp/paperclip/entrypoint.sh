@@ -25,9 +25,25 @@ ln -sfn /app/packages/mcp-server/node_modules /paperclip/mcp-patch/node_modules
 . /opt/paperclip-mcp/plugin-runtime-builder/stage.sh
 stage_plugin_runtime /opt/paperclip-mcp/plugin-runtime /paperclip/plugin-runtime
 
-# Upstream docker-entrypoint probes the whole home for a single non-node file
-# and then runs a recursive chown. The code/plugin copies above are created by
-# root, so own them here first; otherwise every boot pays a full-volume chown.
-chown -R node:node /paperclip/mcp-gateway /paperclip/mcp-patch /paperclip/plugin-runtime 2>/dev/null || true
+# Upstream 2026.1012.0 root entrypoint scans and may recursively chown the
+# entire shared home, delaying a public gateway by minutes after any recreate.
+# Remap the runtime user as upstream would, but enter upstream already as node;
+# its unprivileged fast path does not walk or chown the shared Paperclip volume.
+if [ "$(id -u)" -eq 0 ]; then
+  PUID="${USER_UID:-1000}"
+  PGID="${USER_GID:-1000}"
+  if [ "$(id -u node)" -ne "$PUID" ]; then
+    usermod -o -u "$PUID" node
+  fi
+  if [ "$(id -g node)" -ne "$PGID" ]; then
+    groupmod -o -g "$PGID" node
+    usermod -g "$PGID" node
+  fi
+  # Gateway-owned directories only. Never recurse into Paperclip Core data.
+  chown node:node /paperclip
+  chown -R node:node /paperclip/mcp-gateway /paperclip/mcp-patch /paperclip/plugin-runtime
+  exec gosu node /usr/local/bin/docker-entrypoint.sh "$@"
+fi
 
+# Restricted/runAsNonRoot deployments continue through upstream directly.
 exec /usr/local/bin/docker-entrypoint.sh "$@"

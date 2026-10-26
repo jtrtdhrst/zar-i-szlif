@@ -1,0 +1,16 @@
+FROM node:22-bookworm-slim
+RUN npm i -g comfyui-mcp@0.52.206 && comfyui-mcp --version
+# Durable production patches (see patch-*.mjs in this folder + repo mcp/comfyui/patches/):
+# - patch-v1: upload_image data_base64 (remote clients, SHA-256, magic-byte check, 30MB cap)
+# - patch-v1: train_doctor ready_for_training/diagnostic_completed (no false success)
+# - patch-v2/v2b: validator dynamic-combo parity — flat keys only ("model": key + "model.<sub>"),
+#   nested dicts rejected as unexecutable, missing sub-inputs flagged exactly like the server
+# - patch-v3: loader-combo subfolder refs ("brand/x.png") warn instead of error
+#   (server resolves subfolders at execution; verified live)
+# - patch-color: uniform fills are FLAT, not washed out (no false positive)
+# - COMFYUI_URL env fixes Prompt Director remote routing (127.0.0.1 bug)
+COPY patch-v1.mjs patch-v2.mjs patch-v2b.mjs patch-v3.mjs patch-v4.mjs patch-v5.mjs patch-v6.mjs patch-v6b.mjs patch-color.mjs /tmp/
+RUN node /tmp/patch-v1.mjs && node /tmp/patch-v2.mjs && node /tmp/patch-v2b.mjs && node /tmp/patch-v3.mjs && node /tmp/patch-v4.mjs && node /tmp/patch-v5.mjs && node /tmp/patch-v6.mjs && node /tmp/patch-v6b.mjs && node /tmp/patch-color.mjs && rm /tmp/patch-*.mjs
+EXPOSE 9100
+ENV LOG_LEVEL=info COMFYUI_URL=http://comfyui:8188
+CMD ["comfyui-mcp", "--http", "--host", "0.0.0.0", "--port", "9100", "--comfyui-url", "http://comfyui:8188", "--allow-unauthenticated-non-loopback"]

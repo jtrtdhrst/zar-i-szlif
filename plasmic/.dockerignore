@@ -1,0 +1,14 @@
+# The vendored upstream source is only a build input; never send local
+# dependencies or build output to the daemon.
+**/node_modules
+**/build
+**/.git
+**/.pnpm-store
+**/.cache
+**/.nx
+**/.env
+**/coverage
+**/storybook-static
+**/cypress/videos
+**/localhost-key.pem
+**/localhost.pem

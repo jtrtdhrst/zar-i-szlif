@@ -47,6 +47,9 @@ const NON_RELEASE_RULES = [
   // by the frontend/worker pipelines). They own no provider gate here; their
   // correctness is proven by their own image build + MCP handshake.
   /^mcp\//,
+  // Vendored upstream Plasmic source for the self-hosted deployment. It is
+  // built only by its own Dockerfiles (Coolify) and owns no provider gate here.
+  /^plasmic\//,
   /^skills\//,
   /^supabase\//,
   /^registry\//,

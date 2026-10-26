@@ -17,6 +17,7 @@ const ENDPOINTS = [
   ["paperclip-mcp", "https://paperclip-mcp.zariszlif.pl/mcp"],
   ["emailens-mcp", "https://emailens-mcp.zariszlif.pl/mcp"],
   ["langfuse-mcp", "https://langfuse-mcp.zariszlif.pl/api/public/mcp"],
+  ["comfy-mcp", "https://mcp-comfy.kompaszbiorek.pl/mcp"],
 ];
 
 const INIT = {

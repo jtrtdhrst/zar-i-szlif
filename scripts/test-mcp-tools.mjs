@@ -16,6 +16,7 @@ const SERVICES = [
   { name: "paperclip", url: "https://paperclip-mcp.zariszlif.pl/mcp" },
   { name: "emailens", url: "https://emailens-mcp.zariszlif.pl/mcp", tool: "list_clients" },
   { name: "langfuse", url: "https://langfuse-mcp.zariszlif.pl/api/public/mcp", tool: "listPrompts" },
+  { name: "comfy", url: "https://mcp-comfy.kompaszbiorek.pl/mcp" },
 ];
 
 const envName = (service) => `MCP_TOKEN_${service.toUpperCase()}`;
