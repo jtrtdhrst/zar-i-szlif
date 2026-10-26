@@ -2,7 +2,7 @@
 # VPS-only: merged source SHA -> immutable image -> clone live gateway -> health/readback.
 # No host Docker socket is ever handed to an agent. Previous container is rollback.
 set -euo pipefail
-[[ $# -eq 1 && "$1" =~ ^[a-f0-9]{40}$ ]] || { echo "usage: $0 <approved-main-SHA>" >&2; exit 2; }
+[[ $# -eq 2 && "$1" =~ ^[a-f0-9]{40}$ && "$2" == "sha256:e00d1ff3139d8671d38dc55e86855cbac577270577df82051b0cb206a777d104" ]] || { echo "REFUSED: source SHA and approved immutable artifact digest are required" >&2; exit 2; }
 SHA="$1"; SHORT="$(printf '%s' "$SHA" | cut -c1-12)"
 NAME="paperclip-mcp-gateway"
 SOCKET="$(printenv PAPERCLIP_DOCKER_SOCKET || printf '/run/user/1001/docker.sock')"
@@ -67,7 +67,8 @@ dkr build --pull=false --build-arg "PAPERCLIP_BASE=$BASE" \
   --label "org.opencontainers.image.revision=$SHA" \
   -t "$IMAGE" -f "$TMP/mcp/paperclip/Dockerfile" "$TMP/mcp/paperclip"
 CANDIDATE="$(dkr image inspect "$IMAGE" --format '{{.Id}}')"
-[[ -n "$CANDIDATE" && "$CANDIDATE" != "$PREIMAGE" ]] || refuse "candidate absent or same image"
+[[ "$CANDIDATE" == "$2" ]] || refuse "built image digest differs from approved artifact"
+[[ "$CANDIDATE" != "$PREIMAGE" ]] || refuse "candidate is already live"
 dkr stop --time 25 "$NAME" >/dev/null; PHASE=stopped
 dkr rename "$NAME" "$BACKUP"; PHASE=renamed
 dkr run -d "${ARGS[@]}" "$IMAGE" >/dev/null; PHASE=new_started

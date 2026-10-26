@@ -30,8 +30,10 @@ s = replace_once(s,
     '''    mcp.gateway.release)
       vtgt="$(jget target "$req")"
       vsha="$(jget sourceSha "$req")"
+      vdig="$(jget artifactDigest "$req")"
       [ "$vtgt" = "paperclip-mcp-gateway" ] || { echo "gateway release target not allowlisted"; return; }
-      [[ "$vsha" =~ ^[0-9a-f]{40}$ ]] || { echo "gateway release requires full sourceSha"; return; } ;;
+      [[ "$vsha" =~ ^[0-9a-f]{40}$ ]] || { echo "gateway release requires full sourceSha"; return; }
+      [ "$vdig" = "sha256:e00d1ff3139d8671d38dc55e86855cbac577270577df82051b0cb206a777d104" ] || { echo "gateway release artifact digest not approved"; return; } ;;
     host.container.recreate)
       vtgt="$(jget target "$req")";''',
     "exact gateway target guard")
@@ -39,14 +41,15 @@ s = replace_once(s, '    mcp.build_candidate)\n      # §2.1:',
     '''    mcp.gateway.release)
       # Only this op can rebuild/recreate the exact gateway; generic recreate
       # remains unavailable. Release uses main SHA and rollback on any mismatch.
-      local release_sha
+      local release_sha release_digest
       release_sha="$(jget sourceSha "$req")"
+      release_digest="$(jget artifactDigest "$req")"
       if [ "$dry" = "True" ]; then
-        echo "dryRun: would deploy merged gateway sourceSha=$release_sha (no mutations)"
+        echo "dryRun: would deploy merged gateway sourceSha=$release_sha digest=$release_digest (no mutations)"
         return 0
       fi
       PAPERCLIP_DOCKER_SOCKET=/var/run/docker.sock timeout --signal=TERM --kill-after=12s 780 \
-        bash /opt/sup/release/deploy-gateway-vps.sh "$release_sha" ;;
+        bash /opt/sup/release/deploy-gateway-vps.sh "$release_sha" "$release_digest" ;;
     mcp.build_candidate)
       # §2.1:''',
     "real gateway executor")

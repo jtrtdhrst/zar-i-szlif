@@ -43,5 +43,6 @@ test('missing persistent volume is refused before deploy',()=>{
  const changed=structuredClone(base);changed.Mounts=[];writeFileSync(old,JSON.stringify([changed]));
  check(run('python3',[py,'prepare',old,'paperclip-mcp-gateway','rollback',argv,env]),1,'paperclip-home');
 });
-test('non-full commit SHA is refused',()=>{check(run('bash',[sh,'deadbeef']),2,'usage');});
+test('non-full commit SHA is refused',()=>{check(run('bash',[sh,'deadbeef','sha256:e00d1ff3139d8671d38dc55e86855cbac577270577df82051b0cb206a777d104']),2,'REFUSED');});
+test('unapproved artifact digest is refused before deploy',()=>{check(run('bash',[sh,'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa','sha256:ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff']),2,'REFUSED');});
 process.on('exit',()=>rmSync(temp,{recursive:true,force:true}));
