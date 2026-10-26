@@ -130,3 +130,4 @@ the REJECT path with `TypeError: 'NoneType' object is not subscriptable`
 8. **LoadImage `loop_final...png` error**: single occurrence was a superseded
    probe (output path fed to a loader); fixed by `stage` output->input before
    load. No recurrence in fresh logs.
+- Canvas link: open-tab graph comes from the canvas bridge (see docs/comfy-canvas-bridge.md).
