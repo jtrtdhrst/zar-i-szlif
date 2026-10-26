@@ -2,7 +2,7 @@
 import { describe, expect, it } from "vitest";
 import { PaperclipApiClient } from "./client.js";
 import { createToolDefinitions } from "./tools.js";
-import { toolCapability, profileToolNames, HOST_NOLANE_OPERATIONS, resolveExecutionPlan } from "./execution-broker.js";
+import { toolCapability, profileToolNames, isUnsupportedCapability, resolveExecutionPlan } from "./execution-broker.js";
 import { allKnownToolNames } from "./effective-access.js";
 import { allLiveToolNames } from "./live-verify.js";
 
@@ -21,7 +21,7 @@ function dummyClient(): PaperclipApiClient {
 describe("execution broker registry", () => {
   it("covers the full live registry (no silent drift)", () => {
     const live = allLiveToolNames();
-    expect(live.length).toBe(208);
+    expect(live.length).toBe(createToolDefinitions(dummyClient()).length);
     for (const name of live) {
       const cap = toolCapability(name);
       expect(cap.name).toBe(name);
@@ -37,7 +37,7 @@ describe("execution broker registry", () => {
       "paperclipWorkspacePatchFile", "paperclipWorkspaceExec", "paperclipWorkspaceApplyUnifiedDiff",
       "paperclipWorkspaceBatchChange", "paperclipWorkspaceRunChecks",
       "paperclipGitCreateBranch", "paperclipGitCommit", "paperclipGitPush",
-      "paperclipGitCreatePR", "paperclipGitMergePR", "paperclipHostOperation", "paperclipCancelIssueInteraction",
+      "paperclipGitCreatePR", "paperclipGitMergePR", "paperclipCancelIssueInteraction",
     ];
     for (const name of gated) {
       expect(toolCapability(name).requiresRun, name).toBe(true);
@@ -72,19 +72,14 @@ describe("execution broker registry", () => {
     }
   });
 
-  it("host no-lane operations are canonical (7, fail-closed)", () => {
-    expect(HOST_NOLANE_OPERATIONS).toHaveLength(7);
-    expect(HOST_NOLANE_OPERATIONS).toContain("host.service_restart");
-  });
-
   it("profiles fit provider limits; full stays complete", () => {
     const all = createToolDefinitions(dummyClient()).map((t) => t.name);
-    expect(all.length).toBe(208);
+    expect(all.length).toBeGreaterThan(150);
     const minimal = profileToolNames("minimal", all);
     const agent = profileToolNames("agent", all);
     const board = profileToolNames("board", all);
     const full = profileToolNames("full", all);
-    expect(full.length).toBe(208);
+    expect(full.length).toBe(all.length);
     expect(minimal.length).toBeGreaterThan(30);
     expect(minimal.length).toBeLessThanOrEqual(128);
     expect(agent.length).toBeLessThanOrEqual(128);
@@ -106,9 +101,10 @@ describe("execution broker registry", () => {
   it("resolveExecutionPlan selects the right mode", () => {
     const a = resolveExecutionPlan("paperclipUpdateIssue", { kind: "agent", agentId: "x", companyId: "y" }, "c1");
     expect(a.executionMode).toBe("issue_run");
-    const b = resolveExecutionPlan("paperclipHostOperation", { kind: "host", principalId: "h", companyId: "y", approvedCapabilities: [] }, "c2");
-    expect(b.executionMode).toBe("host_supervisor");
+    expect(isUnsupportedCapability("paperclipHostOperation", "host.container.recreate")).toBe(true);
+    expect(toolCapability("paperclipHostOperation").supported).toBe(false);
     const c = resolveExecutionPlan("paperclipGetIssue", { kind: "agent", agentId: "x", companyId: "y" }, "c3");
     expect(c.executionMode).toBe("direct");
   });
 });
+

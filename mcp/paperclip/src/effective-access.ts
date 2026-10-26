@@ -10,9 +10,7 @@
 import { z } from "zod";
 import type { PaperclipApiClient } from "./client.js";
 import { CONTROL_PLANE_TOOL_NAMES } from "./control-plane.js";
-import { HOST_TOOL_NAMES } from "./host-ops.js";
 import { WORKSPACE_NATIVE_TOOL_NAMES } from "./workspace-native.js";
-import { HOST_QUERY_TOOL_NAMES } from "./host-query.js";
 import { P1_GIT_TOOL_NAMES } from "./p1-git.js";
 import { P1_PLATFORM_TOOL_NAMES } from "./p1-platform.js";
 import { ISSUE_FIELD_TOOL_NAMES } from "./issue-fields.js";
@@ -97,16 +95,15 @@ export const BASE_TOOL_NAMES: string[] = [
 ];
 
 export function allKnownToolNames(): string[] {
-  return [...new Set([...BASE_TOOL_NAMES, ...CONTROL_PLANE_TOOL_NAMES, ...HOST_TOOL_NAMES, ...HOST_QUERY_TOOL_NAMES, ...WORKSPACE_NATIVE_TOOL_NAMES, ...EFFECTIVE_ACCESS_TOOL_NAMES, ...P1_GIT_TOOL_NAMES, ...P1_PLATFORM_TOOL_NAMES, ...ISSUE_FIELD_TOOL_NAMES])];
+  return [...new Set([...BASE_TOOL_NAMES, ...CONTROL_PLANE_TOOL_NAMES, ...WORKSPACE_NATIVE_TOOL_NAMES, ...EFFECTIVE_ACCESS_TOOL_NAMES, ...P1_GIT_TOOL_NAMES, ...P1_PLATFORM_TOOL_NAMES, ...ISSUE_FIELD_TOOL_NAMES])];
 }
 
-// Live-verify tools (defined in live-verify.ts) are known but intentionally
-// not imported here to avoid a module cycle; they are matched by prefix.
-const LIVE_TOOL_PREFIXES = ["paperclipVerify", "paperclipMCP"];
+// Exact public verification names avoid a cycle with live-verify.ts.
+const LIVE_VERIFY_NAMES = new Set(["paperclipVerifyLiveMCP", "paperclipMCPRunSmokeTest"]);
 
 export function isKnownToolName(tool: string): boolean {
   if (allKnownToolNames().includes(tool)) return true;
-  return LIVE_TOOL_PREFIXES.some((p) => tool.startsWith(p));
+  return LIVE_VERIFY_NAMES.has(tool);
 }
 
 // Static policy table: which tools need what. Derived from backend guards
@@ -123,15 +120,6 @@ const MUTATING_RE = /Checkout|Release|Upsert|Restore|Link|Unlink|Decision|Commen
 
 function policyFor(tool: string): ToolPolicy {
   if (AGENT_CHAT_TOOL_NAMES.includes(tool)) return { boardOnly: true, runtime: "api" };
-  // P0 2026-10-16: host tools are not all operator-gated. HostOperation is
-  // payload-dependent (reads need a live run context, mutations are removed),
-  // HostGetEffectivePolicy is a pure API-side read, only HostApplyDeployment
-  // is unconditionally operator-gated.
-  if (tool === "paperclipHostOperation") return { needsRunId: true, runtime: "host-bridge" };
-  if (tool === "paperclipHostApplyDeployment") return { needsRunId: true, runtime: "host-bridge" };
-  if (tool === "paperclipHostGetEffectivePolicy") return { runtime: "api" };
-  if (tool === "paperclipHostCapabilities") return { runtime: "host-bridge" };
-  if (tool.startsWith("paperclipHost")) return { runtime: "host-bridge" };
   if (tool.startsWith("paperclipWorkspace") || tool.startsWith("paperclipGit")) return { runtime: "workspace-fs" };
   if (tool.startsWith("paperclipVerify") || tool.startsWith("paperclipMCP") || tool.startsWith("paperclipGetAgentEffective") || tool.startsWith("paperclipGetToolDenial")) return { runtime: "api" };
   return { runtime: "api" };
@@ -153,7 +141,6 @@ const LIVE_CONTEXT_TOOLS_RE =
   /WorkspacePatchFile|WorkspaceExec|WorkspaceApplyUnifiedDiff|WorkspaceBatchChange|WorkspaceRunChecks|GitCreateBranch|GitCommit|GitPush|GitCreatePR|GitMergePR/;
 
 function needsRun(tool: string): boolean {
-  if (tool === "paperclipHostOperation") return true; // reads need a live run context (issue-scoped)
   if (LIVE_CONTEXT_TOOLS_RE.test(tool)) return true;
   // P0 2026-10-20: the issue-field management tools mutate authoritative issue
   // configuration (parent/blockers/stages/monitor/watchdog/links) and therefore
@@ -178,7 +165,6 @@ async function agentContext(client: PaperclipApiClient, agentId: string | null |
 }
 
 function scopeOf(tool: string, ctx: { agentId: string; issue: unknown }): string {
-  if (tool.startsWith("paperclipHost")) return "host-bridge (issue/run-scoped per intent)";
   if (tool.startsWith("paperclipWorkspace") || tool.startsWith("paperclipGit")) return "workspace (company-owned execution workspace)";
   if (isRecord(ctx.issue)) return `issue ${String((ctx.issue as Record<string, unknown>).identifier ?? "?")}`;
   return "company";
@@ -207,13 +193,7 @@ export function createEffectiveAccessTools(client: PaperclipApiClient): Effectiv
         const filter = process.env.PAPERCLIP_MCP_TOOL_FILTER;
         const filterSet = filter ? new Set(filter.split(",").map((s) => s.trim()).filter(Boolean)) : null;
         // Runtime reachability (one probe per runtime, not per tool).
-        const [apiHealth, hostCaps, workspaceProbe] = await Promise.all([
-          getJsonOrNull(client, `/companies/${client.resolveCompanyId()}`).then((v) => v !== null).catch(() => false),
-          Promise.allSettled([import("./host-ops.js").then((m) => m.capabilitiesDocument())]).then(() => true).catch(() => false),
-          Promise.resolve(true),
-        ]);
-        void hostCaps;
-        void workspaceProbe;
+        const apiHealth = await getJsonOrNull(client, `/companies/${client.resolveCompanyId()}`).then((v) => v !== null).catch(() => false);
         const names = allKnownToolNames().filter((n) => !toolFilter || n.toLowerCase().includes((toolFilter as string).toLowerCase()));
         const tools = names.map((toolName) => {
           const registered = true;
@@ -292,19 +272,6 @@ export function createEffectiveAccessTools(client: PaperclipApiClient): Effectiv
         }
         // Side-effect-free probes per tool class.
         try {
-          if (toolName === "paperclipHostCapabilities") {
-            const { capabilitiesDocument } = await import("./host-ops.js");
-            const doc = capabilitiesDocument() as Record<string, unknown>;
-            return { toolName, executableNow: true, probe: { policyVersion: doc.policyVersion, supervisorVersion: doc.supervisorVersion, bridge: doc.bridge } };
-          }
-          if (toolName === "paperclipHostGetOperation" || toolName === "paperclipHostListOperations") {
-            const { createHostQueryTools } = await import("./host-query.js");
-            const list = createHostQueryTools().find((t) => t.name === "paperclipHostListOperations");
-            if (!list) throw new Error("probe tool missing");
-            const out = await list.execute({ limit: 1 });
-            const text = out.content[0]?.text ?? "";
-            return { toolName, executableNow: true, probe: { listOk: !text.includes("errorCode"), sample: text.slice(0, 400) } };
-          }
           if (toolName === "paperclipGetAgentPermissions" || toolName === "paperclipGetAgentEffectiveConfig") {
             const probe = await getJsonOrNull(client, `/agents/${enc(ctx.agentId)}/configuration`);
             return { toolName, executableNow: probe !== null, probe: { configurationReachable: probe !== null } };
@@ -362,9 +329,7 @@ export function createEffectiveAccessTools(client: PaperclipApiClient): Effectiv
           { match: /cross_issue_influence_run_context_required|run.?context/i, owner: "caller", fix: "Pass a live execution context the target accepts (own live issue run where supported); operator sessions are removed upstream (CAPABILITY_REMOVED) — never reuse foreign or terminal runs" },
           { match: /RUN_CONTEXT_REQUIRED|run_context_required/i, owner: "caller", fix: "Workspace/git mutations need runId = your own currently RUNNING heartbeat run ($PAPERCLIP_RUN_ID) bound to the workspace's issue, or a board key. Operator sessions were removed in Paperclip 2026.1012.0 — never mint or reuse run IDs" },
           { match: /scope_denied|issue_scope_required/i, owner: "caller", fix: "The live run is issue-bounded: use the run bound to the target issue (or a board key). Cross-issue workspace mutations are refused by design" },
-          { match: /no supervisor lane|configuration_missing/i, owner: "cto", fix: "Supervisor v3.8 has no execution lane for container recreation: pin targets/images via a CTO-owned supervisor policy bump, then re-plan (fail-closed; never bypass)" },
           { match: /Board authentication required|assertBoard/i, owner: "board", fix: "Board-only operation: needs a board actor or an explicit board grant; agents cannot self-grant" },
-          { match: /not_allowlisted|allowlist/i, owner: "cto", fix: "Target not in the supervisor/MCP allowlist: owner review to pin it (never bypass)" },
           { match: /IDEMPOTENCY_CONFLICT|idempotency/i, owner: "caller", fix: "Same requestId with a different payload: retry with a fresh requestId" },
           { match: /auth_failed|expired|invalid.*operatorRun/i, owner: "caller", fix: "No live authorized context owned by the caller: obtain one (own live issue run where supported); operator sessions are removed upstream (CAPABILITY_REMOVED, owner CTO) — do not retry expired runs" },
           { match: /workspace_not_available|harness/i, owner: "harness", fix: "Workspace not realized on this host: checkout/provision the issue via the harness first" },
@@ -387,3 +352,5 @@ export function createEffectiveAccessTools(client: PaperclipApiClient): Effectiv
     ),
   ];
 }
+
+
