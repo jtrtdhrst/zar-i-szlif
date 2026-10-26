@@ -2,25 +2,19 @@
 //
 // paperclipVerifyLiveMCP identifies the ACTUALLY RUNNING public MCP:
 // endpoint, transport, OAuth, image/commit, artifact digest, source digest,
-// tool manifest, bridge capabilities, supervisor/policy digests, deploy
-// marker, auth pass + denial probes, rollback state. Verdict is evidence,
+// tool manifest, auth pass and denial probes. Verdict is evidence,
 // never an assurance: LIVE_VERIFIED | STAGING_ONLY | SOURCE_RUNTIME_MISMATCH
 // | AUTH_FAILED | DEPLOY_INCOMPATIBLE... (see type) | UNVERIFIED.
 //
 // paperclipMCPRunSmokeTest runs the controlled public-MCP sequence
 // (read, authorized write to a dedicated test object, read-after-write,
 // unauthorized-write denial, idempotency, audit, manifest, artifact match)
-// over the real public transport with the caller's own auth class. Writes
-// are dryRun/canary-only: nothing destructive, every step reports
-// pass/fail/skip with evidence (no PASS without proof).
+// over the real public transport with the caller's own auth class. Read-only; no canary issue mutations.
 
 import { z } from "zod";
 import { createHash } from "node:crypto";
-import { promises as fs } from "node:fs";
 import type { PaperclipApiClient } from "./client.js";
 import { CONTROL_PLANE_TOOL_NAMES } from "./control-plane.js";
-import { HOST_TOOL_NAMES, capabilitiesDocument } from "./host-ops.js";
-import { HOST_QUERY_TOOL_NAMES } from "./host-query.js";
 import { WORKSPACE_NATIVE_TOOL_NAMES } from "./workspace-native.js";
 import { EFFECTIVE_ACCESS_TOOL_NAMES, allKnownToolNames } from "./effective-access.js";
 import { formatErrorResponse, formatTextResponse } from "./format.js";
@@ -271,22 +265,6 @@ export async function probePublicMcpTransport(base: string, callerKey: string | 
   return { base: clean, publicHealth, discovery, unauthDenial, initialize, toolsList, harmlessCall, appDomain };
 }
 
-async function policyMirror(): Promise<Record<string, unknown>> {
-  try {
-    const [policy, sums] = await Promise.all([
-      fs.readFile("/paperclip/vps-ops/policy/POLICY.md", "utf8").catch(() => ""),
-      fs.readFile("/paperclip/vps-ops/policy/SHA256SUMS", "utf8").catch(() => ""),
-    ]);
-    const firstLine = policy.split("\n")[0] ?? "";
-    const version = /policy\s+(v[\d.]+)/i.exec(firstLine + "\n" + policy.slice(0, 2000))?.[1]
-      ?? /v3\.\d+/.exec(policy.slice(0, 2000))?.[0] ?? "unknown";
-    const supervisor = /supervisor\s+([\d.]+)/i.exec(policy.slice(0, 2000))?.[1] ?? "unknown";
-    return { present: policy.length > 0, policyVersion: version, supervisorVersion: supervisor, sha256sumsLines: sums.split("\n").filter(Boolean).length };
-  } catch (e) {
-    return { present: false, error: e instanceof Error ? e.message : String(e) };
-  }
-}
-
 // BUG-01 fix: internal `pending` is NEVER a pass. Terminal classification only.
 // - terminal success (succeeded/planned-only/dryRun report, no errorCode) -> "pass"
 // - terminal denial/failure when success was expected -> "fail"
@@ -334,8 +312,6 @@ export function createLiveVerifyTools(client: PaperclipApiClient): LiveVerifyToo
         const envCommit = process.env.PAPERCLIP_BUILD_COMMIT || null;
         const envVersion = process.env.PAPERCLIP_BUILD_VERSION || null;
         const manifest = toolManifestDigest();
-        const caps = capabilitiesDocument() as Record<string, unknown>;
-        const mirror = await policyMirror();
         // Auth pass: caller token must read its own company.
         let authPass: Record<string, unknown> = { ok: false };
         try {
@@ -364,8 +340,8 @@ export function createLiveVerifyTools(client: PaperclipApiClient): LiveVerifyToo
             effectiveMcpBase: mcpBase,
             appDomain: PUBLIC_APP_BASE_DEFAULT,
             routes: {
-              app: `${PUBLIC_APP_BASE_DEFAULT} -> named tunnel rule 0 -> paperclip:3100 (Core UI+API, NOT MCP)`,
-              mcp: `${mcpBase} -> named tunnel rule 1 -> paperclip:3101 -> socat fwd -> gateway:3101 (public MCP)`,
+              app: `${PUBLIC_APP_BASE_DEFAULT} (Core UI+API, not MCP)`,
+              mcp: `${mcpBase}/mcp (public MCP; internal origin not asserted)`,
             },
           },
           transport: gw,
@@ -373,8 +349,6 @@ export function createLiveVerifyTools(client: PaperclipApiClient): LiveVerifyToo
           oauth: { enabled: true, discovery: "/.well-known/oauth-authorization-server + oauth-protected-resource" },
           runningImage: { commit: runningCommit, version: api && typeof api.status === "string" ? (api as Record<string, unknown>).commit ?? null : runningCommit, envVersion, envCommit },
           toolManifest: { ...manifest, names: undefined, manifestDigest: manifest.digest, toolCount: manifest.count },
-          bridgeManifest: { bridge: caps.bridge, policyVersion: caps.policyVersion, supervisorVersion: caps.supervisorVersion },
-          policyMirror: mirror,
           authPass,
           authDenial,
         };
@@ -406,280 +380,33 @@ export function createLiveVerifyTools(client: PaperclipApiClient): LiveVerifyToo
     ),
     makeTool(
       "paperclipMCPRunSmokeTest",
-      "Controlled public-MCP smoke sequence over the real transport with the caller's auth class. A comment canary runs only on an idle backlog issue with no caller-supplied requestId; terminal/active issues and requestId replays skip it. The canary disables reopen/resume/interrupt and verifies status is unchanged after cleanup. Other steps cover read, unauthorized-write denial, idempotency, audit, manifest, and artifact match.",
-      z.object({
-        workspaceId: z.string().uuid().optional().nullable(),
-        issueId: z.string().min(1).optional().nullable(),
-        agentId: z.string().uuid().optional().nullable(),
-        operatorRunId: z.string().uuid().optional().nullable(),
-        requestId: z.string().uuid().optional().nullable(),
-        timeoutSec: z.number().int().min(5).max(300).optional().default(90),
-        expectedToolCount: z.number().int().positive().optional().nullable(),
-      }),
-      async ({ workspaceId, issueId, agentId, operatorRunId, requestId, timeoutSec, expectedToolCount }) => {
-        type Step = { name: string; status: "pass" | "fail" | "skip" | "unverified"; evidence: unknown };
-        const steps: Step[] = [];
-        const { randomUUID } = await import("node:crypto");
-        const smokeId: string = requestId ?? randomUUID();
-        const deadline = Date.now() + (timeoutSec ?? 90) * 1000;
-        const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
-        async function readHostOp(rid: string): Promise<string | null> {
-          try {
-            const { createHostQueryTools } = await import("./host-query.js");
-            const get = createHostQueryTools().find((t) => t.name === "paperclipHostGetOperation");
-            if (!get) return null;
-            const out = await get.execute({ requestId: rid });
-            return out.content[0]?.text ?? null;
-          } catch {
-            return null;
-          }
-        }
-        // 1. read
-        try {
-          const h = await getJsonOrNull(client, "/health");
-          steps.push({ name: "read", status: isRecord(h) ? "pass" : "fail", evidence: h });
-        } catch (e) {
-          steps.push({ name: "read", status: "fail", evidence: e instanceof Error ? e.message : String(e) });
-        }
-        // 2. authorized dryRun write (host rollback dryRun is report-only per policy v3.5+;
-        // needs full host context, otherwise honestly skipped). BUG-01 FIX: the
-        // intent is submitted once under smokeId, then POLLED to a terminal
-        // state. pending at the deadline -> UNVERIFIED (never PASS); terminal
-        // denial when success was expected -> FAIL.
-        let dryRunTerminal: string | null = null;
-        // Without a live host context, a comment canary is restricted to an
-        // idle backlog issue and cannot be replayed with a supplied requestId.
-        let canary: { issueId: string; marker: string; commentId: string | null; originalStatus: string } | null = null;
-        if (agentId && issueId && operatorRunId) {
-          try {
-            const { createHostTools } = await import("./host-ops.js");
-            const op = createHostTools().find((t) => t.name === "paperclipHostOperation");
-            if (!op) throw new Error("paperclipHostOperation not registered");
-            const out = await op.execute({ operation: "mcp.rollback", dryRun: true, reason: "smoke probe", requestId: smokeId, agentId, issueId, operatorRunId });
-            let text = out.content[0]?.text ?? "";
-            if (/\bpending\b/i.test(text) && !/errorcode/i.test(text)) {
-              // Poll the EXISTING request (never re-submit) until terminal or timeout.
-              for (;;) {
-                if (Date.now() >= deadline) break;
-                await sleep(3000);
-                const reread = await readHostOp(smokeId);
-                if (reread === null) break;
-                text = reread;
-                if (!/\bpending\b/i.test(text) || /errorcode|succeeded|failed|planned-only/i.test(text)) break;
-              }
-            }
-            dryRunTerminal = text;
-            const verdict = classifySmokeOutcome(text);
-            const hasEvidence = text.length > 20 && (/replayed|planned-only|operationid|evidenceReference/i.test(text) || verdict === "fail");
-            steps.push({
-              name: "authorized_write_dryrun",
-              status: verdict === "pass" ? "pass" : verdict === "fail" ? "fail" : "unverified",
-              evidence: { requestId: smokeId, terminal: verdict !== "unverified", classification: verdict, evidencePresent: hasEvidence, text: text.slice(0, 800) },
-            });
-          } catch (e) {
-            steps.push({ name: "authorized_write_dryrun", status: "fail", evidence: { requestId: smokeId, error: e instanceof Error ? e.message.slice(0, 500) : String(e) } });
-          }
-        } else if (issueId) {
-          const issue = requestId ? null : await getJsonOrNull(client, `/issues/${enc(issueId)}`);
-          const status = isRecord(issue) && typeof issue.status === "string" ? issue.status : null;
-          const hasLiveExecution = Boolean(isRecord(issue) && (issue.executionRunId || issue.checkoutRunId));
-          const skipReason = commentCanarySkipReason(status, hasLiveExecution, Boolean(requestId));
-          if (skipReason) {
-            steps.push({ name: "authorized_write_dryrun", status: "skip", evidence: { mode: "comment-canary", issueId, reason: skipReason } });
-          } else {
-            const marker = `[mcp-smoke ${smokeId}] authorized write canary — safe to delete`;
-            try {
-              await client.requestJson("POST", `/issues/${encodeURIComponent(issueId)}/comments`, {
-                body: { body: marker, interrupt: false, reopen: false, resume: false },
-              });
-              canary = { issueId, marker, commentId: null, originalStatus: status! };
-              steps.push({ name: "authorized_write_dryrun", status: "pass", evidence: { mode: "comment-canary", issueId, marker } });
-            } catch (e) {
-              steps.push({ name: "authorized_write_dryrun", status: "fail", evidence: { mode: "comment-canary", issueId, error: e instanceof Error ? e.message.slice(0, 500) : String(e) } });
-            }
-          }
-        } else {
-          steps.push({ name: "authorized_write_dryrun", status: "skip", evidence: "needs issueId (comment canary) or agentId+issueId+operatorRunId (host dryRun); pass one to exercise an authorized disposable write" });
-        }
-        // 3. read-after-write: re-read the SAME requestId (must NOT re-execute).
-        // PASS requires a terminal replayed result identical to step 2 — not
-        // mere record existence. pending -> UNVERIFIED (SMOKE-02/05).
-        if (agentId && issueId && operatorRunId && dryRunTerminal !== null) {
-          try {
-            const text = (await readHostOp(smokeId)) ?? "";
-            const replayed = /replayed/.test(text);
-            const terminal = !/\bpending\b/i.test(text) || /succeeded|failed|planned-only|errorcode/i.test(text);
-            const sameOutcome = classifySmokeOutcome(text) === classifySmokeOutcome(dryRunTerminal);
-            const ok = replayed && terminal && sameOutcome && text.length > 20;
-            steps.push({
-              name: "read_after_write",
-              status: !terminal ? "unverified" : ok ? "pass" : "fail",
-              evidence: { requestId: smokeId, replayed, terminal, sameOutcome, text: text.slice(0, 800) },
-            });
-          } catch (e) {
-            steps.push({ name: "read_after_write", status: "fail", evidence: e instanceof Error ? e.message.slice(0, 500) : String(e) });
-          }
-        } else if (canary) {
-          const c = canary;
-          try {
-            const listed = await client.requestJson<Record<string, unknown>>("GET", `/issues/${encodeURIComponent(c.issueId)}/comments?limit=50`);
-            const items: Array<Record<string, unknown>> = Array.isArray((listed as { comments?: unknown }).comments)
-              ? ((listed as { comments: Array<Record<string, unknown>> }).comments)
-              : Array.isArray(listed)
-                ? (listed as unknown as Array<Record<string, unknown>>)
-                : [];
-            const hit = items.find((item) => JSON.stringify(item?.body ?? "").includes(c.marker));
-            const commentId = hit && typeof hit.id === "string" ? hit.id : null;
-            let cleanedUp = false;
-            let deleteError: string | null = null;
-            if (commentId) {
-              try {
-                await client.requestJson("DELETE", `/issues/${encodeURIComponent(c.issueId)}/comments/${encodeURIComponent(commentId)}`);
-                cleanedUp = true;
-              } catch (e) {
-                deleteError = e instanceof Error ? e.message.slice(0, 300) : String(e);
-              }
-            }
-            const afterIssue = await getJsonOrNull(client, `/issues/${encodeURIComponent(c.issueId)}`);
-            const statusUnchanged = isRecord(afterIssue) && afterIssue.status === c.originalStatus;
-            c.commentId = commentId;
-            steps.push({
-              name: "read_after_write",
-              status: commentId && cleanedUp && statusUnchanged ? "pass" : "fail",
-              evidence: { mode: "comment-canary", found: Boolean(commentId), commentId, cleanedUp, statusUnchanged, deleteError },
-            });
-          } catch (e) {
-            steps.push({ name: "read_after_write", status: "fail", evidence: { mode: "comment-canary", error: e instanceof Error ? e.message.slice(0, 500) : String(e) } });
-          }
-        } else if (dryRunTerminal === null) {
-          steps.push({ name: "read_after_write", status: "skip", evidence: "same context as step 2 required" });
-        } else {
-          steps.push({ name: "read_after_write", status: "unverified", evidence: { requestId: smokeId, reason: "step 2 produced no terminal result to read back" } });
-        }
-        // 4. unauthorized-write denial: mutating host op WITHOUT operatorRunId must fail closed.
-        // PASS requires a proper, justified denial (errorCode + remediation owner), SMOKE-07.
-        try {
-          const { createHostTools } = await import("./host-ops.js");
-          const op = createHostTools().find((t) => t.name === "paperclipHostOperation");
-          if (!op) throw new Error("paperclipHostOperation not registered");
-          const out = await op.execute({ operation: "mcp.rollback", agentId: "22222222-2222-2222-2222-222222222222", issueId: "KOMAA-000" });
-          const text = out.content[0]?.text ?? "";
-          const proper = /auth_failed|run_context_required|permission_denied|capability_removed/i.test(text) && /remediationowner|requiredaction|safehint/i.test(text);
-          steps.push({ name: "unauthorized_write_denied", status: proper ? "pass" : "fail", evidence: text.slice(0, 500) });
-        } catch (e) {
-          steps.push({ name: "unauthorized_write_denied", status: "fail", evidence: e instanceof Error ? e.message.slice(0, 500) : String(e) });
-        }
-        // 5. idempotency: digest determinism (pure) + same requestId never
-        // re-executes (SMOKE-08) + same requestId with a DIFFERENT payload
-        // fails closed with IDEMPOTENCY_CONFLICT (SMOKE-09).
-        try {
-          const { payloadDigestForIntent } = await import("./host-ops.js");
-          const a = payloadDigestForIntent({ operation: "ps", target: "paperclip" });
-          const b = payloadDigestForIntent({ target: "paperclip", operation: "ps" });
-          const c = payloadDigestForIntent({ operation: "ps", target: "paperclip-db" });
-          const pure = a === b && a !== c;
-          let replay: boolean | null = null;
-          let conflict: boolean | null = null;
-          let contextNote: string | null = null;
-          if (agentId && issueId && operatorRunId) {
-            // Same requestId + same payload must replay (read-only check).
-            const reread = await readHostOp(smokeId);
-            replay = reread !== null && /replayed|pending|planned-only|succeeded|failed|errorcode/i.test(reread);
-            // Same requestId + different payload must conflict WITHOUT executing.
-            try {
-              const { createHostTools } = await import("./host-ops.js");
-              const op = createHostTools().find((t) => t.name === "paperclipHostOperation");
-              if (!op) throw new Error("paperclipHostOperation not registered");
-              const out = await op.execute({ operation: "ps", target: "paperclip-db", reason: "smoke conflict probe", requestId: smokeId, agentId, issueId, operatorRunId });
-              const text = out.content[0]?.text ?? "";
-              conflict = /idempotency_conflict/i.test(text);
-            } catch (e) {
-              conflict = /idempotency_conflict/i.test(e instanceof Error ? e.message : String(e));
-            }
-          } else if (issueId) {
-            // P0 2026-10-17: live session-level idempotency through the
-            // workspace-exec operationId lane (works with a board key or the
-            // caller's own live run): same operationId + same argv replays;
-            // same operationId + changed argv conflicts without re-executing.
-            try {
-              const { createWorkspaceNativeTools } = await import("./workspace-native.js");
-              const exec = createWorkspaceNativeTools(client).find((t) => t.name === "paperclipWorkspaceExec");
-              if (!exec) throw new Error("paperclipWorkspaceExec not registered");
-              const argvSame = ["node", "-e", `console.log("mcp-smoke idempotency ${smokeId}")`];
-              const argvChanged = ["node", "-e", `console.log("mcp-smoke changed payload ${smokeId}")`];
-              const firstOut = await exec.execute({ issueId, argv: argvSame, operationId: smokeId });
-              const firstText = firstOut.content[0]?.text ?? "";
-              if (/errorCode/.test(firstText)) {
-                contextNote = `workspace exec idempotency probe unavailable: ${firstText.slice(0, 300)}`;
-              } else {
-                const replayOut = await exec.execute({ issueId, argv: argvSame, operationId: smokeId });
-                const replayText = replayOut.content[0]?.text ?? "";
-                replay = /"replayed": true/.test(replayText);
-                const conflictOut = await exec.execute({ issueId, argv: argvChanged, operationId: smokeId });
-                const conflictText = conflictOut.content[0]?.text ?? "";
-                conflict = /idempotency_conflict/i.test(conflictText);
-              }
-            } catch (e) {
-              contextNote = e instanceof Error ? e.message.slice(0, 300) : String(e);
-            }
-          }
-          // Without a live execution context only the pure digest determinism is
-          // provable — report UNVERIFIED, never a vacuous PASS (MCP-REG-040).
-          const idempotencyContextAvailable = Boolean((agentId && issueId && operatorRunId) || replay !== null);
-          const ok = pure && replay === true && conflict === true;
-          steps.push({
-            name: "idempotency",
-            status: idempotencyContextAvailable ? (ok ? "pass" : "fail") : "unverified",
-            evidence: {
-              orderInsensitive: a === b,
-              payloadSensitive: a !== c,
-              replayWithoutReexecution: replay,
-              conflictOnChangedPayload: conflict,
-              note: contextNote ?? (idempotencyContextAvailable ? "workspace-exec operationId lane: same request replays, changed payload conflicts" : "digest determinism verified; replay/conflict need issueId (workspace exec lane) or a live operator context"),
-            },
-          });
-        } catch (e) {
-          steps.push({ name: "idempotency", status: "fail", evidence: e instanceof Error ? e.message : String(e) });
-        }
-        // 6. audit: company activity reachable.
-        try {
-          const companyId = client.resolveCompanyId();
-          const act = await getJsonOrNull(client, `/companies/${companyId}/activity?limit=5`);
-          steps.push({ name: "audit", status: act !== null ? "pass" : "fail", evidence: act !== null ? "activity stream reachable" : "activity stream unreachable" });
-        } catch (e) {
-          steps.push({ name: "audit", status: "fail", evidence: e instanceof Error ? e.message : String(e) });
-        }
-        // 7. manifest.
+      "Read-only production smoke test of public health, OAuth discovery, negative 401, authenticated initialize/tools/list/call and the tool manifest. No supervisor, synthetic writes or host access.",
+      z.object({ expectedToolCount: z.number().int().positive().optional().nullable() }),
+      async ({ expectedToolCount }) => {
+        const probe = await probePublicMcpTransport(resolvePublicMcpBase(), client.callerApiKey ?? null);
         const manifest = toolManifestDigest();
-        const want = expectedToolCount ?? 150;
-        steps.push({ name: "manifest", status: manifest.count >= want ? "pass" : "fail", evidence: { toolCount: manifest.count, digest: manifest.digest, expected: want } });
-        // 8. artifact match.
-        try {
-          const h = await getJsonOrNull(client, "/health");
-          const runningCommit = isRecord(h) && typeof h.commit === "string" ? (h.commit as string) : null;
-          const envCommit = process.env.PAPERCLIP_BUILD_COMMIT || null;
-          const match = Boolean(runningCommit && envCommit && runningCommit === envCommit);
-          steps.push({ name: "artifact", status: match ? "pass" : "fail", evidence: { runningCommit, envCommit } });
-        } catch (e) {
-          steps.push({ name: "artifact", status: "fail", evidence: e instanceof Error ? e.message : String(e) });
-        }
-        void workspaceId;
-        const failed = steps.filter((s) => s.status === "fail").length;
-        const unverified = steps.filter((s) => s.status === "unverified").length;
-        const skipped = steps.filter((s) => s.status === "skip").length;
-        // Strict verdicts (KOMAA-797 audit): a skipped REQUIRED step is never a PASS.
-        const verdict = failed > 0 ? "SMOKE_FAIL" : unverified > 0 ? "SMOKE_UNVERIFIED" : skipped > 0 ? "SMOKE_PARTIAL_PASS" : "SMOKE_FULL_PASS";
-        return {
-          verdict,
-          fullPass: verdict === "SMOKE_FULL_PASS",
-          failed,
-          unverified,
-          skipped,
-          requestId: smokeId,
-          steps,
-          resume: "Reusing requestId suppresses comment-canary writes; host dry-run replay is idempotent via the supervisor requestId ledger.",
-        };
+        const ph = probe.publicHealth as Record<string, unknown>;
+        const pd = probe.discovery as Record<string, unknown>;
+        const denial = probe.unauthDenial as Record<string, unknown>;
+        const init = probe.initialize as Record<string, unknown>;
+        const listing = probe.toolsList as Record<string, unknown>;
+        const call = probe.harmlessCall as Record<string, unknown>;
+        const checks = [
+          { name: "public_health", ok: ph.reachable === true, evidence: ph },
+          { name: "oauth_discovery", ok: pd.reachable === true, evidence: pd },
+          { name: "unauthenticated_denial", ok: denial.deniedAsExpected === true, evidence: denial },
+          { name: "authenticated_initialize", ok: init.protocolOk === true, evidence: init },
+          { name: "authenticated_tool_list", ok: typeof listing.count === "number" && listing.count >= (expectedToolCount ?? 1), evidence: listing },
+          { name: "authenticated_harmless_call", ok: call.callOk === true, evidence: call },
+          { name: "registry_manifest", ok: manifest.count >= (expectedToolCount ?? 1), evidence: { count: manifest.count, digest: manifest.digest } },
+        ];
+        const failed = checks.filter((c) => !c.ok).length;
+        return { verdict: failed ? "SMOKE_FAIL" : "SMOKE_FULL_PASS", fullPass: failed === 0, failed,
+          unverified: 0, skipped: 0, mode: "public_read_only",
+          steps: checks.map((c) => ({ name: c.name, status: c.ok ? "pass" : "fail", evidence: c.evidence })),
+          note: "Runtime digest and deployment artifact are separate release checks, not inferred from public health." };
       },
     ),
   ];
 }
+

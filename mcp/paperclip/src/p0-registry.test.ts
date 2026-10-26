@@ -5,8 +5,6 @@ import { describe, expect, it } from "vitest";
 import { PaperclipApiClient } from "./client.js";
 import { createToolDefinitions } from "./tools.js";
 import { CONTROL_PLANE_TOOL_NAMES } from "./control-plane.js";
-import { HOST_TOOL_NAMES } from "./host-ops.js";
-import { HOST_QUERY_TOOL_NAMES } from "./host-query.js";
 import { WORKSPACE_NATIVE_TOOL_NAMES, redactWorkspaceOutput } from "./workspace-native.js";
 import { EFFECTIVE_ACCESS_TOOL_NAMES, BASE_TOOL_NAMES, allKnownToolNames, isKnownToolName } from "./effective-access.js";
 import { LIVE_VERIFY_TOOL_NAMES, allLiveToolNames } from "./live-verify.js";
@@ -37,13 +35,11 @@ describe("p0 tool registry", () => {
       "paperclipWorkspaceExec", "paperclipGitStatus", "paperclipGitDiff",
       "paperclipGitCreateBranch", "paperclipGitCommit", "paperclipGitPush",
       "paperclipGitCreatePR", "paperclipGitGetChecks", "paperclipGitGetMergeReadiness",
-      "paperclipHostGetOperation", "paperclipHostListOperations", "paperclipHostCancelOperation",
       "paperclipGetAgentEffectiveTools", "paperclipVerifyAgentTool", "paperclipGetToolDenial",
       "paperclipVerifyLiveMCP", "paperclipMCPRunSmokeTest",
       "paperclipGitAuthStatus", "paperclipGitGetRemoteTopology", "paperclipGitWaitChecks", "paperclipGitMergePR",
-      "paperclipHostGetEffectivePolicy", "paperclipWorkspaceApplyUnifiedDiff", "paperclipWorkspaceBatchChange",
-      "paperclipWorkspaceRunChecks", "paperclipOAuthDiagnoseSession", "paperclipHostPlanDeployment",
-      "paperclipHostApplyDeployment", "paperclipExecuteDeliveryUnit",
+      "paperclipWorkspaceApplyUnifiedDiff", "paperclipWorkspaceBatchChange",
+      "paperclipWorkspaceRunChecks", "paperclipOAuthDiagnoseSession",
       "paperclipListAgentChats", "paperclipGetAgentChat", "paperclipSendChatMessage",
       "paperclipGetChatMessages", "paperclipNewChatSession",
     ]) {
@@ -54,8 +50,7 @@ describe("p0 tool registry", () => {
   it("every registered tool is covered by exactly one name list (no drift)", () => {
     const names = createToolDefinitions(dummyClient()).map((t) => t.name);
     const lists: string[][] = [
-      BASE_TOOL_NAMES, CONTROL_PLANE_TOOL_NAMES, HOST_TOOL_NAMES,
-      HOST_QUERY_TOOL_NAMES, WORKSPACE_NATIVE_TOOL_NAMES,
+      BASE_TOOL_NAMES, CONTROL_PLANE_TOOL_NAMES, WORKSPACE_NATIVE_TOOL_NAMES,
       EFFECTIVE_ACCESS_TOOL_NAMES, LIVE_VERIFY_TOOL_NAMES,
       P1_GIT_TOOL_NAMES, P1_PLATFORM_TOOL_NAMES, ISSUE_FIELD_TOOL_NAMES,
     ];
@@ -79,3 +74,4 @@ describe("p0 tool registry", () => {
     expect(redactWorkspaceOutput("-----BEGIN PRIVATE KEY-----\nabc\n-----END PRIVATE KEY-----")).not.toContain("abc");
   });
 });
+

@@ -1748,7 +1748,7 @@ export function createToolDefinitions(client: PaperclipApiClient): ToolDefinitio
   all.push(...createEffectiveAccessTools(client));
   all.push(...createLiveVerifyTools(client));
   all.push(...createP1GitTools(client));
-  // Supervisor-backed deployment and fake delivery saga are retired. Keep\n  // the independent workspace/test/OAuth tools from this module.\n  all.push(...createP1PlatformTools(client).filter(t =>\n    !t.name.startsWith("paperclipHost") && t.name !== "paperclipExecuteDeliveryUnit"));
+  all.push(...createP1PlatformTools(client));
   all.push(...createIssueFieldTools(client));
   // --- Filter to whitelist / env override ---
   const filtered = all.filter(t => isToolEnabled(t.name));
@@ -1757,5 +1757,6 @@ export function createToolDefinitions(client: PaperclipApiClient): ToolDefinitio
   }
   return filtered;
 }
+
 
 

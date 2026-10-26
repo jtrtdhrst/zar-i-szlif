@@ -4,8 +4,8 @@
 // upstream credential/route it takes, what context it requires, and whether the
 // capability is supported at all. Previously this logic was split across
 // client.ts (ROUTE_PERMISSION_MATRIX + AGENT_ISSUE_RUN_MATRIX), workspace-native.ts
-// (authorizeWorkspaceMutation), host-ops.ts (submitHostIntent gating) and
-// effective-access.ts (needsRun/policyFor) — four copies that drifted (e.g.
+// (authorizeWorkspaceMutation) and effective-access.ts (needsRun/policyFor).
+// Former duplicated copies drifted (e.g.
 // Upsert/Restore/Link/Unlink had NO local run gate while PATCH/COMMENTS did).
 //
 // This module is the canonical registry. client.ts keeps its matrices (source of
@@ -14,8 +14,6 @@
 // and gateway projection consume this registry for honest capability reporting.
 
 import { CONTROL_PLANE_TOOL_NAMES } from "./control-plane.js";
-import { HOST_TOOL_NAMES } from "./host-ops.js";
-import { HOST_QUERY_TOOL_NAMES } from "./host-query.js";
 import { WORKSPACE_NATIVE_TOOL_NAMES } from "./workspace-native.js";
 import { P1_GIT_TOOL_NAMES } from "./p1-git.js";
 import { P1_PLATFORM_TOOL_NAMES } from "./p1-platform.js";
@@ -58,23 +56,9 @@ export interface ToolCapability {
   verificationStrategy: "readback" | "dryrun" | "probe" | "none";
 }
 
-// The 7 host operations accepted by schema but with NO supervisor lane in
-// enforced policy v3.8 — fail-closed by design (submitHostIntent throws before
-// submitting). Listed here so capability reporting never advertises them as
-// working. Owner-approved policy bump required to enable.
-export const HOST_NOLANE_OPERATIONS: readonly string[] = [
-  "host.container_build",
-  "host.service_start",
-  "host.service_stop",
-  "host.service_restart",
-  "host.backup.verify",
-  "host.migration.dry_run",
-  "host.migration.verify",
-];
-
 // Canonical upstream routes for the 21 context-gated tools (+ review/board set).
 // Used for capability reporting and parity tests — NOT a second enforcement path
-// (enforcement stays in client.ts / workspace-native.ts / host-ops.ts).
+// (enforcement stays in client.ts / workspace-native.ts).
 const ROUTES: Record<string, { route: string; mode: ExecutionMode; run: boolean; ws: boolean; host: boolean; board: boolean; side: ToolCapability["sideEffectClass"] }> = {
   paperclipCreateIssue: { route: "POST /companies/:id/issues", mode: "direct", run: false, ws: false, host: false, board: false, side: "write" },
   paperclipUpdateIssue: { route: "PATCH /issues/:id", mode: "issue_run", run: true, ws: false, host: false, board: false, side: "write" },
@@ -96,7 +80,6 @@ const ROUTES: Record<string, { route: string; mode: ExecutionMode; run: boolean;
   paperclipGitPush: { route: "local git push origin-only", mode: "issue_run", run: true, ws: true, host: false, board: false, side: "write" },
   paperclipGitCreatePR: { route: "local gh pr create", mode: "issue_run", run: true, ws: true, host: false, board: false, side: "write" },
   paperclipGitMergePR: { route: "local gh pr merge", mode: "issue_run", run: true, ws: true, host: false, board: false, side: "write" },
-  paperclipHostOperation: { route: "host supervisor intent (file bridge)", mode: "host_supervisor", run: true, ws: false, host: true, board: false, side: "destructive" },
   paperclipSubmitReviewDecision: { route: "POST /approvals/:id/{approve|reject|request-revision} | POST /issues/:id/stalled-review-decision", mode: "direct", run: false, ws: false, host: false, board: true, side: "write" },
   paperclipRequestReview: { route: "PATCH /issues/:id {status:in_review}", mode: "issue_run", run: true, ws: false, host: false, board: false, side: "write" },
   paperclipResolveReviewWedge: { route: "POST /issues/:id/stalled-review-decision (+ pre-reads)", mode: "direct", run: false, ws: false, host: false, board: true, side: "write" },
@@ -140,11 +123,11 @@ export function toolCapability(name: string): ToolCapability {
     upstreamRoute: "see handler",
     supportedExecutionModes: ["direct"],
     requiresRun: false,
-    requiresWorkspace: /^(paperclip(Workspace|Git|Host))/.test(name),
-    requiresHostPolicy: /^paperclipHost/.test(name),
+    requiresWorkspace: /^(paperclip(Workspace|Git))/.test(name),
+    requiresHostPolicy: false,
     requiresBoard: false,
-    supported: !HOST_NOLANE_OPERATIONS.some((op) => name.includes(op)),
-    unsupportedReason: HOST_NOLANE_OPERATIONS.some((op) => name.includes(op)) ? "no supervisor lane in enforced policy v3.8 (fail-closed; owner policy bump required)" : undefined,
+    supported: !name.startsWith("paperclipHost"),
+    unsupportedReason: name.startsWith("paperclipHost") ? "retired tool; release through Coolify" : undefined,
     sideEffectClass: isRead ? "read" : "write",
     verificationStrategy: isRead ? "probe" : "readback",
   };
@@ -152,7 +135,7 @@ export function toolCapability(name: string): ToolCapability {
 
 export function isUnsupportedCapability(name: string, operation?: string): boolean {
   if (!operation) return false;
-  return (HOST_NOLANE_OPERATIONS as readonly string[]).includes(operation);
+  return name.startsWith("paperclipHost") || operation.startsWith("host.");
 }
 
 export function resolveExecutionPlan(toolName: string, principal: ExecutionPrincipal, correlationId: string): ExecutionPlan {
@@ -233,8 +216,6 @@ const MINIMAL_KEEP = new Set([
   "paperclipGitAuthStatus", "paperclipGitGetRemoteTopology", "paperclipGitWaitChecks",
   "paperclipGitStatus", "paperclipGitDiff", "paperclipGitGetChecks", "paperclipGitGetMergeReadiness",
   "paperclipWorkspaceListFiles", "paperclipWorkspaceReadFile",
-  "paperclipHostCapabilities", "paperclipHostGetEffectivePolicy",
-  "paperclipHostGetOperation", "paperclipHostListOperations",
   "paperclipWikiList", "paperclipWikiSearch", "paperclipWikiGetPage",
   "paperclipVerifyAgentTool", "paperclipGetToolDenial",
   "paperclipVerifyLiveMCP", "paperclipMCPRunSmokeTest", "paperclipGetAgentEffectiveTools",
@@ -256,7 +237,6 @@ export function profileToolNames(profile: ToolProfile, all: string[]): string[] 
     return all.filter((n) => {
       if (BOARD_ONLY_RE.test(n)) return false;
       if (AGENT_EXCLUDE_RE.test(n)) return false;
-      if (n === "paperclipHostOperation") return false;
       if (CONTROL_PLANE_TOOL_NAMES.includes(n)) return cp.has(n);
       return true;
     });
@@ -267,7 +247,6 @@ export function profileToolNames(profile: ToolProfile, all: string[]): string[] 
   const agent = new Set(profileToolNames("agent", all));
   for (const n of all) {
     if (BOARD_ONLY_RE.test(n)) agent.add(n);
-    if (n === "paperclipHostOperation" || n === "paperclipHostApplyDeployment") agent.add(n);
     if (/ApprovalDecision|SubmitReviewDecision|ResolveReviewWedge/.test(n)) agent.add(n);
   }
   return [...agent];
@@ -292,7 +271,6 @@ export const TOOL_NAMESPACES: Record<string, RegExp> = {
   issue: /^paperclip(Issue|ListIssues|GetIssue|Heartbeat|Comment|Document|Approval|Review|Interaction|Task|Question|Confirmation|Bulk)/,
   workspace: /^paperclipWorkspace/,
   git: /^paperclipGit/,
-  host: /^paperclipHost/,
   review: /^paperclip.*(Review|Approval|Interaction)/,
   catalog: /^paperclip.*(Skill|Catalog|Wiki)/,
   access: /^paperclip(GetAgentEffective|VerifyAgent|GetToolDenial|VerifyLive|MCPRunSmoke)/,
@@ -305,4 +283,5 @@ export function namespaceToolNames(ns: string, all: string[]): string[] {
 }
 
 // Re-exported aggregates so gateway/projection and tests share one import.
-export { CONTROL_PLANE_TOOL_NAMES, HOST_TOOL_NAMES, HOST_QUERY_TOOL_NAMES, WORKSPACE_NATIVE_TOOL_NAMES, P1_GIT_TOOL_NAMES, P1_PLATFORM_TOOL_NAMES, ISSUE_FIELD_TOOL_NAMES };
+export { CONTROL_PLANE_TOOL_NAMES, WORKSPACE_NATIVE_TOOL_NAMES, P1_GIT_TOOL_NAMES, P1_PLATFORM_TOOL_NAMES, ISSUE_FIELD_TOOL_NAMES };
+
