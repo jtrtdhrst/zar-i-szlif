@@ -1,3 +1,4 @@
+import { fetchAgentMe as fetchAgentMeWithRetry } from "./identity-retry.mjs";
 import { createHash, randomBytes, randomUUID } from "node:crypto";
 import { readFileSync, writeFileSync } from "node:fs";
 import { createServer } from "node:http";
@@ -7,11 +8,30 @@ import { createPaperclipMcpServer } from "/paperclip/mcp-patch/src/index.ts";
 import { allLiveToolNames } from "/paperclip/mcp-patch/src/live-verify.ts";
 import { profileToolNames } from "/paperclip/mcp-patch/src/execution-broker.ts";
 import { resolvePrincipal, describePrincipal, jwtRunId, isVerifiedOwnerBoardGrant } from "./principal.mjs";
+import { createOriginResolver } from "./public-origin.mjs";
 
 const HOST = process.env.MCP_HOST || "0.0.0.0";
 const PORT = Number(process.env.MCP_PORT || 3101);
 const API_URL = (process.env.PAPERCLIP_API_URL || "http://127.0.0.1:3100/api").replace(/\/+$/, "");
 const PUBLIC_BASE_URL = (process.env.MCP_PUBLIC_BASE_URL || "").replace(/\/+$/, "");
+// One gateway, several public hostnames (canonical + alias). OAuth metadata
+// must be self-consistent per host; only listed origins may override the
+// canonical origin, so a spoofed Host/X-Forwarded-Host cannot rewrite it.
+const ORIGIN_RESOLVER = createOriginResolver({
+  publicBaseUrl: PUBLIC_BASE_URL,
+  publicOrigins: process.env.MCP_PUBLIC_ORIGINS || "",
+});
+
+// KOMAA-1415: the llm-wiki plugin is Board-gated in Paperclip 2026.1012.0. The
+// gateway projects its own enrolled Board credential ONLY for these exact
+// agent ids and ONLY for the wiki plugin data/actions routes (enforced again
+// in client.ts). The credential never leaves this process.
+const WIKI_BOARD_AGENT_IDS = new Set(
+  (process.env.PAPERCLIP_MCP_WIKI_BOARD_AGENT_IDS || "")
+    .split(",")
+    .map((value) => value.trim())
+    .filter(Boolean),
+);
 
 // --- Minimal OAuth 2.1 + MCP Protected Resource layer for Claude Web custom connectors ---
 // Claude.ai supports only OAuth (CIMD/DCR), not static Bearer. This bridge issues
@@ -59,7 +79,8 @@ function urlTokenFromRequest(req, url) {
 }
 
 function publicBaseUrl(req) {
-  if (PUBLIC_BASE_URL) return PUBLIC_BASE_URL;
+  const origin = ORIGIN_RESOLVER.resolve(req);
+  if (origin) return origin;
   const forwardedProto = (req.headers["x-forwarded-proto"] || "").split(",")[0]?.trim();
   const host = (req.headers["x-forwarded-host"] || req.headers.host || `127.0.0.1:${PORT}`).split(",")[0]?.trim();
   const isLocal = /^(localhost|127\.|10\.|192\.168\.|172\.(1[6-9]|2\d|3[01])\.)/.test(host);
@@ -452,23 +473,8 @@ const SERVICE_TOKENS = [
   process.env.OAUTH_DEFAULT_PAPERCLIP_TOKEN,
 ].filter((value) => typeof value === "string" && value.trim().length > 0);
 
-async function fetchAgentMe(token, runId) {
-  try {
-    const headers = { Authorization: `Bearer ${token}`, Accept: "application/json" };
-    if (runId) headers["X-Paperclip-Run-Id"] = runId;
-    const response = await fetch(`${API_URL}/agents/me`, {
-      headers,
-      signal: AbortSignal.timeout(5000),
-    });
-    if (response.status === 401 || response.status === 403) return null;
-    if (!response.ok) return null;
-    const agent = await response.json();
-    if (!UUID_RE.test(agent?.id || "")) return null;
-    return { id: agent.id, companyId: agent.companyId };
-  } catch {
-    return null;
-  }
-}
+// Bounded transient-only retry. Never retry credential denial or change the caller.
+const fetchAgentMe = (token, runId) => fetchAgentMeWithRetry(token, runId, { apiUrl: API_URL });
 
 async function resolveMcpPrincipal(token, rawBoardToken, rawRunId) {
   return resolvePrincipal(
@@ -566,6 +572,7 @@ async function handleMcp(req, res, token, bodyOverride, agentContext = null, pri
     agentId: session.agentId,
     runId: session.runId,
     principalKind: session.principalKind ?? null,
+    wikiBoardApiKey: session.agentId && WIKI_BOARD_AGENT_IDS.has(session.agentId) ? SERVER_BOARD_API_KEY : null,
   }, toolAllowlist ? { toolAllowlist } : undefined);
   console.log(
     `[paperclip-mcp] session principal kind=${session.principalKind || "legacy"} agentId=${session.agentId || "none"} `

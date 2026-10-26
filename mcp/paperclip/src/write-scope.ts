@@ -129,7 +129,7 @@ export function assertPathInScope(scope: WriteScope | null, relPath: string, too
 
 // git subcommands that never write the worktree (read-only or repo-level only).
 const GIT_READONLY = new Set([
-  "status", "diff", "log", "show", "rev-parse", "rev-list", "ls-remote", "symbolic-ref",
+  "status", "diff", "log", "show", "rev-parse", "rev-list", "merge-base", "ls-remote", "symbolic-ref",
   "remote", "branch", "tag", "blame", "describe", "cat-file", "fetch", "config", "stash",
 ]);
 

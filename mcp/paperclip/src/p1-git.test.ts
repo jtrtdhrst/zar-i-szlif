@@ -1,6 +1,6 @@
 import { EventEmitter } from "node:events";
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { createP1GitTools, deriveGitPermissions } from "./p1-git.js";
+import { buildMergeArgv, createP1GitTools, deriveGitPermissions, evaluateMergeGate, evaluatePrChecks } from "./p1-git.js";
 import type { PaperclipApiClient } from "./client.js";
 
 const { spawnMock } = vi.hoisted(() => ({ spawnMock: vi.fn() }));
@@ -137,5 +137,65 @@ describe("paperclipGitAuthStatus scope reporting", () => {
     const body = JSON.parse(result.content[0]?.text ?? "{}");
     expect(body.allowedOperations).toEqual(["read"]);
     expect(body.missingPermissions).toContain("contents:write");
+  });
+});
+
+describe("paperclipGitWaitChecks evaluation (fail-closed)", () => {
+  it("never reports success when the checks context is unreadable (denied Checks:Read)", () => {
+    // Observed live defect: exit 4 with empty stdout returned success/terminal.
+    expect(evaluatePrChecks(4, "")).toMatchObject({ state: "unverified" });
+    expect(evaluatePrChecks(1, "")).toMatchObject({ state: "unverified" });
+    expect(evaluatePrChecks(0, "no checks reported on the 'KOMAA-1415' branch")).toMatchObject({ state: "unverified" });
+  });
+
+  it("reports success only for explicit pass lines with a zero exit", () => {
+    expect(evaluatePrChecks(0, "verify-infrastructure\tpass\t1m\thttps://example/1")).toMatchObject({ state: "success" });
+    expect(evaluatePrChecks(0, "verify-infrastructure\tpass\t1m")).toMatchObject({ state: "success" });
+    expect(evaluatePrChecks(3, "verify-infrastructure\tpass\t1m")).toMatchObject({ state: "unverified" });
+  });
+
+  it("separates failure and pending states", () => {
+    expect(evaluatePrChecks(1, "mcp-tests\tfail\t2m")).toMatchObject({ state: "failure" });
+    expect(evaluatePrChecks(1, "mcp-tests\tpending\t0")).toMatchObject({ state: "pending" });
+    expect(evaluatePrChecks(1, "mcp-tests\tqueued\t0")).toMatchObject({ state: "pending" });
+  });
+});
+
+describe("paperclipGitMergePR gate (fail-closed)", () => {
+  const base = { headRefOid: "df09a54950358a6acb179f59738919e71962f8ec", reviewDecision: "APPROVED", mergeable: "MERGEABLE", mergeStateStatus: "CLEAN" };
+
+  it("allows a clean, exact-head, approved PR", () => {
+    expect(evaluateMergeGate(base, "df09a54950358a6acb179f59738919e71962f8ec").ok).toBe(true);
+  });
+
+  it("refuses when the head or gate state is unreadable", () => {
+    expect(evaluateMergeGate({ ...base, headRefOid: "" }, "df09a549").ok).toBe(false);
+    expect(evaluateMergeGate({ ...base, mergeStateStatus: "UNKNOWN" }, "df09a549").ok).toBe(false);
+    expect(evaluateMergeGate({ ...base, mergeable: "UNKNOWN" }, "df09a549").ok).toBe(false);
+  });
+
+  it("refuses a mismatched SHA, requested changes, or blocked merge state", () => {
+    expect(evaluateMergeGate(base, "0000000000000000000000000000000000000000").ok).toBe(false);
+    expect(evaluateMergeGate({ ...base, reviewDecision: "CHANGES_REQUESTED" }, "df09a549").ok).toBe(false);
+    expect(evaluateMergeGate({ ...base, mergeStateStatus: "BLOCKED" }, "df09a549").ok).toBe(false);
+  });
+});
+
+describe("paperclipGitMergePR head-race guard", () => {
+  const headSha = "fd281ca51f67207dabbeaaa7a832555071d81b6f";
+
+  it("pins the merge to the verified full head SHA", () => {
+    // A head push between the gate read and the merge must make gh refuse.
+    expect(buildMergeArgv(98, ["--repo", "owner/repo"], "--merge", headSha)).toEqual([
+      "gh", "pr", "merge", "98", "--repo", "owner/repo", "--merge", "--match-head-commit", headSha,
+    ]);
+  });
+
+  it("pins every merge method, not just the default", () => {
+    for (const methodFlag of ["--merge", "--squash", "--rebase"]) {
+      const argv = buildMergeArgv(7, [], methodFlag, headSha);
+      expect(argv).toContain("--match-head-commit");
+      expect(argv[argv.indexOf("--match-head-commit") + 1]).toBe(headSha);
+    }
   });
 });

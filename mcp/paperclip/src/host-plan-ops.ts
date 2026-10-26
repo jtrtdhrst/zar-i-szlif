@@ -24,6 +24,9 @@ export const REQUIRED_DEPLOY_OPS = [
   "host.deployment_verify",
 ] as const;
 
+// Exact gateway lane replaces the unsafe generic container recreation.
+export const GATEWAY_DEPLOY_OPS = ["mcp.gateway.release", "host.deployment_verify"] as const;
+
 const ALIAS_SPELLING: Record<string, string> = {
   "host.deployment.verify": "host.deployment_verify",
   "host.service_reload": "host.service.reload",
@@ -47,11 +50,12 @@ export interface DeploymentOpResolution {
 }
 
 export function resolveDeploymentOps(lane: DeploymentLane, service: string): DeploymentOpResolution {
+  const required = service === "paperclip-mcp-gateway" ? GATEWAY_DEPLOY_OPS : REQUIRED_DEPLOY_OPS;
   const laneSet = new Set(lane.laneOperations.map(canonicalOp));
-  const missingOps = REQUIRED_DEPLOY_OPS.filter((op) => !laneSet.has(op));
+  const missingOps = required.filter((op) => !laneSet.has(op));
   const missingTargets =
-    missingOps.length === 0 && !lane.recreateTargets.includes(service) ? [service] : [];
-  return { operations: [...REQUIRED_DEPLOY_OPS], missingOps, missingTargets };
+    missingOps.length === 0 && service !== "paperclip-mcp-gateway" && !lane.recreateTargets.includes(service) ? [service] : [];
+  return { operations: [...required], missingOps, missingTargets };
 }
 
 export function unsupportedPlannedOps(plannedOps: string[], laneOperations: string[]): string[] {
@@ -59,7 +63,8 @@ export function unsupportedPlannedOps(plannedOps: string[], laneOperations: stri
   return plannedOps.filter((op) => !laneSet.has(canonicalOp(op)));
 }
 
-export function missingRequiredInPlan(plannedOps: string[]): string[] {
+export function missingRequiredInPlan(plannedOps: string[], service?: string): string[] {
+  const required = service === "paperclip-mcp-gateway" ? GATEWAY_DEPLOY_OPS : REQUIRED_DEPLOY_OPS;
   const have = new Set(plannedOps.map(canonicalOp));
-  return REQUIRED_DEPLOY_OPS.filter((op) => !have.has(op));
+  return required.filter((op) => !have.has(op));
 }

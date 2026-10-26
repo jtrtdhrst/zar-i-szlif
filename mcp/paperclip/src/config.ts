@@ -2,7 +2,6 @@ import { readFileSync } from "node:fs";
 
 const ENROLLED_SECRET_PATHS = {
   agentApiKey: "/paperclip/instances/default/secrets/remote-mcp-agent-key",
-  boardApiKey: "/paperclip/instances/default/secrets/remote-mcp-board-key",
 } as const;
 
 export interface PaperclipMcpConfig {
@@ -14,6 +13,11 @@ export interface PaperclipMcpConfig {
   operatorRunId?: string | null; // KOMAA-630: first-class operator session
   agentApiKey: string | null;
   boardApiKey: string | null;
+  // KOMAA-1415: route-scoped Board projection for the llm-wiki plugin only.
+  // The gateway resolves this from its own enrolled secret; it is never part
+  // of the principal descriptor, never returned to the client and never used
+  // for any route outside the wiki plugin data/actions allowlist.
+  wikiBoardApiKey?: string | null;
   /** Explicit gateway caller principal; absent for legacy stdio agent runtimes. */
   principalKind?: "agent" | "board" | "service" | null;
 }
@@ -23,13 +27,12 @@ function nonEmpty(value: string | undefined): string | null {
 }
 
 /**
- * The live stdio MCP server runs /paperclip/mcp-patch/src/stdio.ts directly, so
- * the credentials have to be resolved here and not only from the launcher env:
- * the opencode container does not carry PAPERCLIP_BOARD_API_KEY, which made
- * every Board-class route fail closed with CONFIGURATION_MISSING even though
- * the credential IS enrolled. The public gateway already resolves the same
- * enrolled files (gateway.mjs). A missing, unreadable or blank secret stays
- * fail-closed, so the change cannot weaken the fail-closed contract.
+ * Only the agent key may be resolved from the enrolled file in a generic MCP
+ * process. The enrolled Board key is exclusively read by the trusted gateway,
+ * which projects it to the narrow allowlisted Wiki routes and never puts it
+ * into ordinary agent/service session configuration. A caller-provided Board
+ * key must be explicitly configured for a non-agent session. Missing keys
+ * fail closed; no filesystem Board fallback is allowed in this module.
  */
 function readEnrolledSecret(path: string): string | null {
   try {
@@ -58,14 +61,17 @@ export function readConfigFromEnv(env: NodeJS.ProcessEnv = process.env): Papercl
     throw new Error("Missing PAPERCLIP_API_KEY");
   }
 
+  const agentId = nonEmpty(env.PAPERCLIP_AGENT_ID);
   return {
     apiUrl: normalizeApiUrl(apiUrl),
     apiKey,
     companyId: nonEmpty(env.PAPERCLIP_COMPANY_ID),
-    agentId: nonEmpty(env.PAPERCLIP_AGENT_ID),
+    agentId,
     runId: nonEmpty(env.PAPERCLIP_RUN_ID),
     operatorRunId: nonEmpty(env.PAPERCLIP_OPERATOR_RUN_ID),
     agentApiKey: nonEmpty(env.PAPERCLIP_AGENT_API_KEY) ?? readEnrolledSecret(ENROLLED_SECRET_PATHS.agentApiKey),
-    boardApiKey: nonEmpty(env.PAPERCLIP_BOARD_API_KEY) ?? readEnrolledSecret(ENROLLED_SECRET_PATHS.boardApiKey),
+    // Never promote a generic agent to Board, even if someone accidentally
+    // injects PAPERCLIP_BOARD_API_KEY into its environment.
+    boardApiKey: agentId ? null : nonEmpty(env.PAPERCLIP_BOARD_API_KEY),
   };
 }

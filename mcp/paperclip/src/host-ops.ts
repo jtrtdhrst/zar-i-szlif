@@ -5,6 +5,7 @@ import { createHash, randomUUID } from "node:crypto";
 import { promises as fs } from "node:fs";
 import { join } from "node:path";
 import { formatErrorResponse, formatTextResponse } from "./format.js";
+import { resolveHostRunContext } from "./host-run-context.js";
 
 // Host Operations Adapter (P0 §3): exposes the EXISTING vps-ops-supervisor
 // bridge (policy v3.8, supervisor 1.0.16) as typed public MCP tools.
@@ -18,16 +19,16 @@ import { formatErrorResponse, formatTextResponse } from "./format.js";
 // The MCP layer NEVER touches docker, host credentials, or the board key.
 // The gateway Bearer (OAuth-mapped pcp key) is only Paperclip API auth;
 // host authorization is re-validated supervisor-side from issue/run context
-// (owned non-terminal issue + live run context for reads and mutations —
-// runId of the current heartbeat run, operatorRunId legacy alias, session
-// default PAPERCLIP_RUN_ID; 900 s TTL, single-flight, persistent ledger).
+// (owned non-terminal issue + issue-bound live run for reads; runId grants only
+// canary host.file.patch mutations, while every other mutation keeps audited
+// operatorRunId auth; 900 s TTL, single-flight, persistent ledger).
 // Unknown P0 catalog
 // names (service_start/stop, container_build, database_*, cron, firewall…)
 // are NOT in the schema enum: zod rejects them fail-closed with the bootstrap
 // pointer instead of implying execution.
 
-export const HOST_BRIDGE_POLICY_VERSION = "v3.8";
-export const HOST_SUPERVISOR_VERSION = "1.0.16";
+export const HOST_BRIDGE_POLICY_VERSION = "v3.12";
+export const HOST_SUPERVISOR_VERSION = "1.0.21";
 export const HOST_BRIDGE_TAG = "v3";
 export const HOST_REQUEST_TTL_SEC = 900;
 
@@ -85,6 +86,8 @@ export const HOST_MUT_OPERATIONS = [
   "mcp.test_candidate",
   "mcp.deploy_candidate",
   "mcp.rollback",
+  "mcp.gateway.prepare",
+  "mcp.gateway.release",
   "host.file.patch",
   "host.container.recreate",
   "host.service.reload",
@@ -166,6 +169,12 @@ export const HOST_INSPECT_TARGETS = [
   // Narrow, exact target name only - no wildcard; unrelated services stay denied.
   // The supervisor still enforces its own per-target pin (policy v3.9) host-side.
   "mantic-mcp-http",
+  // KOMAA-1415: the verified public MCP edge. The Cloudflare tunnel origin
+  // paperclip-engine.zariszlif.pl -> paperclip:3101 -> socat forwards to
+  // `paperclip-mcp-gateway` (172.20.0.16). `paperclip-mcp-gateway-pub`
+  // (172.20.0.19) is an idle legacy instance and is deliberately NOT pinned:
+  // one exact public target, read-only inspect/logs only, no wildcard.
+  "paperclip-mcp-gateway",
 ] as const;
 
 export const HOST_RESTART_TARGETS = [
@@ -176,6 +185,9 @@ export const HOST_RESTART_TARGETS = [
 ] as const;
 
 export function targetError(op: string, target: string | undefined): string | null {
+  if ((op === "mcp.gateway.prepare" || op === "mcp.gateway.release") && target !== "paperclip-mcp-gateway") {
+    return `gateway release target not allowlisted: ${target ?? "(missing)"} [errorCode=not_allowlisted]`;
+  }
   if (op === "inspect" || op === "logs" || op === "host.service_status" || op === "host.container_inspect" || op === "host.service_logs" || op === "host.container_logs") {
     if (!target || !(HOST_INSPECT_TARGETS as readonly string[]).includes(target)) {
       return `target not allowlisted for ${op}: ${target ?? "(missing)"} (want one of ${(HOST_INSPECT_TARGETS as readonly string[]).join(", ")}) [errorCode=not_allowlisted]`;
@@ -211,8 +223,8 @@ export function redactHostOutput(text: string): string {
 // Canonical digest key list MUST match watcher.sh payload_digest() EXACTLY
 // (supervisor image owns the stamp; any MCP-side deviation false-conflicts
 // every replay of a supervisor-completed result). New intent fields
-// (service/artifactDigest) stay OUT of the digest until a supervisor policy
-// bump adopts them — the supervisor re-validates the full intent anyway.
+// The v3.12 supervisor includes sourceSha and artifactDigest in this digest.
+// They must never be omitted: changing either cannot safely replay a release.
 const PAYLOAD_DIGEST_KEYS = [
   "operation",
   "target",
@@ -227,6 +239,8 @@ const PAYLOAD_DIGEST_KEYS = [
   "digest",
   "dryRun",
   "tail",
+  "sourceSha",
+  "artifactDigest",
 ] as const;
 
 // Python-str canonicalization: the supervisor stamps digests with Python
@@ -262,16 +276,17 @@ const hostOperationSchema = z.object({
   contentSha: z.string().length(64).optional().describe("sha256 of content for host.file.patch"),
   expectedSha: z.string().length(64).optional().describe("Current sha256 from host.file.read, required for host.file.patch"),
   image: z.string().min(1).max(256).optional().describe("Image for host.container.recreate (must be allowlisted)"),
+  sourceSha: z.string().regex(/^[0-9a-f]{40}$/).optional().describe("Merged full Git SHA for a pinned Paperclip gateway release"),
   backupName: z.string().min(1).max(128).optional().describe("Bare file name for host.backup.restore_to_staging"),
   migrationId: z.string().min(1).max(128).optional().describe("Bare file name from migrations-allowlisted/ for host.migration.apply"),
   service: z.string().min(1).max(128).optional().describe("Service name for host.deployment_verify / host.service_* operations"),
   artifactDigest: z.string().min(1).max(256).optional().describe("Expected artifact digest for host.deployment_verify"),
   reason: z.string().trim().min(1).max(500).optional(),
-  requestId: z.string().guid().optional(),
-  agentId: z.string().guid(),
+  requestId: z.string().uuid().optional(),
+  agentId: z.string().uuid(),
   issueId: z.string().min(1).describe("Issue UUID or human identifier (KOMAA-xxx); supervisor resolves both host-side with same company/ownership guards"),
-  runId: z.string().guid().optional().nullable(),
-  operatorRunId: z.string().guid().optional().nullable(),
+  runId: z.string().uuid().optional().nullable(),
+  operatorRunId: z.string().uuid().optional().nullable(),
 });
 
 type HostOperationInput = z.infer<typeof hostOperationSchema>;
@@ -303,6 +318,21 @@ async function readRequest(requestId: string): Promise<Record<string, unknown> |
   }
 }
 
+// Read the host-owned request/result envelope before any retry. The backend
+// permits only one Docker mutation per planId, even after an agent's run ends.
+// No replayed request is submitted with a new runId while an old request is
+// still pending. This is read-only and must be called AFTER issue/run auth.
+export async function peekHostIntent(requestId: string): Promise<{ exists: boolean; result: unknown | null; pending: boolean }> {
+  if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(requestId)) {
+    throw new Error("invalid host requestId [errorCode=invalid_arguments]");
+  }
+  const result = await readResult(requestId);
+  if (result !== null) return { exists: true, result, pending: false };
+  const req = await readRequest(requestId);
+  if (req !== null) return { exists: true, result: null, pending: true };
+  return { exists: false, result: null, pending: false };
+}
+
 export interface HostBridgeHandle {
   requestId: string;
   result: unknown | null;
@@ -315,7 +345,8 @@ export interface HostBridgeHandle {
 // artifact matches; otherwise FAILED/UNVERIFIED with evidence — never a
 // bare PASS.
 async function submitDeploymentVerify(input: HostOperationInput): Promise<HostBridgeHandle> {
-  const effectiveRun = input.runId ?? input.operatorRunId ?? process.env.PAPERCLIP_RUN_ID ?? null;
+  const runContext = resolveHostRunContext(input);
+  const effectiveRun = runContext?.runId ?? null;
   if (!effectiveRun) {
     throw new Error("host op requires a live run context: pass runId of your current heartbeat run (legacy operatorRunId alias; PAPERCLIP_RUN_ID is applied automatically in agent sessions) [errorCode=auth_failed]");
   }
@@ -374,8 +405,8 @@ export async function submitHostIntent(input: HostOperationInput): Promise<HostB
   if (op === "host.deployment_verify") {
     return submitDeploymentVerify(input);
   }
-  const effectiveRunId = input.runId ?? input.operatorRunId ?? process.env.PAPERCLIP_RUN_ID ?? null;
-  if (!effectiveRunId) {
+  const runContext = resolveHostRunContext(input);
+  if (!runContext) {
     throw new Error("host op requires a live run context: pass runId of your current heartbeat run (legacy operatorRunId alias; PAPERCLIP_RUN_ID is applied automatically in agent sessions) [errorCode=auth_failed]");
   }
   const terr = targetError(op, input.target);
@@ -401,11 +432,11 @@ export async function submitHostIntent(input: HostOperationInput): Promise<HostB
     ...(input.contentSha ? { contentSha: input.contentSha } : {}),
     ...(input.expectedSha ? { expectedSha: input.expectedSha } : {}),
     ...(input.image ? { image: input.image } : {}),
+    ...(input.sourceSha ? { sourceSha: input.sourceSha } : {}),
     ...(input.backupName ? { backupName: input.backupName } : {}),
     ...(input.migrationId ? { migrationId: input.migrationId } : {}),
     ...(input.reason ? { reason: input.reason } : {}),
-    ...(effectiveRunId ? { runId: effectiveRunId } : {}),
-    ...(input.operatorRunId && input.operatorRunId !== effectiveRunId ? { operatorRunId: input.operatorRunId } : {}),
+    ...(runContext ?? {}),
   };
   const curDigest = payloadDigestForIntent(intent);
 
@@ -485,9 +516,9 @@ export function capabilitiesDocument(): Record<string, unknown> {
     recreateTargets: [...HOST_RECREATE_TARGETS],
     restartTargets: [...HOST_RESTART_TARGETS],
     auth: {
-      read: "owned non-terminal issue (UUID or KOMAA-xxx, same guards) + live run context (runId of your current heartbeat run; operatorRunId legacy alias; PAPERCLIP_RUN_ID session default)",
-      mutating: "live run context required (runId; operatorRunId legacy alias; PAPERCLIP_RUN_ID session default) — verified server-side by the supervisor; an absent context fails with auth_failed",
-      notes: "Supervisor re-validates everything host-side; the gateway Bearer is never a host credential. Expired intents (>900 s) fail closed. Replays never re-execute (ledger, replayed:true).",
+      read: "owned non-terminal issue + live heartbeat runId bound host-side to the exact issue and same agent/company, or an audited operatorRunId",
+      mutating: "audited operatorRunId or issue-bound live runId for host.file.patch (canary path only) and mcp.gateway.release (exact gateway, merged main SHA, rollback). Other mutations retain audited operatorRunId; every live run is verified host-side for status, agent/company and owned issue binding",
+      notes: "Supervisor re-validates every intent host-side; the gateway Bearer is never a host credential. Existing operatorRunId validation and TTL remain unchanged; request TTL is 900 s and replays never re-execute.",
     },
     idempotency: "Pass requestId (uuid) to retry safely; omit it to mint a new intent. Same requestId + same payload replays with replayed:true and never re-executes; same requestId + different payload fails closed with IDEMPOTENCY_CONFLICT (errorCode=idempotency_conflict, policyDecision=deny). On pending, re-call with the same requestId and same payload.",
     p1Expansion: {
@@ -498,8 +529,8 @@ export function capabilitiesDocument(): Record<string, unknown> {
     },
     notCovered: {
       operations: ["host.database_*", "host.cron/*", "host.firewall/DNS/TLS write", "host.build_candidate (bare)"],
-      reason: "No supervisor implementation in policy v3.8 (immutable for agents). Rejected fail-closed at the schema layer. v3.8 covers host.file.read/patch, host.container.recreate (empty allowlist until canary), host.service.reload (no handler pinned), host.backup.create/restore_to_staging (staging only), host.migration.apply (staging only).",
-      bootstrap: "Owner-approved supervisor policy bump (new image version + POLICY.md revision + audit) is required before any of these can execute. Ask the owner; do not retry via another path.",
+      reason: "No supervisor lane for these operations in the proposed v3.12 policy; generic container recreate remains unprovisioned. Only canary host.file.patch and the dedicated merged-SHA gateway release are eligible for issue-bound runId.",
+      bootstrap: "A reviewed supervisor image release and matching POLICY.md digest are required before any of these can execute; do not retry via another path.",
     },
     evidence: "Every result carries operationId/timestamp/target/status/result/durationMs/errorCode/policyDecision/evidenceReference (ledger:<requestId> log:watcher.log) plus additive payloadDigest (empty when unknown) and replayed flag on replays.",
   };
@@ -541,13 +572,13 @@ export function createHostTools(client?: PaperclipApiClient): HostToolDefinition
   return [
     makeHostTool(
       "paperclipHostCapabilities",
-      "Static allowlist of the host-operations bridge (policy v3.8, supervisor 1.0.16): allowed operations, targets, auth rules, deploy gate, idempotency, and what is NOT covered (fail-closed bootstrap list). No host call is made.",
+      "Static allowlist of the host-operations bridge (policy v3.11, supervisor 1.0.20): allowed operations, targets, authentication rules, deploy gate, idempotency and fail-closed gaps. No host call is made.",
       z.object({}),
       async () => capabilitiesDocument(),
     ),
     makeHostTool(
       "paperclipHostOperation",
-      "Execute one allowlisted host-supervisor intent via the file bridge and read back its evidence envelope (operationId/timestamp/target/status/result/durationMs/errorCode/policyDecision/evidenceReference). Both reads and mutations need a live run context: pass runId of your current heartbeat run (legacy operatorRunId alias; PAPERCLIP_RUN_ID is applied automatically in agent sessions); the supervisor re-validates it host-side and an absent context fails with auth_failed. Same requestId + same payload replays with replayed:true and never re-executes; same requestId + different payload fails closed with IDEMPOTENCY_CONFLICT. P0-D: host.service_reload/container_recreate/deployment_rollback alias existing lanes; host.deployment_verify is read-only MCP-side verification; host.container_build/service_start/stop/restart/backup.verify/migration.dry_run/verify fail closed (configuration_missing, owner CTO) until a supervisor lane exists. Supervisor policy v3.8 mutations still require a host-verified operator run (owner-approved policy bump pending) — such refusals surface as auth_failed. Unsupported names are schema-rejected fail-closed — see paperclipHostCapabilities.",
+      "Execute one allowlisted host-supervisor intent via the file bridge and read back its evidence envelope (operationId/timestamp/target/status/result/durationMs/errorCode/policyDecision/evidenceReference). Reads accept an issue-bound live runId or an audited operatorRunId. Only host.file.patch accepts a heartbeat runId for mutation, after the supervisor validates live status, same agent/company and exact issue binding; the existing canary-path guard remains in force. Every other mutation still requires an audited operatorRunId. Same requestId + same payload replays with replayed:true and never re-executes; different payload fails closed with IDEMPOTENCY_CONFLICT. P0-D aliases keep their target operation's auth; unsupported lanes fail closed as described by paperclipHostCapabilities.",
       hostOperationSchema,
       async (input) => {
         // Deployment-root admission (KOMAA-1005): a host operation must belong to

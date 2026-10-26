@@ -48,15 +48,18 @@ describe("host operations adapter", () => {
   it("classifies mutating operations", () => {
     expect(isMutatingOperation("restart")).toBe(true);
     expect(isMutatingOperation("mcp.rollback")).toBe(true);
+    expect(isMutatingOperation("mcp.gateway.prepare")).toBe(true);
+    expect(isMutatingOperation("mcp.gateway.release")).toBe(true);
     expect(isMutatingOperation("ps")).toBe(false);
     expect(isMutatingOperation("host.health")).toBe(false);
   });
 
   it("capabilities document pins policy and gate thresholds", () => {
     const doc = capabilitiesDocument() as Record<string, unknown>;
-    expect(doc.policyVersion).toBe("v3.8");
-    expect(doc.supervisorVersion).toBe("1.0.16");
+    expect(doc.policyVersion).toBe("v3.12");
+    expect(doc.supervisorVersion).toBe("1.0.21");
     expect(doc.deployGate).toEqual({ minFreeGib: 20, minFreePct: 10, deployNeedGib: 8 });
+    expect(JSON.stringify(doc.auth)).toContain("mcp.gateway.release");
     expect(Array.isArray(doc.readOperations)).toBe(true);
   });
 
@@ -79,7 +82,7 @@ describe("host operations adapter", () => {
     expect(files).toEqual([]);
   });
 
-  it("accepts a mutating op with a live runId (no operatorRunId) and submits the intent", async () => {
+  it("submits a live runId without fabricating an operatorRunId", async () => {
     const { req, res } = await sandbox();
     const tool = getTool("paperclipHostOperation");
     const p = tool.execute({ operation: "restart", target: "discord-mcp", agentId: AGENT, issueId: "x", runId: RUN, requestId: REQ });
@@ -91,7 +94,61 @@ describe("host operations adapter", () => {
     expect(text).not.toContain("CAPABILITY_REMOVED");
     const intent = JSON.parse(await fs.readFile(join(req, `${REQ}.json`), "utf8")) as Record<string, unknown>;
     expect(intent.runId).toBe(RUN);
-    expect(intent.operatorRunId).toBeUndefined();
+    expect(intent).not.toHaveProperty("operatorRunId");
+  });
+
+  it("prepares a candidate through a scoped host intent without requiring an image digest", async () => {
+    const { req, res } = await sandbox();
+    const sha = "a".repeat(40);
+    const tool = getTool("paperclipHostOperation");
+    const promise = tool.execute({
+      operation: "mcp.gateway.prepare", target: "paperclip-mcp-gateway",
+      sourceSha: sha, agentId: AGENT, issueId: "KOMAA-1463",
+      runId: RUN, requestId: REQ,
+    });
+    await new Promise((resolve) => setTimeout(resolve, 150));
+    const intent = JSON.parse(await fs.readFile(join(req, `${REQ}.json`), "utf8"));
+    expect(intent).toMatchObject({ operation: "mcp.gateway.prepare", sourceSha: sha, runId: RUN, target: "paperclip-mcp-gateway" });
+    expect(intent).not.toHaveProperty("artifactDigest");
+    await fs.writeFile(join(res, `${REQ}.json`), JSON.stringify({
+      requestId: REQ, operationId: REQ, bridge: "v3", status: "ok", ok: true,
+      result: "CANDIDATE_PREPARED source_sha=" + sha + " docker_image_id=sha256:" + "c".repeat(64),
+    }), "utf8");
+    expect(JSON.stringify(await promise)).toContain("CANDIDATE_PREPARED");
+  });
+
+  it("submits an exact gateway release with full source SHA and live runId", async () => {
+    const { req, res } = await sandbox();
+    const sha = "a".repeat(40);
+    const tool = getTool("paperclipHostOperation");
+    const p = tool.execute({
+      operation: "mcp.gateway.release", target: "paperclip-mcp-gateway",
+      sourceSha: sha, agentId: AGENT, issueId: "KOMAA-1463",
+      runId: RUN, requestId: REQ,
+    });
+    await new Promise((r) => setTimeout(r, 150));
+    await fs.writeFile(join(res, `${REQ}.json`), JSON.stringify({
+      requestId: REQ, operationId: REQ, bridge: "v3", status: "ok",
+      ok: true, result: "DEPLOY_VERIFIED",
+    }), "utf8");
+    const out = await p;
+    expect(JSON.stringify(out)).toContain("DEPLOY_VERIFIED");
+    const intent = JSON.parse(await fs.readFile(join(req, `${REQ}.json`), "utf8"));
+    expect(intent).toMatchObject({ operation: "mcp.gateway.release", target: "paperclip-mcp-gateway", sourceSha: sha, runId: RUN });
+    expect(intent).not.toHaveProperty("operatorRunId");
+  });
+
+  it("omits a stale legacy operatorRunId when a session run is present", async () => {
+    const { req, res } = await sandbox();
+    process.env.PAPERCLIP_RUN_ID = RUN;
+    const tool = getTool("paperclipHostOperation");
+    const p = tool.execute({ operation: "restart", target: "discord-mcp", agentId: AGENT, issueId: "KOMAA-1458", operatorRunId: "5d94e761-8b96-45f8-8155-51b9214df038", requestId: REQ });
+    await new Promise((r) => setTimeout(r, 150));
+    await fs.writeFile(join(res, `${REQ}.json`), JSON.stringify({ requestId: REQ, operationId: REQ, bridge: "v3", status: "ok", ok: true, result: "restart-ok" }), "utf8");
+    await p;
+    const intent = JSON.parse(await fs.readFile(join(req, `${REQ}.json`), "utf8")) as Record<string, unknown>;
+    expect(intent.runId).toBe(RUN);
+    expect(intent).not.toHaveProperty("operatorRunId");
   });
 
   it("rejects reads without any run context before touching the bridge", async () => {
@@ -115,6 +172,13 @@ describe("host operations adapter", () => {
     const tool = getTool("paperclipHostOperation");
     const out = await tool.execute({ operation: "ps", agentId: AGENT, issueId: "x", runId: RUN, requestId: REQ });
     expect(JSON.stringify(out)).toContain("ps-output");
+  });
+
+  it("payload digest binds an immutable image ID and source SHA", () => {
+    const base = { operation: "mcp.gateway.release", target: "paperclip-mcp-gateway", sourceSha: "a".repeat(40), artifactDigest: "sha256:" + "b".repeat(64) };
+    const first = payloadDigestForIntent(base);
+    expect(first).not.toBe(payloadDigestForIntent({ ...base, sourceSha: "c".repeat(40) }));
+    expect(first).not.toBe(payloadDigestForIntent({ ...base, artifactDigest: "sha256:" + "d".repeat(64) }));
   });
 
   it("payload digest is order-insensitive and distinguishes operations", () => {

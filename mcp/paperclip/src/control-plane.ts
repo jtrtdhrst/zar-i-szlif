@@ -1,5 +1,6 @@
 import { z } from "zod";
-import { randomUUID } from "node:crypto";
+import { createHash, randomUUID } from "node:crypto";
+import { PaperclipApiError } from "./client.js";
 import type { PaperclipApiClient } from "./client.js";
 import { formatErrorResponse, formatTextResponse } from "./format.js";
 import { validateParentHierarchy } from "./issue-hierarchy.js";
@@ -545,45 +546,51 @@ function runTools(client: PaperclipApiClient): ControlPlaneToolDefinition[] {
       },
     ),
     makeTool(
-      // KOMAA-630: first-class operator session. Mints a server-side operator
-      // run (POST /companies/:id/operator-runs) bound to the authenticated
-      // user/board actor. The returned operatorRunId is sent as
-      // X-Paperclip-Operator-Run-Id and accepted by ALL board/operator
-      // mutation endpoints with board/user authority. NOT a heartbeat run,
-      // never subject to cross-issue influence caps.
-      // 2026-10-16: route removed in Paperclip 1012; fails closed as CAPABILITY_REMOVED.
+      // KOMAA-1415: Paperclip 2026.1012.0 removed POST /companies/:id/operator-runs,
+      // so operator sessions cannot be minted. The tool name is kept (stable
+      // public tool surface) but it now RESOLVES the caller's sanctioned
+      // execution context instead of advertising a dead mutation:
+      //   1. the session's own live PAPERCLIP_RUN_ID, verified against the API
+      //      (the run's end IS the credential's expiration), or
+      //   2. the Board lane when the session carries an enrolled Board credential.
+      // It never fabricates a run id and never falls back to another principal.
       "paperclipStartOperatorRun",
-      "Open a bounded, audited operator session for user-directed control-plane work. UNAVAILABLE on Paperclip 2026.1012.0: the server route POST /companies/:id/operator-runs was removed in 1012, so this tool fails closed with CAPABILITY_REMOVED and mints nothing. Pass an existing runId where a tool accepts it, or use board-key tools without operator scope; restoring operator sessions requires a CTO-owned upstream decision.",
+      "Resolve the caller's sanctioned execution context for user-directed control-plane work. Paperclip 2026.1012.0 removed operator sessions (POST /companies/:id/operator-runs), so this tool mints nothing: it returns the session's own live PAPERCLIP_RUN_ID (verified) or the Board lane, and fails closed with NO_RUN_CONTEXT when neither exists. Pass the returned runId to tools that accept one.",
       z.object({
         reason: z.string().trim().min(1).max(500),
         scopeIssueIds: z.array(z.string().min(1)).max(20).optional().default([]),
         agentId: z.string().uuid().optional(),
       }),
       async ({ reason, scopeIssueIds, agentId }) => {
-        const companyId = client.resolveCompanyId();
-        let rec: Record<string, unknown>;
-        try {
-          rec = await client.requestJson<Record<string, unknown>>(
-            "POST",
-            `/companies/${companyId}/operator-runs`,
-            { body: { reason, scopeIssueIds, agentId: agentId ?? client.resolveAgentId() } },
-          );
-        } catch (error) {
-          throw new Error(
-            "paperclipStartOperatorRun requires POST /companies/:id/operator-runs, removed in Paperclip 1012 (API route not found). Operator sessions cannot be minted on 1012; pass an existing runId where accepted, or run control-plane tools without operator scope. Original: " +
-            (error instanceof Error ? error.message : String(error)) + " [errorCode=CAPABILITY_REMOVED]",
-          );
+        const runId = client.defaults.runId;
+        if (runId) {
+          const run = await getJsonOrNull(client, `/heartbeat-runs/${enc(runId)}`);
+          return {
+            authority: "agent-run",
+            operatorRunId: null,
+            runId,
+            run,
+            reason,
+            scopeIssueIds,
+            agentId: agentId ?? client.defaults.agentId ?? null,
+            usage: "Own live run context: pass this runId to tools that accept one. It is issue-bound and expires when the run ends; operator sessions are removed upstream.",
+          };
         }
-        return {
-          operatorRunId: rec.operatorRunId ?? rec.id ?? null,
-          companyId: rec.companyId ?? companyId,
-          reason: rec.reason ?? reason,
-          scopeIssueIds: rec.scopeIssueIds ?? scopeIssueIds,
-          createdAt: rec.createdAt ?? null,
-          expiresAt: rec.expiresAt ?? null,
-          createdByUserId: rec.createdByUserId ?? null,
-          usage: "Pass operatorRunId to every mutating paperclip* tool instead of runId. No heartbeat run required.",
-        };
+        if (client.hasBoardCredential) {
+          return {
+            authority: "board",
+            operatorRunId: null,
+            runId: null,
+            run: null,
+            reason,
+            scopeIssueIds,
+            agentId: agentId ?? client.defaults.agentId ?? null,
+            usage: "Board lane: call board-scoped tools directly (no operatorRunId exists on 2026.1012.0). Agent-scoped tools still require the caller's own live run.",
+          };
+        }
+        throw new Error(
+          "No sanctioned execution context: this session has neither an active PAPERCLIP_RUN_ID nor an enrolled Board credential. Operator sessions were removed in Paperclip 2026.1012.0, so none can be minted. Run inside your own live heartbeat run (PAPERCLIP_RUN_ID) or use the Board-authenticated MCP lane [errorCode=NO_RUN_CONTEXT]",
+        );
       },
     ),
     makeTool(
@@ -671,7 +678,7 @@ function runTools(client: PaperclipApiClient): ControlPlaneToolDefinition[] {
     ),
     makeTool(
       "paperclipWakeIssueFresh",
-      "Fresh wake of an issue via checkout for the owning agent, with eligibility preflight (blockers/hold/live run). Posts an optional operator note as a comment. Set force:true to skip the blocked/hold gate (recorded). REQUIRED for agent-actor callers: pass a live runId (own live issue run where supported); operator sessions are removed in Paperclip 2026.1012.0 (CAPABILITY_REMOVED) — without a live context the call fails 403.",
+      "Fresh wake of an issue via checkout for the owning agent, with eligibility preflight (blockers/hold/live run). Posts an optional operator note as a comment. Set force:true to skip the blocked/hold gate (recorded). KOMAA-1415: woke:true requires an OBSERVED issue-bound queued/running run, not just a 200 checkout; a skipped/deferred wake returns woke:false and reconciles a false in_progress to todo (with review/hold guards). REQUIRED for agent-actor callers: pass a live runId (own live issue run where supported); operator sessions are removed in Paperclip 2026.1012.0 (CAPABILITY_REMOVED) — without a live context the call fails 403.",
       z.object({
         issueId: issueIdSchema,
         agentId: z.string().guid().optional().nullable(),
@@ -710,7 +717,17 @@ function runTools(client: PaperclipApiClient): ControlPlaneToolDefinition[] {
           return { woke: false, issueId, status, reason: "review_pending_no_checkout", currentStageId: workflow?.currentStageId ?? null, verified: true };
         }
         if (hasFalseInProgress(status, liveRuns)) {
-          return { woke: false, issueId, status, reason: "false_progress_requires_reconciliation", verified: true };
+          // Never re-checkout a stale in_progress. Reconcile it under the
+          // live review/hold/approval guards, then let the caller re-wake.
+          const reconcile = await reconcileFalseInProgress(client, issueId, auth).catch((error) => ({
+            reconciled: false, status: null, reason: error instanceof Error ? error.message : String(error), issue: null,
+          }));
+          return {
+            woke: false, issueId, status, reason: "false_progress_requires_reconciliation",
+            verified: true, checkoutAccepted: false,
+            reconciledTo: reconcile.reconciled ? reconcile.status : null,
+            reconcile: { reconciled: reconcile.reconciled, reason: reconcile.reason },
+          };
         }
         if (confirmedIssueBoundRuns(liveRuns).length > 0) {
           return { woke: false, issueId, status, reason: "issue_already_has_live_run", verified: true };
@@ -723,24 +740,39 @@ function runTools(client: PaperclipApiClient): ControlPlaneToolDefinition[] {
         }
         const resolvedAgent = agentId ?? (typeof issue.assigneeAgentId === "string" ? issue.assigneeAgentId : null) ?? client.defaults.agentId;
         if (!resolvedAgent) throw new Error("No agent to wake: pass agentId or ensure the issue has an assigneeAgentId");
-        const checkout = await client.requestJson("POST", `/issues/${enc(issueId)}/checkout`, {
+        const checkout = await client.requestJson<Record<string, unknown>>("POST", `/issues/${enc(issueId)}/checkout`, {
           body: { agentId: resolvedAgent, expectedStatuses: expectedStatuses ?? ["todo", "backlog", "blocked"] },
           ...auth,
         });
+        // KOMAA-1415: a 200 checkout is not proof of a wake. Confirm an
+        // issue-bound queued/running run actually exists; otherwise report
+        // woke:false and reconcile the false in_progress instead of leaving it.
+        const observed = await observeIssueBoundRun(client, issueId, checkout);
+        if (!observed.observed) {
+          const reconcile = await reconcileFalseInProgress(client, issueId, auth).catch((error) => ({
+            reconciled: false, status: null, reason: error instanceof Error ? error.message : String(error), issue: null,
+          }));
+          return {
+            woke: false, verified: false, issueId, agentId: resolvedAgent, forced: force,
+            checkoutAccepted: true,
+            reason: deferredWakeReason(checkout) ?? "checkout_without_confirmed_issue_run",
+            observedRun: null, observation: observed,
+            reconciledTo: reconcile.reconciled ? reconcile.status : null,
+            reconcile: { reconciled: reconcile.reconciled, reason: reconcile.reason },
+            liveRunsBefore: liveCount, operatorRunId: op,
+          };
+        }
         let comment: unknown = null;
         if (note) {
           comment = await client.requestJson("POST", `/issues/${enc(issueId)}/comments`, { body: { body: note }, ...auth });
         }
-        // Checkout may commit in_progress while scheduler skips the wake.
-        // The acknowledgement is NOT proof of an issue-bound queued/running run.
-        const issueBound = await getJsonOrNull(client, `/issues/${enc(issueId)}/live-runs`);
-        const confirmedRuns = confirmedIssueBoundRuns(issueBound);
+        // Only an observed issue-bound queued/running run proves the wake.
         return {
-          woke: confirmedRuns.length > 0, verified: confirmedRuns.length > 0,
-          checkoutAccepted: true, issueId, agentId: resolvedAgent, forced: force,
-          reason: confirmedRuns.length > 0 ? "issue_run_observed" : "checkout_without_confirmed_issue_run",
-          liveRunsBefore: liveCount, liveRunsAfter: confirmedRuns,
-          checkout, commentPosted: Boolean(comment), operatorRunId: op,
+          woke: true, verified: true, checkoutAccepted: true,
+          issueId, agentId: resolvedAgent, forced: force, reason: "issue_run_observed",
+          liveRunsBefore: liveCount, liveRunsAfter: observed.run ? [observed.run] : [],
+          checkout, observedRun: observed.run, observedFrom: observed.source,
+          commentPosted: Boolean(comment), operatorRunId: op,
         };
       },
     ),
@@ -2780,6 +2812,130 @@ async function listDependentsBlockedBy(
   return out;
 }
 
+// KOMAA-1415 (owner P0): a checkout 200 is not a wake. In 2026.1012.0 the
+// scheduler can accept the request and then skip/defer the wake
+// (reason=other, runId=null, deferred_issue_execution), leaving a false
+// `in_progress` with zero runs. Success is therefore contingent on an
+// observed issue-bound queued/running run, never on the checkout response.
+const ACTIVE_RUN_STATUSES = new Set(["queued", "running"]);
+
+function runIsActive(run: unknown): boolean {
+  return isRecord(run) && ACTIVE_RUN_STATUSES.has(String(run.status ?? ""));
+}
+
+function runTimestamp(run: Record<string, unknown>): number {
+  for (const key of ["finishedAt", "completedAt", "updatedAt", "startedAt", "createdAt"]) {
+    const raw = run[key];
+    if (typeof raw === "string") {
+      const parsed = Date.parse(raw);
+      if (Number.isFinite(parsed)) return parsed;
+    }
+  }
+  return 0;
+}
+
+async function observeIssueBoundRun(
+  client: PaperclipApiClient,
+  issueId: string,
+  checkoutResponse?: unknown,
+  options: { attempts?: number; delayMs?: number } = {},
+): Promise<{ observed: boolean; run: Record<string, unknown> | null; source: string | null; attempts: number }> {
+  const attempts = Math.max(1, Math.min(options.attempts ?? 4, 6));
+  const delayMs = Math.max(0, Math.min(options.delayMs ?? 400, 2000));
+  for (let attempt = 1; attempt <= attempts; attempt++) {
+    const live = await getJsonOrNull(client, `/issues/${enc(issueId)}/live-runs`);
+    const active = Array.isArray(live) ? live.filter(runIsActive) : [];
+    const bound = active.find((r) => !isRecord(r) || r.issueId === undefined || String(r.issueId) === issueId);
+    if (isRecord(bound)) return { observed: true, run: bound, source: "live-runs", attempts: attempt };
+
+    const issue = await getJsonOrNull(client, `/issues/${enc(issueId)}`);
+    if (isRecord(issue)) {
+      const candidates = [
+        issue.executionRunId,
+        issue.checkoutRunId,
+        isRecord(checkoutResponse) ? checkoutResponse.checkoutRunId : null,
+        isRecord(checkoutResponse) ? checkoutResponse.runId : null,
+      ].filter((value): value is string => typeof value === "string" && value.length > 0);
+      for (const runId of new Set(candidates)) {
+        const run = await getJsonOrNull(client, `/heartbeat-runs/${enc(runId)}`);
+        if (isRecord(run) && runIsActive(run)) {
+          const boundIssue = typeof run.issueId === "string" ? run.issueId : null;
+          if (boundIssue === null || boundIssue === issueId) {
+            return { observed: true, run, source: "heartbeat-run", attempts: attempt };
+          }
+        }
+      }
+    }
+    if (attempt < attempts) await new Promise((resolve) => setTimeout(resolve, delayMs));
+  }
+  return { observed: false, run: null, source: null, attempts };
+}
+
+function deferredWakeReason(response: unknown): string | null {
+  if (!isRecord(response)) return null;
+  if (response.woke === false || response.queued === false || response.deferred === true || response.skipped === true) {
+    return String(response.reason ?? response.status ?? "wake_not_queued");
+  }
+  const text = [response.reason, response.status, response.outcome, response.result]
+    .filter((value) => value !== undefined && value !== null)
+    .map(String).join(" ").toLowerCase();
+  return /deferred|skipped|reason=other|no_run|not_queued/.test(text) ? text : null;
+}
+
+/**
+ * Reconcile a false `in_progress`: status says running, the authoritative
+ * projection shows no queued/running issue-bound run. Guarded by every live
+ * signal that would make the status truthful (review attention, hold,
+ * approvals, descriptor, scheduled retry). Returns the PATCH result so the
+ * caller can keep using fresh state.
+ */
+async function reconcileFalseInProgress(
+  client: PaperclipApiClient,
+  issueId: string,
+  auth: CycleAuth,
+): Promise<{ reconciled: boolean; status: string | null; reason: string; issue: Record<string, unknown> | null }> {
+  const [issue, live, holdView, approvals] = await Promise.all([
+    getJsonOrNull(client, `/issues/${enc(issueId)}`),
+    getJsonOrNull(client, `/issues/${enc(issueId)}/live-runs`),
+    readExecutionHold(client, issueId),
+    getJsonOrNull(client, `/issues/${enc(issueId)}/approvals`),
+  ]);
+  if (!isRecord(issue)) return { reconciled: false, status: null, reason: "issue_unreadable", issue: null };
+  const status = issueStatusOf(issue);
+  if (status !== "in_progress") return { reconciled: false, status, reason: "not_in_progress", issue };
+  const active = Array.isArray(live) ? live.filter(runIsActive) : [];
+  if (active.length > 0) return { reconciled: false, status, reason: "live_run_present", issue };
+  if (blockingHold(holdView)) return { reconciled: false, status, reason: "execution_hold", issue };
+  if (issue.reviewAttention !== undefined && issue.reviewAttention !== null) {
+    return { reconciled: false, status, reason: "review_attention_present", issue };
+  }
+  if (isRecord(issue.scheduledRetry)) return { reconciled: false, status, reason: "scheduled_retry_present", issue };
+  if (isRecord(issue.unblockDescriptor)) return { reconciled: false, status, reason: "unblock_descriptor_present", issue };
+  const boundIds = [issue.executionRunId, issue.checkoutRunId]
+    .filter((value): value is string => typeof value === "string" && value.length > 0);
+  for (const runId of boundIds) {
+    const run = await getJsonOrNull(client, `/heartbeat-runs/${enc(runId)}`);
+    if (runIsActive(run)) return { reconciled: false, status, reason: "live_run_present", issue };
+  }
+  const pendingApprovals = Array.isArray(approvals)
+    ? approvals.filter((a) => isRecord(a) && /pending|requested|awaiting/i.test(String(a.status ?? "")))
+    : [];
+  if (pendingApprovals.length > 0) return { reconciled: false, status, reason: "pending_approval_present", issue };
+  // Last-second recheck: never demote a status in the same window a run lands.
+  const finalLive = await getJsonOrNull(client, `/issues/${enc(issueId)}/live-runs`);
+  if (Array.isArray(finalLive) && finalLive.some(runIsActive)) {
+    return { reconciled: false, status, reason: "live_run_present", issue };
+  }
+  const updated = await client.requestJson<Record<string, unknown>>("PATCH", `/issues/${enc(issueId)}`, {
+    body: {
+      status: "todo",
+      comment: "[control-plane wake] checkout was accepted but no issue-bound queued/running run was observed. Status was in_progress with no live run, so it is reconciled to todo; zero runs were invented.",
+    },
+    ...auth,
+  });
+  return { reconciled: true, status: issueStatusOf(updated) ?? "todo", reason: "no_issue_bound_run_observed", issue: isRecord(updated) ? updated : issue };
+}
+
 async function checkoutWake(
   client: PaperclipApiClient,
   issueId: string,
@@ -2806,18 +2962,24 @@ async function checkoutWake(
       body: { agentId: agent, expectedStatuses: ["todo", "backlog"] },
       ...auth,
     });
-    const live = await getJsonOrNull(client, `/issues/${enc(issueId)}/live-runs`);
-    const confirmed = confirmedIssueBoundRuns(live);
+    const observed = await observeIssueBoundRun(client, issueId, checkout);
+    if (!observed.observed) {
+      return {
+        woke: false, verified: false, issueId, agentId: agent, checkoutAccepted: true,
+        reason: deferredWakeReason(checkout) ?? "checkout_without_confirmed_issue_run",
+        checkout, observedRun: null, observation: observed,
+      };
+    }
     return {
-      woke: confirmed.length > 0, verified: confirmed.length > 0,
-      checkoutAccepted: true, issueId, agentId: agent, checkout,
-      reason: confirmed.length > 0 ? "issue_run_observed" : "checkout_without_confirmed_issue_run",
-      liveRunsAfter: confirmed,
+      woke: true, verified: true, issueId, agentId: agent, checkout,
+      reason: "issue_run_observed", observedRun: observed.run, observedFrom: observed.source,
+      liveRunsAfter: observed.run ? [observed.run] : [],
     };
   } catch (error) {
     return { woke: false, issueId, error: error instanceof Error ? error.message : String(error) };
   }
 }
+
 
 function operatorCompositeTools(client: PaperclipApiClient): ControlPlaneToolDefinition[] {
   return [
@@ -3005,6 +3167,22 @@ function operatorCompositeTools(client: PaperclipApiClient): ControlPlaneToolDef
             actions.push({ action: "expired_capacity_hold" });
           } catch (error) {
             actions.push({ action: "hold_expiry_failed", error: error instanceof Error ? error.message : String(error) });
+          }
+        }
+        // 3b. false in_progress (KOMAA-1415): a checkout was accepted but no
+        // issue-bound queued/running run exists. Guarded reconcile; dry-run
+        // only reports the finding.
+        if (st === "in_progress") {
+          if (!apply) {
+            actions.push({ action: "would_reconcile_false_in_progress" });
+          } else {
+            const rec = await reconcileFalseInProgress(client, issueId, auth);
+            if (rec.reconciled) {
+              after = rec.issue ?? after;
+              actions.push({ action: "in_progress_to_todo" });
+            } else {
+              actions.push({ action: "in_progress_reconcile_skipped", reason: rec.reason });
+            }
           }
         }
         // 4. done-blocker edges
@@ -3415,6 +3593,127 @@ function operatorCompositeTools(client: PaperclipApiClient): ControlPlaneToolDef
   ];
 }
 
+// KOMAA-1415: native GET /issues/:id/retry-eligibility is advertised by the
+// tool catalogue but absent in Paperclip 2026.1012.0 (404 API route not found).
+// Never throw that at the caller and never pretend the route exists: derive
+// the same fail-closed decision from supported endpoints and label the source.
+function isRouteAbsentError(error: unknown): boolean {
+  if (error instanceof PaperclipApiError) {
+    return error.status === 404 || error.status === 405 || error.status === 501;
+  }
+  const message = error instanceof Error ? error.message : String(error);
+  return /route not found|not found|\b404\b/i.test(message);
+}
+
+function failureSignature(run: Record<string, unknown>): string {
+  return String(run.errorCode ?? run.failureReason ?? run.status ?? "unknown_failure");
+}
+
+async function computeRetryEligibilityFallback(
+  client: PaperclipApiClient,
+  issueId: string,
+  force: boolean,
+): Promise<Record<string, unknown>> {
+  const [issue, live, blockers, holdView, runs] = await Promise.all([
+    client.requestJson<Record<string, unknown>>("GET", `/issues/${enc(issueId)}`),
+    getJsonOrNull(client, `/issues/${enc(issueId)}/live-runs`),
+    getJsonOrNull(client, `/issues/${enc(issueId)}/diagnostics/blockers`),
+    readExecutionHold(client, issueId),
+    getJsonOrNull(client, `/issues/${enc(issueId)}/runs`),
+  ]);
+  const status = issueStatusOf(issue);
+  const liveActive = Array.isArray(live) ? live.filter(runIsActive) : [];
+  const blockerList = isRecord(blockers) && Array.isArray(blockers.blockers) ? blockers.blockers.filter(isRecord) : [];
+  const unresolved = blockerList.filter((b) => !["done", "cancelled"].includes(String(b.status ?? "")));
+  const hold = blockingHold(holdView);
+  const runList = Array.isArray(runs) ? (runs.filter(isRecord) as Record<string, unknown>[]) : [];
+  const failures = runList
+    .filter((r) => ["failed", "cancelled", "expired"].includes(String(r.status ?? "")))
+    .sort((a, b) => runTimestamp(b) - runTimestamp(a));
+  const latestFailure = failures[0] ?? null;
+  const repeatedFailure = latestFailure
+    ? failures.slice(1).some((r) => failureSignature(r) === failureSignature(latestFailure))
+    : false;
+  const failureAt = latestFailure ? runTimestamp(latestFailure) : 0;
+  const issueChangedAt = runTimestamp({ updatedAt: issue.updatedAt });
+  // 1s tolerance: the failed run itself updates issue.updatedAt. Only a change
+  // after that window counts as a real execution-input delta.
+  const inputDelta = failureAt > 0 && issueChangedAt > failureAt + 1000;
+  const fingerprint = createHash("sha256").update([
+    latestFailure ? failureSignature(latestFailure) : "no_prior_failure",
+    typeof issue.assigneeAgentId === "string" ? issue.assigneeAgentId : "unassigned",
+    status ?? "unknown",
+    blockerList.map((b) => String(b.id ?? "")).filter(Boolean).sort().join(","),
+    hold ? String((hold as Record<string, unknown>).kind ?? "hold") : "no_hold",
+  ].join("|"), "utf8").digest("hex").slice(0, 32);
+  const causalDelta: string[] = [];
+  if (inputDelta) causalDelta.push("issue_updated_after_failure");
+  if (force) causalDelta.push("forced_board");
+
+  // A retry needs a recorded failure. With none, there is nothing to retry and
+  // the native route that could say otherwise is absent: fail closed, no run.
+  let retryEligible = latestFailure !== null;
+  let retryReason = latestFailure ? "first_retry_for_fingerprint" : "native_retry_eligibility_unavailable";
+  if (!latestFailure) {
+    retryEligible = false;
+  } else if (force) {
+    retryReason = "forced_board";
+  } else if (status === "done" || status === "cancelled") {
+    retryEligible = false; retryReason = "terminal_issue";
+  } else if (liveActive.length > 0) {
+    retryEligible = false; retryReason = "live_run_present";
+  } else if (unresolved.length > 0) {
+    retryEligible = false; retryReason = "blocked_by_dependency";
+  } else if (hold) {
+    retryEligible = false; retryReason = "execution_hold";
+  } else if (isRecord(issue.scheduledRetry)) {
+    retryEligible = false; retryReason = "scheduled_retry_pending";
+  } else if (repeatedFailure && inputDelta) {
+    retryEligible = true; retryReason = "execution_input_delta";
+  } else if (repeatedFailure) {
+    retryEligible = false; retryReason = "circuit_open_identical_state";
+  }
+  return {
+    issueId,
+    retryEligible,
+    retryReason,
+    previousFailureFingerprint: latestFailure ? fingerprint : null,
+    causalDelta,
+    liveComponents: {
+      status, assigneeAgentId: issue.assigneeAgentId ?? null,
+      blockerCount: unresolved.length, executionHold: hold ? "present" : null,
+      liveRuns: liveActive.length,
+      latestFailureRunId: latestFailure ? latestFailure.id ?? null : null,
+      latestFailureStatus: latestFailure ? latestFailure.status ?? null : null,
+      latestFailureSignature: latestFailure ? failureSignature(latestFailure) : null,
+      repeatedFailure,
+    },
+    eligibilitySource: "mcp-compat-fallback",
+    nativeRouteAvailable: false,
+    nativeRouteAbsent: true,
+    warning: "GET /issues/:id/retry-eligibility is absent in Paperclip 2026.1012.0; decision derived from issue/live-runs/blockers/hold/runs. Fail-closed on repeated identical failure without an input delta, and with no recorded failure at all.",
+  };
+}
+
+async function resolveRetryEligibility(
+  client: PaperclipApiClient,
+  issueId: string,
+  force: boolean,
+): Promise<Record<string, unknown>> {
+  try {
+    const native = await client.requestJson<Record<string, unknown>>(
+      "GET",
+      `/issues/${enc(issueId)}/retry-eligibility${qs(force ? { force: "1" } : {})}`,
+    );
+    if (isRecord(native)) {
+      return { ...native, eligibilitySource: "native", nativeRouteAvailable: true };
+    }
+  } catch (error) {
+    if (!isRouteAbsentError(error)) throw error;
+  }
+  return computeRetryEligibilityFallback(client, issueId, force);
+}
+
 // KOMAA-797 / 2026.1012.0 compat: native GET /issues/:id/execution-state was a
 // custom backend patch of the pre-1012 image and is absent in official builds.
 // Projection from supported read sources only; uncertainty is explicit, never READY.
@@ -3487,7 +3786,7 @@ async function getExecutionStateCompat(client: PaperclipApiClient, issueId: stri
   else if (status === "todo") state = "READY";
   else if (status === "in_progress") {
     state = "INCONSISTENT";
-    reasons.push("false_progress_no_issue_run");
+    reasons.push("false_progress_no_issue_run", "in_progress_without_live_run");
     warnings.push("Status in_progress has no issue-bound queued/running run; status must not be treated as execution proof");
   }
   else state = "INCONSISTENT";
@@ -3527,7 +3826,7 @@ function deliveryCycleToolsPartA(client: PaperclipApiClient): ControlPlaneToolDe
     ),
     makeTool(
       "paperclipRetryWithCausalGate",
-      "Retry gated on causality, not hope. Checks retry-eligibility (failure fingerprint + execution-input delta); identical-state retries are refused with circuit_open and mint zero runs. First retry per fingerprint, or any real delta (blockers/assignee/runs/hold/descriptor/status), proceeds via checkout and records the attempt. Board force:true bypasses with audit.",
+      "Retry gated on causality, not hope. Checks retry-eligibility (failure fingerprint + execution-input delta); identical-state retries are refused with circuit_open and mint zero runs. First retry per fingerprint, or any real delta (blockers/assignee/runs/hold/descriptor/status), proceeds via checkout and records the attempt. Board force:true bypasses with audit. KOMAA-1415: when the native GET /issues/:id/retry-eligibility route is absent (404 in 2026.1012.0) the same decision is derived from supported issue/live-runs/blockers/hold/runs endpoints (eligibilitySource=mcp-compat-fallback); retried:true still requires an observed issue-bound run.",
       z.object({
         issueId: issueIdSchema,
         operatorRunId: operatorRunIdOptional,
@@ -3539,18 +3838,9 @@ function deliveryCycleToolsPartA(client: PaperclipApiClient): ControlPlaneToolDe
         const op = operatorRunId ?? client.defaults.operatorRunId ?? null;
         const auth = opAuth(op, runId ?? null);
         const before = await client.requestJson<Record<string, unknown>>("GET", `/issues/${enc(issueId)}`);
-        let elig: Record<string, unknown>;
-        try {
-          elig = await client.requestJson<Record<string, unknown>>(
-            "GET",
-            `/issues/${enc(issueId)}/retry-eligibility${qs(force ? { force: "1" } : {})}`,
-          );
-        } catch (error) {
-          // Removed in Paperclip 2026.1012.0. Fail closed, never blind-retry,
-          // and do not mistake a compatibility 404 for an eligible retry.
-          if (!nativeRetryRouteMissing(error)) throw error;
-          return { issueId, retried: false, circuitOpen: true, retryReason: "native_retry_eligibility_unavailable", nativeRouteAbsent: true, before: pickIssueShort(before), operatorRunId: op };
-        }
+        // Native route absent in 2026.1012.0 -> same fail-closed decision from
+        // supported endpoints (never a blind retry, never a thrown 404).
+        const elig = await resolveRetryEligibility(client, issueId, force);
         if (elig.retryEligible !== true) {
           return {
             issueId, retried: false,
@@ -3558,11 +3848,34 @@ function deliveryCycleToolsPartA(client: PaperclipApiClient): ControlPlaneToolDe
             causalDelta: elig.causalDelta ?? [],
             retryReason: elig.retryReason ?? "circuit_open_identical_state",
             circuitOpen: true,
+            eligibilitySource: elig.eligibilitySource ?? null,
+            nativeRouteAvailable: elig.nativeRouteAvailable ?? null,
+            nativeRouteAbsent: elig.nativeRouteAbsent === true,
             note: "No run minted. Change an execution input (resolve a blocker, change assignee/config, clear the hold, new SHA) or use board force:true.",
             before: pickIssueShort(before), operatorRunId: op,
           };
         }
         const wake = await checkoutWake(client, issueId, auth);
+        if ((wake as Record<string, unknown>).woke !== true) {
+          // KOMAA-1415: checkout 200 without an observed issue-bound run is
+          // not a retry. Reconcile any false in_progress and report zero runs.
+          const reconcile = await reconcileFalseInProgress(client, issueId, auth).catch((error) => ({
+            reconciled: false, status: null, reason: error instanceof Error ? error.message : String(error), issue: null,
+          }));
+          return {
+            issueId, retried: false,
+            previousFailureFingerprint: elig.previousFailureFingerprint ?? null,
+            causalDelta: elig.causalDelta ?? [],
+            retryReason: String((wake as Record<string, unknown>).reason ?? "checkout_accepted_no_observed_issue_bound_run"),
+            circuitOpen: false,
+            eligibilitySource: elig.eligibilitySource ?? null,
+            nativeRouteAvailable: elig.nativeRouteAvailable ?? null,
+            wake,
+            reconciledTo: reconcile.reconciled ? reconcile.status : null,
+            reconcile: { reconciled: reconcile.reconciled, reason: reconcile.reason },
+            before: pickIssueShort(before), operatorRunId: op,
+          };
+        }
         if (note) {
           await client.requestJson("POST", `/issues/${enc(issueId)}/comments`, {
             body: { body: `[operator retry] fingerprint=${String(elig.previousFailureFingerprint ?? "none")} delta=${JSON.stringify(elig.causalDelta ?? [])}${force ? " force=true(board)" : ""}${note ? ` ${note}` : ""}` },
@@ -3585,6 +3898,8 @@ function deliveryCycleToolsPartA(client: PaperclipApiClient): ControlPlaneToolDe
           previousFailureFingerprint: elig.previousFailureFingerprint ?? null,
           causalDelta: elig.causalDelta ?? [],
           retryReason: elig.retryReason ?? null,
+          eligibilitySource: elig.eligibilitySource ?? null,
+          nativeRouteAvailable: elig.nativeRouteAvailable ?? null,
           wake,
           before: pickIssueShort(before),
           after: pickIssueShort(isRecord(after) ? after : before),
@@ -3753,6 +4068,15 @@ async function execRepairStep(
       }
     }
   }
+  // KOMAA-1415: false in_progress (checkout accepted, no issue-bound run
+  // materialised) used to be reported as RUNNING, so repair/cycle passes saw
+  // no actionable work. Reconcile it to todo with live review/hold guards.
+  const inconsistentReasons = isRecord(st) && Array.isArray(st.reasons) ? (st.reasons as string[]) : [];
+  if (state === "INCONSISTENT" && inconsistentReasons.includes("in_progress_without_live_run")) {
+    const rec = await reconcileFalseInProgress(client, issueId, auth);
+    actions.push({ action: rec.reconciled ? "in_progress_to_todo" : "in_progress_reconcile_skipped", reason: rec.reason });
+    if (rec.reconciled) touched = true;
+  }
   // done-blocker edges (KOMAA-874: surviving set is relational; a diverged
   // projection would drop live edges the PATCH then destroys).
   if (isRecord(st) && Number(st.doneBlockerEdgeCount ?? 0) > 0) {
@@ -3872,10 +4196,11 @@ async function execCycleAction(
     }
     case "causal_retry":
     case "wake": {
+      let elig: Record<string, unknown> | null = null;
       if (action.kind === "causal_retry") {
-        const elig = await client.requestJson<Record<string, unknown>>("GET", `/issues/${enc(issueId)}/retry-eligibility`);
+        elig = await resolveRetryEligibility(client, issueId, false);
         if (elig.retryEligible !== true) {
-          return { ok: false, detail: { circuitOpen: true, retryReason: elig.retryReason ?? null, causalDelta: elig.causalDelta ?? [] } };
+          return { ok: false, detail: { circuitOpen: true, retryReason: elig.retryReason ?? null, causalDelta: elig.causalDelta ?? [], eligibilitySource: elig.eligibilitySource ?? null } };
         }
       } else {
         const st = await getExecutionStateCompat(client, issueId).catch(() => null);
@@ -3885,12 +4210,11 @@ async function execCycleAction(
       }
       const w = await checkoutWake(client, issueId, auth);
       if (action.kind === "causal_retry" && (w as Record<string, unknown>).woke === true) {
-        const elig = await client.requestJson<Record<string, unknown>>("GET", `/issues/${enc(issueId)}/retry-eligibility`).catch(() => null);
         try {
           await client.requestJson("POST", `/issues/${enc(issueId)}/retry-attempts`, {
             body: {
-              fingerprint: String((isRecord(elig) ? elig.previousFailureFingerprint : null) ?? "unknown"),
-              components: ((isRecord(elig) ? elig.liveComponents : {}) ?? {}) as Record<string, unknown>,
+              fingerprint: String(elig?.previousFailureFingerprint ?? "unknown"),
+              components: (elig?.liveComponents ?? {}) as Record<string, unknown>,
             },
             ...auth,
           });
@@ -4079,7 +4403,7 @@ async function scanActionableStates(
     }
     const states2: Array<Record<string, unknown>> = [];
     for (const entry of direct) {
-      const st = await client.requestJson<Record<string, unknown>>("GET", `/issues/${enc(entry.id as string)}/execution-state`).catch(() => null);
+      const st = await getExecutionStateCompat(client, entry.id as string).catch(() => null);
       if (isRecord(st) && st.state !== "RUNNING" && st.state !== "TERMINAL") states2.push(st);
     }
     const rank = (s: string): number => s === "INCONSISTENT" ? 0 : s === "WAITING_DEPENDENCY" ? 1 : s === "WAITING_REVIEW" ? 2 : s === "RETRYABLE_FAILURE" ? 3 : s === "READY" ? 4 : 5;

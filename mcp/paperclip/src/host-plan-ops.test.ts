@@ -1,4 +1,9 @@
 import { describe, expect, it } from "vitest";
+import { randomUUID } from "node:crypto";
+import { mkdtemp, readdir, rm, writeFile } from "node:fs/promises";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
+
 import {
   REQUIRED_DEPLOY_OPS,
   canonicalOp,
@@ -7,6 +12,7 @@ import {
   unsupportedPlannedOps,
 } from "./host-plan-ops.js";
 import { capabilitiesDocument, hostLaneOperations } from "./host-ops.js";
+import { capabilityPolicyDigest, createP1PlatformTools } from "./p1-platform.js";
 
 const caps = capabilitiesDocument() as Record<string, unknown>;
 const lane = hostLaneOperations();
@@ -63,5 +69,81 @@ describe("host deployment plan/apply fail-closed (KOMAA-1156)", () => {
   it("legacy op spelling is canonicalised instead of treated as unknown", () => {
     expect(canonicalOp("host.deployment.verify")).toBe("host.deployment_verify");
     expect(unsupportedPlannedOps(["host.deployment.verify"], lane)).toEqual([]);
+  });
+});
+
+describe("host deployment policy digest consistency (KOMAA-1463)", () => {
+  const deploymentArgs = {
+    service: "paperclip-mcp-gateway",
+    artifactDigest: "sha256:e00d1ff3139d8671d38dc55e86855cbac577270577df82051b0cb206a777d104",
+    sourceSha: "a".repeat(40),
+    issueId: "KOMAA-1463",
+    environment: "production",
+  };
+
+  it("plans the exact gateway release without opening generic recreate targets", async () => {
+    const tool = createP1PlatformTools({} as never).find((entry) => entry.name === "paperclipHostPlanDeployment");
+    expect(tool).toBeDefined();
+    const response = await tool!.execute({ ...deploymentArgs, expectedPolicyDigest: capabilityPolicyDigest(caps) });
+    const message = response.content.map((part) => part.text).join("\n");
+    expect(message).toContain("mcp.gateway.release");
+    expect(message).toContain("PLANNED");
+    expect(message).not.toContain("host.container.recreate");
+    expect(message).not.toContain("version_conflict");
+  });
+
+  it("still denies a genuinely stale capability digest", async () => {
+    const tool = createP1PlatformTools({} as never).find((entry) => entry.name === "paperclipHostPlanDeployment");
+    expect(tool).toBeDefined();
+    const response = await tool!.execute({ ...deploymentArgs, expectedPolicyDigest: "stale-version" });
+    const message = response.content.map((part) => part.text).join("\n");
+    expect(message).toContain("version_conflict");
+  });
+
+  it("never presents gateway compile-time versions as proven running-host policy drift", async () => {
+    const tool = createP1PlatformTools({} as never).find((entry) => entry.name === "paperclipHostGetEffectivePolicy");
+    expect(tool).toBeDefined();
+    const response = await tool!.execute({});
+    const policy = JSON.parse(response.content[0]!.text);
+    expect(policy.runningSupervisorVersion).toBe("unverified");
+    expect(policy.activePolicyVersion).toBe("unverified");
+    expect(policy.driftVerified).toBe(false);
+    expect(policy.driftStatus).toBe("unverified");
+    expect(policy.driftDetected).toBeNull();
+    expect(policy.expectedReleasePolicyDigest).toBeNull();
+    expect(policy.gatewayCapabilityDigest).not.toBe(policy.expectedReleasePolicyDigest);
+    expect(policy.gatewayCapabilityDigest).toBe(capabilityPolicyDigest(caps));
+  });
+
+  it("rejects a hand-written stale apply plan rather than faking PREFLIGHT_PASSED", async () => {
+    const dir = await mkdtemp(join(tmpdir(), "mcp-apply-regression-"));
+    const previous = process.env.PAPERCLIP_PLATFORM_OPS_LEDGER_DIR;
+    process.env.PAPERCLIP_PLATFORM_OPS_LEDGER_DIR = dir;
+    try {
+      const planId = randomUUID();
+      await writeFile(join(dir, `plan-${planId}.json`), JSON.stringify({
+        planId,
+        service: "paperclip-mcp-gateway",
+        environment: "production",
+        operations: [...REQUIRED_DEPLOY_OPS],
+      }));
+      // Board authority: any refusal here is from target/executor checks.
+      const tool = createP1PlatformTools({ callerApiKey: "pcp_board_" } as never).find(
+        (entry) => entry.name === "paperclipHostApplyDeployment",
+      );
+      expect(tool).toBeDefined();
+      const response = await tool!.execute({ planId });
+      const message = response.content.map((part) => part.text).join("\n");
+      expect(message).toContain("configuration_missing");
+      expect(message).toContain("mcp.gateway.release");
+      expect(message).not.toContain('"state":"PREFLIGHT_PASSED"');
+      const files = await readdir(dir);
+      expect(files.some((file) => file.includes("PREFLIGHT_PASSED"))).toBe(false);
+      expect(files.some((file) => file.includes("FAILED"))).toBe(true);
+    } finally {
+      if (previous === undefined) delete process.env.PAPERCLIP_PLATFORM_OPS_LEDGER_DIR;
+      else process.env.PAPERCLIP_PLATFORM_OPS_LEDGER_DIR = previous;
+      await rm(dir, { recursive: true, force: true });
+    }
   });
 });

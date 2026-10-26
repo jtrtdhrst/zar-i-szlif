@@ -869,3 +869,106 @@ describe("run detail contract", () => {
     expect(res.content[0]?.text ?? "").not.toContain('"runId": null');
   });
 });
+
+describe("paperclipUpdateIssue terminal status preservation", () => {
+  beforeEach(() => {
+    vi.restoreAllMocks();
+  });
+
+  it("pins the observed status on a metadata-only update of a cancelled issue", async () => {
+    const cancelled = { id: "KOMAA-841", status: "cancelled" };
+    const fetchMock = vi.fn()
+      .mockResolvedValueOnce(mockJsonResponse(cancelled))
+      .mockResolvedValueOnce(mockJsonResponse(cancelled))
+      .mockResolvedValueOnce(mockJsonResponse(cancelled));
+    vi.stubGlobal("fetch", fetchMock);
+
+    const res = await getTool("paperclipUpdateIssue").execute({
+      issueId: "KOMAA-841",
+      title: "Archiwum — canary Paperclip MCP (→ KOMAA-1415)",
+      comment: "consolidated into KOMAA-1415",
+    });
+
+    expect((res as { isError?: boolean }).isError).not.toBe(true);
+    expect(fetchMock).toHaveBeenCalledTimes(3);
+    const [, getInit] = fetchMock.mock.calls[0] as [string, RequestInit];
+    expect(getInit.method).toBe("GET");
+    const [, patchInit] = fetchMock.mock.calls[1] as [string, RequestInit];
+    expect(patchInit.method).toBe("PATCH");
+    const sent = JSON.parse(String(patchInit.body)) as Record<string, unknown>;
+    expect(sent.status).toBe("cancelled");
+    expect(sent.title).toContain("Archiwum");
+    const [, verifyInit] = fetchMock.mock.calls[2] as [string, RequestInit];
+    expect(verifyInit.method).toBe("GET");
+  });
+
+  it("restores terminal state once when upstream reopens it, then reports success only after proof", async () => {
+    const fetchMock = vi.fn()
+      .mockResolvedValueOnce(mockJsonResponse({ status: "cancelled" }))
+      .mockResolvedValueOnce(mockJsonResponse({}))
+      .mockResolvedValueOnce(mockJsonResponse({ status: "todo" }))
+      .mockResolvedValueOnce(mockJsonResponse({}))
+      .mockResolvedValueOnce(mockJsonResponse({ status: "cancelled" }));
+    vi.stubGlobal("fetch", fetchMock);
+
+    const res = await getTool("paperclipUpdateIssue").execute({ issueId: "KOMAA-841", title: "x" });
+
+    expect((res as { isError?: boolean }).isError).not.toBe(true);
+    expect(fetchMock).toHaveBeenCalledTimes(5);
+    const [, repairInit] = fetchMock.mock.calls[3] as [string, RequestInit];
+    expect(repairInit.method).toBe("PATCH");
+    expect(JSON.parse(String(repairInit.body))).toEqual({ status: "cancelled" });
+  });
+
+  it("fails closed when the terminal status cannot be proven after the repair attempt", async () => {
+    const fetchMock = vi.fn()
+      .mockResolvedValueOnce(mockJsonResponse({ status: "cancelled" }))
+      .mockResolvedValueOnce(mockJsonResponse({}))
+      .mockResolvedValueOnce(mockJsonResponse({ status: "todo" }))
+      .mockResolvedValueOnce(mockJsonResponse({}))
+      .mockResolvedValueOnce(mockJsonResponse({ status: "todo" }));
+    vi.stubGlobal("fetch", fetchMock);
+
+    const res = await getTool("paperclipUpdateIssue").execute({ issueId: "KOMAA-841", title: "x" });
+    expect((res as { isError?: boolean }).isError).toBe(true);
+    expect(res.content[0]?.text ?? "").toContain("TERMINAL_STATUS_REOPENED");
+  });
+
+  it("leaves non-terminal metadata updates untouched", async () => {
+    const fetchMock = vi.fn()
+      .mockResolvedValueOnce(mockJsonResponse({ status: "in_progress" }))
+      .mockResolvedValueOnce(mockJsonResponse({ status: "in_progress" }));
+    vi.stubGlobal("fetch", fetchMock);
+
+    await getTool("paperclipUpdateIssue").execute({ issueId: "KOMAA-1415", title: "y" });
+
+    expect(fetchMock).toHaveBeenCalledTimes(2);
+    const [, patchInit] = fetchMock.mock.calls[1] as [string, RequestInit];
+    expect((JSON.parse(String(patchInit.body)) as Record<string, unknown>).status).toBeUndefined();
+  });
+
+  it("still allows an explicit terminal-to-active transition", async () => {
+    const fetchMock = vi.fn().mockResolvedValueOnce(mockJsonResponse({ status: "todo" }));
+    vi.stubGlobal("fetch", fetchMock);
+
+    await getTool("paperclipUpdateIssue").execute({ issueId: "KOMAA-841", status: "todo" });
+
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+    const [, patchInit] = fetchMock.mock.calls[0] as [string, RequestInit];
+    expect(patchInit.method).toBe("PATCH");
+    expect((JSON.parse(String(patchInit.body)) as Record<string, unknown>).status).toBe("todo");
+  });
+
+  it("does not pin status when the caller explicitly asks to reopen", async () => {
+    const fetchMock = vi.fn().mockResolvedValueOnce(mockJsonResponse({ status: "todo" }));
+    vi.stubGlobal("fetch", fetchMock);
+
+    await getTool("paperclipUpdateIssue").execute({ issueId: "KOMAA-841", reopen: true, title: "z" });
+
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+    const [, patchInit] = fetchMock.mock.calls[0] as [string, RequestInit];
+    const sent = JSON.parse(String(patchInit.body)) as Record<string, unknown>;
+    expect(sent.status).toBeUndefined();
+    expect(sent.reopen).toBe(true);
+  });
+});
