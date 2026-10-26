@@ -46,11 +46,12 @@ the durable deployable unit (mirrors `/opt/comfy` on the host).
   `gpt-6-luna`) → `OpenAIGPTImageNodeV2` (model `gpt-image-2.5-flare`) → `SaveImage`
   already installed — NO new MCP tools needed (`create_workflow` validate,
   `enqueue_workflow`, `list_api_nodes schema`, `get_history`, `get_image` cover it).
-  Reference API-format workflow: `workflows/zar_szlif_luna6_gptimage25_api_20261026.json`
-  (`model` dict + `n`/`seed`; Web-UI `widgets_values` alone fails validation with
-  missing `background/quality/size/custom_*`). `create_workflow validate` = PASS.
+  Reference FLAT-format workflow: `workflows/zar_szlif_luna6_gptimage25_api_20261026.json`
+  (`"model": "<key>"` + `"model.<sub>"` flat keys; nested `model` dicts validate but cannot execute; Web-UI `widgets_values` alone fail validation too; the validator now mirrors the server 1:1). `create_workflow validate` = PASS.
   Blocker is ONLY auth: Codex login works (`/app/user/.codex/auth.json`,
   fallback `zar_szlif_luna6_codex_image_fallback_00001_.png` 1254×1254 rendered in
   47.36s); `OpenAIGPTImageNodeV2` is a ComfyUI partner node requiring ComfyUI.org
   login (`auth_token_comfy_org`/`api_key_comfy_org`, 401 otherwise) — owner logs the
   server into comfy.org, then re-run validate + enqueue. No paid run without approval.
+
+- Image loop: mandatory 8-step Codex-only pipeline, parity rules, acceptance evidence: docs/comfy-image-loop.md. Brand contract: mcp/comfyui/brand/ (PNG refs live in input/brand/ on the volume).
