@@ -1,6 +1,6 @@
 import {test} from 'node:test';
 import {spawnSync} from 'node:child_process';
-import {mkdtempSync,copyFileSync,readFileSync,rmSync} from 'node:fs';
+import {mkdtempSync,copyFileSync,readFileSync,rmSync,existsSync} from 'node:fs';
 import {tmpdir} from 'node:os';
 import {join} from 'node:path';
 const root='/paperclip/vps-ops/policy';
@@ -27,5 +27,19 @@ test('hash pin baseline and apply narrowed gateway release policy',()=>{
 test('different watcher baseline must fail closed',()=>{
   const r=run('python3',[script],{SUP_PATCH_ROOT:dir});
   if(r.status===0||!r.stderr.includes('REFUSED'))throw Error('hash guard failed');
+});
+test('supervisor release EXIT trap captures local temp before build returns',()=>{
+  const source=readFileSync('mcp/paperclip/vps-ops-supervisor/deploy-gateway-supervisor.sh','utf8');
+  const trapLine=source.split('\n').find((line)=>line.trim().startsWith('trap ')&&line.includes('rm -rf'));
+  if(!trapLine)throw Error('cleanup trap missing from deploy script');
+  const probe=mkdtempSync(join(tmpdir(),'supervisor-trap-'));
+  try{
+    const shell=['set -euo pipefail','build() {','local temp="$1"',trapLine,'}','build "$1"'].join('\n');
+    const result=run('bash',['-c',shell,'bash',probe]);
+    if(result.status!==0)throw Error('EXIT cleanup failed: '+result.stderr);
+    if(existsSync(probe))throw Error('EXIT cleanup left a staging directory');
+  }finally{
+    rmSync(probe,{recursive:true,force:true});
+  }
 });
 process.on('exit',()=>rmSync(dir,{recursive:true,force:true}));
