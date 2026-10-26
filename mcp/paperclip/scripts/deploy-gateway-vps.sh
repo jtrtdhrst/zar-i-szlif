@@ -59,9 +59,13 @@ finish() {
 }
 trap finish EXIT
 sourcegit cat-file -e "$SHA^{commit}" || refuse "source commit missing"
-sourcegit show-ref --verify --quiet refs/remotes/origin/main || refuse "origin/main unavailable"
-sourcegit merge-base --is-ancestor "$SHA" refs/remotes/origin/main ||
-  refuse "source is NOT merged into origin/main"
+# PREPARE can build an unmerged PR SHA for independent image-ID review.
+# APPLY is the only mutating step and strictly requires merged main.
+if [[ "$MODE" == apply ]]; then
+  sourcegit show-ref --verify --quiet refs/remotes/origin/main || refuse "origin/main unavailable"
+  sourcegit merge-base --is-ancestor "$SHA" refs/remotes/origin/main ||
+    refuse "source is NOT merged into origin/main"
+fi
 [[ -z "$(sourcegit status --porcelain -- mcp/paperclip)" ]] || refuse "dirty MCP source"
 dkr container inspect "$NAME" > "$TMP/old.json" || refuse "running gateway absent"
 ! dkr container inspect "$BACKUP" >/dev/null 2>&1 || refuse "existing rollback requires disposition first"
