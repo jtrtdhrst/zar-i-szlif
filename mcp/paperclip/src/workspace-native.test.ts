@@ -1,9 +1,13 @@
+import { EventEmitter } from "node:events";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { mkdtemp, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { PaperclipApiClient } from "./client.js";
 import { createWorkspaceNativeTools, ghEnv, runJailedExec } from "./workspace-native.js";
+
+const { spawnMock } = vi.hoisted(() => ({ spawnMock: vi.fn() }));
+vi.mock("node:child_process", () => ({ spawn: spawnMock }));
 
 const COMPANY = "11111111-1111-1111-1111-111111111111";
 const AGENT = "22222222-2222-2222-2222-222222222222";
@@ -34,6 +38,7 @@ describe("GitHub checks fail closed without prompting", () => {
   afterEach(() => {
     vi.unstubAllEnvs();
     vi.restoreAllMocks();
+    spawnMock.mockReset();
   });
 
   it.each(["paperclipGitGetChecks", "paperclipGitGetMergeReadiness"])("returns GITHUB_AUTH_MISSING for %s before workspace or gh access", async (name) => {
@@ -88,6 +93,7 @@ describe("run-bound Git delivery tool handlers", () => {
   afterEach(() => {
     vi.unstubAllEnvs();
     vi.restoreAllMocks();
+    spawnMock.mockReset();
   });
 
   function gitTool(name: "paperclipGitCommit" | "paperclipGitPush") {
@@ -108,28 +114,60 @@ describe("run-bound Git delivery tool handlers", () => {
       if (url.endsWith(`/execution-workspaces/${WORKSPACE}`)) return new Response(JSON.stringify({
         id: WORKSPACE, companyId: COMPANY, sourceIssueId: ISSUE, cwd: process.cwd(), branchName: "KOMAA-1465",
       }), { status: 200 });
+      if (url.endsWith(`/issues/${ISSUE}`)) return new Response(JSON.stringify({
+        id: ISSUE, companyId: COMPANY, identifier: "KOMAA-1465", status: "in_progress",
+      }), { status: 200 });
+      if (url.includes(`/issues/${ISSUE}/documents`)) return new Response(JSON.stringify([]), { status: 200 });
       return new Response(JSON.stringify({ error: "unexpected request" }), { status: 404 });
     }));
     return requests;
   }
 
-  it.each(["paperclipGitCommit", "paperclipGitPush"] as const)("refuses %s for a live run bound to another issue before workspace/Git access", async (name) => {
+  function mockGit() {
+    let head = "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa";
+    const nextHead = "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb";
+    spawnMock.mockImplementation((_command: string, args: string[]) => {
+      const child = new EventEmitter() as EventEmitter & {
+        stdout: EventEmitter;
+        stderr: EventEmitter;
+        kill: ReturnType<typeof vi.fn>;
+      };
+      child.stdout = new EventEmitter();
+      child.stderr = new EventEmitter();
+      child.kill = vi.fn();
+      queueMicrotask(() => {
+        const joined = args.join(" ");
+        let stdout = "";
+        if (joined.includes("rev-parse --abbrev-ref HEAD")) stdout = "KOMAA-1465\n";
+        else if (joined.includes("rev-parse HEAD")) stdout = `${head}\n`;
+        else if (joined.includes("diff --cached --name-only")) stdout = "mcp/paperclip/src/workspace-native.test.ts\n";
+        else if (joined.includes("diff --cached")) stdout = "diff --git a/mcp/paperclip/src/workspace-native.test.ts b/mcp/paperclip/src/workspace-native.test.ts\n+test\n";
+        else if (joined.includes("ls-remote origin KOMAA-1465")) stdout = `${head}\trefs/heads/KOMAA-1465\n`;
+        else if (joined.includes("commit -m")) { head = nextHead; stdout = "[KOMAA-1465 bbbbbbb] test\n"; }
+        child.stdout.emit("data", Buffer.from(stdout));
+        child.emit("close", 0);
+      });
+      return child;
+    });
+  }
+
+  it.each(["paperclipGitCommit", "paperclipGitPush"] as const)("refuses %s for a live run bound to another issue before any Git subprocess", async (name) => {
     const requests = mockRun("running", OTHER_ISSUE);
     const input = name === "paperclipGitCommit"
-      ? { issueId: ISSUE, workspaceId: WORKSPACE, files: ["src/example.ts"], message: "test: KOMAA-1465 deny cross issue", runId: RUN }
+      ? { issueId: ISSUE, workspaceId: WORKSPACE, files: ["mcp/paperclip/src/workspace-native.test.ts"], message: "test: KOMAA-1465 deny cross issue", runId: RUN }
       : { issueId: ISSUE, workspaceId: WORKSPACE, runId: RUN };
 
     const result = await gitTool(name).execute(input);
 
     expect(result.content[0]?.text).toContain("scope_denied");
     expect(requests).toHaveLength(3);
-    expect(requests.every((url) => url.includes("agents/me") || url.includes("heartbeat-runs") || url.includes("execution-workspaces"))).toBe(true);
+    expect(spawnMock).not.toHaveBeenCalled();
   });
 
-  it.each(["paperclipGitCommit", "paperclipGitPush"] as const)("refuses %s when the supplied run has ended before workspace/Git access", async (name) => {
+  it.each(["paperclipGitCommit", "paperclipGitPush"] as const)("refuses %s when the supplied run has ended before any Git subprocess", async (name) => {
     const requests = mockRun("succeeded", ISSUE);
     const input = name === "paperclipGitCommit"
-      ? { issueId: ISSUE, workspaceId: WORKSPACE, files: ["src/example.ts"], message: "test: KOMAA-1465 deny ended run", runId: RUN }
+      ? { issueId: ISSUE, workspaceId: WORKSPACE, files: ["mcp/paperclip/src/workspace-native.test.ts"], message: "test: KOMAA-1465 deny ended run", runId: RUN }
       : { issueId: ISSUE, workspaceId: WORKSPACE, runId: RUN };
 
     const result = await gitTool(name).execute(input);
@@ -137,6 +175,25 @@ describe("run-bound Git delivery tool handlers", () => {
     expect(result.content[0]?.text).toContain("auth_failed");
     expect(result.content[0]?.text).toContain("not live");
     expect(requests).toHaveLength(2);
-    expect(requests.every((url) => url.includes("agents/me") || url.includes("heartbeat-runs"))).toBe(true);
+    expect(spawnMock).not.toHaveBeenCalled();
+  });
+
+  it.each(["paperclipGitCommit", "paperclipGitPush"] as const)("allows %s for the caller's own running issue-bound run", async (name) => {
+    mockRun("running", ISSUE);
+    mockGit();
+    vi.stubEnv("GH_TOKEN", "test-token");
+    vi.stubEnv("PAPERCLIP_GITHUB_OPS_LEDGER_DIR", process.env.TMPDIR || "/tmp");
+    const input = name === "paperclipGitCommit"
+      ? { issueId: ISSUE, workspaceId: WORKSPACE, files: ["mcp/paperclip/src/workspace-native.test.ts"], message: "test: KOMAA-1465 authorized commit", runId: RUN }
+      : { issueId: ISSUE, workspaceId: WORKSPACE, runId: RUN };
+
+    const result = await gitTool(name).execute(input);
+    const body = JSON.parse(result.content[0]?.text ?? "{}");
+
+    expect(body.error).toBeUndefined();
+    expect(body.attribution).toMatchObject({ authority: "agent-run", runId: RUN, agentId: AGENT, runIssueId: ISSUE });
+    expect(spawnMock.mock.calls.some(([, args]) => args.includes(name === "paperclipGitCommit" ? "commit" : "push"))).toBe(true);
+    if (name === "paperclipGitCommit") expect(body.after.head).toBe("bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb");
+    else expect(body.shaMatch).toBe(true);
   });
 });
