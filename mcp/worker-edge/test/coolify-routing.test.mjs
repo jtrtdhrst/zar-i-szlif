@@ -24,6 +24,6 @@ test("all credentialed edge services need separate caller and upstream secrets",
 test("reject unknown Host, spoofed Host suffixes, and stage bypasses", () => {
   assert.equal(resolveService("evil.com").error, "unknown_host");
   assert.equal(resolveService("paperclip-mcp.zariszlif.pl.evil.com").error, "unknown_host");
-  assert.equal(resolveService("mcp-edge-stage.51.89.174.58.sslip.io").error, "unknown_host");
-  assert.equal(resolveService("mcp-edge-stage.51.89.174.58.sslip.io", {EDGE_STAGE_SERVICE:"paperclip"}).id, "paperclip");
+  assert.equal(resolveService("mcp-edge-stage.zariszlif.pl").error, "unknown_host");
+  assert.equal(resolveService("mcp-edge-stage.zariszlif.pl", {EDGE_STAGE_SERVICE:"paperclip"}).id, "paperclip");
 });
