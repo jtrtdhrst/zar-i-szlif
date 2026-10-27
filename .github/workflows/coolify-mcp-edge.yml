@@ -29,6 +29,14 @@ jobs:
         run: |
           set -euo pipefail
           STAGE=mcp-edge-stage.51.89.174.58.sslip.io
-          BASE="http://$STAGE"
-          curl --fail --show-error --silent --retry 4 --retry-connrefused --retry-delay 3 --max-time 15 --resolve "$STAGE:80:51.89.174.58" "$BASE/healthz" | grep -F '"ok":true'
-          curl --fail --show-error --silent --retry 4 --retry-connrefused --retry-delay 3 --max-time 15 --resolve "$STAGE:80:51.89.174.58" "$BASE/health" | grep -F '"paperclip-engine.zariszlif.pl"'
+          for path in healthz health; do
+            echo "::group::Probe $path"
+            status=$(curl --noproxy '*' --show-error --silent --max-time 15 --resolve "$STAGE:80:51.89.174.58" --output /tmp/mcp-stage-body --dump-header /tmp/mcp-stage-headers --write-out '%{http_code}' "http://$STAGE/$path")
+            printf 'HTTP status: %s\n' "$status"
+            grep -iE '^(HTTP/|location:|content-type:)' /tmp/mcp-stage-headers || true
+            head -c 800 /tmp/mcp-stage-body; printf '\n'
+            if [ "$status" != "200" ]; then exit 1; fi
+            if [ "$path" = "healthz" ]; then grep -F '"ok":true' /tmp/mcp-stage-body; fi
+            if [ "$path" = "health" ]; then grep -F '"paperclip-engine.zariszlif.pl"' /tmp/mcp-stage-body; fi
+            echo "::endgroup::"
+          done
