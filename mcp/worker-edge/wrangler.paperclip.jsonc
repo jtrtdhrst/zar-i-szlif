@@ -11,7 +11,7 @@
     }
   ],
   "vars": {
-    "UPSTREAM_URL": "https://paperclip-mcp-canary.zariszlif.pl/mcp",
+    "UPSTREAM_URL": "https://paperclip-mcp-origin.zariszlif.pl/mcp",
     "PAPERCLIP_AUTH_PROXY": "1"
   }
 }
