@@ -25,18 +25,20 @@ jobs:
         run: node --check mcp/worker-edge/coolify-server.mjs
       - name: Build Coolify candidate
         run: docker build --file mcp/worker-edge/Dockerfile.coolify mcp/worker-edge
-      - name: Probe external Coolify ingress ports (diagnostic)
+      - name: Live Cloudflare Tunnel to Coolify edge E2E
         run: |
           set -euo pipefail
-          STAGE=mcp-edge-stage.51.89.174.58.sslip.io
-          for proto_port in "http 80" "https 443"; do
-            read -r proto port <<< "$proto_port"
-            echo "::group::$proto:$port"
-            status=$(curl -k --noproxy '*' --show-error --silent --max-time 15 --resolve "$STAGE:$port:51.89.174.58" --output /tmp/mcp-stage-body --dump-header /tmp/mcp-stage-headers --write-out '%{http_code}' "$proto://$STAGE/healthz") || status=connection_error
-            printf 'HTTP status: %s\n' "$status"
-            cat /tmp/mcp-stage-headers || true
-            printf 'Body bytes: '; wc -c < /tmp/mcp-stage-body || true
-            head -c 500 /tmp/mcp-stage-body || true
-            printf '\n'
-            echo "::endgroup::"
+          BASE=https://mcp-edge-stage.zariszlif.pl
+          for path in healthz health; do
+            status=$(curl --noproxy '*' --show-error --silent --retry 3 --retry-delay 2 --max-time 15 -o /tmp/mcp-stage-body -D /tmp/mcp-stage-headers -w '%{http_code}' "$BASE/$path")
+            echo "GET /$path: $status"
+            cat /tmp/mcp-stage-headers | grep -iE '^(HTTP/|server:|content-type:)' || true
+            head -c 500 /tmp/mcp-stage-body
+            echo
+            test "$status" = "200"
+            if [ "$path" = "healthz" ]; then grep -F '"ok":true' /tmp/mcp-stage-body; fi
+            if [ "$path" = "health" ]; then grep -F '"paperclip-engine.zariszlif.pl"' /tmp/mcp-stage-body; fi
           done
+          status=$(curl --noproxy '*' --show-error --silent --max-time 15 -o /tmp/mcp-stage-body -w '%{http_code}' -H 'Content-Type: application/json' -X POST --data '{"jsonrpc":"2.0","id":1,"method":"tools/list"}' "$BASE/mcp")
+          echo "Unauthorized MCP tools/list status: $status"
+          test "$status" = "401"
