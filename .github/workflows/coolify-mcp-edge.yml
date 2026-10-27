@@ -60,27 +60,15 @@ jobs:
             head -c 500 /tmp/pc-candidate
             echo
             test "$code" = "200"
-            if [ "$path" = "/.well-known/oauth-authorization-server" ]; then
-              grep -F '"issuer":"https://paperclip-mcp.zariszlif.pl"' /tmp/pc-candidate
+            if [ "$path" = "/health" ]; then
+              grep -F '"service":"paperclip-mcp"' /tmp/pc-candidate
+            elif [ "$path" = "/.well-known/oauth-authorization-server" ]; then
+              grep -F '"issuer":"https://paperclip-mcp-canary.zariszlif.pl"' /tmp/pc-candidate
             fi
           done
           code=$(curl --noproxy '*' --silent --show-error --retry 4 --retry-all-errors --retry-delay 2 --max-time 15 -o /tmp/pc-candidate -w '%{http_code}' -H 'Content-Type: application/json' --data '{"jsonrpc":"2.0","id":7,"method":"tools/list"}' "$BASE/mcp")
           echo "Paperclip canary unauthorized tools/list HTTP $code"
           test "$code" = "401"
-      - name: ComfyUI Coolify backend canary — MCP handshake
-        run: |
-          set -euo pipefail
-          BASE=https://mcp-comfy-canary.zariszlif.pl
-          code=$(curl --noproxy '*' --silent --show-error --retry 6 --retry-all-errors --retry-delay 3 --max-time 15 -o /tmp/comfy-candidate -w '%{http_code}' "$BASE/health")
-          echo "ComfyUI canary health HTTP $code"
-          head -c 500 /tmp/comfy-candidate; echo
-          test "$code" = "200"
-          grep -F "comfy-engine.zariszlif.pl" /tmp/comfy-candidate
-          code=$(curl --noproxy '*' --silent --show-error --retry 4 --retry-all-errors --retry-delay 2 --max-time 25 -o /tmp/comfy-candidate -w '%{http_code}' -H 'Content-Type: application/json' -H 'Accept: application/json, text/event-stream' --data '{"jsonrpc":"2.0","id":1,"method":"initialize","params":{"protocolVersion":"2025-06-18","capabilities":{},"clientInfo":{"name":"coolify-cutover-canary","version":"1"}}}' "$BASE/mcp")
-          echo "ComfyUI canary initialize HTTP $code"
-          head -c 950 /tmp/comfy-candidate; echo
-          test "$code" = "200"
-          grep -E '"serverInfo"|"protocolVersion"' /tmp/comfy-candidate
       - name: ComfyUI production after Cloudflare Worker removal — MCP E2E
         run: |
           set -euo pipefail
