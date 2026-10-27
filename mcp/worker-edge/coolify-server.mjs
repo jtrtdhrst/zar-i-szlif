@@ -1,13 +1,25 @@
 import http from "node:http";
+import { createHash } from "node:crypto";
+import { readFileSync } from "node:fs";
 import { Readable } from "node:stream";
 import worker from "./src/index.ts";
 import { resolveService } from "./coolify-routing.mjs";
 
 const port = Number(process.env.PORT || 8787);
 const maxBody = 12 * 1024 * 1024;
+// Read-back fingerprint of exactly the sources packaged into the running image.
+// This is an artifact fingerprint, NOT a Docker image digest or Git commit SHA.
+const sourceFiles = ["./coolify-server.mjs", "./coolify-routing.mjs", "./src/index.ts"];
+const artifactSha256 = createHash("sha256")
+  .update(sourceFiles.map(path => readFileSync(new URL(path, import.meta.url), "utf8")).join("\n--mcp-edge--\n"))
+  .digest("hex");
 const server = http.createServer(async (req, res) => {
   try {
-    if (req.url === "/healthz") { res.writeHead(200, {"content-type":"application/json"}); res.end('{"ok":true}'); return; }
+    if (req.url === "/healthz") {
+      res.writeHead(200, {"content-type":"application/json", "cache-control":"no-store"});
+      res.end(JSON.stringify({ ok: true, artifactSha256 }));
+      return;
+    }
     const service = resolveService(req.headers.host);
     if (service.error) {
       const status = service.error === "unknown_host" ? 404 : 503;
