@@ -42,6 +42,22 @@ if [ "$(id -u)" -eq 0 ]; then
   # Gateway-owned directories only. Never recurse into Paperclip Core data.
   chown node:node /paperclip
   chown -R node:node /paperclip/mcp-gateway /paperclip/mcp-patch /paperclip/plugin-runtime
+  # The legacy OAuth/identity keys are copied to an isolated persistent volume
+  # without changing their 0600 mode; migration may leave them root-owned.
+  # Only the gateway service identity must read these two keys. Do not recurse
+  # into Paperclip Core secrets or follow symlinks, and never echo key contents.
+  secrets_dir=/paperclip/instances/default/secrets
+  if [ -d "$secrets_dir" ] && [ ! -L "$secrets_dir" ]; then
+    chown node:node "$secrets_dir"
+    chmod 700 "$secrets_dir"
+    for secret_name in remote-mcp-agent-key remote-mcp-board-key; do
+      secret_path="$secrets_dir/$secret_name"
+      if [ -f "$secret_path" ] && [ ! -L "$secret_path" ]; then
+        chown node:node "$secret_path"
+        chmod 600 "$secret_path"
+      fi
+    done
+  fi
   exec gosu node /usr/local/bin/docker-entrypoint.sh "$@"
 fi
 
