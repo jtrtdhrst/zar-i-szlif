@@ -45,6 +45,12 @@ jobs:
           node --test mcp/paperclip/scripts/coolify-release.test.mjs
       - name: Supervisor must not be registered as a live MCP tool
         run: node --test mcp/paperclip/scripts/retired-supervisor.test.mjs
+      - name: Validate exact-source public canary contract
+        run: node --test mcp/paperclip/scripts/verify-coolify-canary.test.mjs
+      - name: Verify actual Coolify canary release after main deployment
+        if: github.event_name == 'push'
+        timeout-minutes: 12
+        run: node mcp/paperclip/scripts/verify-coolify-canary.mjs
       - name: Check gateway and transport scripts
         run: |
           node --check mcp/paperclip/mcp-gateway/gateway.mjs
