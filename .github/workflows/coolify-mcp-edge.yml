@@ -1,0 +1,52 @@
+name: Coolify MCP edge regression
+on:
+  pull_request:
+    paths:
+      - 'mcp/worker-edge/**'
+      - '.github/workflows/coolify-mcp-edge.yml'
+  push:
+    branches: [main]
+    paths:
+      - 'mcp/worker-edge/**'
+      - '.github/workflows/coolify-mcp-edge.yml'
+jobs:
+  edge:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+      - name: Verify host isolation and default-deny
+        run: node --test mcp/worker-edge/test/coolify-routing.test.mjs
+      - name: Syntax check the node proxy
+        run: node --check mcp/worker-edge/coolify-server.mjs
+      - name: Build Coolify candidate
+        run: docker build --file mcp/worker-edge/Dockerfile.coolify mcp/worker-edge
+      - name: Live Cloudflare Tunnel to Coolify edge E2E
+        run: |
+          set -euo pipefail
+          BASE=https://mcp-edge-stage.zariszlif.pl
+          for path in healthz health; do
+            status=$(curl --noproxy '*' --show-error --silent --retry 3 --retry-delay 2 --max-time 15 -o /tmp/mcp-stage-body -D /tmp/mcp-stage-headers -w '%{http_code}' "$BASE/$path")
+            echo "GET /$path: $status"
+            cat /tmp/mcp-stage-headers | grep -iE '^(HTTP/|server:|content-type:)' || true
+            head -c 500 /tmp/mcp-stage-body
+            echo
+            test "$status" = "200"
+            if [ "$path" = "healthz" ]; then grep -F '"ok":true' /tmp/mcp-stage-body; fi
+            if [ "$path" = "health" ]; then grep -F '"paperclip-mcp-coolify:3101"' /tmp/mcp-stage-body; fi
+          done
+          status=$(curl --noproxy '*' --show-error --silent --max-time 15 -o /tmp/mcp-stage-body -w '%{http_code}' -H 'Content-Type: application/json' -X POST --data '{"jsonrpc":"2.0","id":1,"method":"tools/list"}' "$BASE/mcp")
+          echo "Unauthorized MCP tools/list status: $status"
+          test "$status" = "401"
+          for path in /.well-known/oauth-authorization-server /.well-known/oauth-protected-resource; do
+            status=$(curl --noproxy '*' --show-error --silent --max-time 15 -o /tmp/mcp-stage-oauth -D /tmp/mcp-stage-oauth-headers -w '%{http_code}' "$BASE$path")
+            echo "OAuth discovery $path HTTP $status"
+            head -c 450 /tmp/mcp-stage-oauth
+            echo
+            test "$status" = "200"
+            grep -F "mcp-edge-stage.zariszlif.pl" /tmp/mcp-stage-oauth
+          done

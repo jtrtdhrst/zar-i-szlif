@@ -1,0 +1,11 @@
+FROM node:24-alpine
+ENV NODE_ENV=production PORT=8787
+RUN apk add --no-cache curl
+WORKDIR /app
+COPY src/index.ts src/index.ts
+COPY coolify-routing.mjs coolify-routing.mjs
+COPY coolify-server.mjs coolify-server.mjs
+USER node
+EXPOSE 8787
+HEALTHCHECK --interval=30s --timeout=7s --start-period=10s --retries=3 CMD node -e 'fetch("http://127.0.0.1:8787/healthz").then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))'
+CMD ["node","coolify-server.mjs"]
