@@ -1,5 +1,5 @@
 import { fetchAgentMe as fetchAgentMeWithRetry } from "./identity-retry.mjs";
-import { randomBytes, randomUUID } from "node:crypto";
+import { createHash, randomBytes, randomUUID } from "node:crypto";
 import { readFileSync, writeFileSync } from "node:fs";
 import { createServer } from "node:http";
 import { z } from "/app/packages/mcp-server/node_modules/zod/index.js";
