@@ -37,7 +37,7 @@ jobs:
             echo
             test "$status" = "200"
             if [ "$path" = "healthz" ]; then grep -F '"ok":true' /tmp/mcp-stage-body; fi
-            if [ "$path" = "health" ]; then grep -F '"paperclip-mcp-coolify"' /tmp/mcp-stage-body; fi
+            if [ "$path" = "health" ]; then grep -F '"paperclip-mcp-coolify:3101"' /tmp/mcp-stage-body; fi
           done
           status=$(curl --noproxy '*' --show-error --silent --max-time 15 -o /tmp/mcp-stage-body -w '%{http_code}' -H 'Content-Type: application/json' -X POST --data '{"jsonrpc":"2.0","id":1,"method":"tools/list"}' "$BASE/mcp")
           echo "Unauthorized MCP tools/list status: $status"
