@@ -1,5 +1,6 @@
 FROM node:24-alpine
 ENV NODE_ENV=production PORT=8787
+RUN apk add --no-cache curl
 WORKDIR /app
 COPY src/index.ts src/index.ts
 COPY coolify-routing.mjs coolify-routing.mjs
