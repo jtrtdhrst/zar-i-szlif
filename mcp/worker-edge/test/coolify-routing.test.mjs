@@ -27,3 +27,21 @@ test("reject unknown Host, spoofed Host suffixes, and stage bypasses", () => {
   assert.equal(resolveService("mcp-edge-stage.zariszlif.pl").error, "unknown_host");
   assert.equal(resolveService("mcp-edge-stage.zariszlif.pl", {EDGE_STAGE_SERVICE:"paperclip"}).id, "paperclip");
 });
+test("EDGE_SERVICE_ID pins a dedicated per-service app regardless of Host", () => {
+  const env = {EDGE_SERVICE_ID:"qdrant",MCP_AUTH_TOKEN_QDRANT:"x",UPSTREAM_TOKEN_QDRANT:"y"};
+  const r = resolveService("qdrant-edge.51.89.174.58.sslip.io:8787", env);
+  assert.equal(r.id, "qdrant");
+  assert.equal(r.config.UPSTREAM_URL, "https://qdrant-engine.zariszlif.pl/mcp");
+  assert.equal(r.config.MCP_AUTH_TOKEN, "x");
+  assert.equal(r.config.UPSTREAM_TOKEN, "y");
+});
+test("EDGE_SERVICE_ID fails closed on unknown ids and missing credentials", () => {
+  assert.equal(resolveService("anything.example", {EDGE_SERVICE_ID:"nope"}).error, "unknown_host");
+  assert.equal(resolveService("anything.example", {EDGE_SERVICE_ID:"qdrant"}).error, "credentials_not_provisioned");
+  assert.equal(resolveService("anything.example", {EDGE_SERVICE_ID:"qdrant",MCP_AUTH_TOKEN_QDRANT:"x"}).error, "credentials_not_provisioned");
+});
+test("EDGE_SERVICE_ID keeps paperclip OAuth-only and stage behavior intact", () => {
+  assert.equal(resolveService("anything.example", {EDGE_SERVICE_ID:"paperclip"}).config.PAPERCLIP_AUTH_PROXY, "1");
+  assert.equal(resolveService("anything.example", {EDGE_SERVICE_ID:"paperclip",MCP_AUTH_TOKEN_PAPERCLIP:"s"}).error, "paperclip_shared_secret_forbidden");
+  assert.equal(resolveService("mcp-edge-stage.zariszlif.pl", {EDGE_STAGE_SERVICE:"paperclip"}).id, "paperclip");
+});
