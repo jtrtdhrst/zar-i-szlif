@@ -1,5 +1,8 @@
 # `mcp/` — MCP servers as deployable services
 
+**Stan wdrożenia 27.10.2026:** `comfyui-mcp` działa przez Coolify i dedykowany Cloudflare Tunnel (produkcja: `/health`, `initialize`, `tools/list` = 200). `penpot-mcp` został wycofany; aplikacja Penpot UI pozostała bez zmian. Pozostałe Workery MCP pozostają aktywne do bezstratnej migracji sekretów, OAuth i sesji. Nie oznaczaj całej migracji jako ukończonej.
+
+
 Every MCP server that this stack runs has its **full source** in this folder, so it
 can be built and deployed from GitHub (Coolify / Cloudflare) exactly like the
 containers that run in production today.
@@ -8,7 +11,6 @@ containers that run in production today.
 |---|---|---|---|---|
 | Mantic MCP | `mantic/` | `/mcp/mantic` | stdio + HTTP bridge `:8090` | `Cbrown35/mantic-MCP` (inspiration) |
 | Qdrant MCP | `qdrant/` | `/mcp/qdrant` | stdio / streamable-http `:8000` | `allfunc/mcp-qdrant`, `qdrant/mcp-server-qdrant` |
-| Penpot MCP | `penpot/` | `/mcp/penpot` (`headless/`, `router/`) | HTTP `:3000` / `:3001` | `penpotapp/mcp:2.18.3` (image), `tvolodi/penpot-mcp` (headless fork) |
 | Plasmic MCP | `plasmic/` | `/mcp/plasmic` | HTTP `:8091` / `:8092` | snapshot of `ops/design-stack` |
 | Supabase MCP | `supabase/` | `/mcp/supabase` | streamable-http `:3100` | `HenkDz/selfhosted-supabase-mcp` (MIT) |
 | Ubuntu MCP | `ubuntu/` | `/mcp/ubuntu` | streamable-http `:8765` | `bvisible/mcp-ssh-manager` (npm) |
@@ -16,12 +18,12 @@ containers that run in production today.
 | ComfyUI MCP | `comfyui/` | `/mcp/comfyui` | HTTP `:8188` (UI) / `:9100` (MCP) | `comfyui-mcp@0.52.206` (npm) + ComfyUI `0.42.1` (CPU) |
 
 The product MCP (`app/mcp-worker`, Cloudflare Worker) stays in `app/mcp-worker/`.
-## Publiczne endpointy — Cloudflare Workers
+## Publiczne endpointy MCP — Coolify i pozostałe Cloudflare Workers
 
-Każdy MCP jest wystawiony jako **Cloudflare Worker** (`*.zariszlif.pl`). Deploymenty
+Większość pozostałych MCP nadal korzysta z **Cloudflare Workers** (`*.zariszlif.pl`). Deploymenty
 w repo są dwa:
 
-- `mcp/worker-edge/` — 9 usług na **jednej wspólnej krawędzi**: jeden `package.json`,
+- `mcp/worker-edge/` — 7 pozostałych konfiguracji Worker na **jednej wspólnej krawędzi**: jeden `package.json`,
   jeden `src/index.ts`, a każda usługa ma własny plik konfiguracji
   `wrangler.<usługa>.jsonc` (nazwa skryptu, domena, `UPSTREAM_URL`). Dodanie usługi =
   jeden plik konfiguracji i jedna linia w `src/index.ts` nie jest potrzebna.
@@ -42,9 +44,9 @@ wszystkich hostach). Zostaje wyłącznie `export default createEdgeWorker()`.
 | `https://qdrant-mcp.zariszlif.pl/mcp` | `qdrant-mcp` | krawędź Worker | `mcp-qdrant` (Docker) przez `qdrant-engine.zariszlif.pl` |
 | `https://supabase-mcp.zariszlif.pl/mcp` | `supabase-mcp` | krawędź Worker | `supabase-mcp` (Docker) przez `supabase-engine.zariszlif.pl` |
 | `https://ubuntu-mcp.zariszlif.pl/mcp` | `ubuntu-mcp` | krawędź Worker | `ubuntu-mcp-bridge` (Docker) przez `ubuntu-engine.zariszlif.pl` |
-| `https://penpot-mcp.zariszlif.pl/mcp/stream` | `penpot-mcp` | krawędź Worker | Penpot (Docker) przez `penpot-engine.zariszlif.pl` |
 | `https://plasmic-mcp.zariszlif.pl/mcp` | `plasmic-mcp` | krawędź Worker | `plasmic-mcp` (Docker) przez `plasmic-engine.zariszlif.pl` |
 | `https://paperclip-mcp.zariszlif.pl/mcp` | `paperclip-mcp` | krawędź Worker (weryfikacja po stronie silnika) | Paperclip (Docker) przez `paperclip-engine.zariszlif.pl` |
+| `https://mcp-comfy.kompaszbiorek.pl/mcp` | **Coolify MCP edge** | `comfyui-mcp` przez dedykowany Tunnel (nie Worker) |
 | `https://emailens-mcp.zariszlif.pl/mcp` | `emailens-mcp` | krawędź Worker | `emailens-mcp-bridge` (Docker) przez `emailens-engine.zariszlif.pl` |
 | `https://langfuse-mcp.zariszlif.pl/api/public/mcp` | `langfuse-mcp` | krawędź Worker | `langfuse-basic-shim` (Python, contract gateway) przez `langfuse-engine.zariszlif.pl` |
 
@@ -52,7 +54,7 @@ wszystkich hostach). Zostaje wyłącznie `export default createEdgeWorker()`.
 JSON-RPC do silnika (przez Cloudflare Tunnel) — używana tam, gdzie silnika **nie da się
 uruchomić w runtime Workers**: Python (qdrant, langfuse), TCP/Postgres (supabase),
 surowe SSH (ubuntu), pluginy/websockety (penpot, plasmic, paperclip, emailens).
-Wystawia też `GET /health` (200, bez tokena) dla watchdogów.
+Wystawia też `GET /health` (200, bez tokena) dla watchdogów; jej implementacja działa również jako kontener Coolify dla ComfyUI.
 
 Dla `mantic` Worker jest natywny (`mcp/mantic/worker/src/index.ts`): te same moduły
 narzędzi co wersja stdio, transport MCP Streamable HTTP (Web Standard) — dlatego

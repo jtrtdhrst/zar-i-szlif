@@ -1,9 +1,12 @@
 # Serwery MCP — wdrożenie, synchronizacja i odzyskiwanie
 
-Wszystkie MCP tego repo są wystawione jako **Cloudflare Workers** (`*.zariszlif.pl`).
+**Stan wdrożenia 27.10.2026:** `comfyui-mcp` działa przez Coolify i dedykowany Cloudflare Tunnel (produkcja: `/health`, `initialize`, `tools/list` = 200). `penpot-mcp` został wycofany; aplikacja Penpot UI pozostała bez zmian. Pozostałe Workery MCP pozostają aktywne do bezstratnej migracji sekretów, OAuth i sesji. Nie oznaczaj całej migracji jako ukończonej.
+
+
+Pozostałe MCP (poza ComfyUI i wycofanym Penpot MCP) są nadal wystawione jako **Cloudflare Workers** (`*.zariszlif.pl`); trwa etapowa migracja na Coolify.
 Kod i konfiguracje w repo:
 
-- `mcp/worker-edge/` — 9 usług na wspólnej krawędzi; jedna instalacja zależności,
+- `mcp/worker-edge/` — 7 pozostających Workerów proxy na wspólnej krawędzi; jedna instalacja zależności,
   jeden `src/index.ts`, a każda usługa ma **własny plik konfiguracji**
   `wrangler.<usługa>.jsonc` (nazwa, domena, `UPSTREAM_URL`).
 - `mcp/mantic/worker/` — natywny Worker (Mautic API, KV na refresh token).
@@ -19,12 +22,11 @@ GitHub Actions i bez crona). Repozytorium jest jedynym źródłem prawdy.
 | `qdrant-mcp.zariszlif.pl/mcp` | `qdrant-mcp` | `mcp/worker-edge/wrangler.qdrant.jsonc` | `mcp-qdrant` (Docker) |
 | `supabase-mcp.zariszlif.pl/mcp` | `supabase-mcp` | `mcp/worker-edge/wrangler.supabase.jsonc` | `supabase-mcp` (Docker) |
 | `ubuntu-mcp.zariszlif.pl/mcp` | `ubuntu-mcp` | `mcp/worker-edge/wrangler.ubuntu.jsonc` | `ubuntu-mcp-bridge` (Docker) |
-| `penpot-mcp.zariszlif.pl/mcp/stream` | `penpot-mcp` | `mcp/worker-edge/wrangler.penpot.jsonc` | Penpot (Docker) |
 | `plasmic-mcp.zariszlif.pl/mcp` | `plasmic-mcp` | `mcp/worker-edge/wrangler.plasmic.jsonc` | `plasmic-mcp` (Docker) |
 | `paperclip-mcp.zariszlif.pl/mcp` | `paperclip-mcp` | `mcp/worker-edge/wrangler.paperclip.jsonc` | Paperclip (Docker, auth po stronie silnika) |
 | `emailens-mcp.zariszlif.pl/mcp` | `emailens-mcp` | `mcp/worker-edge/wrangler.emailens.jsonc` | `emailens-mcp-bridge` (Docker) |
 | `langfuse-mcp.zariszlif.pl/api/public/mcp` | `langfuse-mcp` | `mcp/worker-edge/wrangler.langfuse.jsonc` | `langfuse-basic-shim` (Python, Docker) |
-| `mcp-comfy.kompaszbiorek.pl/mcp` | `comfyui-mcp` | `mcp/worker-edge/wrangler.comfyui.jsonc` | `comfyui-mcp` (Docker, Caddy origin `comfy-engine.zariszlif.pl`) |
+| `mcp-comfy.kompaszbiorek.pl/mcp` | **Coolify, bez Cloudflare Worker** | `mcp/worker-edge/Dockerfile.coolify` | `comfyui-mcp` (Docker, Caddy origin `comfy-engine.zariszlif.pl`) |
 
 Silniki (Docker) są za krawędzią Workerów pod hostami `*-engine.zariszlif.pl`
 (Cloudflare Tunnel). Workers nie uruchomią Pythona / TCP / SSH — dlatego te
@@ -32,10 +34,10 @@ usługi mają warstwę Worker + silnik.
 
 ## Synchronizacja repo → Cloudflare (Workers Builds)
 
-Dla **każdego** Workera: Workers & Pages → Worker → **Settings → Builds →
+Dla **każdego pozostałego** Workera: Workers & Pages → Worker → **Settings → Builds →
 Connect to repository** i ustaw:
 
-| Pole | `*-mcp` (8 usług) | `mantic-mcp` |
+| Pole | `*-mcp` (7 usług) | `mantic-mcp` |
 |---|---|---|
 | Repository | `miloszspyrka-code/zar-i-szlif` | to samo |
 | Production branch | `main` | `main` |
@@ -60,7 +62,7 @@ npx wrangler deploy --config wrangler.qdrant.jsonc
 
 ## Zdrowie i testy
 
-- Każdy Worker ma `GET /health` → `{"ok":true,"upstream":"<host>","auth":true}`
+- Każdy pozostający proxy Worker ma `GET /health` → `{"ok":true,"upstream":"<host>","auth":true}`
   bez tokena (mantic: `405`, bo nie ma tej ścieżki).
 - `node scripts/check-mcp-endpoints.mjs` — czy 9 endpointów odpowiada.
 - `node scripts/test-mcp-tools.mjs` — pełny test: `initialize` → `tools/list` →
