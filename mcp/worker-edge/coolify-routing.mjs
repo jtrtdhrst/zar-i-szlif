@@ -11,11 +11,19 @@ export const SERVICES = Object.freeze({
   "mcp-comfy.kompaszbiorek.pl": { id: "comfyui", upstream: "https://comfy-engine.zariszlif.pl/mcp" }
 });
 const STAGE_HOST = "mcp-edge-stage.zariszlif.pl";
+// Dedicated per-service Coolify apps are reached via their own Coolify URL,
+// whose Host is not a production service hostname. EDGE_SERVICE_ID pins the
+// service explicitly; unknown IDs fail closed. When unset, production Host
+// routing below applies unchanged.
+const SERVICE_BY_ID = Object.freeze(Object.fromEntries(Object.values(SERVICES).map(r => [r.id, r])));
 export function resolveService(host, env = process.env) {
+  const pinned = String(env.EDGE_SERVICE_ID || "").toLowerCase().trim();
+  if (pinned && !SERVICE_BY_ID[pinned]) return { error: "unknown_host" };
   const hostname = String(host || "").toLowerCase().split(":")[0].replace(/\.$/, "");
   // Staging can only exercise Paperclip; it cannot unlock other services without their secrets.
-  const record = (env.EDGE_STAGE_SERVICE === "paperclip" && hostname === STAGE_HOST)
-    ? SERVICES["paperclip-mcp.zariszlif.pl"] : SERVICES[hostname];
+  const record = pinned ? SERVICE_BY_ID[pinned]
+    : (env.EDGE_STAGE_SERVICE === "paperclip" && hostname === STAGE_HOST)
+      ? SERVICES["paperclip-mcp.zariszlif.pl"] : SERVICES[hostname];
   if (!record) return { error: "unknown_host" };
   const tag = record.id.toUpperCase();
   const auth = env["MCP_AUTH_TOKEN_" + tag] || "";
