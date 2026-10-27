@@ -11,6 +11,6 @@
     }
   ],
   "vars": {
-    "UPSTREAM_URL": "https://qdrant-engine.zariszlif.pl/mcp"
+    "UPSTREAM_URL": "http://rf6je4ydawc5s92tt3gwakjo.51.89.174.58.sslip.io/mcp"
   }
 }
