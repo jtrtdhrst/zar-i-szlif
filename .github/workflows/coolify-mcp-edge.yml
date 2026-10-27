@@ -1,0 +1,27 @@
+name: Coolify MCP edge regression
+on:
+  pull_request:
+    paths:
+      - 'mcp/worker-edge/**'
+      - '.github/workflows/coolify-mcp-edge.yml'
+  push:
+    branches: [main]
+    paths:
+      - 'mcp/worker-edge/**'
+      - '.github/workflows/coolify-mcp-edge.yml'
+jobs:
+  edge:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+      - name: Verify host isolation and default-deny
+        run: node --test mcp/worker-edge/test/coolify-routing.test.mjs
+      - name: Syntax check the node proxy
+        run: node --check mcp/worker-edge/coolify-server.mjs
+      - name: Build Coolify candidate
+        run: docker build --file mcp/worker-edge/Dockerfile.coolify mcp/worker-edge
