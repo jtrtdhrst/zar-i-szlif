@@ -7,6 +7,7 @@ const port = Number(process.env.PORT || 8787);
 const maxBody = 12 * 1024 * 1024;
 const server = http.createServer(async (req, res) => {
   try {
+    if (req.url === "/healthz") { res.writeHead(200, {"content-type":"application/json"}); res.end('{"ok":true}'); return; }
     const service = resolveService(req.headers.host);
     if (service.error) {
       const status = service.error === "unknown_host" ? 404 : 503;
