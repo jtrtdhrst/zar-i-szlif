@@ -6,7 +6,6 @@ __pycache__/
 .wrangler/
 .npm-cache/
 .tmp.driveupload/
-.tmp.driveupload/
 *.cpuprofile
 *.winmd
 test-results/
@@ -26,7 +25,6 @@ opencode-mcp-status.log
 .paperclip-worktrees/
 .paperclip-context
 .paperclip-context.backup/
-.codex-remote-attachments/
 annual-*.png
 exp-list-*.png
 _tmp_*.js
@@ -53,10 +51,10 @@ storybook-static
 opencode-mcp/.runtime/
 .paperclip/
 
-# mcp/ — real secrets and secret files never enter the repo
+# Production MCP secrets must never be committed.
 mcp/**/.env
 mcp/**/secrets/
 mcp/**/.secrets/
 
-# MCP landing site build output (Worker assets)
+# Product Worker output on product branches.
 app/mcp-worker/public/
