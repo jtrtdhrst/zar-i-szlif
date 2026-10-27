@@ -1,15 +1,27 @@
-# Żar i Szlif — integracje MCP i infrastruktura
+# Żar i Szlif — MCP i infrastruktura
 
-To repozytorium pozostaje przeznaczone dla infrastruktury, niezależnych serwerów MCP, narzędzi developerskich oraz dokumentacji agentów.
+Repozytorium źródeł serwerów MCP, adapterów, narzędzi developerskich, automatyzacji GitHub i self-hosted Plasmic.
 
-**Kod aplikacji został przeniesiony do prywatnego [kompaszbiorek-archiwum](https://github.com/miloszspyrka-code/kompaszbiorek-archiwum)** (katalog `app/`). Zachowano tam także rejestr UI, dane źródłowe RAG, migrację Supabase i konfigurację frontendu Coolify.
+**Aplikacji WWW nie ma na gałęzi `main` tego repo.** Jej poprzedni kod został przeniesiony do prywatnego [kompaszbiorek-archiwum](https://github.com/miloszspyrka-code/kompaszbiorek-archiwum) (katalog `app/`). Samo przeniesienie plików nie przestawia webhooków GitHub ani źródeł wdrożenia w Coolify — to należy potwierdzić na żywo.
 
-## Główne katalogi
+## Mapa repozytorium
 
-- `mcp/`: samodzielne integracje i serwery MCP
-- `dev/`: warsztat developerski oraz integracje agentów
-- `ops/`: infrastruktura z wyłączeniem wdrożenia frontendu produktu
-- `.paperclip-wiki/`: mirror dokumentacji agentów
-- `scripts/`: narzędzia operacyjne
+- `mcp/` — samodzielne serwery MCP: implementacja, obrazy i testy. Zobacz `mcp/README.md`.
+- `plasmic/` — źródła i Compose self-hosted Plasmic Studio/WAB. Zobacz `plasmic/SELFHOST.md`; katalog może być zależnością produkcyjnego builda.
+- `ops/` — infrastruktura i design stack.
+- `dev/` — narzędzia developerskie i design system.
+- `.paperclip-wiki/` — mirror wiedzy Paperclip (nie dowód bieżącego stanu produkcji).
+- `scripts/`, `tests/`, `.githooks/` i `.github/workflows/` — testy, kontrola Git i workflowy.
+- `skills/`, `opencode.json` — kontekst agentów.
+- `branding/` — źródła brandingu.
 
-Produkcyjne wdrożenia aplikacji wymagają przekierowania GitHub Actions, Coolify oraz odpowiednich webhooków do nowego repozytorium. Usunięcie kodu z tego repozytorium samo tego nie konfiguruje.
+## Minimalna weryfikacja
+
+```sh
+npm ci --ignore-scripts
+npm run validate:code
+```
+
+Testy i preflight poszczególnych MCP wykonuj zgodnie z ich README. Zmiany w repo przechodzą przez PR, CI i niezależne review; produkcyjny deploy i readback są osobnymi etapami.
+
+Instrukcje: [AGENTS.md](AGENTS.md).
