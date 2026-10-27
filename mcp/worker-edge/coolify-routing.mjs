@@ -10,7 +10,7 @@ export const SERVICES = Object.freeze({
   "langfuse-mcp.zariszlif.pl": { id: "langfuse", upstream: "https://langfuse-engine.zariszlif.pl/api/public/mcp", auth: true },
   "mcp-comfy.kompaszbiorek.pl": { id: "comfyui", upstream: "https://comfy-engine.zariszlif.pl/mcp" }
 });
-const STAGE_HOST = "mcp-edge-stage.51.89.174.58.sslip.io";
+const STAGE_HOST = "mcp-edge-stage.zariszlif.pl";
 export function resolveService(host, env = process.env) {
   const hostname = String(host || "").toLowerCase().split(":")[0].replace(/\.$/, "");
   // Staging can only exercise Paperclip; it cannot unlock other services without their secrets.
