@@ -10,3 +10,7 @@ test("permanent gateway requires company and service-agent identity, not run/pro
   assert.match(gateway, /agentId: requireEnvUuid\("PAPERCLIP_MCP_AGENT_ID"\)/);
   assert.doesNotMatch(gateway, /PAPERCLIP_MCP_(?:RUN_ID|PROJECT_ID)/);
 });
+
+test("gateway imports the crypto hash used by OAuth and caller rate limiting", () => {
+  assert.match(gateway, /import \{[^}]*\bcreateHash\b[^}]*\} from "node:crypto"/);
+});
