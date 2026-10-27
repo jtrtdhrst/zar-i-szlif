@@ -81,3 +81,25 @@ jobs:
           head -c 950 /tmp/comfy-candidate; echo
           test "$code" = "200"
           grep -E '"serverInfo"|"protocolVersion"' /tmp/comfy-candidate
+      - name: ComfyUI production after Cloudflare Worker removal — MCP E2E
+        run: |
+          set -euo pipefail
+          BASE=https://mcp-comfy.kompaszbiorek.pl
+          status=$(curl --noproxy '*' --silent --show-error --retry-all-errors --retry 6 --retry-delay 3 --max-time 15 -o /tmp/comfy-prod -w '%{http_code}' "$BASE/health")
+          echo "ComfyUI production health HTTP $status"
+          head -c 450 /tmp/comfy-prod; echo
+          test "$status" = "200"
+          grep -F 'comfy-engine.zariszlif.pl' /tmp/comfy-prod
+          status=$(curl --noproxy '*' --silent --show-error --retry-all-errors --retry 4 --retry-delay 2 --max-time 30 -D /tmp/comfy-prod-headers -o /tmp/comfy-prod -w '%{http_code}' -H 'Content-Type: application/json' -H 'Accept: application/json, text/event-stream' --data '{"jsonrpc":"2.0","id":1,"method":"initialize","params":{"protocolVersion":"2025-06-18","capabilities":{},"clientInfo":{"name":"coolify-production-e2e","version":"1"}}}' "$BASE/mcp")
+          echo "ComfyUI production initialize HTTP $status"
+          head -c 700 /tmp/comfy-prod; echo
+          test "$status" = "200"
+          grep -E '"serverInfo"|"protocolVersion"' /tmp/comfy-prod
+          sid=$(awk 'BEGIN{IGNORECASE=1} tolower($1)=="mcp-session-id:" {gsub("\r","",$2); print $2}' /tmp/comfy-prod-headers | tail -1)
+          args=(-H 'Content-Type: application/json' -H 'Accept: application/json, text/event-stream')
+          if [ -n "$sid" ]; then args+=(-H "mcp-session-id: $sid"); fi
+          status=$(curl --noproxy '*' --silent --show-error --retry-all-errors --retry 4 --retry-delay 2 --max-time 30 -o /tmp/comfy-prod -w '%{http_code}' "${args[@]}" --data '{"jsonrpc":"2.0","id":2,"method":"tools/list","params":{}}' "$BASE/mcp")
+          echo "ComfyUI production tools/list HTTP $status"
+          head -c 900 /tmp/comfy-prod; echo
+          test "$status" = "200"
+          grep -E '"tools"|"result"' /tmp/comfy-prod
