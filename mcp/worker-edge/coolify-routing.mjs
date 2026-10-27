@@ -27,7 +27,7 @@ export function resolveService(host, env = process.env) {
   // Do not permit a secret in a Paperclip identity-preserving OAuth proxy.
   if (record.oauth && (auth || upstreamToken)) return { error: "paperclip_shared_secret_forbidden" };
   return { id: record.id, config: {
-    UPSTREAM_URL: record.upstream,
+    UPSTREAM_URL: record.oauth && env.PAPERCLIP_ENGINE_URL ? env.PAPERCLIP_ENGINE_URL : record.upstream,
     MCP_AUTH_TOKEN: auth || undefined,
     UPSTREAM_TOKEN: upstreamToken || undefined,
     PAPERCLIP_AUTH_PROXY: record.oauth ? "1" : undefined
