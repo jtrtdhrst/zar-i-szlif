@@ -65,11 +65,25 @@ describe("GitHub checks fail closed without prompting", () => {
 });
 
 describe("agent Git ancestry preflight under jailed workspace exec", () => {
+  afterEach(() => spawnMock.mockReset());
+
   it("permits read-only rev-list, merge-base and cat-file without opening destructive git commands", async () => {
     const temp = await mkdtemp(join(tmpdir(), "paperclip-git-preflight-"));
     const old = process.env.PAPERCLIP_WORKSPACE_OPS_LEDGER_DIR;
     process.env.PAPERCLIP_WORKSPACE_OPS_LEDGER_DIR = temp;
     const ws = { cwd: process.cwd(), workspaceId: WORKSPACE } as never;
+    spawnMock.mockImplementation((_command: string, args: string[]) => {
+      const child = new EventEmitter() as EventEmitter & { stdout: EventEmitter; stderr: EventEmitter; kill: ReturnType<typeof vi.fn> };
+      child.stdout = new EventEmitter();
+      child.stderr = new EventEmitter();
+      child.kill = vi.fn();
+      queueMicrotask(() => {
+        const stdout = args.includes("--count") ? "1\n" : args.includes("-t") ? "commit\n" : `${"a".repeat(40)}\n`;
+        child.stdout.emit("data", Buffer.from(stdout));
+        child.emit("close", 0);
+      });
+      return child;
+    });
     try {
       const rev = await runJailedExec({ ws, argv: ["git", "rev-list", "--count", "HEAD"] });
       expect(rev.exitCode).toBe(0);
@@ -81,6 +95,7 @@ describe("agent Git ancestry preflight under jailed workspace exec", () => {
       expect(type.exitCode).toBe(0);
       expect(type.stdout.trim()).toBe("commit");
       await expect(runJailedExec({ ws, argv: ["git", "reset", "--hard"] })).rejects.toThrow(/not allowlisted/);
+      expect(spawnMock).toHaveBeenCalledTimes(3);
     } finally {
       if (old === undefined) delete process.env.PAPERCLIP_WORKSPACE_OPS_LEDGER_DIR;
       else process.env.PAPERCLIP_WORKSPACE_OPS_LEDGER_DIR = old;
