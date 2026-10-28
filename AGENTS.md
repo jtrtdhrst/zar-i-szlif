@@ -16,6 +16,11 @@ To repo zawiera źródła MCP, self-hosted Plasmic oraz narzędzia infrastruktur
 
 Aplikacja WWW została przeniesiona do osobnego repozytorium opisanego w `README.md`. Repozytorium produktu i konfiguracja produkcji muszą być weryfikowane osobno — obecność kodu lub PR nie dowodzi wdrożenia.
 
+For mascot and branding tasks, read `branding/AGENTS.md`
+before execution. Load the relevant mascot skills from
+`.opencode/skills/` on demand. Preserve all repository-wide
+delivery, Git, and security requirements.
+
 ## Realizacja zmian
 
 1. Przeczytaj aktualne `README.md`, `package.json`, README odpowiedniej usługi, właściwą dokumentację upstream i stan rzeczywistego środowiska. Archiwalne opisy `app/**` i starych flow Cloudflare nie są źródłem prawdy dla tego checkoutu.
