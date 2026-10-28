@@ -13,3 +13,10 @@ Odnotowany dryf konfiguracji paperclip-mcp (do wyrownania przed cutover).
 
 ## Znany incydent: 503 mcp.zariszlif.pl
 Odnotowane bledy 503 na `mcp.zariszlif.pl` — do diagnozy w ramach migracji, bez zmian w tym PR.
+
+## Status 2026-10-28 15:58 UTC: control-plane Coolify down, edge i data-plane OK
+
+- 5x edge healthy przed awaria; data-plane publiczny dziala (panel, paperclip-mcp health, Plasmic).
+- Edge sslip: `/healthz` puste.
+- Coolify API: 500 potem 504 na trasach DB; tylko `get_version` (4.4.6). Shell/SSH bez outputu.
+- Decyzja: zero nowych mutacji Coolify do powrotu API; dane tylko z Paperclip, reszta fresh. Bez sekretow.
