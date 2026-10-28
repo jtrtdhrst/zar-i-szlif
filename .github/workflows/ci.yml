@@ -2,9 +2,9 @@ name: CI
 
 on:
   push:
-    branches: [main]
+    branches: ['release/panel-*']
   pull_request:
-    branches: [main]
+    branches: ['release/panel-*']
   workflow_dispatch:
 
 permissions:
@@ -27,8 +27,9 @@ jobs:
       - run: npm ci --prefix app/cloudflare-worker
       - name: Reject synthetic Git identities
         run: |
-          git fetch --no-tags origin main
-          base="origin/main"
+          target_branch="${{ github.base_ref || github.ref_name }}"
+          git fetch --no-tags origin "$target_branch"
+          base="origin/$target_branch"
           if [ "${{ github.event_name }}" = "push" ]; then
             case "${{ github.event.before }}" in
               ""|0*) ;;
