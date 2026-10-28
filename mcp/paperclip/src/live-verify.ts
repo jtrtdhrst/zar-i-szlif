@@ -18,6 +18,7 @@ import { CONTROL_PLANE_TOOL_NAMES } from "./control-plane.js";
 import { WORKSPACE_NATIVE_TOOL_NAMES } from "./workspace-native.js";
 import { EFFECTIVE_ACCESS_TOOL_NAMES, allKnownToolNames } from "./effective-access.js";
 import { formatErrorResponse, formatTextResponse } from "./format.js";
+import { mcpSourceCommitFailures } from "./live-verify-identity.js";
 
 export interface LiveVerifyToolDefinition {
   name: string;
@@ -308,9 +309,13 @@ export function createLiveVerifyTools(client: PaperclipApiClient): LiveVerifyToo
         const publicProbe = await probePublicMcpTransport(mcpBase, client.callerApiKey ?? null);
         const apiHealth = await getJsonOrNull(client, "/health");
         const api = isRecord(apiHealth) ? apiHealth : null;
-        const runningCommit = api && typeof api.commit === "string" ? (api.commit as string) : null;
+        const coreCommit = api && typeof api.commit === "string" ? (api.commit as string) : null;
         const envCommit = process.env.PAPERCLIP_BUILD_COMMIT || null;
         const envVersion = process.env.PAPERCLIP_BUILD_VERSION || null;
+        const mcpIdentityResponse = await fetch(`${mcpBase}/__release/identity`, { signal: AbortSignal.timeout(8000) }).catch(() => null);
+        const mcpIdentityBody = mcpIdentityResponse?.ok ? await mcpIdentityResponse.json().catch(() => null) : null;
+        const mcpIdentity = isRecord(mcpIdentityBody) ? mcpIdentityBody : null;
+        const mcpCommit = mcpIdentity && typeof mcpIdentity.sourceSha === "string" ? mcpIdentity.sourceSha : null;
         const manifest = toolManifestDigest();
         // Auth pass: caller token must read its own company.
         let authPass: Record<string, unknown> = { ok: false };
@@ -347,7 +352,12 @@ export function createLiveVerifyTools(client: PaperclipApiClient): LiveVerifyToo
           transport: gw,
           publicTransport: publicProbe,
           oauth: { enabled: true, discovery: "/.well-known/oauth-authorization-server + oauth-protected-resource" },
-          runningImage: { commit: runningCommit, version: api && typeof api.status === "string" ? (api as Record<string, unknown>).commit ?? null : runningCommit, envVersion, envCommit },
+          runningImage: {
+            coreCommit,
+            mcp: mcpIdentity ? { sourceSha: mcpCommit, resourceUuid: mcpIdentity.resourceUuid ?? null, containerName: mcpIdentity.containerName ?? null } : null,
+            envVersion,
+            envCommit,
+          },
           toolManifest: { ...manifest, names: undefined, manifestDigest: manifest.digest, toolCount: manifest.count },
           authPass,
           authDenial,
@@ -367,8 +377,7 @@ export function createLiveVerifyTools(client: PaperclipApiClient): LiveVerifyToo
         else if (!pc.callOk) failures.push(`public MCP harmless tools/call failed over ${mcpBase}/mcp (status=${String(pc.status)})`);
         if (!authPass.ok) failures.push("auth pass probe failed");
         if (!authDenial.ok) failures.push("auth denial probe failed (invalid bearer accepted or probe error)");
-        if (expectedCommit && runningCommit && expectedCommit !== runningCommit) failures.push(`commit mismatch: expected ${expectedCommit}, running ${runningCommit}`);
-        if (envCommit && runningCommit && envCommit !== runningCommit) failures.push(`source/runtime mismatch: env ${envCommit} vs running ${runningCommit}`);
+        failures.push(...mcpSourceCommitFailures(expectedCommit, envCommit, mcpCommit));
         if (expectedToolCount && manifest.count < expectedToolCount) failures.push(`tool manifest short: ${manifest.count} < expected ${expectedToolCount}`);
         let verdict: string;
         if (!authPass.ok) verdict = "AUTH_FAILED";
@@ -409,4 +418,3 @@ export function createLiveVerifyTools(client: PaperclipApiClient): LiveVerifyToo
     ),
   ];
 }
-
