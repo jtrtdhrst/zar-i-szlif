@@ -11,11 +11,7 @@ __pycache__/
 test-results/
 playwright-report/
 .lighthouseci/
-# Keep local OpenCode runtime files ignored.
-.opencode/*
-
-# Version reusable agent skills.
-!.opencode/skills/
+.opencode/
 .obsidian/
 .obsidian-mcp/
 .codex/
