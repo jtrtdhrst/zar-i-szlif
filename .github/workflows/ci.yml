@@ -16,8 +16,8 @@ jobs:
     steps:
       - uses: actions/checkout@v4
         with:
-          # Identity gate diffs origin/main..HEAD; a shallow clone has no
-          # merge-base and would fail closed on every PR.
+          # Identity gate compares against the PR target branch or prior push.
+          # Full history is required for reliable merge-base checks.
           fetch-depth: 0
       - uses: actions/setup-node@v4
         with:
@@ -26,8 +26,10 @@ jobs:
       - run: npm ci
       - run: npm ci --prefix app/cloudflare-worker
       - name: Reject synthetic Git identities
+        env:
+          TARGET_BRANCH: ${{ github.base_ref || github.ref_name }}
         run: |
-          target_branch="${{ github.base_ref || github.ref_name }}"
+          target_branch="$TARGET_BRANCH"
           git fetch --no-tags origin "$target_branch"
           base="origin/$target_branch"
           if [ "${{ github.event_name }}" = "push" ]; then
