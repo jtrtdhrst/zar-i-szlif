@@ -1,0 +1,44 @@
+name: One-time preserve old branch refs
+on:
+  push:
+    branches: [product/www]
+permissions:
+  contents: write
+jobs:
+  tag-archive:
+    if: github.repository == 'miloszspyrka-code/zar-i-szlif'
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: true
+          fetch-depth: 1
+      - name: Copy 51 old branch heads to immutable trash refs
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+          expected_main=0ebbfdfaf811781dbe26d75a44bf2baff190d656
+          live_main="$(git ls-remote origin refs/heads/main | cut -f1)"
+          [[ "$live_main" == "$expected_main" ]] || { echo 'Unexpected main SHA'; exit 1; }
+          git fetch --no-tags --depth=1 --filter=blob:none origin '+refs/heads/*:refs/remotes/origin/*'
+          mapfile -t refs < <(git ls-remote --heads origin | awk '{print $2}' | grep -v '^refs/heads/main$' | sort -u)
+          [[ ${#refs[@]} -ge 51 && ${#refs[@]} -le 70 ]] || { echo "Unexpected branch count ${#refs[@]}"; exit 1; }
+          for ref in "${refs[@]}"; do
+            name="${ref#refs/heads/}"
+            sha="$(git ls-remote origin "$ref" | awk '{print $1}')"
+            tag="trash/2026-10-29/$name"
+            current="$(git ls-remote origin "refs/tags/$tag" | awk '{print $1}')"
+            if [[ -n "$current" ]]; then
+              [[ "$current" == "$sha" ]] || { echo "Tag already exists but SHA differs: $name"; exit 1; }
+            else
+              local_sha="$(git rev-parse "refs/remotes/origin/$name^{commit}")"
+              [[ "$sha" == "$local_sha" ]] || { echo "Remote changed during tag creation: $name"; exit 1; }
+              git tag "$tag" "$sha"
+              git push origin "refs/tags/$tag"
+            fi
+            verified="$(git ls-remote origin "refs/tags/$tag" | awk '{print $1}')"
+            [[ "$verified" == "$sha" ]] || { echo "Unverified archive tag: $name"; exit 1; }
+            echo "ARCHIVED $name $sha"
+          done
+          echo "ARCHIVE_OK ${#refs[@]}"
