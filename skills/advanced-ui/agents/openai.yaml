@@ -1,4 +1,0 @@
-interface:
-  display_name: "Advanced UI"
-  short_description: "Zadaniowy audyt UI bez kosztownego audytu SEO i release"
-  default_prompt: "Uruchom szybki audyt Advanced UI dla aktualnie zmienianego widoku, zakresu i breakpointu."

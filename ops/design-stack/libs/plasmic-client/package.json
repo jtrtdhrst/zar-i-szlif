@@ -1,8 +1,0 @@
-{
-  "name": "@design-stack/plasmic-client",
-  "version": "0.1.0",
-  "type": "module",
-  "exports": {
-    ".": "./client.ts"
-  }
-}

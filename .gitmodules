@@ -1,3 +1,0 @@
-[submodule "opencode-mcp-upstream"]
-	path = dev/integrations/opencode-mcp/upstream
-	url = https://github.com/AlaeddineMessadi/opencode-mcp.git

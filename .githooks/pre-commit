@@ -1,5 +1,0 @@
-#!/bin/sh
-set -eu
-# Identity gate on the commit path: a poisoned local config (e.g.
-# user.email=gate@example.invalid) cannot author real history.
-exec node scripts/assert-git-identity.mjs --check-config

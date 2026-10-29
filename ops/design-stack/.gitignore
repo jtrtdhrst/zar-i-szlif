@@ -1,5 +1,0 @@
-.secrets/
-var/
-*.backup-*
-.env
-node_modules/
