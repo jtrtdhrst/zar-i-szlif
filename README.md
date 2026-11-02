@@ -1,19 +1,26 @@
-# Żar i Szlif — empty Plasmic workspace
+# Żar i Szlif — kod produktu i wyłącznie jego MCP
 
-This repository is intentionally an **empty, Plasmic-compatible destination**, not the production source of the application or independent MCP services.
+Repozytorium **`miloszspyrka-code/zar-i-szlif`** jest właścicielem kodu produktu Żar i Szlif, stron produktowych i **jedynie MCP obsługującego tę aplikację**. Nie jest repozytorium ogólnych serwerów MCP ani infrastruktury VPS.
 
-```text
-www/
-  landing/   # Main marketing website (future Plasmic output)
-  mcp/       # MCP informational website (future Plasmic output)
-product/     # Product app / panel (future Plasmic output)
-mcp/         # Product-owned MCP (future source)
-```
+## Dozwolone obszary
 
-All four leaf folders contain only `.gitkeep` so GitHub retains their paths. No build commands, deployments, or workflows are active here. Plasmic can generate files into the dedicated target folder without nested legacy projects.
+| Folder | Odpowiedzialność |
+| --- | --- |
+| `product/` | Aplikacja, panel i logika produktu |
+| `www/landing/` | Publiczna strona produktu |
+| `www/mcp/` | Strona opisująca podłączenie MCP; nie jest niezależnym serwerem |
+| `mcp/` | Wyłącznie serwer, narzędzia i integracje MCP specyficzne dla Żar i Szlif |
 
-Existing product sources, recovered landing pages, databases, and product MCP are preserved in [kompaszbiorek-archiwum](https://github.com/miloszspyrka-code/kompaszbiorek-archiwum). Independent MCP services, adapters, Plasmic self-hosting, and recovered infrastructure fixes live in [harness-zar-i-szlif](https://github.com/miloszspyrka-code/harness-zar-i-szlif).
+W `mcp/` są obecnie pomocnicze pliki PostHog, a pełne źródła produktowego MCP są jeszcze do przeniesienia z zatwierdzonego źródła/archiwum. Nie należy przedstawiać tego katalogu jako wdrożonego kompletnego serwera MCP.
 
-Prior source main: `e3dd9cbb419a39aa6934546a1aa9a310058d6573` (reachable as this commit's parent). Other old branches are inventoried in the Harness repository; they must be deleted after their needed changes have been archived.
+## Właściciel infrastruktury
 
-**Deployment note:** Existing Coolify and Cloudflare builds previously referenced legacy paths. Their automatic build triggers were temporarily paused before this source cleanup. Do not reactivate them against these empty folders. Reconnect the intended repositories and verify a healthy deployment first.
+Osobne MCP i integracje platformy — m.in. `ubuntu-mcp`, `mantic-mcp`, `emailens-mcp`, `paperclip-mcp`, `comfyui-mcp`, `plasmic-mcp`, `qdrant-mcp`, `supabase-mcp`, `playwright-mcp` i integracja **Hermes Gateway** — należą do prywatnego repozytorium [`miloszspyrka-code/harness-zar-i-szlif`](https://github.com/miloszspyrka-code/harness-zar-i-szlif). Nie kopiuj tych implementacji do tego repozytorium. Nie twórz repozytorium `hermes-zar-i-szlif` bez nowej decyzji o podziale odpowiedzialności.
+
+Usunięty z `main` katalog `mcp-bridges/` miał 37 historycznych plików Emailens, Mautic i Ubuntu MCP. W większości były to duplikaty istniejące w harness. Starsze warianty można odzyskać z historii tego repozytorium, commit `97b98dde25265137e1d4c4cc7c5b4d6eac8e38d0`; nie przenoszono jego różnic automatycznie na aktywne serwisy produkcyjne.
+
+## Deployment produktu
+
+**Uwaga:** `main` to docelowy układ katalogów, a nie potwierdzona kompilowalna wersja panelu. Działający panel `https://panel.zariszlif.pl` jest obecnie wdrażany przez Coolify z gałęzi `release/panel-stable-20261027` i `ops/coolify/Dockerfile`. Nie przełączaj wdrożenia na `main` bez odzyskania, review, testów builda oraz E2E aplikacji. Foldery infrastruktury nie wyzwalają deploymentów produktu.
+
+Trzy istniejące Cloudflare Workers (`stronaglowna`, `zariszlif-prawne`, `paperclip-mcp`) pozostają osobno — nie przenosimy ich i nie zmieniamy w ramach sprzątania repozytoriów.
