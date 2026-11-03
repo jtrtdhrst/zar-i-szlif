@@ -32,7 +32,7 @@ RUN npm --prefix app run build
 # Debian nginx package invokes service startup during install unless a policy
 # forbids it; our smoke starts nginx explicitly, exactly once. Keep this policy
 # local to the disposable build stage and remove it after installation.
-RUN printf '#!/bin/sh\\nexit 101\\n' > /usr/sbin/policy-rc.d \
+RUN printf '#!/bin/sh\nexit 101\n' > /usr/sbin/policy-rc.d \
     && chmod +x /usr/sbin/policy-rc.d \
     && apt-get update \
     && DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends nginx \
