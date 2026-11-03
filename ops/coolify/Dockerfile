@@ -25,6 +25,21 @@ RUN npm run lint && npm run typecheck && npm test
 # Produces app/web/dist (index.html + kompas-logo.png).
 RUN npm --prefix app run build
 
+# Runtime readiness regression (KOMAA-1558). Serve the built artifact with the
+# exact committed nginx config and drive it over real HTTP before the image is
+# produced. CI builds this stage, so a route/content-type/redirect drift fails
+# the build instead of shipping silently.
+RUN apt-get update \
+    && apt-get install -y --no-install-recommends nginx \
+    && rm -rf /var/lib/apt/lists/* \
+    && rm -f /etc/nginx/sites-enabled/default \
+    && mkdir -p /usr/share/nginx/html \
+    && cp -a app/web/dist/. /usr/share/nginx/html/ \
+    && cp ops/coolify/nginx.conf /etc/nginx/conf.d/healthz.conf \
+    && nginx \
+    && node scripts/coolify-healthz-smoke.mjs http://127.0.0.1/ \
+    && nginx -s quit
+
 FROM nginx:alpine AS runtime
 
 COPY --from=build /app/app/web/dist /usr/share/nginx/html
