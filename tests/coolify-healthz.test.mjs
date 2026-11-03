@@ -28,8 +28,18 @@ test("build-stage smoke isolates nginx from the host's port 80 (KOMAA-1565)", ()
     "utf8",
   );
   const buildStage = dockerfile.split("FROM nginx:alpine AS runtime")[0];
-  assert.match(buildStage, /listen 127\.0\.0\.1:18763;/);
-  assert.match(buildStage, /http:\/\/127\.0\.0\.1:18763\//);
+  assert.match(buildStage, /listen 127\.0\.0\.1:18999;/);
+  assert.match(buildStage, /http:\/\/127\.0\.0\.1:18999/);
+  assert.match(
+    buildStage,
+    /test "\$\(grep -c 'listen 127\.0\.0\.1:18999;' [^)]*\)" -eq 1/,
+    "build stage must prove the rebind happened exactly once",
+  );
+  assert.match(
+    buildStage,
+    /test "\$\(grep -c 'listen 80;' [^)]*\)" -eq 0/,
+    "build config must not keep a :80 listener",
+  );
   assert.doesNotMatch(
     buildStage,
     /cp ops\/coolify\/nginx\.conf \/etc\/nginx\/conf\.d\/healthz\.conf/,

@@ -33,12 +33,11 @@ RUN npm --prefix app run build
 # Debian nginx package invokes service startup during install unless a policy
 # forbids it; our smoke starts nginx explicitly, exactly once. Keep this policy
 # local to the disposable build stage and remove it after installation.
+# Coolify may run BuildKit on the host network, where production binds port 80.
+# Rebind only the disposable smoke test to loopback:18999, never the runtime.
 #
-# KOMAA-1565: the Coolify build environment shares the host network, where
-# port 80 is already bound. The runtime image keeps :80; only this throwaway
-# build instance listens on an isolated loopback port. The committed config is
-# rewritten exactly once, and the guard below fails the build if any enabled
-# nginx config still listens on :80.
+# KOMAA-1565: the rebind must happen exactly once and no enabled nginx config
+# may still listen on :80; the guards below fail the build otherwise.
 RUN printf '#!/bin/sh\nexit 101\n' > /usr/sbin/policy-rc.d \
     && chmod +x /usr/sbin/policy-rc.d \
     && apt-get update \
@@ -48,13 +47,13 @@ RUN printf '#!/bin/sh\nexit 101\n' > /usr/sbin/policy-rc.d \
     && rm -f /etc/nginx/sites-enabled/default \
     && mkdir -p /usr/share/nginx/html \
     && cp -a app/web/dist/. /usr/share/nginx/html/ \
-    && sed 's/listen 80;/listen 127.0.0.1:18763;/' ops/coolify/nginx.conf > /etc/nginx/conf.d/healthz.conf \
-    && test "$(grep -c 'listen 127.0.0.1:18763;' /etc/nginx/conf.d/healthz.conf)" -eq 1 \
+    && sed 's/^    listen 80;$/    listen 127.0.0.1:18999;/' ops/coolify/nginx.conf > /etc/nginx/conf.d/healthz.conf \
+    && test "$(grep -c 'listen 127.0.0.1:18999;' /etc/nginx/conf.d/healthz.conf)" -eq 1 \
     && test "$(grep -c 'listen 80;' /etc/nginx/conf.d/healthz.conf)" -eq 0 \
     && ! grep -rqsE 'listen[[:space:]]+80([[:space:]]|;)' /etc/nginx/conf.d /etc/nginx/sites-enabled \
     && nginx -t \
     && nginx \
-    && node scripts/coolify-healthz-smoke.mjs http://127.0.0.1:18763/ \
+    && node scripts/coolify-healthz-smoke.mjs http://127.0.0.1:18999 \
     && nginx -s quit
 
 FROM nginx:alpine AS runtime
