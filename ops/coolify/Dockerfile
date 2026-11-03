@@ -32,6 +32,8 @@ RUN npm --prefix app run build
 # Debian nginx package invokes service startup during install unless a policy
 # forbids it; our smoke starts nginx explicitly, exactly once. Keep this policy
 # local to the disposable build stage and remove it after installation.
+# Coolify may run BuildKit on the host network, where production binds port 80.
+# Rebind only the disposable smoke test to loopback:18999, never the runtime.
 RUN printf '#!/bin/sh\nexit 101\n' > /usr/sbin/policy-rc.d \
     && chmod +x /usr/sbin/policy-rc.d \
     && apt-get update \
@@ -41,9 +43,11 @@ RUN printf '#!/bin/sh\nexit 101\n' > /usr/sbin/policy-rc.d \
     && rm -f /etc/nginx/sites-enabled/default \
     && mkdir -p /usr/share/nginx/html \
     && cp -a app/web/dist/. /usr/share/nginx/html/ \
-    && cp ops/coolify/nginx.conf /etc/nginx/conf.d/healthz.conf \
+    && sed 's/^    listen 80;$/    listen 127.0.0.1:18999;/' ops/coolify/nginx.conf > /etc/nginx/conf.d/healthz.conf \
+    && grep -q 'listen 127.0.0.1:18999;' /etc/nginx/conf.d/healthz.conf \
+    && nginx -t \
     && nginx \
-    && node scripts/coolify-healthz-smoke.mjs http://127.0.0.1/ \
+    && node scripts/coolify-healthz-smoke.mjs http://127.0.0.1:18999 \
     && nginx -s quit
 
 FROM nginx:alpine AS runtime
