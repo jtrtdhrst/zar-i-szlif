@@ -30,14 +30,20 @@ RUN npm --prefix app run build
 # produced. CI builds this stage, so a route/content-type/redirect drift fails
 # the build instead of shipping silently.
 #
+# Debian nginx package invokes service startup during install unless a policy
+# forbids it; our smoke starts nginx explicitly, exactly once. Keep this policy
+# local to the disposable build stage and remove it after installation.
+#
 # KOMAA-1565: the Coolify build environment shares the host network, where
-# port 80 is already bound, so the old build-time `nginx` (listen 80) failed.
-# The runtime image keeps :80; only this throwaway build instance listens on
-# an isolated loopback port. The committed config is rewritten exactly once,
-# and the guard below fails the build if any enabled nginx config still
-# listens on :80.
-RUN apt-get update \
-    && apt-get install -y --no-install-recommends nginx \
+# port 80 is already bound. The runtime image keeps :80; only this throwaway
+# build instance listens on an isolated loopback port. The committed config is
+# rewritten exactly once, and the guard below fails the build if any enabled
+# nginx config still listens on :80.
+RUN printf '#!/bin/sh\nexit 101\n' > /usr/sbin/policy-rc.d \
+    && chmod +x /usr/sbin/policy-rc.d \
+    && apt-get update \
+    && DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends nginx \
+    && rm -f /usr/sbin/policy-rc.d \
     && rm -rf /var/lib/apt/lists/* \
     && rm -f /etc/nginx/sites-enabled/default \
     && mkdir -p /usr/share/nginx/html \
