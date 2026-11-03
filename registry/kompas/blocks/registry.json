@@ -1,0 +1,131 @@
+{
+  "$schema": "https://ui.shadcn.com/schema/registry.json",
+  "items": [
+    {
+      "name": "site-header",
+      "type": "registry:component",
+      "title": "Nagłówek strony Kompasu",
+      "description": "Sticky header z logotypem, nawigacją i CTAs (Dodaj do Chatu GPT / Zobacz poradnik). Zwijany do menu hamburgera poniżej 959 px. Używaj na szczycie każdej podstrony WWW.",
+      "categories": ["navigation", "header", "branding"],
+      "dependencies": [],
+      "registryDependencies": ["@kompas/kompas-site"],
+      "meta": {
+        "purpose": "Powrót do startu i nawigacja po sekcjach produktu.",
+        "responsiveBehavior": "Grid 3-kolumnowy desktop; poniżej 959 px nav ukryty, menu-toggle aktywne.",
+        "states": "default, nav hover, mobile open.",
+        "runtime": "Statyczny renderer Kompasu."
+      },
+      "files": [
+        {
+          "path": "site-header.js",
+          "type": "registry:component"
+        }
+      ]
+    },
+    {
+      "name": "hero-section",
+      "type": "registry:block",
+      "title": "Sekcja Hero (01)",
+      "description": "Sekcja 01: kicker, H1, lead, copy i akcje po lewej; podgląd produktu z akcentem (L) po prawej. Zgodna z kompaszbiorek.pl.",
+      "categories": ["hero", "landing", "kompas"],
+      "dependencies": [],
+      "registryDependencies": ["@kompas/kompas-site"],
+      "meta": {
+        "purpose": "Otwarcie strony i główne CTA.",
+        "responsiveBehavior": "2 kolumny desktop → 1 kolumna poniżej 1099 px.",
+        "states": "default, mobile stack.",
+        "runtime": "Statyczny renderer Kompasu."
+      },
+      "files": [
+        {
+          "path": "hero-section.js",
+          "type": "registry:block"
+        }
+      ]
+    },
+    {
+      "name": "situations-section",
+      "type": "registry:block",
+      "title": "Sekcja Wyzwania (02)",
+      "description": "Sekcja 02: rail, intro, 3 karty wyzwań (aktywna złoto-czerwona) i czarny pasek CTA z akcentem (L).",
+      "categories": ["sections", "challenges", "kompas"],
+      "dependencies": [],
+      "registryDependencies": ["@kompas/kompas-site"],
+      "meta": {
+        "purpose": "Nazwanie trudności drużyny przed planowaniem.",
+        "responsiveBehavior": "3 karty desktop → 1 kolumna poniżej 959 px.",
+        "states": "card default, card active.",
+        "runtime": "Statyczny renderer Kompasu."
+      },
+      "files": [
+        {
+          "path": "situations-section.js",
+          "type": "registry:block"
+        }
+      ]
+    },
+    {
+      "name": "cycle-section",
+      "type": "registry:block",
+      "title": "Sekcja Pełny cykl (03)",
+      "description": "Sekcja 03: 4 kroki (Planowanie, Realizacja, Analiza, Decyzja) na przerywanej trasie; aktywny węzeł czerwony.",
+      "categories": ["sections", "cycle", "workflow", "kompas"],
+      "dependencies": [],
+      "registryDependencies": ["@kompas/kompas-site"],
+      "meta": {
+        "purpose": "Pokazanie cyklu doskonalenia.",
+        "responsiveBehavior": "4 kolumny desktop → pionowa lista poniżej 959 px.",
+        "states": "step default, step active.",
+        "runtime": "Statyczny renderer Kompasu."
+      },
+      "files": [
+        {
+          "path": "cycle-section.js",
+          "type": "registry:block"
+        }
+      ]
+    },
+    {
+      "name": "memory-section",
+      "type": "registry:block",
+      "title": "Sekcja Pamięć drużyny (04)",
+      "description": "Sekcja 04: rail, intro, 3 karty pamięci i podgląd dokumentu z akcentem (L).",
+      "categories": ["sections", "memory", "kompas"],
+      "dependencies": [],
+      "registryDependencies": ["@kompas/kompas-site"],
+      "meta": {
+        "purpose": "Pokazanie ciągłości między zbiórkami.",
+        "responsiveBehavior": "2 kolumny desktop → 1 kolumna poniżej 1099 px.",
+        "states": "card default, card active.",
+        "runtime": "Statyczny renderer Kompasu."
+      },
+      "files": [
+        {
+          "path": "memory-section.js",
+          "type": "registry:block"
+        }
+      ]
+    },
+    {
+      "name": "brand-book",
+      "type": "registry:block",
+      "title": "Brand Book Kompasu",
+      "description": "Wydzielony, kanoniczny brand book systemu: kolory, typografia, logo/lockup i ton komunikacji. Źródło prawdy dla wszystkich sekcji WWW.",
+      "categories": ["brand", "brandbook", "kompas"],
+      "dependencies": [],
+      "registryDependencies": ["@kompas/kompas-site", "@kompas/kompas-brand-tokens"],
+      "meta": {
+        "purpose": "Centralna referencja marki dla agentów i projektantów.",
+        "responsiveBehavior": "Siatka swatchy i typografii dostosowuje się do szerokości.",
+        "states": "static.",
+        "runtime": "Statyczny renderer Kompasu."
+      },
+      "files": [
+        {
+          "path": "brand-book.js",
+          "type": "registry:block"
+        }
+      ]
+    }
+  ]
+}

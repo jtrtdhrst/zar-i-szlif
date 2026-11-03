@@ -1,0 +1,20 @@
+{
+  "$schema": "https://unpkg.com/wrangler/config-schema.json",
+  "name": "zar-i-szlif-mcp",
+  "main": "src/index.ts",
+  "compatibility_date": "2026-10-20",
+  "workers_dev": false,
+  "routes": [
+    {
+      "pattern": "mcp.zariszlif.pl",
+      "custom_domain": true
+    }
+  ],
+  "vars": {
+    "MCP_PUBLIC_ORIGIN": "https://mcp.zariszlif.pl",
+    "MCP_ALLOWED_REDIRECT_URIS": "https://chatgpt.com/connector/oauth/,https://chatgpt.com/connector_platform_oauth_redirect"
+  },
+  "ai": {
+    "binding": "AI"
+  }
+}

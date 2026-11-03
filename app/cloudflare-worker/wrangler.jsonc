@@ -1,0 +1,33 @@
+{
+  "$schema": "https://unpkg.com/wrangler/config-schema.json",
+  "name": "wtyczka-rr",
+  "main": "worker.js",
+  "compatibility_date": "2026-08-07",
+  "workers_dev": false,
+  "routes": [
+    // mcp.kompaszbiorek.pl jest ZAJĘTY — produkcyjny serwer MCP z OAuth 2.1
+    // (agregat Paperclip). Decyzja właściciela hosta (KOMAA-447, interakcja
+    // 6bdf812b, odpowiedź 2026-09-30): zostawiamy tam Paperclip, a kanoniczny
+    // host Wtyczki/MCP to osobna poddomena. Patrz docs/production-release.md.
+    { "pattern": "mcp-kompas.kompaszbiorek.pl", "custom_domain": true }
+  ],
+  "vars": {
+    "TEMPLATE_FILE_ID": "183nDdy9kE_DxfoLwPhhAlkboey66QI1QzM64UBXrTLI",
+    "SHEETS_TEMPLATE_FILE_ID": "13jV1YPEh8G2-e7xKH3lsTxu9gY0ckvveaYQxxc6rzFs",
+    "GOOGLE_CLOUD_PROJECT_NUMBER": "450955230972",
+    "SENDER_ONBOARDING_ENABLED": "false",
+    "SENDER_ONBOARDING_GROUP": "onboarding-sekwencja",
+    "MCP_PUBLIC_ORIGIN": "https://mcp-kompas.kompaszbiorek.pl",
+    // Allowlist redirect_uri dla DCR (RFC 7591) — fail-closed. Patrz src/dcr.ts.
+    "MCP_ALLOWED_REDIRECT_URIS": "https://chatgpt.com/connector/oauth/,https://chatgpt.com/connector_platform_oauth_redirect"
+  },
+  "ai": {
+    "binding": "AI"
+  },
+  "kv_namespaces": [
+    {
+      "binding": "OAUTH_KV",
+      "id": "2a0acb7d28e249a989ca9ca8ffeca24e"
+    }
+  ]
+}
