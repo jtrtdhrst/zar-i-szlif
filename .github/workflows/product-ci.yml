@@ -2,18 +2,6 @@ name: Product CI
 
 on:
   pull_request:
-    paths:
-      - "app/**"
-      - "registry/**"
-      - "content/**"
-      - "ops/coolify/**"
-      - "scripts/**"
-      - "tests/**"
-      - "product/**"
-      - "mcp/**"
-      - "package.json"
-      - "package-lock.json"
-      - ".github/workflows/product-ci.yml"
   push:
     branches: [main]
     paths:
