@@ -38,7 +38,7 @@ RUN printf '#!/bin/sh\nexit 101\n' > /usr/sbin/policy-rc.d \
     && DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends nginx \
     && rm -f /usr/sbin/policy-rc.d \
     && rm -rf /var/lib/apt/lists/* \
-    && rm -f /etc/nginx/sites-enabled/default \
+    && rm -f /etc/nginx/sites-enabled/default /etc/nginx/conf.d/default.conf \
     && mkdir -p /usr/share/nginx/html \
     && cp -a app/web/dist/. /usr/share/nginx/html/ \
     && cp ops/coolify/nginx.conf /etc/nginx/conf.d/healthz.conf \
