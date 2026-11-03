@@ -1,0 +1,51 @@
+name: Product CI
+
+on:
+  pull_request:
+    paths:
+      - "app/**"
+      - "registry/**"
+      - "content/**"
+      - "ops/coolify/**"
+      - "scripts/**"
+      - "tests/**"
+      - "product/**"
+      - "mcp/**"
+      - "package.json"
+      - "package-lock.json"
+      - ".github/workflows/product-ci.yml"
+  push:
+    branches: [main]
+    paths:
+      - "app/**"
+      - "registry/**"
+      - "content/**"
+      - "ops/coolify/**"
+      - "scripts/**"
+      - "tests/**"
+      - "product/**"
+      - "mcp/**"
+      - "package.json"
+      - "package-lock.json"
+      - ".github/workflows/product-ci.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  validate-product:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "24"
+          cache: npm
+      - name: Install locked dependencies
+        run: npm ci --include=dev --no-audit --no-fund
+      - name: Product lint, typecheck and tests
+        run: npm run validate:code
+      - name: Reproducible Coolify container build
+        run: docker build --file ops/coolify/Dockerfile --tag product-ci:verified .
