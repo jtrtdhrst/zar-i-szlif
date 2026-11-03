@@ -33,3 +33,5 @@ COPY ops/coolify/nginx.conf /etc/nginx/conf.d/default.conf
 EXPOSE 80
 
 # Source-path webhook deployment test: 2026-11-02, no runtime behavior change.
+
+# No-op Coolify GitHub webhook deployment canary — 2026-11-03.
