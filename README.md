@@ -21,6 +21,8 @@ Usunięty z `main` katalog `mcp-bridges/` miał 37 historycznych plików Emailen
 
 ## Deployment produktu
 
-**Uwaga:** `main` to docelowy układ katalogów, a nie potwierdzona kompilowalna wersja panelu. Działający panel `https://panel.zariszlif.pl` jest obecnie wdrażany przez Coolify z gałęzi `release/panel-stable-20261027` i `ops/coolify/Dockerfile`. Nie przełączaj wdrożenia na `main` bez odzyskania, review, testów builda oraz E2E aplikacji. Foldery infrastruktury nie wyzwalają deploymentów produktu.
+**Przejściowa zgodność:** katalogi app/ i registry/kompas/ przechowują przywrócone źródła kompilacji panelu. product/ i www/ pozostają układem docelowym; przeniesienie wymaga osobnego testu. app/cloudflare-worker/ jest istniejącym kodem produktu, nie upoważnia do tworzenia nowych Workers. Stary workflow publikacji Cloudflare Workers nie został przeniesiony do main.
+
+**Stan wdrożenia:** release z main wymaga builda, testów i zatwierdzonego wdrożenia. Wcześniej main był tylko niekompilowalnym szkieletem. Działający panel `https://panel.zariszlif.pl` jest obecnie wdrażany przez Coolify z gałęzi `release/panel-stable-20261027` i `ops/coolify/Dockerfile`. Nie przełączaj wdrożenia na `main` bez odzyskania, review, testów builda oraz E2E aplikacji. Foldery infrastruktury nie wyzwalają deploymentów produktu.
 
 Trzy istniejące Cloudflare Workers (`stronaglowna`, `zariszlif-prawne`, `paperclip-mcp`) pozostają osobno — nie przenosimy ich i nie zmieniamy w ramach sprzątania repozytoriów.

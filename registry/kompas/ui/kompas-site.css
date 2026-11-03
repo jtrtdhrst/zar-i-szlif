@@ -1,0 +1,344 @@
+/* Kompas Zbiórek — wspólny język sekcji WWW (kompaszbiorek.pl).
+   Skonsolidowana, końcowa kaskada wyciągnięta z produkcyjnego index.html.
+   Wymaga załadowanego kompas-brand-tokens.css (tokeny --forest-*, --paper, --red, --gold …).
+   Wszystkie sekcje dziedziczą te same klasy: rail, kicker, karta, przycisk, akcent „L", topografia. */
+
+:root {
+  --accent-start-x: 22%;
+  --accent-start-y: 20%;
+  --cta-accent-stroke: 4px;
+  --cta-accent-offset: 7px;
+  --product-accent-stroke: 5px;
+  --product-accent-offset: 8px;
+}
+
+* { box-sizing: border-box; }
+body.kompas-site,
+.kompas-site {
+  margin: 0;
+  background: var(--paper);
+  color: var(--ink);
+  font-family: var(--font-body);
+  -webkit-font-smoothing: antialiased;
+}
+.kompas-site h1, .kompas-site h2, .kompas-site h3,
+.kompas-site .kompas-rail__num, .kompas-site .kompas-next__title,
+.kompas-site .kompas-brand__name {
+  font-family: var(--font-display);
+}
+
+/* ===== Kontener ===== */
+.kompas-shell { width: min(var(--shell), calc(100% - 64px)); margin-inline: auto; }
+
+/* ===== Przyciski (wspólny system) ===== */
+.kompas-btn {
+  height: 52px; display: inline-flex; align-items: center; overflow: hidden;
+  border: 1px solid transparent; border-radius: 999px;
+  font-size: 13px; line-height: 16px; font-weight: 850; letter-spacing: .028em;
+  text-transform: uppercase; white-space: nowrap; color: inherit; background: none;
+  transition: transform var(--motion-fast), box-shadow var(--motion-fast);
+}
+.kompas-btn:hover { transform: var(--lift-hover); }
+.kompas-btn:focus-visible { outline: 3px solid rgba(214,173,47,.36); outline-offset: 3px; }
+.kompas-btn__label { height: 100%; display: flex; align-items: center; padding: 0 24px; }
+.kompas-btn__cap {
+  width: 48px; height: 100%; display: grid; place-items: center; flex: none; line-height: 1;
+}
+.kompas-btn__cap svg { display: block; width: 19px; height: 19px; }
+.icon-arrow { fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
+.icon-play { fill: currentColor; stroke: none; width: 17px; height: 17px; }
+.kompas-btn--primary { background: var(--red); color: #fff; border-color: rgba(147,34,30,.72); }
+.kompas-btn--primary .kompas-btn__cap { background: var(--gold); color: var(--forest-950); border-left: 1px solid rgba(0,0,0,.12); }
+.kompas-btn--guide { background: #eee4c8; color: var(--forest-950); border-color: rgba(214,173,47,.66); }
+.kompas-btn--guide .kompas-btn__cap { background: var(--forest-900); color: var(--gold-soft); border-left: 1px solid rgba(0,0,0,.08); }
+.kompas-btn--section2 { justify-content: space-between; background: var(--red); color: #fff; border-color: rgba(214,173,47,.6); }
+.kompas-btn--section2 .kompas-btn__cap { background: var(--gold); color: var(--black); border-left: 1px solid rgba(0,0,0,.16); }
+.kompas-btn--sm { height: 42px; font-size: 12px; }
+.kompas-btn--sm .kompas-btn__label { padding-inline: 17px; }
+.kompas-btn--sm .kompas-btn__cap { width: 40px; }
+.kompas-btn--block { width: 100%; justify-content: space-between; }
+
+/* ===== Kicker / eyбrow ===== */
+.kompas-kicker { display: flex; align-items: center; gap: 12px; color: var(--red); font-size: 12px; line-height: 16px; font-weight: 850; letter-spacing: .105em; text-transform: uppercase; }
+.kompas-kicker::before { content: ""; width: 32px; height: 2px; background: var(--red); flex: none; }
+.kompas-kicker--gold { color: var(--gold); }
+.kompas-kicker--gold::before { background: var(--gold); }
+
+/* ===== Rail (wspólny motyw paska bocznego sekcji) ===== */
+.kompas-rail { position: relative; text-align: center; }
+.kompas-rail__num { font-size: 30px; line-height: 32px; font-weight: 900; color: var(--red); }
+.kompas-rail__name { margin-top: 8px; font-size: 10px; line-height: 12px; font-weight: 850; letter-spacing: .14em; text-transform: uppercase; color: var(--muted); }
+.kompas-rail__line { position: absolute; left: 50%; top: 80px; width: 1px; height: 220px; transform: translateX(-50%); background: rgba(190,48,42,.34); }
+.kompas-rail__dot { position: absolute; left: 50%; width: 9px; height: 9px; transform: translate(-50%,-50%); border: 2px solid var(--red); border-radius: 50%; background: var(--paper); }
+.kompas-rail__arrow { position: absolute; left: 50%; top: 294px; width: 8px; height: 8px; transform: translateX(-50%) rotate(45deg); border-right: 2px solid var(--red); border-bottom: 2px solid var(--red); }
+
+/* ===== Karta (wspólna) ===== */
+.kompas-card { position: relative; display: flex; flex-direction: column; min-height: 264px; padding: 24px 28px; background: rgba(255,255,255,.018); border: 1px solid rgba(214,173,47,.26); border-radius: 8px; overflow: hidden; isolation: isolate; color: inherit; }
+.kompas-card::before { content: ""; position: absolute; top: 0; bottom: 0; left: 0; width: 5px; height: auto; background: var(--gold); border-radius: 8px 0 0 8px; }
+.kompas-card__index { display: inline-flex; align-items: center; gap: 10px; font-family: var(--font-display); font-size: 22px; line-height: 24px; font-weight: 900; }
+.kompas-card__title { margin: 12px 0 0; font-size: 22px; line-height: 26px; font-weight: 850; letter-spacing: -.016em; }
+.kompas-card__body { margin: 14px 0 0; font-size: 13px; line-height: 20px; }
+.kompas-card__takeaway { margin-top: auto; padding-top: 12px; border-top: 1px solid rgba(214,173,47,.18); font-size: 12px; line-height: 16px; font-weight: 750; }
+.kompas-card--active { background: var(--paper); color: var(--ink); border-color: rgba(32,48,30,.32); }
+.kompas-card--active::before { background: var(--red); }
+.kompas-card--active .kompas-card__index { color: var(--red); }
+.kompas-card--active .kompas-card__body { color: var(--muted); }
+.kompas-card--dark { background: rgba(255,255,255,.02); color: #fff; }
+.kompas-card--dark .kompas-card__body { color: rgba(255,255,255,.80); }
+.kompas-card--dark::before { background: var(--gold); }
+
+/* ===== Akcent „L" (prawy+dolny, złoty) ===== */
+.kompas-accent { position: relative; isolation: isolate; }
+.kompas-accent::after {
+  content: ""; position: absolute; z-index: -1;
+  left: var(--accent-start-x); top: var(--accent-start-y);
+  right: calc(-1 * var(--cta-accent-offset)); bottom: calc(-1 * var(--cta-accent-offset));
+  border-right: var(--cta-accent-stroke) solid var(--gold);
+  border-bottom: var(--cta-accent-stroke) solid var(--gold);
+  pointer-events: none;
+}
+.kompas-accent--product::after {
+  border-right-width: var(--product-accent-stroke);
+  border-bottom-width: var(--product-accent-stroke);
+  right: calc(-1 * var(--product-accent-offset));
+  bottom: calc(-1 * var(--product-accent-offset));
+}
+
+/* ===== Topografia (dekoracyjne tło) ===== */
+.kompas-topo { position: absolute; inset: 0; pointer-events: none; opacity: .12; z-index: 0;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='650' height='410' viewBox='0 0 650 410' fill='none'%3E%3Cg stroke='%23D6AD2F' stroke-opacity='.48'%3E%3Cpath d='M-58 68C54 8 146 18 229 66s169 49 251 13 165-29 240 30'/%3E%3Cpath d='M-38 102C62 50 148 53 226 98s164 45 244 10 159-20 235 31'/%3E%3Cpath d='M-15 136C75 92 151 94 224 132s158 42 236 9 155-16 225 27'/%3E%3Cpath d='M18 326c81-53 160-55 228-18s139 42 211 10 140-34 223-3'/%3E%3C/g%3E%3C/svg%3E");
+  background-size: 520px 327px; }
+.kompas-mountains { position: absolute; left: 0; right: 0; bottom: 0; height: 112px; pointer-events: none; opacity: .22; z-index: 0; }
+.kompas-mountains svg { width: 100%; height: 100%; display: block; }
+
+/* ===== HEADER ===== */
+.kompas-header { position: sticky; top: 0; z-index: 100; background: var(--forest-950); color: #fff; border-bottom: 1px solid rgba(214,173,47,.12); }
+.kompas-header__inner { height: 72px; display: grid; grid-template-columns: max-content minmax(0,1fr) max-content; align-items: center; gap: 24px; }
+.kompas-brand { display: inline-flex; align-items: center; gap: 10px; min-width: 172px; background: none; border: 0; outline: 0; box-shadow: none; color: #fff; cursor: pointer; }
+.kompas-brand__logo { width: 42px; height: 42px; object-fit: contain; background: transparent; border: 0; border-radius: 0; }
+.kompas-brand__name { font-size: 17px; line-height: 16px; font-weight: 850; letter-spacing: .052em; text-transform: uppercase; }
+.kompas-nav { display: flex; justify-content: center; align-items: center; gap: 20px; height: 100%; min-width: 0; }
+.kompas-nav__link { position: relative; display: flex; align-items: center; height: 100%; padding: 0 2px; color: rgba(255,255,255,.76); font-size: 16px; line-height: 20px; font-weight: 700; white-space: nowrap; }
+.kompas-nav__link::after { content: ""; position: absolute; left: 50%; bottom: 12px; width: 28px; height: 2px; background: var(--red); transform: translateX(-50%) scaleX(0); transform-origin: center; transition: transform .18s ease; }
+.kompas-nav__link:hover, .kompas-nav__link.is-active { color: #fff; }
+.kompas-nav__link:hover::after, .kompas-nav__link.is-active::after { transform: translateX(-50%) scaleX(1); }
+.kompas-header__actions { display: flex; align-items: center; gap: 12px; min-width: 0; }
+.kompas-menu-toggle { display: none; width: 40px; height: 40px; border: 0; background: transparent; color: #fff; cursor: pointer; padding: 8px; }
+.kompas-menu-toggle span, .kompas-menu-toggle::before, .kompas-menu-toggle::after { content: ""; display: block; width: 20px; height: 2px; background: currentColor; margin: 4px auto; }
+
+/* ===== HERO (sekcja 01) ===== */
+.kompas-hero { position: relative; overflow: hidden; background: var(--paper); }
+.kompas-hero__inner { position: relative; z-index: 2; display: grid; grid-template-columns: 44px minmax(0,1fr); gap: 24px; padding: 48px 0 104px; }
+.kompas-hero__grid { display: grid; grid-template-columns: minmax(0,1fr) minmax(0,1.04fr); column-gap: 40px; align-items: start; }
+.kompas-hero__copy { min-width: 0; max-width: 568px; }
+.kompas-hero h1 { max-width: 584px; margin: 0; font-size: 52px; line-height: 54px; font-weight: 900; letter-spacing: -.034em; text-wrap: balance; }
+.kompas-lead { max-width: 520px; margin: 20px 0 0; font-size: 20px; line-height: 28px; font-weight: 760; }
+.kompas-copy { max-width: 520px; margin: 12px 0 0; color: #3f4b3e; font-size: 16px; line-height: 24px; }
+.kompas-hero__actions { display: flex; flex-wrap: nowrap; align-items: center; gap: 16px; margin-top: 28px; }
+.kompas-hero__actions .kompas-btn { flex: 0 0 auto; }
+.kompas-hero__product { position: relative; min-width: 0; align-self: center; }
+.kompas-hero__product img { width: 100%; height: auto; display: block; border: 1px solid rgba(32,48,30,.22); background: #000; }
+
+/* ===== SITUATIONS (sekcja 02) ===== */
+.kompas-situations { position: relative; overflow: hidden; background: var(--forest-950); color: #fff; }
+.kompas-situations__inner { position: relative; z-index: 2; display: grid; grid-template-columns: 44px 400px minmax(0,1fr); gap: 24px; padding: 48px 0 52px; }
+.kompas-situations .kompas-rail__num { color: var(--gold); }
+.kompas-situations .kompas-rail__name { color: rgba(255,255,255,.58); }
+.kompas-sit-intro { align-self: start; }
+.kompas-sit-intro h2 { max-width: 390px; margin: 0; font-size: 32px; line-height: 36px; font-weight: 900; letter-spacing: -.024em; text-wrap: balance; }
+.kompas-sit-intro p { max-width: 360px; margin: 16px 0 0; color: rgba(255,255,255,.84); font-size: 15px; line-height: 24px; }
+.kompas-cards { display: grid; grid-template-columns: repeat(3, minmax(0,1fr)); gap: 16px; align-items: stretch; }
+
+/* CTA band (wspólny pasek CTA) */
+.kompas-cta { grid-column: 2 / 4; display: grid; grid-template-columns: minmax(0,1fr) auto; align-items: center; gap: 40px; min-height: 124px; padding: 24px 28px; background: #050605; border: 1px solid rgba(214,173,47,.34); border-radius: 8px; color: #fff; text-align: left; }
+.kompas-cta__eyebrow { color: var(--gold); font-size: 10px; line-height: 12px; font-weight: 850; letter-spacing: .13em; text-transform: uppercase; }
+.kompas-cta__title { margin-top: 6px; max-width: 700px; font-size: 24px; line-height: 30px; font-weight: 850; font-family: var(--font-display); }
+.kompas-cta__copy { max-width: 640px; margin-top: 8px; color: rgba(255,255,255,.72); font-size: 13px; line-height: 20px; }
+
+/* ===== CYCLE (sekcja 03 — 4 etapy) ===== */
+.kompas-cycle { position: relative; overflow: hidden; isolation: isolate; min-height: 0; background: var(--paper); color: var(--forest-950); }
+.kompas-cycle__shell { position: relative; z-index: 2; width: min(var(--shell), calc(100% - 64px)); margin-inline: auto; display: grid; grid-template-columns: 44px minmax(0,1fr); gap: 24px; padding: 52px 0 104px; }
+.kompas-cycle__head { display: grid; grid-template-columns: minmax(0,1.08fr) minmax(360px,.78fr); gap: 64px; align-items: end; }
+.kompas-cycle__title { max-width: 610px; margin: 0; font-family: var(--font-display); font-size: clamp(42px,4vw,54px); line-height: .99; font-weight: 900; letter-spacing: -.04em; text-wrap: balance; }
+.kompas-cycle__support { max-width: 500px; margin: 0; color: var(--muted); font-size: 16px; line-height: 25px; }
+.kompas-cycle__route { position: relative; margin-top: 40px; }
+.kompas-cycle__track { position: absolute; z-index: 0; left: 0; right: 0; top: 27px; border-top: 3px dashed var(--red); pointer-events: none; }
+.kompas-cycle__steps { position: relative; z-index: 2; display: grid; grid-template-columns: repeat(4, minmax(0,1fr)); gap: clamp(18px,2vw,30px); }
+.kompas-cycle__step { min-width: 0; }
+.kompas-cycle__node-row { height: 80px; display: flex; justify-content: center; align-items: flex-start; position: relative; }
+.kompas-cycle__node { position: relative; z-index: 3; width: 54px; height: 54px; display: grid; place-items: center; border: 0; border-radius: 50%; background: var(--gold); color: var(--forest-950); box-shadow: 0 0 0 8px var(--paper), 0 2px 0 rgba(32,49,31,.08); font-family: var(--font-display); font-size: 17px; line-height: 1; font-weight: 900; }
+.kompas-cycle__step--active .kompas-cycle__node { background: var(--red); color: #fff; box-shadow: 0 0 0 8px var(--paper), 0 3px 0 rgba(151,37,31,.16); }
+.kompas-cycle__step-copy { max-width: 280px; margin-inline: auto; padding: 0 2px; }
+.kompas-cycle__step-copy::before { content: ""; display: block; width: 28px; height: 4px; margin-bottom: 12px; background: #b88d18; }
+.kompas-cycle__step--active .kompas-cycle__step-copy::before { background: var(--red); }
+.kompas-cycle__step-title { margin: 0; min-height: 52px; font-family: var(--font-display); font-size: 21px; line-height: 25px; font-weight: 900; letter-spacing: -.02em; text-wrap: balance; }
+.kompas-cycle__step-body { margin: 11px 0 0; color: var(--muted); font-size: 14px; line-height: 22px; }
+
+/* ===== MEMORY (sekcja 04 — pamięć drużyny) ===== */
+.kompas-memory { position: relative; overflow: hidden; isolation: isolate; background: var(--forest-950); color: var(--paper); }
+.kompas-memory__shell { width: min(var(--shell), calc(100% - 64px)); margin-inline: auto; display: grid; grid-template-columns: 44px minmax(0,1fr) minmax(520px,.98fr); grid-template-areas: "rail copy preview"; column-gap: 32px; align-items: start; padding: 52px 0 64px; }
+.kompas-memory .kompas-rail__num { color: var(--gold); }
+.kompas-memory .kompas-rail__name { color: rgba(245,240,223,.54); }
+.kompas-memory__copy { grid-area: copy; min-width: 0; padding-top: 8px; }
+.kompas-memory__title { max-width: 590px; margin: 0; font-family: var(--font-display); font-size: 48px; line-height: 52px; font-weight: 900; letter-spacing: -.038em; text-wrap: balance; }
+.kompas-memory__lead { max-width: 540px; margin: 16px 0 0; color: rgba(245,240,223,.82); font-size: 16px; line-height: 24px; }
+.kompas-memory__actions { display: flex; align-items: center; flex-wrap: wrap; gap: 12px; margin-top: 20px; }
+.kompas-memory__cards { display: grid; grid-template-columns: 1fr; gap: 10px; margin-top: 16px; width: 100%; max-width: 610px; }
+.kompas-memory__card { position: relative; display: grid; grid-template-columns: 48px minmax(0,1fr); gap: 14px; min-height: 112px; padding: 18px 20px 18px 24px; background: var(--paper-2); color: var(--ink); border: 0; border-radius: 8px; overflow: hidden; isolation: isolate; }
+.kompas-memory__card::before { content: ""; position: absolute; left: 0; top: 0; bottom: 0; width: 5px; background: var(--gold); }
+.kompas-memory__card:nth-child(2)::before { background: var(--red); }
+.kompas-memory__card-index { padding-top: 1px; font-family: var(--font-display); font-size: 20px; line-height: 24px; font-weight: 900; color: var(--gold); }
+.kompas-memory__card:nth-child(2) .kompas-memory__card-index { color: var(--red); }
+.kompas-memory__card-title { margin: 0; font-family: var(--font-display); font-size: 16px; line-height: 20px; font-weight: 900; letter-spacing: .018em; text-transform: uppercase; }
+.kompas-memory__card-copy { max-width: 500px; margin: 6px 0 0; color: #4f5a4d; font-size: 13px; line-height: 20px; }
+.kompas-memory__preview { grid-area: preview; position: relative; min-width: 0; align-self: start; isolation: isolate; }
+.kompas-memory__preview::after { content: ""; position: absolute; z-index: -1; right: -4px; bottom: -4px; left: 22%; top: 20%; border-right: 4px solid var(--gold); border-bottom: 4px solid var(--gold); border-bottom-right-radius: 8px; pointer-events: none; }
+
+/* Dokument (podgląd w sekcji pamięci) */
+.kompas-doc { width: 100%; background: #f3f4f5; color: #202522; overflow: hidden; border-radius: 8px; }
+.kompas-doc__topbar { height: 54px; display: flex; align-items: center; justify-content: space-between; padding: 0 16px; background: #fff; border-bottom: 1px solid #dde1e3; }
+.kompas-doc__brand { display: flex; align-items: center; gap: 10px; min-width: 0; }
+.kompas-doc__icon { width: 26px; height: 32px; position: relative; border-radius: 4px; background: #4285f4; flex: none; }
+.kompas-doc__icon::before, .kompas-doc__icon::after { content: ""; position: absolute; left: 7px; right: 7px; height: 2px; background: rgba(255,255,255,.84); }
+.kompas-doc__icon::before { top: 11px; } .kompas-doc__icon::after { top: 17px; }
+.kompas-doc__name { font-size: 14px; line-height: 20px; font-weight: 750; color: #2a2d2b; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.kompas-doc__share { padding: 7px 13px; border-radius: 18px; background: #dcecff; color: #536270; font-size: 11px; line-height: 16px; font-weight: 700; }
+.kompas-doc__menu { height: 36px; display: flex; align-items: center; gap: 16px; padding: 0 16px; background: #fff; border-bottom: 1px solid #e4e7e8; color: #626a65; font-size: 10px; line-height: 16px; }
+.kompas-doc__workspace { padding: 26px 28px 30px; background: #f1f3f4; }
+.kompas-doc__page { width: 100%; min-height: 516px; margin-inline: auto; padding: 38px; background: #fff; border: 1px solid #e1e4e3; border-radius: 8px; }
+.kompas-doc__label { margin: 0 0 12px; color: var(--red); font-size: 9px; line-height: 12px; font-weight: 900; letter-spacing: .12em; text-transform: uppercase; }
+.kompas-doc__title { margin: 0; font-family: var(--font-display); font-size: 28px; line-height: 32px; font-weight: 900; letter-spacing: -.025em; color: #151a16; }
+.kompas-doc__intro { margin: 14px 0 0; color: #636a65; font-size: 11px; line-height: 18px; }
+.kompas-doc__block { position: relative; margin-top: 20px; padding: 17px 18px 17px 22px; background: #fbf6df; border-radius: 8px; overflow: hidden; }
+.kompas-doc__block::before { content: ""; position: absolute; left: 0; top: 0; bottom: 0; width: 5px; background: var(--gold); }
+.kompas-doc__block--red { background: #fdf0eb; } .kompas-doc__block--red::before { background: var(--red); }
+.kompas-doc__block-label { margin: 0; color: #b38913; font-size: 9px; line-height: 12px; font-weight: 900; letter-spacing: .10em; text-transform: uppercase; }
+.kompas-doc__block--red .kompas-doc__block-label { color: var(--red); }
+.kompas-doc__block p { margin: 7px 0 0; color: #5b635d; font-size: 10px; line-height: 16px; }
+
+/* ===== BRAND BOOK ===== */
+.kompas-brandbook { position: relative; background: var(--paper); color: var(--ink); padding: 56px 0 80px; }
+.kompas-brandbook__grid { display: grid; grid-template-columns: 44px minmax(0,1fr); gap: 24px; }
+.kompas-brandbook__head { max-width: 720px; }
+.kompas-brandbook__title { margin: 12px 0 0; font-family: var(--font-display); font-size: clamp(36px,4vw,52px); line-height: 1; font-weight: 900; letter-spacing: -.03em; }
+.kompas-brandbook__lead { margin: 16px 0 0; color: var(--muted); font-size: 16px; line-height: 25px; max-width: 620px; }
+.kompas-brandbook__section { margin-top: 40px; }
+.kompas-brandbook__h { display: flex; align-items: center; gap: 12px; color: var(--red); font-size: 12px; line-height: 16px; font-weight: 850; letter-spacing: .12em; text-transform: uppercase; }
+.kompas-brandbook__h::before { content: ""; width: 32px; height: 2px; background: var(--red); }
+.kompas-swatches { display: grid; grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); gap: 16px; margin-top: 20px; }
+.kompas-swatch { border: 1px solid var(--line); border-radius: 8px; overflow: hidden; }
+.kompas-swatch__chip { height: 64px; }
+.kompas-swatch__meta { padding: 10px 12px; background: #fff; }
+.kompas-swatch__name { font-family: var(--font-display); font-size: 13px; line-height: 16px; font-weight: 850; }
+.kompas-swatch__hex { font-size: 11px; line-height: 16px; color: var(--muted); text-transform: uppercase; }
+.kompas-type-row { display: grid; grid-template-columns: 160px minmax(0,1fr); gap: 24px; align-items: baseline; padding: 16px 0; border-top: 1px solid var(--line); }
+.kompas-type-row__label { font-size: 12px; color: var(--muted); text-transform: uppercase; letter-spacing: .08em; }
+.kompas-type-row__sample { font-family: var(--font-display); }
+.kompas-logo-lockup { display: flex; align-items: center; gap: 14px; padding: 20px; border: 1px solid var(--line); border-radius: 8px; background: #fff; }
+.kompas-logo-lockup img { width: 48px; height: 48px; object-fit: contain; }
+.kompas-logo-lockup__name { font-family: var(--font-display); font-size: 20px; font-weight: 850; letter-spacing: .05em; text-transform: uppercase; }
+.kompas-voice { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 16px; margin-top: 20px; }
+.kompas-voice__card { padding: 18px 20px; border: 1px solid var(--line); border-radius: 8px; background: #fff; }
+.kompas-voice__card h4 { margin: 0 0 8px; font-family: var(--font-display); font-size: 14px; text-transform: uppercase; letter-spacing: .08em; }
+.kompas-voice__card p { margin: 0; font-size: 13px; line-height: 20px; color: var(--muted); }
+
+/* ===== RESPONSYWNOŚĆ ===== */
+@media (max-width: 1199px) {
+  .kompas-shell { width: min(1104px, calc(100% - 40px)); }
+  .kompas-header__inner { gap: 16px; }
+  .kompas-brand { min-width: 160px; }
+  .kompas-brand__logo { width: 40px; height: 40px; }
+  .kompas-brand__name { font-size: 16px; }
+  .kompas-nav { gap: 14px; }
+  .kompas-nav__link { font-size: 14px; }
+  .kompas-hero__inner { grid-template-columns: 40px minmax(0,1fr); gap: 20px; padding: 40px 0 96px; }
+  .kompas-hero__grid { grid-template-columns: minmax(0,.96fr) minmax(0,1.04fr); column-gap: 28px; }
+  .kompas-hero h1 { font-size: 48px; line-height: 50px; }
+  .kompas-situations__inner { grid-template-columns: 40px minmax(0,1fr); gap: 20px; padding: 40px 0 44px; }
+  .kompas-situations .kompas-rail { grid-column: 1; grid-row: 1 / 3; }
+  .kompas-sit-intro { grid-column: 2; grid-row: 1; max-width: 720px; }
+  .kompas-sit-intro h2 { max-width: 680px; font-size: 36px; line-height: 40px; }
+  .kompas-cards { grid-column: 2; grid-row: 2; }
+  .kompas-cta { grid-column: 2; grid-row: 3; }
+  .kompas-cycle__head { grid-template-columns: 1fr; gap: 20px; align-items: start; }
+  .kompas-memory__shell { grid-template-columns: 40px minmax(0,1fr); grid-template-areas: "rail copy" "rail preview"; }
+}
+@media (max-width: 1099px) {
+  .kompas-hero__grid { display: block; }
+  .kompas-hero__copy { max-width: 720px; }
+  .kompas-hero h1 { font-size: 52px; line-height: 54px; }
+  .kompas-hero__product { max-width: 760px; margin-top: 36px; }
+}
+@media (max-width: 959px) {
+  .kompas-header { height: 68px; }
+  .kompas-header__inner { height: 68px; grid-template-columns: minmax(0,1fr) max-content; gap: 12px; }
+  .kompas-brand { min-width: 0; }
+  .kompas-brand__logo { width: 36px; height: 36px; }
+  .kompas-brand__name { font-size: 15px; line-height: 15px; }
+  .kompas-nav { display: none; position: absolute; top: 68px; left: 0; right: 0; flex-direction: column; align-items: stretch; gap: 0; padding: 8px 16px 18px; background: var(--forest-950); border-top: 1px solid rgba(214,173,47,.18); }
+  .kompas-nav.is-open { display: flex; }
+  .kompas-nav__link { height: auto; padding: 12px 4px; font-size: 16px; }
+  .kompas-nav__link::after { left: 4px; bottom: 6px; width: 28px; transform: scaleX(0); transform-origin: left; }
+  .kompas-header__actions { display: none; }
+  .kompas-menu-toggle { display: grid; }
+  .kompas-hero__inner { display: block; padding: 32px 0 88px; }
+  .kompas-hero__inner > .kompas-rail { display: flex; align-items: flex-end; gap: 8px; text-align: left; margin-bottom: 12px; }
+  .kompas-hero__inner > .kompas-rail .kompas-rail__name { margin: 0 0 2px; }
+  .kompas-hero__inner > .kompas-rail .kompas-rail__line,
+  .kompas-hero__inner > .kompas-rail .kompas-rail__dot,
+  .kompas-hero__inner > .kompas-rail .kompas-rail__arrow { display: none; }
+  .kompas-hero h1 { max-width: 700px; font-size: 48px; line-height: 50px; }
+  .kompas-situations__inner { display: block; padding: 32px 0 40px; }
+  .kompas-situations .kompas-rail { display: flex; align-items: flex-end; gap: 8px; text-align: left; margin-bottom: 12px; }
+  .kompas-sit-intro h2 { max-width: 680px; font-size: 40px; line-height: 44px; }
+  .kompas-cards { grid-template-columns: 1fr; gap: 12px; margin-top: 24px; }
+  .kompas-card { min-height: 0; }
+  .kompas-card__title { min-height: 0; font-size: 24px; line-height: 28px; }
+  .kompas-cta { margin-top: 24px; grid-template-columns: 1fr; gap: 16px; }
+  .kompas-cta .kompas-btn { width: 100%; }
+  .kompas-cycle__shell { display: block; width: calc(100% - 32px); padding: 34px 0 148px; }
+  .kompas-cycle .kompas-rail { display: flex; align-items: flex-end; gap: 8px; margin-bottom: 14px; text-align: left; }
+  .kompas-cycle .kompas-rail__name { margin: 0 0 2px; }
+  .kompas-cycle .kompas-rail__line, .kompas-cycle .kompas-rail__dot, .kompas-cycle .kompas-rail__arrow { display: none; }
+  .kompas-cycle__title { font-size: clamp(38px,7vw,48px); line-height: 1.02; }
+  .kompas-cycle__track { display: none; }
+  .kompas-cycle__steps { display: block; }
+  .kompas-cycle__step { --node-col: 64px; position: relative; display: grid; grid-template-columns: var(--node-col) minmax(0,1fr); gap: 18px; padding-bottom: 30px; }
+  .kompas-cycle__step:not(:last-child)::after { content: ""; position: absolute; z-index: 1; top: 27px; bottom: -27px; left: calc(var(--node-col) / 2); border-left: 3px dashed var(--red); pointer-events: none; }
+  .kompas-cycle__node-row { height: auto; }
+  .kompas-cycle__step-copy { max-width: 620px; margin: 0; }
+  .kompas-cycle__step-title { min-height: 0; }
+  .kompas-memory__shell { display: block; width: calc(100% - 32px); padding: 30px 0 42px; }
+  .kompas-memory .kompas-rail { display: flex; align-items: flex-end; gap: 8px; text-align: left; margin-bottom: 14px; }
+  .kompas-memory .kompas-rail__name { margin: 0 0 2px; }
+  .kompas-memory .kompas-rail__line, .kompas-memory .kompas-rail__dot, .kompas-memory .kompas-rail__arrow { display: none; }
+  .kompas-memory__title { font-size: 40px; line-height: 44px; }
+  .kompas-memory__actions { display: grid; grid-template-columns: 1fr; gap: 10px; }
+  .kompas-memory__actions .kompas-btn { width: 100%; justify-content: space-between; }
+  .kompas-memory__preview { margin-top: 26px; }
+}
+@media (max-width: 599px) {
+  .kompas-shell { width: calc(100% - 24px); }
+  .kompas-header { height: 64px; }
+  .kompas-header__inner { height: 64px; }
+  .kompas-nav { top: 64px; }
+  .kompas-brand__logo { width: 34px; height: 34px; }
+  .kompas-brand__name { font-size: 14px; line-height: 14px; }
+  .kompas-menu-toggle { width: 36px; height: 36px; }
+  .kompas-hero__inner { padding: 28px 0 72px; }
+  .kompas-kicker { font-size: 10px; gap: 8px; }
+  .kompas-kicker::before { width: 28px; }
+  .kompas-hero h1 { font-size: 40px; line-height: 42px; }
+  .kompas-lead { font-size: 18px; line-height: 24px; }
+  .kompas-hero__actions { display: grid; grid-template-columns: 1fr; gap: 12px; margin-top: 20px; }
+  .kompas-hero__actions .kompas-btn { width: 100%; justify-content: space-between; }
+  .kompas-situations__inner { padding: 28px 0 36px; }
+  .kompas-sit-intro h2 { font-size: 36px; line-height: 40px; }
+  .kompas-cta { padding: 20px; }
+  .kompas-cta__title { font-size: 20px; line-height: 24px; }
+  .kompas-cycle__step { --node-col: 56px; gap: 12px; padding-bottom: 26px; }
+  .kompas-memory__title { font-size: 36px; line-height: 40px; }
+  .kompas-memory__card { grid-template-columns: 40px minmax(0,1fr); gap: 12px; padding: 16px 16px 16px 20px; min-height: 0; }
+  .kompas-memory__preview::after { right: -3px; bottom: -3px; border-right-width: 3px; border-bottom-width: 3px; }
+  :root { --cta-accent-offset: 5px; --cta-accent-stroke: 2px; --product-accent-offset: 5px; --product-accent-stroke: 2px; }
+}

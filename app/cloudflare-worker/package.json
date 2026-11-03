@@ -1,0 +1,21 @@
+{
+  "name": "kompas-zbiorek-mcp-worker",
+  "private": true,
+  "version": "0.2.0",
+  "type": "module",
+  "description": "Serwer MCP Kompas Zbiórek z OAuth 2.1 (Google OpenID Connect) na Cloudflare Workers",
+  "scripts": {
+    "build": "node build-worker.mjs",
+    "type-check": "tsc --noEmit",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "@cloudflare/workers-oauth-provider": "^0.10.3"
+  },
+  "devDependencies": {
+    "@cloudflare/workers-types": "^5.20260730.1",
+    "typescript": "^5.8.3",
+    "vitest": "^4.1.11",
+    "wrangler": "^4.123.0"
+  }
+}
