@@ -42,6 +42,8 @@ RUN printf '#!/bin/sh\nexit 101\n' > /usr/sbin/policy-rc.d \
     && mkdir -p /usr/share/nginx/html \
     && cp -a app/web/dist/. /usr/share/nginx/html/ \
     && cp ops/coolify/nginx.conf /etc/nginx/conf.d/healthz.conf \
+    && (nginx -s quit 2>/dev/null || true) \
+    && sleep 1 \
     && nginx \
     && node scripts/coolify-healthz-smoke.mjs http://127.0.0.1/ \
     && nginx -s quit
