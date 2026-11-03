@@ -22,6 +22,27 @@ test("/healthz has no prefix or regex location that could catch /healthz/extra",
   assert.equal(healthzLocations[0][1].trim(), "=");
 });
 
+test("build-stage smoke isolates nginx from the host's port 80 (KOMAA-1565)", () => {
+  const dockerfile = readFileSync(
+    new URL("../ops/coolify/Dockerfile", import.meta.url),
+    "utf8",
+  );
+  const buildStage = dockerfile.split("FROM nginx:alpine AS runtime")[0];
+  assert.match(buildStage, /listen 127\.0\.0\.1:18763;/);
+  assert.match(buildStage, /http:\/\/127\.0\.0\.1:18763\//);
+  assert.doesNotMatch(
+    buildStage,
+    /cp ops\/coolify\/nginx\.conf \/etc\/nginx\/conf\.d\/healthz\.conf/,
+    "build stage must not start the committed :80 config directly",
+  );
+  assert.match(
+    dockerfile,
+    /COPY ops\/coolify\/nginx\.conf \/etc\/nginx\/conf\.d\/default\.conf/,
+    "runtime image must still serve the committed config on :80",
+  );
+  assert.match(conf, /^\s*listen 80;/m, "runtime config must keep listening on :80");
+});
+
 test("existing panel redirects and SPA fallback are preserved", () => {
   assert.match(
     conf,

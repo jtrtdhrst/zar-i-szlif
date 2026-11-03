@@ -29,15 +29,26 @@ RUN npm --prefix app run build
 # exact committed nginx config and drive it over real HTTP before the image is
 # produced. CI builds this stage, so a route/content-type/redirect drift fails
 # the build instead of shipping silently.
+#
+# KOMAA-1565: the Coolify build environment shares the host network, where
+# port 80 is already bound, so the old build-time `nginx` (listen 80) failed.
+# The runtime image keeps :80; only this throwaway build instance listens on
+# an isolated loopback port. The committed config is rewritten exactly once,
+# and the guard below fails the build if any enabled nginx config still
+# listens on :80.
 RUN apt-get update \
     && apt-get install -y --no-install-recommends nginx \
     && rm -rf /var/lib/apt/lists/* \
     && rm -f /etc/nginx/sites-enabled/default \
     && mkdir -p /usr/share/nginx/html \
     && cp -a app/web/dist/. /usr/share/nginx/html/ \
-    && cp ops/coolify/nginx.conf /etc/nginx/conf.d/healthz.conf \
+    && sed 's/listen 80;/listen 127.0.0.1:18763;/' ops/coolify/nginx.conf > /etc/nginx/conf.d/healthz.conf \
+    && test "$(grep -c 'listen 127.0.0.1:18763;' /etc/nginx/conf.d/healthz.conf)" -eq 1 \
+    && test "$(grep -c 'listen 80;' /etc/nginx/conf.d/healthz.conf)" -eq 0 \
+    && ! grep -rqsE 'listen[[:space:]]+80([[:space:]]|;)' /etc/nginx/conf.d /etc/nginx/sites-enabled \
+    && nginx -t \
     && nginx \
-    && node scripts/coolify-healthz-smoke.mjs http://127.0.0.1/ \
+    && node scripts/coolify-healthz-smoke.mjs http://127.0.0.1:18763/ \
     && nginx -s quit
 
 FROM nginx:alpine AS runtime
