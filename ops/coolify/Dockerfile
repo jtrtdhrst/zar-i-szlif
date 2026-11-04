@@ -29,7 +29,7 @@ RUN npm --prefix app run build
 # serves. Both CI and Coolify provide the exact commit through SOURCE_COMMIT.
 # A missing/invalid SHA must fail the build, never publish a versionless image.
 ARG SOURCE_COMMIT
-RUN node -e 'const fs = require("node:fs"); const sha = process.env.SOURCE_COMMIT; if (!/^[0-9a-f]{40}$/.test(sha || "")) { console.error("SOURCE_COMMIT must be a 40-hex SHA"); process.exit(1); } fs.writeFileSync("/app/app/web/dist/__release.json", JSON.stringify({commit:sha,source:"zar-i-szlif/main"}) + "\\n");'
+RUN node -e 'const fs = require("node:fs"); const sha = process.env.SOURCE_COMMIT; if (!/^[0-9a-f]{40}$/.test(sha || "")) { console.error("SOURCE_COMMIT must be a 40-hex SHA"); process.exit(1); } fs.writeFileSync("/app/app/web/dist/__release.json", JSON.stringify({commit:sha,source:"zar-i-szlif/main"}));'
 
 
 # Runtime readiness regression (KOMAA-1558). Serve the built artifact with the
