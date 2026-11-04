@@ -52,9 +52,28 @@ jobs:
             exit 1
           fi
           grep -q 'release provenance unavailable' /tmp/negative-release.log
-  verify-production:
+  promote-release:
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'
     needs: validate-product
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          persist-credentials: true
+      - name: Fast-forward CI-approved release ref (no forced updates)
+        run: |
+          set -euo pipefail
+          git fetch --no-tags origin refs/heads/main:refs/remotes/origin/main refs/heads/ci-approved:refs/remotes/origin/ci-approved
+          test "$(git rev-parse refs/remotes/origin/main)" = "$GITHUB_SHA"
+          git merge-base --is-ancestor refs/remotes/origin/ci-approved "$GITHUB_SHA"
+          git push origin "$GITHUB_SHA:refs/heads/ci-approved"
+  verify-production:
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    needs: promote-release
     runs-on: ubuntu-latest
     timeout-minutes: 8
     steps:
