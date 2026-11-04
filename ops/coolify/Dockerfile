@@ -25,6 +25,9 @@ RUN npm run lint && npm run typecheck && npm test
 # Produces app/web/dist (index.html + kompas-logo.png).
 RUN npm --prefix app run build
 
+# The official nginx entrypoint writes the exact runtime SOURCE_COMMIT into
+# the served static artifact; it is present even when Coolify excludes source
+# commit from Docker build args (its default).
 # Runtime readiness regression (KOMAA-1558). Serve the built artifact with the
 # exact committed nginx config and drive it over real HTTP before the image is
 # produced. CI builds this stage, so a route/content-type/redirect drift fails
@@ -60,6 +63,8 @@ FROM nginx:alpine AS runtime
 
 COPY --from=build /app/app/web/dist /usr/share/nginx/html
 COPY ops/coolify/nginx.conf /etc/nginx/conf.d/default.conf
+COPY ops/coolify/40-release-provenance.sh /docker-entrypoint.d/40-release-provenance.sh
+RUN chmod +x /docker-entrypoint.d/40-release-provenance.sh
 
 EXPOSE 80
 
