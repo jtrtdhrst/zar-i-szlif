@@ -36,4 +36,32 @@ jobs:
       - name: Product lint, typecheck and tests
         run: npm run validate:code
       - name: Reproducible Coolify container build
-        run: docker build --file ops/coolify/Dockerfile --tag product-ci:verified .
+        run: docker build --build-arg SOURCE_COMMIT="${GITHUB_SHA}" --file ops/coolify/Dockerfile --tag product-ci:verified .
+      - name: Verify exact source SHA embedded in production image
+        run: |
+          docker run --rm --entrypoint cat product-ci:verified /usr/share/nginx/html/__release.json > /tmp/release.json
+          python3 -c 'import json,os; x=json.load(open("/tmp/release.json")); assert x["commit"]==os.environ["GITHUB_SHA"], "wrong image source SHA"; assert x["source"]=="zar-i-szlif/main"'
+  verify-production:
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    needs: validate-product
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    steps:
+      - name: Await the matching SHA on real production HTTP
+        env:
+          EXPECTED_SHA: ${{ github.sha }}
+        run: |
+          set -euo pipefail
+          for attempt in $(seq 1 36); do
+            if curl --fail --silent --show-error --max-time 10 --retry 0 \
+              -H 'Cache-Control: no-cache' \
+              'https://panel.zariszlif.pl/__release.json' -o /tmp/production-release.json \
+              && python3 -c 'import json,os; a=json.load(open("/tmp/production-release.json")); assert a["commit"]==os.environ["EXPECTED_SHA"], "production SHA mismatch"; assert a["source"]=="zar-i-szlif/main"'; then
+              printf 'PASS production SHA=%s\n' "$EXPECTED_SHA"
+              exit 0
+            fi
+            echo "Production not yet serving the exact verified main SHA (attempt $attempt/36)"
+            sleep 10
+          done
+          echo 'FAIL: production did not serve the exact main SHA' >&2
+          exit 1
