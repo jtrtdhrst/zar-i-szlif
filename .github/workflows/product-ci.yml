@@ -36,11 +36,22 @@ jobs:
       - name: Product lint, typecheck and tests
         run: npm run validate:code
       - name: Reproducible Coolify container build
-        run: docker build --build-arg SOURCE_COMMIT="${GITHUB_SHA}" --file ops/coolify/Dockerfile --tag product-ci:verified .
-      - name: Verify exact source SHA embedded in production image
+        run: docker build --file ops/coolify/Dockerfile --tag product-ci:verified .
+      - name: Verify source SHA is emitted by the real nginx entrypoint
         run: |
-          docker run --rm --entrypoint cat product-ci:verified /usr/share/nginx/html/__release.json > /tmp/release.json
+          set -euo pipefail
+          name=product-ci-release-check
+          trap 'docker rm -f "$name" >/dev/null 2>&1 || true' EXIT
+          docker run -d --name "$name" --network none -e SOURCE_COMMIT="${GITHUB_SHA}" product-ci:verified
+          docker exec "$name" cat /usr/share/nginx/html/__release.json > /tmp/release.json
           python3 -c 'import json,os; x=json.load(open("/tmp/release.json")); assert x["commit"]==os.environ["GITHUB_SHA"], "wrong image source SHA"; assert x["source"]=="zar-i-szlif/main"'
+      - name: Reject versionless container starts
+        run: |
+          if docker run --rm --network none product-ci:verified > /tmp/negative-release.log 2>&1; then
+            echo 'FAIL: missing SOURCE_COMMIT must prevent startup' >&2
+            exit 1
+          fi
+          grep -q 'release provenance unavailable' /tmp/negative-release.log
   verify-production:
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'
     needs: validate-product
