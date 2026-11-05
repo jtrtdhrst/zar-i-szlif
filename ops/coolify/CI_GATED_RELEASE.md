@@ -23,6 +23,19 @@ As of the GitHub read on 2026-11-05, `main` and `ci-approved` both pointed to `b
 5. Confirm Coolify deployment for the `ci-approved` source SHA and read back the container image/digest and `/__release.json`; `/healthz` must be healthy. Preserve the prior digest for tested rollback.
 6. If the controller, CI, review or readback is missing or inconsistent, keep the last verified deployment and mark release `UNVERIFIED`; do not advance `ci-approved` or claim DONE.
 
+## Live controller and panel readback — 2026-11-05
+
+Read directly from the Ubuntu host's real systemd service and the public production endpoints:
+
+- `product-native-promotion.timer` is **enabled and active**; the one-shot `product-native-promotion.service` completed with exit status `0/SUCCESS` and did not leave a persistent process.
+- The actual execution at 22:18:38 UTC returned `{"result":"already_released","sha":"b3dd661a0482cfaa3c3f1c94f27c6d8b36061a14","live":"b3dd661a0482cfaa3c3f1c94f27c6d8b36061a14"}`. This is evidence that the source-controlled controller ran its no-op/reconciled path, **not** an independent proof that a new unreviewed PR could be blocked in all failure modes.
+- Live `https://panel.zariszlif.pl/__release.json` returned HTTP 200 and `commit=b3dd661a0482cfaa3c3f1c94f27c6d8b36061a14` (`source=zar-i-szlif/main`).
+- Live `https://panel.zariszlif.pl/healthz` returned HTTP 200 with body `ok`.
+- `paperclip-mcp-auto-release.timer` remains disabled. Its release domain is separate and must not be activated as a second product promoter.
+- The same SHA was present on GitHub refs `main` and `ci-approved` at the read time.
+
+**Remaining proof gate:** the next authorized, independently approved PR must demonstrate source SHA → native decision → exact CI → only-writer promotion → actual Coolify deployment → immutable image digest → production readback → tested rollback. Existing no-op checks alone do not prove that future release cycle.
+
 ## Known limitations
 
 GitHub native branch protection/rulesets were not enforceable on the previously checked private-repository access/plan. Git hooks, reviewer prompts and CI are not a replacement for server-side protection. This must remain an explicit risk until actual ruleset/protection readback confirms enforcement.
