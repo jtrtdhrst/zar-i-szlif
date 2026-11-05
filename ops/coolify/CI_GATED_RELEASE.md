@@ -31,6 +31,8 @@ Read directly from the Ubuntu host's real systemd service and the public product
 - The actual execution at 22:18:38 UTC returned `{"result":"already_released","sha":"b3dd661a0482cfaa3c3f1c94f27c6d8b36061a14","live":"b3dd661a0482cfaa3c3f1c94f27c6d8b36061a14"}`. This is evidence that the source-controlled controller ran its no-op/reconciled path, **not** an independent proof that a new unreviewed PR could be blocked in all failure modes.
 - Live `https://panel.zariszlif.pl/__release.json` returned HTTP 200 and `commit=b3dd661a0482cfaa3c3f1c94f27c6d8b36061a14` (`source=zar-i-szlif/main`).
 - Live `https://panel.zariszlif.pl/healthz` returned HTTP 200 with body `ok`.
+- Coolify application `k0vwdsjazxguvgmh4qixjgxn` is `running:healthy`, linked to GitHub App source `miloszspyrka-code/zar-i-szlif:ci-approved`, Dockerfile `/ops/coolify/Dockerfile`. Latest finished deployment: `job4atvrc3wy7symxqao74os`, source commit `b3dd661a0482cfaa3c3f1c94f27c6d8b36061a14`, manual (`is_webhook=false`); a separate finished webhook deployment `6a8futuhzhxdlsfwqy7xbr9s` contains the same SHA.
+- The actually running healthy Docker container `k0vwdsjazxguvgmh4qixjgxn-20261105T205555` uses image ID `sha256:787e1e24ae66fce960e9ce57528f4342c26a6145a102f509f317f98966a10d2b`. This is the immutable local-image readback, not proof of a fresh controller-initiated promotion or a tested rollback.
 - `paperclip-mcp-auto-release.timer` remains disabled. Its release domain is separate and must not be activated as a second product promoter.
 - The same SHA was present on GitHub refs `main` and `ci-approved` at the read time.
 
