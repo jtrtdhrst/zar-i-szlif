@@ -1,25 +1,32 @@
-# CI-gated production release: Żar i Szlif panel
+# Reviewed production release: Żar i Szlif panel
 
-## Live deployment contract (verified 2026-11-04)
+## GitHub source contract — reviewed on 2026-11-05
 
-- **Source of truth:** `miloszspyrka-code/zar-i-szlif`, `main`.
-- **Validation:** `.github/workflows/product-ci.yml` job `validate-product` runs lint, typecheck, tests and the exact production Dockerfile build. The container startup must fail without a 40-hex `SOURCE_COMMIT`.
-- **Promote:** on a successful `main` push validation, job `promote-release` fast-forwards `ci-approved` to the exact validated main SHA. It verifies the remote main tip and refuses force pushes/non-descendant updates.
-- **Delivery:** existing Coolify GitHub App application `zar-i-szlif-web` (`k0vwdsjazxguvgmh4qixjgxn`) watches `ci-approved`, not the unvalidated `main` push. Source repository stays `zar-i-szlif`, Dockerfile stays `ops/coolify/Dockerfile`. No extra Cloudflare Workers.
-- **Readback:** `verify-production` waits for `https://panel.zariszlif.pl/__release.json` to match the exact `main` SHA. Nginx writes that JSON via `ops/coolify/40-release-provenance.sh` using Coolify's runtime `SOURCE_COMMIT`. `/healthz` must return HTTP 200 `ok`.
-- **Retention:** the previous working container must remain the rollback baseline until the newly built image passes health and exact-SHA readback.
+- **Product source:** `miloszspyrka-code/zar-i-szlif:main`.
+- **CI:** `.github/workflows/product-ci.yml` runs `validate-product`, including code verification, production Docker build and release-SHA/negative startup checks. **There is no `promote-release` or `verify-production` job in this workflow after merged Product PR #156.** Green CI alone must not advance production.
+- **Promotion authority:** the separately versioned and reviewed native controller in `miloszspyrka-code/harness-zar-i-szlif` (`scripts/paperclip_native_release_gate.py`, `scripts/product_native_promotion.py`; Harness PRs #59 and #60) must validate the real native Paperclip issue decision, independent reviewer, accepted source SHA, merged GitHub PR SHA and successful `validate-product` before an authorized forward-only promotion. It must refuse unapproved commits, stale candidates and competing release writers.
+- **Deployment reference:** existing Coolify application `zar-i-szlif-web` (`k0vwdsjazxguvgmh4qixjgxn`) watches `ci-approved`. This is a deployment reference, **not** a development branch and not automatically advanced by the Product GitHub Actions workflow.
+- **Docker source:** `ops/coolify/Dockerfile` in this repository. The running image must embed the actual deployed 40-hex source commit via `SOURCE_COMMIT`.
+- **Live release evidence:** exact approved SHA in GitHub `ci-approved`, matching deployment record and production `https://panel.zariszlif.pl/__release.json`, plus `/healthz` HTTP 200 and retained rollback target. A matching GitHub ref is not, by itself, proof of deployment.
+- **Controller activation is a separate operational claim.** Source merged into `harness:main` does **not** prove that the controller service/timer is installed, enabled or that it successfully promoted an actual change. Read runtime state before marking release ready.
 
-## Operational checks
+## GitHub snapshot versus production proof
 
-1. GitHub Actions: all three jobs `validate-product`, `promote-release`, and `verify-production` must be successful for a releasable `main` commit.
-2. GitHub refs: `main` and `ci-approved` must have the same exact SHA for a release. The source branch may lag while CI is running or failed; this is intentional.
-3. Coolify deployments: latest successful deployment must have `is_webhook=true`, exact SHA from `ci-approved`, and status `finished`.
-4. Docker: running container must be healthy and carry an immutable image ID. Public `__release.json` SHA must equal the expected GitHub commit.
-5. Negative gate: if `validate-product` is red, `promote-release` cannot run and production must remain on the last approved SHA. If promotion cannot fast-forward, no forced update is allowed.
-6. Outage: if a deploy fails, keep/restore the last verified container image. Do not mark the release done until the public SHA and health agree.
+As of the GitHub read on 2026-11-05, `main` and `ci-approved` both pointed to `b3dd661a0482cfaa3c3f1c94f27c6d8b36061a14`. This is repository-state evidence only: it is **not** the public release SHA or a new successful deployment assertion. A prior checkpoint on 2026-11-04 confirmed the then-live `7322f946a5a395db29fa95d14da1ea9037e30d7c` build; do not silently reuse that dated checkpoint for later commits.
 
-## Limitations and branch controls
+## Mandatory operator checks
 
-The `ci-approved` branch is a machine-managed deployment ref, not a second development branch. Humans and agents should develop through PRs into `main` and never push `ci-approved` directly. GitHub native branch protection/rulesets should prevent direct pushes; at verification, private-repository ruleset endpoints were unavailable on the current access/plan. Until enforceable branch protection exists, a privileged direct push to `ci-approved` remains an administrative bypass risk.
+1. Validate that the candidate is an accepted Paperclip issue-run artifact, with independently persisted review decision on the current immutable SHA and no outstanding changes requested.
+2. Verify the GitHub merge result, target ancestry and the exact successful `validate-product` checks for that source SHA; do not infer approval from a green workflow.
+3. Verify the reviewed controller deployed on the Ubuntu host is the intended source and is the **only** writer of `ci-approved`. Confirm its actual enabled/running state and controller logs; do not enable a second promoter.
+4. Promote only the accepted target SHA with compare-and-swap/non-force ref semantics. A missing native decision, mismatched check, wrong source branch or changed head must fail closed.
+5. Confirm Coolify deployment for the `ci-approved` source SHA and read back the container image/digest and `/__release.json`; `/healthz` must be healthy. Preserve the prior digest for tested rollback.
+6. If the controller, CI, review or readback is missing or inconsistent, keep the last verified deployment and mark release `UNVERIFIED`; do not advance `ci-approved` or claim DONE.
 
-This contract applies to the static `zar-i-szlif-web` application only. Paperclip MCP has its own reviewed source-scoped host GitOps controller. Hermes Gateway remains a separately gated deployment and agent-migration workstream; a healthy Hermes canary alone does not authorize migration of 14 agents.
+## Known limitations
+
+GitHub native branch protection/rulesets were not enforceable on the previously checked private-repository access/plan. Git hooks, reviewer prompts and CI are not a replacement for server-side protection. This must remain an explicit risk until actual ruleset/protection readback confirms enforcement.
+
+The obsolete 2026-11-04 contract (`main` → CI `promote-release` → `ci-approved`) was invalidated by Product PR #156 and must not be used. Never restore that automatic write job alongside the native controller.
+
+This release contract covers only the `zar-i-szlif-web` panel. Paperclip MCP, Hermes Gateway and other integrations have their own independent source SHA, approval, deployment, authentication and rollback gates. Three existing Cloudflare Workers remain outside this repository-cleanup scope.
