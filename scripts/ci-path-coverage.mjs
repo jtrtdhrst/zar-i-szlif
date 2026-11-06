@@ -256,8 +256,10 @@ function walkFiles(dir, root, out) {
 // is absent (Coolify build context) `git ls-files` fails, so the filesystem
 // walk must apply the same ignore manifest instead of treating every file
 // present at runtime — e.g. a provider-injected docker-compose.yaml — as
-// tracked source. Only literal paths/prefixes are honored: glob entries stay
-// fail-closed so an unsupported ignore can never silently hide source.
+// tracked source. Only literal paths/prefixes are modeled; Docker applies
+// entries in order with globs and `!` negation, so a manifest containing any
+// such entry is honored as no exclusions at all. Fail closed: an ignore we
+// cannot model must never hide source that Docker re-includes.
 function dockerignoreExcludes(cwd) {
   let contents;
   try {
@@ -265,16 +267,15 @@ function dockerignoreExcludes(cwd) {
   } catch {
     return () => false;
   }
-  const entries = contents
+  const lines = contents
     .split(/\r?\n/)
     .map((line) => line.trim())
-    .filter(
-      (line) =>
-        line &&
-        !line.startsWith("#") &&
-        !["*", "?", "[", "]", "{", "}", "!"].some((token) => line.includes(token)),
-    )
-    .map((line) => line.replace(/^\.?\//, "").replace(/\/+$/, ""));
+    .filter((line) => line && !line.startsWith("#"));
+  const unsupported = lines.some((line) =>
+    ["*", "?", "[", "]", "{", "}", "!"].some((token) => line.includes(token)),
+  );
+  if (unsupported) return () => false;
+  const entries = lines.map((line) => line.replace(/^\.?\//, "").replace(/\/+$/, ""));
   return (path) =>
     entries.some((entry) => path === entry || path.startsWith(`${entry}/`));
 }
