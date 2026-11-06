@@ -47,7 +47,7 @@ export const COVERAGE_RULES = [
   { re: /^product\//, lane: "www" },
   { re: /^www\//, lane: "www" },
   { re: /^(package\.json|package-lock\.json)$/, lane: "code" },
-  { re: /^(README\.md|POSTHOG\.md|\.env\.posthog\.example|\.gitignore)$/, lane: "non-release" },
+  { re: /^(README\.md|POSTHOG\.md|\.env\.posthog\.example|\.gitignore|\.dockerignore)$/, lane: "non-release" },
 ];
 
 // Paperclip project -> repository path/lane mapping (KOMAA-1616).
@@ -252,6 +252,34 @@ function walkFiles(dir, root, out) {
   }
 }
 
+// Docker copies the context with the root .dockerignore applied. When `.git`
+// is absent (Coolify build context) `git ls-files` fails, so the filesystem
+// walk must apply the same ignore manifest instead of treating every file
+// present at runtime — e.g. a provider-injected docker-compose.yaml — as
+// tracked source. Only literal paths/prefixes are modeled; Docker applies
+// entries in order with globs and `!` negation, so a manifest containing any
+// such entry is honored as no exclusions at all. Fail closed: an ignore we
+// cannot model must never hide source that Docker re-includes.
+function dockerignoreExcludes(cwd) {
+  let contents;
+  try {
+    contents = readFileSync(join(cwd, ".dockerignore"), "utf8");
+  } catch {
+    return () => false;
+  }
+  const lines = contents
+    .split(/\r?\n/)
+    .map((line) => line.trim())
+    .filter((line) => line && !line.startsWith("#"));
+  const unsupported = lines.some((line) =>
+    ["*", "?", "[", "]", "{", "}", "!"].some((token) => line.includes(token)),
+  );
+  if (unsupported) return () => false;
+  const entries = lines.map((line) => line.replace(/^\.?\//, "").replace(/\/+$/, ""));
+  return (path) =>
+    entries.some((entry) => path === entry || path.startsWith(`${entry}/`));
+}
+
 export function trackedPaths({ cwd = process.cwd() } = {}) {
   try {
     return execFileSync("git", ["ls-files", "-z"], { cwd, encoding: "utf8" })
@@ -260,7 +288,8 @@ export function trackedPaths({ cwd = process.cwd() } = {}) {
   } catch {
     const out = [];
     walkFiles(cwd, cwd, out);
-    return out;
+    const excluded = dockerignoreExcludes(cwd);
+    return out.filter((path) => !excluded(path));
   }
 }
 
