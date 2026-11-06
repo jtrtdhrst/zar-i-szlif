@@ -1,0 +1,127 @@
+{
+  "source": "Paperclip GET /api/companies/9894e3c2-3317-46ca-8c72-7a442a76a78e/projects",
+  "enumeratedAt": "2026-11-06",
+  "projectCount": 15,
+  "projects": [
+    {
+      "id": "e848c88a-8cf9-4564-9b8c-ec0e7f235423",
+      "name": "99 · Archive / Hermes MuseSpark Validation",
+      "status": "cancelled",
+      "repoUrl": null,
+      "repoRef": "main",
+      "taskCount": 1
+    },
+    {
+      "id": "b78c0f66-8b70-4eda-bead-950df106d49e",
+      "name": "04 · Operations / Release & Reliability",
+      "status": "in_progress",
+      "repoUrl": "https://github.com/miloszspyrka-code/zar-i-szlif.git",
+      "repoRef": "main",
+      "taskCount": 115
+    },
+    {
+      "id": "3d251932-c5e1-4ebe-bb4a-3d46628a1951",
+      "name": "04 · Operations / Paperclip Ops",
+      "status": "in_progress",
+      "repoUrl": "https://github.com/paperclipai/paperclip.git",
+      "repoRef": "master",
+      "taskCount": 99
+    },
+    {
+      "id": "291fecff-2f36-44bc-ba39-cae853f6e90c",
+      "name": "01 · Produkt / Panel aplikacji",
+      "status": "in_progress",
+      "repoUrl": "https://github.com/miloszspyrka-code/zar-i-szlif.git",
+      "repoRef": "main",
+      "taskCount": 89
+    },
+    {
+      "id": "911366a1-6347-4245-96ab-e7d0c6b64089",
+      "name": "02 · MCP / Integracje i dane",
+      "status": "in_progress",
+      "repoUrl": "https://github.com/miloszspyrka-code/zar-i-szlif.git",
+      "repoRef": "main",
+      "taskCount": 120
+    },
+    {
+      "id": "d8759fc7-850b-4500-8b07-076d46c5d4d7",
+      "name": "02 · MCP / Product MCP",
+      "status": "planned",
+      "repoUrl": "https://github.com/miloszspyrka-code/zar-i-szlif",
+      "repoRef": "main",
+      "taskCount": 0
+    },
+    {
+      "id": "ca5ae4f0-04c8-4f7d-a034-4efce4fbd72c",
+      "name": "02 · MCP / Qdrant Hybrid",
+      "status": "in_progress",
+      "repoUrl": null,
+      "repoRef": "main",
+      "taskCount": 2
+    },
+    {
+      "id": "ac9cf5b0-0b02-49f1-892d-942a3e0caade",
+      "name": "03 · Growth / Marketing & Acquisition",
+      "status": "planned",
+      "repoUrl": "https://github.com/miloszspyrka-code/zar-i-szlif",
+      "repoRef": "main",
+      "taskCount": 0
+    },
+    {
+      "id": "5c72d685-382a-4837-9440-67419f3ca78e",
+      "name": "04 · Operations / Paperclip Source Fix (Legacy P0)",
+      "status": "cancelled",
+      "repoUrl": "https://github.com/paperclipai/paperclip.git",
+      "repoRef": "master",
+      "taskCount": 194
+    },
+    {
+      "id": "9a5927dc-8387-4b8c-bf91-4bae23a8b6c4",
+      "name": "99 · Archive / Hermes Validation",
+      "status": "cancelled",
+      "repoUrl": null,
+      "repoRef": null,
+      "taskCount": 4
+    },
+    {
+      "id": "89c48231-e50c-424a-9e1e-ab50c04e924e",
+      "name": "02 · MCP / Strona podłączenia MCP",
+      "status": "planned",
+      "repoUrl": "https://github.com/miloszspyrka-code/zar-i-szlif",
+      "repoRef": "main",
+      "taskCount": 0
+    },
+    {
+      "id": "84320acf-66de-4808-a82e-e112bd90af79",
+      "name": "03 · Growth / Lifecycle & Email",
+      "status": "in_progress",
+      "repoUrl": "https://github.com/miloszspyrka-code/zar-i-szlif.git",
+      "repoRef": "main",
+      "taskCount": 50
+    },
+    {
+      "id": "586450b2-f8b2-4dbf-bf49-6d6f7ef4d00c",
+      "name": "01 · Produkt / Strona główna",
+      "status": "planned",
+      "repoUrl": "https://github.com/miloszspyrka-code/zar-i-szlif",
+      "repoRef": "main",
+      "taskCount": 0
+    },
+    {
+      "id": "104544b6-cab1-43f1-8098-a61a4fa5e6f7",
+      "name": "01 · Produkt / Design System & Maskotki",
+      "status": "planned",
+      "repoUrl": "https://github.com/miloszspyrka-code/zar-i-szlif",
+      "repoRef": "main",
+      "taskCount": 7
+    },
+    {
+      "id": "74623e58-4aea-4f5e-9608-201fafb7ab02",
+      "name": "04 · Operations / Hermes-Paperclip E2E",
+      "status": "in_progress",
+      "repoUrl": "https://github.com/miloszspyrka-code/harness-zar-i-szlif",
+      "repoRef": "main",
+      "taskCount": 66
+    }
+  ]
+}

@@ -25,7 +25,11 @@ const files = [
   "scripts/release-targets.mjs",
   "scripts/check-mcp-endpoints.mjs",
   "scripts/validate-frontend.mjs",
+  "scripts/ci-path-coverage.mjs",
+  "scripts/validate-client-modules.mjs",
+  "scripts/validate-website.mjs",
   "tests/product-boundary.test.mjs",
+  "tests/ci-path-coverage.test.mjs",
 ];
 
 for (const file of files) {
