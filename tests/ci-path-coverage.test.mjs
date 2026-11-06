@@ -3,8 +3,11 @@ import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import {
   LANES,
+  PROJECT_MAP,
   classifyPath,
   coverage,
+  projectCoverage,
+  readProjectEnumeration,
   trackedPaths,
 } from "../scripts/ci-path-coverage.mjs";
 
@@ -67,6 +70,66 @@ test("product CI validates every pull request regardless of path", () => {
   // product/, mcp/ and website changes even without a main-push path entry.
   assert.match(workflow, /on:\n  pull_request:/);
   assert.match(workflow, /npm run validate:code/);
+});
+
+test("the checked-in enumeration contains all 15 Paperclip projects", () => {
+  const enumeration = readProjectEnumeration();
+  assert.equal(enumeration.projectCount, 15);
+  assert.equal(enumeration.projects.length, 15);
+  assert.equal(new Set(enumeration.projects.map((project) => project.id)).size, 15);
+  assert.equal(PROJECT_MAP.length, 15);
+});
+
+test("every Paperclip project is mapped to real roots and lanes (no uncovered project)", () => {
+  const enumeration = readProjectEnumeration();
+  const { issues } = projectCoverage(enumeration.projects, trackedPaths());
+  assert.deepEqual(issues, []);
+});
+
+test("project mapping fails closed on drift (negative fixtures)", () => {
+  const enumeration = readProjectEnumeration();
+  const paths = trackedPaths();
+
+  const unmapped = [
+    ...enumeration.projects,
+    { id: "00000000-0000-0000-0000-000000000000", name: "99 · New Project", repoUrl: null },
+  ];
+  assert.ok(
+    projectCoverage(unmapped, paths).issues.some((issue) => /unmapped Paperclip project/.test(issue)),
+  );
+
+  const canonicalMarkedExternal = PROJECT_MAP.map((entry) =>
+    entry.id === "291fecff-2f36-44bc-ba39-cae853f6e90c"
+      ? { ...entry, external: true, roots: [], lanes: [] }
+      : entry,
+  );
+  assert.ok(
+    projectCoverage(enumeration.projects, paths, canonicalMarkedExternal).issues.some((issue) =>
+      /cannot be marked external/.test(issue),
+    ),
+  );
+
+  const laneDrift = PROJECT_MAP.map((entry) =>
+    entry.id === "586450b2-f8b2-4dbf-bf49-6d6f7ef4d00c"
+      ? { ...entry, lanes: ["frontend"] }
+      : entry,
+  );
+  assert.ok(
+    projectCoverage(enumeration.projects, paths, laneDrift).issues.some((issue) =>
+      /lane mismatch/.test(issue),
+    ),
+  );
+
+  const externalClaimsRoots = PROJECT_MAP.map((entry) =>
+    entry.id === "74623e58-4aea-4f5e-9608-201fafb7ab02"
+      ? { ...entry, roots: ["app/web"], lanes: ["frontend"] }
+      : entry,
+  );
+  assert.ok(
+    projectCoverage(enumeration.projects, paths, externalClaimsRoots).issues.some((issue) =>
+      /external project must not claim local roots/.test(issue),
+    ),
+  );
 });
 
 test("the website lane fails closed on real source (fixture)", () => {

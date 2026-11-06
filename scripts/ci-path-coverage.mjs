@@ -50,6 +50,114 @@ export const COVERAGE_RULES = [
   { re: /^(README\.md|POSTHOG\.md|\.env\.posthog\.example|\.gitignore)$/, lane: "non-release" },
 ];
 
+// Paperclip project -> repository path/lane mapping (KOMAA-1616).
+//
+// Every one of the company's Paperclip projects is enumerated so a project that
+// owns a deployable root cannot be silently uncovered. Projects whose source is
+// not in this repository are explicit `external: true` with no local roots.
+// tests/fixtures/paperclip-projects.json is the checked-in enumeration evidence;
+// tests/project-coverage.test.mjs fails if the two drift.
+export const CANONICAL_REPO = /^https:\/\/github\.com\/miloszspyrka-code\/zar-i-szlif(\.git)?$/;
+
+export const PROJECT_MAP = [
+  {
+    id: "e848c88a-8cf9-4564-9b8c-ec0e7f235423",
+    name: "99 · Archive / Hermes MuseSpark Validation",
+    external: true,
+    roots: [],
+    lanes: [],
+  },
+  {
+    id: "b78c0f66-8b70-4eda-bead-950df106d49e",
+    name: "04 · Operations / Release & Reliability",
+    roots: ["ops/coolify", ".github", "scripts"],
+    lanes: ["frontend", "code"],
+  },
+  {
+    id: "3d251932-c5e1-4ebe-bb4a-3d46628a1951",
+    name: "04 · Operations / Paperclip Ops",
+    external: true,
+    roots: [],
+    lanes: [],
+  },
+  {
+    id: "291fecff-2f36-44bc-ba39-cae853f6e90c",
+    name: "01 · Produkt / Panel aplikacji",
+    roots: ["app/web", "app/plugin", "app/cloudflare-worker", "registry"],
+    lanes: ["frontend", "cloudflare", "non-release"],
+  },
+  {
+    id: "911366a1-6347-4245-96ab-e7d0c6b64089",
+    name: "02 · MCP / Integracje i dane",
+    roots: ["app/mcp-worker", "mcp", "product"],
+    lanes: ["mcp", "www"],
+  },
+  {
+    id: "d8759fc7-850b-4500-8b07-076d46c5d4d7",
+    name: "02 · MCP / Product MCP",
+    roots: ["app/mcp-worker"],
+    lanes: ["mcp"],
+  },
+  {
+    id: "ca5ae4f0-04c8-4f7d-a034-4efce4fbd72c",
+    name: "02 · MCP / Qdrant Hybrid",
+    external: true,
+    roots: [],
+    lanes: [],
+  },
+  {
+    id: "ac9cf5b0-0b02-49f1-892d-942a3e0caade",
+    name: "03 · Growth / Marketing & Acquisition",
+    roots: ["content"],
+    lanes: ["non-release"],
+  },
+  {
+    id: "5c72d685-382a-4837-9440-67419f3ca78e",
+    name: "04 · Operations / Paperclip Source Fix (Legacy P0)",
+    external: true,
+    roots: [],
+    lanes: [],
+  },
+  {
+    id: "9a5927dc-8387-4b8c-bf91-4bae23a8b6c4",
+    name: "99 · Archive / Hermes Validation",
+    external: true,
+    roots: [],
+    lanes: [],
+  },
+  {
+    id: "89c48231-e50c-424a-9e1e-ab50c04e924e",
+    name: "02 · MCP / Strona podłączenia MCP",
+    roots: ["www", "product"],
+    lanes: ["www"],
+  },
+  {
+    id: "84320acf-66de-4808-a82e-e112bd90af79",
+    name: "03 · Growth / Lifecycle & Email",
+    roots: ["app/cloudflare-worker", "content"],
+    lanes: ["cloudflare", "non-release"],
+  },
+  {
+    id: "586450b2-f8b2-4dbf-bf49-6d6f7ef4d00c",
+    name: "01 · Produkt / Strona główna",
+    roots: ["app/website"],
+    lanes: ["website"],
+  },
+  {
+    id: "104544b6-cab1-43f1-8098-a61a4fa5e6f7",
+    name: "01 · Produkt / Design System & Maskotki",
+    roots: ["registry"],
+    lanes: ["frontend", "non-release"],
+  },
+  {
+    id: "74623e58-4aea-4f5e-9608-201fafb7ab02",
+    name: "04 · Operations / Hermes-Paperclip E2E",
+    external: true,
+    roots: [],
+    lanes: [],
+  },
+];
+
 const WALK_SKIP = new Set(["node_modules", ".git", "dist", "registry-dist", ".next", "coverage"]);
 
 export function classifyPath(path) {
@@ -71,6 +179,70 @@ export function coverage(paths) {
   return { byLane, unclassified };
 }
 
+// Verify every enumerated Paperclip project is accounted for and that every
+// project owning a path in this repository is covered by the lanes its paths
+// actually classify to. Returns problems instead of throwing so tests can
+// assert on negative fixtures.
+export function projectCoverage(projects, paths, projectMap = PROJECT_MAP) {
+  const issues = [];
+  if (projectMap.length !== 15) {
+    issues.push(`expected 15 project mappings, found ${projectMap.length}`);
+  }
+
+  const mappedIds = new Set(projectMap.map((entry) => entry.id));
+  const projectIds = new Set(projects.map((project) => project.id));
+  for (const project of projects) {
+    if (!mappedIds.has(project.id)) {
+      issues.push(`unmapped Paperclip project: ${project.name} (${project.id})`);
+    }
+  }
+  for (const entry of projectMap) {
+    if (!projectIds.has(entry.id)) {
+      issues.push(`mapping references unknown Paperclip project: ${entry.name} (${entry.id})`);
+    }
+  }
+
+  for (const entry of projectMap) {
+    const project = projects.find((candidate) => candidate.id === entry.id);
+    if (!project) continue;
+
+    const canonical = CANONICAL_REPO.test(project.repoUrl || "");
+    if (!canonical) {
+      if (!entry.external) {
+        issues.push(`${entry.name}: non-canonical repo must be marked external`);
+      }
+      if (entry.roots.length > 0) {
+        issues.push(`${entry.name}: external project must not claim local roots`);
+      }
+      continue;
+    }
+
+    if (entry.external) {
+      issues.push(`${entry.name}: canonical repo project cannot be marked external`);
+    }
+    if (entry.roots.length === 0) {
+      issues.push(`${entry.name}: canonical repo project has no mapped roots`);
+      continue;
+    }
+
+    const actualLanes = new Set();
+    for (const root of entry.roots) {
+      const under = paths.filter((path) => path === root || path.startsWith(`${root}/`));
+      if (under.length === 0) {
+        issues.push(`${entry.name}: root "${root}" covers no tracked paths`);
+      }
+      for (const path of under) actualLanes.add(classifyPath(path));
+    }
+    const declared = [...entry.lanes].sort().join(",");
+    const actual = [...actualLanes].sort().join(",");
+    if (declared !== actual) {
+      issues.push(`${entry.name}: lane mismatch declared [${declared}] actual [${actual}]`);
+    }
+  }
+
+  return { issues, projects: projects.length, mapped: projectMap.length };
+}
+
 function walkFiles(dir, root, out) {
   for (const entry of readdirSync(dir, { withFileTypes: true })) {
     if (WALK_SKIP.has(entry.name)) continue;
@@ -90,6 +262,12 @@ export function trackedPaths({ cwd = process.cwd() } = {}) {
     walkFiles(cwd, cwd, out);
     return out;
   }
+}
+
+export function readProjectEnumeration() {
+  return JSON.parse(
+    readFileSync(new URL("../tests/fixtures/paperclip-projects.json", import.meta.url), "utf8"),
+  );
 }
 
 function main() {
@@ -120,6 +298,23 @@ function main() {
     console.error(`[ci-coverage] MISSING lane scripts: ${missing.join(", ")}`);
     process.exit(2);
   }
+
+  const enumeration = readProjectEnumeration();
+  const projectResult = projectCoverage(enumeration.projects, paths);
+  if (projectResult.issues.length > 0) {
+    console.error(
+      [
+        "[ci-coverage] PAPERCLIP PROJECT COVERAGE FAILED — failing closed.",
+        ...projectResult.issues.map((issue) => `  - ${issue}`),
+        "Map every project in scripts/ci-path-coverage.mjs (PROJECT_MAP) to real roots/lanes.",
+      ].join("\n"),
+    );
+    process.exit(2);
+  }
+  console.log(
+    `[ci-coverage] projects ${projectResult.mapped}/${enumeration.projectCount} mapped ` +
+      `(${projectResult.projects} enumerated in fixture)`,
+  );
 
   console.log(`[ci-coverage] PASS (${paths.length} tracked paths, ${Object.keys(byLane).length} lanes)`);
 }
