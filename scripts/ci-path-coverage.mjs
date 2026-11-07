@@ -38,6 +38,7 @@ export const COVERAGE_RULES = [
   { re: /^registry\//, lane: "non-release" },
   { re: /^ops\/coolify\//, lane: "frontend" },
   { re: /^ops\//, lane: "non-release" },
+  { re: /^experiments\/multica-e2e\//, lane: "code" },
   { re: /^scripts\//, lane: "code" },
   { re: /^tests\//, lane: "code" },
   { re: /^\.github\/workflows\//, lane: "code" },
