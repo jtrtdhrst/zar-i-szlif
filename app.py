@@ -6,6 +6,7 @@ from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from urllib.parse import parse_qs, urlparse
 
 SERVICE_NAME = "multica-hermes-e2e"
+REVISION = "v2"
 SOURCE_SHA = os.environ.get("SOURCE_SHA", "unknown")
 
 
@@ -28,6 +29,15 @@ class Handler(BaseHTTPRequestHandler):
                 {
                     "status": "ok",
                     "service": SERVICE_NAME,
+                    "source_sha": SOURCE_SHA,
+                },
+            )
+            return
+        if parsed.path == "/version":
+            self._send_json(
+                200,
+                {
+                    "revision": REVISION,
                     "source_sha": SOURCE_SHA,
                 },
             )

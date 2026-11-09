@@ -48,6 +48,17 @@ class ServiceTest(unittest.TestCase):
         self.assertEqual(status, 200)
         self.assertEqual(body["source_sha"], "test-sha-123")
 
+    def test_version_reports_revision_v2(self):
+        status, body, headers = self.get("/version")
+        self.assertEqual(status, 200)
+        self.assertEqual(body["revision"], "v2")
+        self.assertEqual(headers.get("Content-Type"), "application/json")
+
+    def test_version_reports_source_sha_from_env(self):
+        status, body, _ = self.get("/version")
+        self.assertEqual(status, 200)
+        self.assertEqual(body["source_sha"], "test-sha-123")
+
     def test_sum_two_and_three(self):
         status, body, _ = self.get("/sum?x=2&y=3")
         self.assertEqual(status, 200)

@@ -8,7 +8,7 @@ Stdlib-only Python HTTP microservice (`app.py`) listening on `0.0.0.0:8080`.
 
 Environment:
 
-- `SOURCE_SHA` — reported by `/health` (default `unknown`)
+- `SOURCE_SHA` — reported by `/health` and `/version` (default `unknown`)
 - `HOST`, `PORT` — optional overrides
 
 ## Run locally
@@ -21,6 +21,7 @@ python3 app.py
 
 ```sh
 curl -s http://127.0.0.1:8080/health
+curl -s http://127.0.0.1:8080/version
 curl -s "http://127.0.0.1:8080/sum?x=2&y=3"
 curl -si "http://127.0.0.1:8080/sum?x=2" | head -1
 ```
@@ -28,6 +29,7 @@ curl -si "http://127.0.0.1:8080/sum?x=2" | head -1
 Expected:
 
 - `/health` → `{"status": "ok", "service": "multica-hermes-e2e", "source_sha": "..."}`
+- `/version` → `{"revision": "v2", "source_sha": "..."}`
 - `/sum?x=2&y=3` → `{"sum": 5}`
 - invalid/missing parameters → HTTP 400 JSON error
 
