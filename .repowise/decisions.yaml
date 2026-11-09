@@ -1,0 +1,33 @@
+# Accepted architectural decisions for this repository.
+#
+# Generated and rewritten by repowise; edits survive, comments do not.
+# Commit this file: it is the source of truth, and the index is a copy.
+# Candidates and evidence stay out of it on purpose.
+version: 1
+decisions:
+- id: 53680f06233300665ca92ed41c38fe3f
+  title: Product release evidence must be read from deployed runtime
+  decision: Only claim deployed production SHA when current Git commit, deployment identity and live readback
+    agree. A PR, static docs or indexed branch is not sufficient.
+  reason: Source evidence and user-directed split verified. Agent-signed; not represented as a human signature.
+  scope:
+  - docs/architecture/CURRENT-RUNTIME-2026-11-09.md
+  currency: active
+  source: agent
+  accepted_at: '2026-11-09T16:39:21.484033'
+  accepted_by: repowise_migration
+  evidence:
+  - 921a8e1f46a3e6795661b4814546907d9358f66d
+- id: 8abbe4c97e32b9eac0ff59ec51d65e74
+  title: Product owns product-specific MCP and application
+  decision: Product repository owns product app, business data contracts, UI and product-specific MCP;
+    Harness owns independent MCP services and infrastructure.
+  reason: Source evidence and user-directed split verified. Agent-signed; not represented as a human signature.
+  scope:
+  - README.md
+  currency: active
+  source: agent
+  accepted_at: '2026-11-09T16:39:17.366578'
+  accepted_by: repowise_migration
+  evidence:
+  - 921a8e1f46a3e6795661b4814546907d9358f66d

@@ -1,0 +1,221 @@
+{
+  "source": "Paperclip Wiki read-only filesystem snapshot",
+  "date": "2026-11-09",
+  "owner": "product",
+  "pages": [
+    {
+      "source_path": "wiki/concepts/arc-01-nasz-pierwszy-namiot.md",
+      "archive_path": "docs/knowledge/paperclip-archive/wiki/concepts/arc-01-nasz-pierwszy-namiot.md",
+      "sha256": "e3912b347e273106434f9027c1663ae5562fa775b393bce0ecf660a77db1b4d7",
+      "bytes": 17069,
+      "status": "historical_only"
+    },
+    {
+      "source_path": "wiki/concepts/arc-02-wyznaczamy-kierunek.md",
+      "archive_path": "docs/knowledge/paperclip-archive/wiki/concepts/arc-02-wyznaczamy-kierunek.md",
+      "sha256": "0562b115868f465d6606c7f40bb48d4c128591641b2fe223d150f9b7f4493266",
+      "bytes": 15068,
+      "status": "historical_only"
+    },
+    {
+      "source_path": "wiki/concepts/arc-03-przygotujmy-zbiorke.md",
+      "archive_path": "docs/knowledge/paperclip-archive/wiki/concepts/arc-03-przygotujmy-zbiorke.md",
+      "sha256": "cd77bfbad31e57144b55e640ec7a0d9b9927961a5ed0ffd7319ddaa7c747bd25",
+      "bytes": 6855,
+      "status": "historical_only"
+    },
+    {
+      "source_path": "wiki/concepts/arc-04-co-zabieramy-dalej.md",
+      "archive_path": "docs/knowledge/paperclip-archive/wiki/concepts/arc-04-co-zabieramy-dalej.md",
+      "sha256": "6255adc8276010f78351d135c26bd46a29ea6053466ad4776176d0515881498a",
+      "bytes": 8698,
+      "status": "historical_only"
+    },
+    {
+      "source_path": "wiki/concepts/bramka-jakosci-ui.md",
+      "archive_path": "docs/knowledge/paperclip-archive/wiki/concepts/bramka-jakosci-ui.md",
+      "sha256": "c9f4454c635439166313b03d671f02268d4f64754f507eca4d3c4825c274f6b8",
+      "bytes": 846,
+      "status": "historical_only"
+    },
+    {
+      "source_path": "wiki/concepts/brand-dna.md",
+      "archive_path": "docs/knowledge/paperclip-archive/wiki/concepts/brand-dna.md",
+      "sha256": "78780af349e1c5e6b0236623cf38e871dfa188a32dc2fd3cf079aa5ab83f3a47",
+      "bytes": 1275,
+      "status": "historical_only"
+    },
+    {
+      "source_path": "wiki/concepts/cykl-doskonalenia.md",
+      "archive_path": "docs/knowledge/paperclip-archive/wiki/concepts/cykl-doskonalenia.md",
+      "sha256": "5fd44a96bcf83e99e31be4ce4a5d93d90bd77d7def0eda127b8f9e5ad8d48e4d",
+      "bytes": 2724,
+      "status": "historical_only"
+    },
+    {
+      "source_path": "wiki/concepts/google-calendar-integration.md",
+      "archive_path": "docs/knowledge/paperclip-archive/wiki/concepts/google-calendar-integration.md",
+      "sha256": "bcae055877bc6faa7c84208773687627ecbef29b87577b08f8a2d6db83d71cdd",
+      "bytes": 13649,
+      "status": "historical_only"
+    },
+    {
+      "source_path": "wiki/concepts/karta-zbiorki.md",
+      "archive_path": "docs/knowledge/paperclip-archive/wiki/concepts/karta-zbiorki.md",
+      "sha256": "27279ffd7450b58f2c0083958982232ca105e35d02f54c5b099057179850c0ba",
+      "bytes": 14957,
+      "status": "historical_only"
+    },
+    {
+      "source_path": "wiki/concepts/language-and-content-policy.md",
+      "archive_path": "docs/knowledge/paperclip-archive/wiki/concepts/language-and-content-policy.md",
+      "sha256": "39e35ba24b6ca68377e30d8a49f16d9de26da5ad6c1c41a9f8e40b7278fa09ab",
+      "bytes": 4707,
+      "status": "historical_only"
+    },
+    {
+      "source_path": "wiki/concepts/mascot-rework-ui-qa-rubric.md",
+      "archive_path": "docs/knowledge/paperclip-archive/wiki/concepts/mascot-rework-ui-qa-rubric.md",
+      "sha256": "dcc7e9dc975a297fe7d01c8da45f975a0b7d2fe303bf37ab87976bcf70551998",
+      "bytes": 10334,
+      "status": "historical_only"
+    },
+    {
+      "source_path": "wiki/concepts/mascot-style-2-pipeline.md",
+      "archive_path": "docs/knowledge/paperclip-archive/wiki/concepts/mascot-style-2-pipeline.md",
+      "sha256": "77982e14a696cf0583d1c52f3394ea004ecf1538f3b38c2948cdb8d841aa2f25",
+      "bytes": 20878,
+      "status": "historical_only"
+    },
+    {
+      "source_path": "wiki/concepts/onboarding.md",
+      "archive_path": "docs/knowledge/paperclip-archive/wiki/concepts/onboarding.md",
+      "sha256": "41f28a350609132b505535d6600b890c2ee6ea3171a0d39817f43e361dcee055",
+      "bytes": 12567,
+      "status": "historical_only"
+    },
+    {
+      "source_path": "wiki/concepts/product-app-website-mcp-routing-20261022.md",
+      "archive_path": "docs/knowledge/paperclip-archive/wiki/concepts/product-app-website-mcp-routing-20261022.md",
+      "sha256": "22841ad13a8a22e87ce25bb8c83f1261f01119046cfa6d32dbdc51e50c4223ba",
+      "bytes": 15440,
+      "status": "historical_only"
+    },
+    {
+      "source_path": "wiki/concepts/product-mcp-cloudflare-worker.md",
+      "archive_path": "docs/knowledge/paperclip-archive/wiki/concepts/product-mcp-cloudflare-worker.md",
+      "sha256": "291465ecbc42221ce2a2ac34ff15538ef6a6618b4a94010bef5cf26350c2e272",
+      "bytes": 64321,
+      "status": "historical_redacted",
+      "archive_sha256": "76cfb61e22254347ec246cf756f17e8bff2213369bcef08b2a7ba43193dcf5f2",
+      "redactions": {
+        "private_email_addresses": 2
+      }
+    },
+    {
+      "source_path": "wiki/concepts/product-mcp-crud-and-chatgpt-client-eligibility-20261107.md",
+      "archive_path": "docs/knowledge/paperclip-archive/wiki/concepts/product-mcp-crud-and-chatgpt-client-eligibility-20261107.md",
+      "sha256": "af2b0fcae7ed3d86c7a52fd41daceef626a7b60a7d72a8ab4cbd3176b112e078",
+      "bytes": 7379,
+      "status": "historical_only"
+    },
+    {
+      "source_path": "wiki/concepts/product-mcp-supabase-pii-privacy.md",
+      "archive_path": "docs/knowledge/paperclip-archive/wiki/concepts/product-mcp-supabase-pii-privacy.md",
+      "sha256": "142a320cb978e0aa6cf1f536c8ea777321a4c348b379808ebb6943888a9585b2",
+      "bytes": 10661,
+      "status": "historical_only"
+    },
+    {
+      "source_path": "wiki/concepts/product-mcp-tool-catalog-proposal.md",
+      "archive_path": "docs/knowledge/paperclip-archive/wiki/concepts/product-mcp-tool-catalog-proposal.md",
+      "sha256": "8e4ff1803a6d3441855951324fa7866a90e1798da35ec70f353df895d4349b8c",
+      "bytes": 29420,
+      "status": "historical_only"
+    },
+    {
+      "source_path": "wiki/concepts/product-oauth-client-credential-mapping.md",
+      "archive_path": "docs/knowledge/paperclip-archive/wiki/concepts/product-oauth-client-credential-mapping.md",
+      "sha256": "ef2a6c35a2c8803902cfc133c66b10167e55b8e3bdba64b13d6c98f2100e678c",
+      "bytes": 6621,
+      "status": "historical_only"
+    },
+    {
+      "source_path": "wiki/concepts/stan-braku-danych.md",
+      "archive_path": "docs/knowledge/paperclip-archive/wiki/concepts/stan-braku-danych.md",
+      "sha256": "db28124c6bb33de558f675fee238b5b80494672e3cfc3fce6beb1360e514a548",
+      "bytes": 665,
+      "status": "historical_only"
+    },
+    {
+      "source_path": "wiki/concepts/supabase-users-teams-tasks-mcp-contract.md",
+      "archive_path": "docs/knowledge/paperclip-archive/wiki/concepts/supabase-users-teams-tasks-mcp-contract.md",
+      "sha256": "1a4fea8c27d5a2e2d7fc3558cb6ce0d0244d8b755a339e29d76dd5f6415b0ba2",
+      "bytes": 11189,
+      "status": "historical_only"
+    },
+    {
+      "source_path": "wiki/concepts/ui-delivery-ownership.md",
+      "archive_path": "docs/knowledge/paperclip-archive/wiki/concepts/ui-delivery-ownership.md",
+      "sha256": "eba4a6110a487e9f6593ad68e087dcdd3bdbc8a5a11df339e3adfa63ce89578a",
+      "bytes": 3817,
+      "status": "historical_only"
+    },
+    {
+      "source_path": "wiki/concepts/zar-i-szlif-shared-visual-source-20261029.md",
+      "archive_path": "docs/knowledge/paperclip-archive/wiki/concepts/zar-i-szlif-shared-visual-source-20261029.md",
+      "sha256": "f7a17220c9ee0debe81a56b6400ccca3651911519c9fa666054482e21faa2589",
+      "bytes": 10089,
+      "status": "historical_only"
+    },
+    {
+      "source_path": "wiki/concepts/zar-i-szlif-swiat-i-gamifikacja.md",
+      "archive_path": "docs/knowledge/paperclip-archive/wiki/concepts/zar-i-szlif-swiat-i-gamifikacja.md",
+      "sha256": "87647076a1be025c1286717172b5e6c83ad6508b714ca2c0088efec6d0fd3079",
+      "bytes": 49413,
+      "status": "historical_only"
+    },
+    {
+      "source_path": "wiki/entities/integracje-api.md",
+      "archive_path": "docs/knowledge/paperclip-archive/wiki/entities/integracje-api.md",
+      "sha256": "f6ef1e5a27646fe9793997eb55105749df6fc007edb3569fa475a2462b5d3f7c",
+      "bytes": 1707,
+      "status": "historical_only"
+    },
+    {
+      "source_path": "wiki/projects/kompas-zbiorek/decisions.md",
+      "archive_path": "docs/knowledge/paperclip-archive/wiki/projects/kompas-zbiorek/decisions.md",
+      "sha256": "89307920ca21b5bf43dee63874a135e679bd0bfd8c731f6284f918566b8df63f",
+      "bytes": 15582,
+      "status": "historical_only"
+    },
+    {
+      "source_path": "wiki/projects/kompas-zbiorek/index.md",
+      "archive_path": "docs/knowledge/paperclip-archive/wiki/projects/kompas-zbiorek/index.md",
+      "sha256": "746e074043acf6e1a42091a10f2706ff764fc999a9cd65d6d52168b881a5dbf0",
+      "bytes": 12354,
+      "status": "historical_only"
+    },
+    {
+      "source_path": "wiki/sources/baza-aktywnosci.md",
+      "archive_path": "docs/knowledge/paperclip-archive/wiki/sources/baza-aktywnosci.md",
+      "sha256": "80ad5a2c2649dde76428acaae6d4681dfbb5d81ffc6393f159ceac16937ce8f9",
+      "bytes": 7231,
+      "status": "historical_only"
+    },
+    {
+      "source_path": "wiki/sources/integracje-mcp.md",
+      "archive_path": "docs/knowledge/paperclip-archive/wiki/sources/integracje-mcp.md",
+      "sha256": "7f9a098fdf9400ac460fe0d162910aa94cbd30c3b7509dad86c2c15008b519c8",
+      "bytes": 10316,
+      "status": "historical_only"
+    },
+    {
+      "source_path": "wiki/sources/prd-kompas.md",
+      "archive_path": "docs/knowledge/paperclip-archive/wiki/sources/prd-kompas.md",
+      "sha256": "5ed4bf7e0c7be3ecb64744bc06feb51e7e0d016fccfede3caceeba32490a8f3b",
+      "bytes": 5807,
+      "status": "historical_only"
+    }
+  ]
+}
