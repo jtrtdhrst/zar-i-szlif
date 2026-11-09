@@ -43,6 +43,13 @@ test("each deployable product root resolves to its own lane", () => {
   }
 });
 
+test("archived knowledge and scoped decisions have explicit non-release coverage", () => {
+  assert.equal(classifyPath("docs/knowledge/paperclip-archive/wiki/concepts/onboarding.md"), "non-release");
+  assert.equal(classifyPath("docs/decisions/0001-product-repository-owner.md"), "non-release");
+  assert.equal(classifyPath(".repowise/decisions.yaml"), "non-release");
+  assert.equal(classifyPath(".repowise/unknown.js"), null, "unknown generated file must remain uncovered");
+});
+
 test("an unknown new root fails closed instead of inheriting green CI", () => {
   for (const path of [
     "brand-new-service/src/index.ts",

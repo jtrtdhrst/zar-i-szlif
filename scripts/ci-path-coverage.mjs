@@ -43,6 +43,8 @@ export const COVERAGE_RULES = [
   { re: /^\.github\/workflows\//, lane: "code" },
   { re: /^\.github\//, lane: "non-release" },
   { re: /^content\//, lane: "non-release" },
+  { re: /^docs\//, lane: "non-release" },
+  { re: /^\.repowise\/decisions\.yaml$/, lane: "non-release" },
   { re: /^mcp\//, lane: "www" },
   { re: /^product\//, lane: "www" },
   { re: /^www\//, lane: "www" },
