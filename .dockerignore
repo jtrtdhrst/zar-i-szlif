@@ -1,4 +1,0 @@
-# Coolify injects a provider-generated compose file into the Docker build
-# context. It is not repository source; keep it out so the all-path CI coverage
-# gate (git absent inside the image -> filesystem walk) only sees real source.
-docker-compose.yaml
