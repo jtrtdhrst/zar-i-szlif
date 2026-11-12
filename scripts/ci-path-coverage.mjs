@@ -18,6 +18,7 @@ export const LANES = {
   frontend: "validate:frontend",
   cloudflare: "validate:cloudflare-build",
   mcp: "validate:mcp",
+  "mcp-host": "validate:mcp-host",
   www: "validate:www",
   website: "validate:website",
 };
@@ -45,6 +46,8 @@ export const COVERAGE_RULES = [
   { re: /^content\//, lane: "non-release" },
   { re: /^docs\//, lane: "non-release" },
   { re: /^\.repowise\/decisions\.yaml$/, lane: "non-release" },
+  // Host-deployed product MCP service: own lane before the broad `mcp/**` rule.
+  { re: /^mcp\/product-host\//, lane: "mcp-host" },
   { re: /^mcp\//, lane: "www" },
   { re: /^product\//, lane: "www" },
   { re: /^www\//, lane: "www" },
@@ -92,7 +95,7 @@ export const PROJECT_MAP = [
     id: "911366a1-6347-4245-96ab-e7d0c6b64089",
     name: "02 · MCP / Integracje i dane",
     roots: ["app/mcp-worker", "mcp", "product"],
-    lanes: ["mcp", "www"],
+    lanes: ["mcp", "mcp-host", "www"],
   },
   {
     id: "d8759fc7-850b-4500-8b07-076d46c5d4d7",
