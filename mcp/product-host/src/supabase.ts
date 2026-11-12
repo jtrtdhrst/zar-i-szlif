@@ -50,7 +50,12 @@ export interface ListSprawnosciParams {
 
 export interface ListSprawnosciResult {
   items: SprawnoscItem[];
-  /** Number of items in this page (not the total matching row count). */
+  /**
+   * Total number of rows matching the filters, parsed from the PostgREST
+   * `Content-Range` header (`start-end/total`, or `*` for the range when the
+   * page is empty) — never the page length. A missing or unparseable total is
+   * an error, not a silent page count.
+   */
   count: number;
   limit: number;
   offset: number;
@@ -77,6 +82,18 @@ export class SprawnoscNotFoundError extends Error {
   constructor(message = "sprawnosc not found") {
     super(message);
     this.name = "SprawnoscNotFoundError";
+  }
+}
+
+/**
+ * The list response carried no usable total row count. Callers must see this as
+ * a tool error: reporting the page length as `count` would silently break any
+ * client that pages through the catalog.
+ */
+export class CountUnavailableError extends Error {
+  constructor(message = "sprawnosci response did not include an exact total row count") {
+    super(message);
+    this.name = "CountUnavailableError";
   }
 }
 
@@ -177,6 +194,29 @@ export function getUrl(config: SupabaseConfig, id: string): string {
   return `${config.url}/rest/v1/sprawnosci?${encodeParams(query)}`;
 }
 
+// PostgREST answers a `Prefer: count=exact` request with the total matching row
+// count in `Content-Range`: `0-24/300` for a page, or `*/300` when the range is
+// empty (an offset past the end). Only the value after the slash may be handed
+// to a client as `count`; `*` there means "unknown" and fails closed below.
+const CONTENT_RANGE_TOTAL = /^(?:\d+-\d+|\*)\/(\d+|\*)$/;
+
+export function parseTotalCount(contentRange: string | null): number {
+  const match = contentRange === null ? null : CONTENT_RANGE_TOTAL.exec(contentRange.trim());
+  const total = match?.[1];
+  if (total === undefined || total === "*") {
+    throw new CountUnavailableError(
+      contentRange === null
+        ? "sprawnosci response has no Content-Range header, so the total row count is unknown"
+        : "sprawnosci response has an unparseable Content-Range total",
+    );
+  }
+  const parsed = Number(total);
+  if (!Number.isSafeInteger(parsed) || parsed < 0) {
+    throw new CountUnavailableError("sprawnosci response has an unparseable Content-Range total");
+  }
+  return parsed;
+}
+
 function asString(value: unknown, field: string): string {
   if (typeof value === "string") return value;
   if (typeof value === "number" || typeof value === "boolean") return String(value);
@@ -225,13 +265,18 @@ export function createSprawnoscRepository(deps: RepositoryDeps): SprawnoscReposi
   const fetchImpl = deps.fetchImpl ?? fetch;
   const timeoutMs = deps.timeoutMs ?? 10_000;
 
-  async function request(url: string, accessToken: string): Promise<unknown> {
+  async function request(
+    url: string,
+    accessToken: string,
+    prefer?: string,
+  ): Promise<{ payload: unknown; contentRange: string | null }> {
     const response = await fetchImpl(url, {
       method: "GET",
       headers: {
         apikey: config.anonKey,
         authorization: `Bearer ${accessToken}`,
         accept: "application/json",
+        ...(prefer === undefined ? {} : { prefer }),
       },
       signal: AbortSignal.timeout(timeoutMs),
     });
@@ -239,7 +284,7 @@ export function createSprawnoscRepository(deps: RepositoryDeps): SprawnoscReposi
     const body = await response.text();
     if (!response.ok) throw new PostgrestError(response.status, errorMessage(response.status, body));
     try {
-      return JSON.parse(body);
+      return { payload: JSON.parse(body), contentRange: response.headers.get("content-range") };
     } catch {
       throw new PostgrestError(response.status, "sprawnosci query returned a non-JSON body");
     }
@@ -247,19 +292,34 @@ export function createSprawnoscRepository(deps: RepositoryDeps): SprawnoscReposi
 
   return {
     async list(accessToken, params) {
-      const rows = await request(listUrl(config, params), accessToken);
-      if (!Array.isArray(rows)) throw new PostgrestError(0, "sprawnosci query did not return an array");
-      const items = rows.map(mapRow);
-      return { items, count: items.length, limit: params.limit, offset: params.offset };
+      // `Prefer: count=exact` asks PostgREST for the total matching row count in
+      // `Content-Range`; the body still carries only this page.
+      const { payload, contentRange } = await request(
+        listUrl(config, params),
+        accessToken,
+        "count=exact",
+      );
+      if (!Array.isArray(payload)) {
+        throw new PostgrestError(0, "sprawnosci query did not return an array");
+      }
+      const items = payload.map(mapRow);
+      return {
+        items,
+        count: parseTotalCount(contentRange),
+        limit: params.limit,
+        offset: params.offset,
+      };
     },
 
     async get(accessToken, id) {
       if (typeof id !== "string" || id.trim() === "") {
         throw new InvalidArgumentError("id must be a non-empty string");
       }
-      const rows = await request(getUrl(config, id), accessToken);
-      if (!Array.isArray(rows)) throw new PostgrestError(0, "sprawnosci query did not return an array");
-      const row = rows[0];
+      const { payload } = await request(getUrl(config, id), accessToken);
+      if (!Array.isArray(payload)) {
+        throw new PostgrestError(0, "sprawnosci query did not return an array");
+      }
+      const row = payload[0];
       if (row === undefined) throw new SprawnoscNotFoundError(`sprawnosc not found: ${id}`);
       return mapRow(row);
     },
