@@ -48,6 +48,12 @@ test("live PostgREST: equality filters match the rows they name", skip, async ()
   const wider = await repository.list(token, { limit: 2, offset: 0 });
   assert.equal(wider.count, page.count, "total must not depend on limit");
 
+  // Regression: an offset past the last row is a 416 carrying the total, and
+  // must surface as an empty page with that total, not as a tool error.
+  const past = await repository.list(token, { limit: 1, offset: page.count });
+  assert.deepEqual(past.items, [], "an offset past the last row has no items");
+  assert.equal(past.count, page.count, "an empty page past the end keeps the total");
+
   const byId = await repository.get(token, expected.id);
   assert.equal(byId.id, expected.id, "get_sprawnosc must find a row that list returned");
 

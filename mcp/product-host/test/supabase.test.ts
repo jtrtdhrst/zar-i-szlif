@@ -13,6 +13,7 @@ import {
   mapRow,
   normalizeSearchTerm,
   parseTotalCount,
+  parseUnsatisfiableRangeTotal,
 } from "../src/supabase.ts";
 import { createFetchStub, sampleRow } from "./helpers/postgrest.ts";
 
@@ -258,6 +259,68 @@ test("a total that cannot be parsed fails closed instead of reporting the page l
         error instanceof CountUnavailableError && /total row count|Content-Range/.test(error.message),
       testCase.why,
     );
+  }
+});
+
+test("a 416 for an offset past the last row is an empty page with the exact total", async () => {
+  const cases = [
+    { header: "*/300", expected: 300 },
+    { header: "*/0", expected: 0 },
+  ] as const;
+
+  for (const testCase of cases) {
+    const stub = createFetchStub(() => ({
+      status: 416,
+      body: { code: "PGRST103", message: "Requested range not satisfiable" },
+      headers: { "content-range": testCase.header },
+    }));
+    const repository = createSprawnoscRepository({ config, fetchImpl: stub.fetchImpl });
+
+    const result = await repository.list(accessToken, { limit: 2, offset: 500 });
+
+    assert.equal(result.count, testCase.expected, testCase.header);
+    assert.deepEqual(result.items, [], "an offset past the last row has no items");
+    assert.equal(result.limit, 2);
+    assert.equal(result.offset, 500);
+  }
+});
+
+test("a 416 without a usable total stays an error", async () => {
+  const cases: Array<{ why: string; headers?: Record<string, string> }> = [
+    { why: "no Content-Range at all" },
+    { why: "unknown total", headers: { "content-range": "*/*" } },
+    { why: "non-numeric total", headers: { "content-range": "*/abc" } },
+    { why: "page form on a 416", headers: { "content-range": "0-1/300" } },
+  ];
+
+  for (const testCase of cases) {
+    const stub = createFetchStub(() => ({
+      status: 416,
+      body: { code: "PGRST103", message: "Requested range not satisfiable" },
+      ...(testCase.headers === undefined ? {} : { headers: testCase.headers }),
+    }));
+    const repository = createSprawnoscRepository({ config, fetchImpl: stub.fetchImpl });
+
+    await assert.rejects(
+      () => repository.list(accessToken, { limit: 2, offset: 500 }),
+      (error: unknown) => error instanceof PostgrestError && error.status === 416,
+      testCase.why,
+    );
+    // `get` never asks for a count, so a 416 is never an empty page there.
+    await assert.rejects(
+      () => repository.get(accessToken, "some-id"),
+      (error: unknown) => error instanceof PostgrestError && error.status === 416,
+      testCase.why,
+    );
+  }
+});
+
+test("parseUnsatisfiableRangeTotal accepts only the empty-range form", () => {
+  assert.equal(parseUnsatisfiableRangeTotal("*/300"), 300);
+  assert.equal(parseUnsatisfiableRangeTotal("*/0"), 0);
+  assert.equal(parseUnsatisfiableRangeTotal("  */12  "), 12);
+  for (const bad of [null, "", "*/*", "*/abc", "0-1/300", "*/", "*/1.5"]) {
+    assert.equal(parseUnsatisfiableRangeTotal(bad), null, String(bad));
   }
 });
 
