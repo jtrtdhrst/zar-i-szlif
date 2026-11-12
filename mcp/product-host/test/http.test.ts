@@ -212,6 +212,67 @@ test("list_sprawnosci returns the exact total and fails closed without one", asy
   );
 });
 
+test("list_sprawnosci maps an offset past the last row to an empty page with the total", async () => {
+  await withApp(
+    () => ({
+      status: 416,
+      body: { code: "PGRST103", message: "Requested range not satisfiable" },
+      headers: { "content-range": "*/300" },
+    }),
+    async ({ origin }) => {
+      const response = await mcpPost(
+        origin,
+        {
+          jsonrpc: "2.0",
+          id: 10,
+          method: "tools/call",
+          params: { name: "list_sprawnosci", arguments: { limit: 2, offset: 500 } },
+        },
+        validToken(),
+      );
+      const json = (await response.json()) as {
+        result?: { isError?: boolean; content?: Array<{ text: string }> };
+      };
+      assert.equal(json.result?.isError, undefined, "a 416 with a total is not a tool error");
+      const payload = JSON.parse(json.result?.content?.[0]?.text ?? "{}") as {
+        items: unknown[];
+        count: number;
+        limit: number;
+        offset: number;
+      };
+      assert.deepEqual(payload.items, []);
+      assert.equal(payload.count, 300);
+      assert.equal(payload.limit, 2);
+      assert.equal(payload.offset, 500);
+    },
+  );
+
+  // The same 416 without a total is still an error at the MCP surface.
+  await withApp(
+    () => ({
+      status: 416,
+      body: { code: "PGRST103", message: "Requested range not satisfiable" },
+    }),
+    async ({ origin }) => {
+      const response = await mcpPost(
+        origin,
+        {
+          jsonrpc: "2.0",
+          id: 11,
+          method: "tools/call",
+          params: { name: "list_sprawnosci", arguments: { limit: 2, offset: 500 } },
+        },
+        validToken(),
+      );
+      const json = (await response.json()) as {
+        result?: { isError?: boolean; content?: Array<{ text: string }> };
+      };
+      assert.equal(json.result?.isError, true);
+      assert.match(json.result?.content?.[0]?.text ?? "", /416/);
+    },
+  );
+});
+
 test("a PostgREST failure becomes a tool error, not a crash or a token leak", async () => {
   await withApp(
     () => ({ status: 500, body: { message: "internal database error" } }),

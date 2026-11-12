@@ -36,9 +36,11 @@ security behaves exactly as it does for the application.
 
 Returns `{ items, count, limit, offset }`. `items` is one page; `count` is the **exact total
 number of rows matching the filters** (from PostgREST `Content-Range`, requested with
-`Prefer: count=exact`), so `offset + items.length < count` means another page exists. A
-missing or unparseable total is a tool error — the service never reports the page length as
-`count`. Each item is exactly:
+`Prefer: count=exact`), so `offset + items.length < count` means another page exists. An
+`offset` past the last row is a valid empty page — PostgREST answers HTTP `416` with
+`Content-Range: */<total>`, which this service maps to `items: []` and `count: <total>`; a
+`416` without a usable total, or any other missing/unparseable total, is a tool error — the
+service never reports the page length as `count`. Each item is exactly:
 
 `id, poziom, aspekt, grupa, grupa_label, tytul, wymagania, opis, tagi, zaktualizowano`
 

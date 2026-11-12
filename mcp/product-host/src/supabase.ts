@@ -108,6 +108,17 @@ export interface RepositoryDeps {
   timeoutMs?: number;
 }
 
+interface RequestOptions {
+  /** Sent as the PostgREST `Prefer` header, e.g. `count=exact`. */
+  prefer?: string;
+  /**
+   * PostgREST answers an offset past the last row with HTTP 416. With this
+   * enabled, a 416 that carries an exact total in `Content-Range` is returned as
+   * an empty page; a 416 without a usable total still fails.
+   */
+  emptyPageOnUnsatisfiableRange?: boolean;
+}
+
 export interface SprawnoscRepository {
   list(accessToken: string, params: ListSprawnosciParams): Promise<ListSprawnosciResult>;
   get(accessToken: string, id: string): Promise<SprawnoscItem>;
@@ -199,22 +210,41 @@ export function getUrl(config: SupabaseConfig, id: string): string {
 // empty (an offset past the end). Only the value after the slash may be handed
 // to a client as `count`; `*` there means "unknown" and fails closed below.
 const CONTENT_RANGE_TOTAL = /^(?:\d+-\d+|\*)\/(\d+|\*)$/;
+// An offset past the last row is answered with HTTP 416 and `Content-Range:
+// */<total>`. That is a valid empty page, not a failure — but only when the
+// total is really present; anything else on a 416 still fails.
+const UNSATISFIABLE_RANGE_TOTAL = /^\*\/(\d+)$/;
+export const RANGE_NOT_SATISFIABLE = 416;
+
+function toCount(raw: string | undefined): number | null {
+  if (raw === undefined || raw === "*") return null;
+  const parsed = Number(raw);
+  return Number.isSafeInteger(parsed) && parsed >= 0 ? parsed : null;
+}
+
+export function tryParseTotalCount(contentRange: string | null): number | null {
+  const match = contentRange === null ? null : CONTENT_RANGE_TOTAL.exec(contentRange.trim());
+  return toCount(match?.[1]);
+}
 
 export function parseTotalCount(contentRange: string | null): number {
-  const match = contentRange === null ? null : CONTENT_RANGE_TOTAL.exec(contentRange.trim());
-  const total = match?.[1];
-  if (total === undefined || total === "*") {
-    throw new CountUnavailableError(
-      contentRange === null
-        ? "sprawnosci response has no Content-Range header, so the total row count is unknown"
-        : "sprawnosci response has an unparseable Content-Range total",
-    );
-  }
-  const parsed = Number(total);
-  if (!Number.isSafeInteger(parsed) || parsed < 0) {
-    throw new CountUnavailableError("sprawnosci response has an unparseable Content-Range total");
-  }
-  return parsed;
+  const total = tryParseTotalCount(contentRange);
+  if (total !== null) return total;
+  throw new CountUnavailableError(
+    contentRange === null
+      ? "sprawnosci response has no Content-Range header, so the total row count is unknown"
+      : "sprawnosci response has an unparseable Content-Range total",
+  );
+}
+
+/**
+ * Total carried by a 416 "requested range not satisfiable" response, which
+ * PostgREST returns when `offset` is past the last row. Only the `*` start form
+ * is accepted here: a 416 without a real total stays an error.
+ */
+export function parseUnsatisfiableRangeTotal(contentRange: string | null): number | null {
+  const match = contentRange === null ? null : UNSATISFIABLE_RANGE_TOTAL.exec(contentRange.trim());
+  return toCount(match?.[1]);
 }
 
 function asString(value: unknown, field: string): string {
@@ -268,7 +298,7 @@ export function createSprawnoscRepository(deps: RepositoryDeps): SprawnoscReposi
   async function request(
     url: string,
     accessToken: string,
-    prefer?: string,
+    options: RequestOptions = {},
   ): Promise<{ payload: unknown; contentRange: string | null }> {
     const response = await fetchImpl(url, {
       method: "GET",
@@ -276,15 +306,28 @@ export function createSprawnoscRepository(deps: RepositoryDeps): SprawnoscReposi
         apikey: config.anonKey,
         authorization: `Bearer ${accessToken}`,
         accept: "application/json",
-        ...(prefer === undefined ? {} : { prefer }),
+        ...(options.prefer === undefined ? {} : { prefer: options.prefer }),
       },
       signal: AbortSignal.timeout(timeoutMs),
     });
 
+    const contentRange = response.headers.get("content-range");
     const body = await response.text();
-    if (!response.ok) throw new PostgrestError(response.status, errorMessage(response.status, body));
+    if (!response.ok) {
+      // An offset past the last row is not a failure: PostgREST answers 416 and
+      // still names the exact total, so it maps to an empty page. The same 416
+      // without a usable total keeps its error.
+      if (
+        options.emptyPageOnUnsatisfiableRange === true &&
+        response.status === RANGE_NOT_SATISFIABLE &&
+        parseUnsatisfiableRangeTotal(contentRange) !== null
+      ) {
+        return { payload: [], contentRange };
+      }
+      throw new PostgrestError(response.status, errorMessage(response.status, body));
+    }
     try {
-      return { payload: JSON.parse(body), contentRange: response.headers.get("content-range") };
+      return { payload: JSON.parse(body), contentRange };
     } catch {
       throw new PostgrestError(response.status, "sprawnosci query returned a non-JSON body");
     }
@@ -294,11 +337,12 @@ export function createSprawnoscRepository(deps: RepositoryDeps): SprawnoscReposi
     async list(accessToken, params) {
       // `Prefer: count=exact` asks PostgREST for the total matching row count in
       // `Content-Range`; the body still carries only this page.
-      const { payload, contentRange } = await request(
-        listUrl(config, params),
-        accessToken,
-        "count=exact",
-      );
+      const { payload, contentRange } = await request(listUrl(config, params), accessToken, {
+        prefer: "count=exact",
+        // An offset past the last row is a 416 carrying the total; that is an
+        // empty page, not a failed request.
+        emptyPageOnUnsatisfiableRange: true,
+      });
       if (!Array.isArray(payload)) {
         throw new PostgrestError(0, "sprawnosci query did not return an array");
       }
