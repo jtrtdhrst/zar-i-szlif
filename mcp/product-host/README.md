@@ -56,7 +56,7 @@ row matches — absence is reported to the model, not as a protocol failure.
 
 | route                                       | method      | behaviour                                                        |
 | ------------------------------------------- | ----------- | ---------------------------------------------------------------- |
-| `/health`                                   | GET         | `200 {ok:true,name,version}` — public                            |
+| `/health`                                   | GET         | `200 {ok:true,name,version,environment}` — public                  |
 | `/`                                         | GET         | short service info — public                                      |
 | `/.well-known/oauth-protected-resource`     | GET         | RFC 9728 metadata (see below)                                    |
 | `/mcp`                                      | POST        | Streamable HTTP MCP, stateless, requires a Supabase bearer token |
@@ -98,7 +98,7 @@ stack's `http://api-gw-…:8000` alias is not resolvable by any MCP client.
 | `SUPABASE_JWT_SECRET` | yes      | —                           | HS256 secret Supabase signs access tokens with              |
 | `SUPABASE_JWT_ISSUER` | no       | unset                       | when set, `iss` is pinned to this value                     |
 | `LOG_LEVEL`           | no       | `info`                      | `debug` \| `info` \| `warn` \| `error`                      |
-| `MCP_ENVIRONMENT`     | no       | `unknown`                   | deployment label echoed in every tool response (max 64 chars, trimmed, blank ⇒ `unknown`); informational only |
+| `MCP_ENVIRONMENT`     | no       | `unknown`                   | deployment label echoed in `GET /health` and every tool response (max 64 chars, trimmed, blank ⇒ `unknown`); informational only |
 
 The process refuses to start without `SUPABASE_URL`, `SUPABASE_ANON_KEY` and
 `SUPABASE_JWT_SECRET`, and — when `NODE_ENV=production` — without a client-visible

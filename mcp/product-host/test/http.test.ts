@@ -2,7 +2,7 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import type { AddressInfo } from "node:net";
 import { createAuthenticator } from "../src/auth.ts";
-import type { Config } from "../src/config.ts";
+import { loadConfig, type Config } from "../src/config.ts";
 import { createApp } from "../src/http.ts";
 import { createLogger } from "../src/logger.ts";
 import { createSprawnoscRepository } from "../src/supabase.ts";
@@ -379,6 +379,9 @@ test("public endpoints expose health, service info and protected-resource metada
         ok: true,
         name: "zar-i-szlif-product-host-mcp",
         version: "0.1.0",
+        // Public health carries only the informational deployment label: no
+        // credential, Supabase origin or other configuration value.
+        environment: "unit-test",
       });
 
       const root = await fetch(`${origin}/`);
@@ -405,6 +408,43 @@ test("public endpoints expose health, service info and protected-resource metada
       );
     },
   );
+});
+
+test("/health reports MCP_ENVIRONMENT for explicit, default and blank values", async () => {
+  const baseEnv: NodeJS.ProcessEnv = {
+    SUPABASE_URL: "http://api-gw-r2gnunvpkqwmuew1tupbf7lx:8000",
+    SUPABASE_ANON_KEY: "anon-key-for-tests",
+    SUPABASE_JWT_SECRET: TEST_SECRET,
+  };
+  const cases: Array<{ label: string; env: NodeJS.ProcessEnv; expected: string }> = [
+    // Trimmed verbatim, exactly like the tool responses report it.
+    { label: "explicit", env: { ...baseEnv, MCP_ENVIRONMENT: "  preview\n" }, expected: "preview" },
+    { label: "default", env: { ...baseEnv }, expected: "unknown" },
+    { label: "blank", env: { ...baseEnv, MCP_ENVIRONMENT: "   " }, expected: "unknown" },
+  ];
+
+  for (const { label, env, expected } of cases) {
+    const loaded = loadConfig(env);
+    assert.equal(loaded.environment, expected, `${label}: resolved config`);
+    await withApp(
+      () => ({ body: [] }),
+      async ({ origin }) => {
+        const health = await fetch(`${origin}/health`);
+        assert.equal(health.status, 200, `${label}: status`);
+        assert.deepEqual(
+          await health.json(),
+          {
+            ok: true,
+            name: "zar-i-szlif-product-host-mcp",
+            version: "0.1.0",
+            environment: expected,
+          },
+          `${label}: health payload`,
+        );
+      },
+      { environment: loaded.environment },
+    );
+  }
 });
 
 test("an authenticated but malformed JSON body is a 400", async () => {
