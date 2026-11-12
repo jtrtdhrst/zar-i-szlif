@@ -134,7 +134,15 @@ export function createApp(deps: AppDeps): Server {
 
       try {
         if (method === "GET" && pathname === "/health") {
-          sendJson(res, 200, { ok: true, name: SERVICE_NAME, version: SERVICE_VERSION });
+          // `environment` lets an operator or the release canary confirm which
+          // deployment answered without an authenticated MCP call. It is the
+          // same informational MCP_ENVIRONMENT label the tool responses carry.
+          sendJson(res, 200, {
+            ok: true,
+            name: SERVICE_NAME,
+            version: SERVICE_VERSION,
+            environment: config.environment,
+          });
           return;
         }
         if (method === "GET" && pathname === "/") {
