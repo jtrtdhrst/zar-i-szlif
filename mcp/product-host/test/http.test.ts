@@ -12,7 +12,11 @@ import { TEST_SECRET, TEST_USER_ID, signToken, validClaims, validToken } from ".
 const config: Config = {
   port: 8080,
   publicOrigin: "https://mcp.zariszlif.pl",
-  supabaseUrl: "https://project.supabase.co",
+  // Deliberately different from the public origin: self-hosted Supabase serves
+  // PostgREST on an internal Docker alias that no MCP client can resolve.
+  supabaseUrl: "http://api-gw-r2gnunvpkqwmuew1tupbf7lx:8000",
+  supabasePublicUrl: "https://supabase-staging.example.test",
+  supabasePublicUrlSource: "explicit",
   supabaseAnonKey: "anon-key-for-tests",
   jwtSecret: TEST_SECRET,
   jwtIssuer: undefined,
@@ -257,10 +261,19 @@ test("public endpoints expose health, service info and protected-resource metada
       assert.equal(metadata.status, 200);
       assert.deepEqual(await metadata.json(), {
         resource: "https://mcp.zariszlif.pl/mcp",
-        authorization_servers: ["https://project.supabase.co/auth/v1"],
+        // The advertised auth server must be the client-visible origin, never
+        // the internal PostgREST URL used server-side.
+        authorization_servers: ["https://supabase-staging.example.test/auth/v1"],
         bearer_methods_supported: ["header"],
         scopes_supported: ["openid", "email", "profile"],
       });
+      assert.equal(
+        JSON.stringify(await (await fetch(`${origin}/.well-known/oauth-protected-resource`)).json()).includes(
+          "api-gw",
+        ),
+        false,
+        "an internal Docker alias leaked into client-visible metadata",
+      );
     },
   );
 });

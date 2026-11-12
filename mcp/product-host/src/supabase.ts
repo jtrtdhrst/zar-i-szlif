@@ -101,6 +101,9 @@ const CONTROL_CHARS = /[\u0000-\u001f\u007f]/g;
 // removed from free-text search terms because the term is interpolated into an
 // `or=(...)` expression.
 const EXPRESSION_BREAKERS = /[",()*%\\]/g;
+// For equality values the same characters are a hard error instead: silently
+// dropping them could widen a filter to a different row set.
+const FILTER_BREAKERS = /[",()]/;
 
 /**
  * Normalize a free-text search term before it is interpolated into an
@@ -120,12 +123,22 @@ export function normalizeSearchTerm(raw: string): string {
 }
 
 /**
- * Quote an equality filter value so reserved PostgREST characters stay literal.
+ * Normalize an equality filter value.
+ *
+ * PostgREST does **not** strip double quotes from `eq."value"` for a text
+ * column — it compares the literal quoted string, so a quoted filter silently
+ * matches nothing on a live database. Values are therefore emitted unquoted and
+ * URL-encoded by `encodeParams`, and any character that would terminate the
+ * filter expression or change its logic fails closed instead of producing a
+ * different row set.
  */
-export function quoteFilterValue(raw: string): string {
-  const cleaned = raw.normalize("NFC").replace(CONTROL_CHARS, "");
-  if (cleaned.trim() === "") throw new InvalidArgumentError("filter value must not be empty");
-  return `"${cleaned.replace(/\\/g, "\\\\").replace(/"/g, '\\"')}"`;
+export function equalityValue(raw: string, field: string): string {
+  const cleaned = raw.normalize("NFC").replace(CONTROL_CHARS, "").trim();
+  if (cleaned === "") throw new InvalidArgumentError(`${field} must not be empty`);
+  if (FILTER_BREAKERS.test(cleaned)) {
+    throw new InvalidArgumentError(`${field} must not contain , ( ) or "`);
+  }
+  return cleaned;
 }
 
 function encodeParams(params: Array<[string, string]>): string {
@@ -139,9 +152,15 @@ export function listUrl(config: SupabaseConfig, params: ListSprawnosciParams): s
     const term = normalizeSearchTerm(params.query);
     query.push(["or", `(tytul.ilike.*${term}*,opis.ilike.*${term}*` + ")"]);
   }
-  if (params.poziom !== undefined) query.push(["poziom", `eq.${quoteFilterValue(params.poziom)}`]);
-  if (params.aspekt !== undefined) query.push(["aspekt", `eq.${quoteFilterValue(params.aspekt)}`]);
-  if (params.grupa !== undefined) query.push(["grupa", `eq.${quoteFilterValue(params.grupa)}`]);
+  if (params.poziom !== undefined) {
+    query.push(["poziom", `eq.${equalityValue(params.poziom, "poziom")}`]);
+  }
+  if (params.aspekt !== undefined) {
+    query.push(["aspekt", `eq.${equalityValue(params.aspekt, "aspekt")}`]);
+  }
+  if (params.grupa !== undefined) {
+    query.push(["grupa", `eq.${equalityValue(params.grupa, "grupa")}`]);
+  }
 
   query.push(["limit", String(params.limit)]);
   query.push(["offset", String(params.offset)]);
@@ -152,7 +171,7 @@ export function listUrl(config: SupabaseConfig, params: ListSprawnosciParams): s
 export function getUrl(config: SupabaseConfig, id: string): string {
   const query: Array<[string, string]> = [
     ["select", SELECT_COLUMNS],
-    ["id", `eq.${quoteFilterValue(id)}`],
+    ["id", `eq.${equalityValue(id, "id")}`],
     ["limit", "1"],
   ];
   return `${config.url}/rest/v1/sprawnosci?${encodeParams(query)}`;

@@ -24,6 +24,13 @@ function start(): void {
       fallback: config.publicOrigin,
     });
   }
+  if (config.supabasePublicUrlSource === "fallback") {
+    logger.warn(
+      "SUPABASE_PUBLIC_URL is unset; advertising SUPABASE_URL as the auth server " +
+        "(acceptable for local runs only — production refuses to start without it)",
+      { advertised: config.supabasePublicUrl },
+    );
+  }
 
   const repository = createSprawnoscRepository({
     config: { url: config.supabaseUrl, anonKey: config.supabaseAnonKey },

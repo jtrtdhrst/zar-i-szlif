@@ -67,11 +67,15 @@ Metadata document:
 ```json
 {
   "resource": "<MCP_PUBLIC_ORIGIN>/mcp",
-  "authorization_servers": ["<SUPABASE_URL>/auth/v1"],
+  "authorization_servers": ["<SUPABASE_PUBLIC_URL>/auth/v1"],
   "bearer_methods_supported": ["header"],
   "scopes_supported": ["openid", "email", "profile"]
 }
 ```
+
+`authorization_servers` is the **client-visible** Supabase origin (`SUPABASE_PUBLIC_URL`,
+or `API_EXTERNAL_URL`), not the internal URL used server-side for PostgREST: a self-hosted
+stack's `http://api-gw-…:8000` alias is not resolvable by any MCP client.
 
 ## Configuration
 
@@ -79,15 +83,20 @@ Metadata document:
 | --------------------- | -------- | --------------------------- | ----------------------------------------------------------- |
 | `PORT`                | no       | `8080`                      | HTTP port                                                   |
 | `MCP_PUBLIC_ORIGIN`   | yes (prod) | `http://127.0.0.1:$PORT`  | public origin used in the metadata document and the 401 challenge |
-| `SUPABASE_URL`        | yes      | —                           | Supabase project URL                                        |
+| `SUPABASE_URL`        | yes      | —                           | Supabase URL used **server-side** for PostgREST (may be an internal alias in self-hosted stacks) |
+| `SUPABASE_PUBLIC_URL` | yes (prod) | falls back to `SUPABASE_URL` outside production | client-visible Supabase origin advertised as the auth server |
+| `API_EXTERNAL_URL`    | no       | —                           | accepted alternative name for `SUPABASE_PUBLIC_URL` (standard in self-hosted Supabase) |
 | `SUPABASE_ANON_KEY`   | yes      | —                           | anon/publishable key (never the service-role key)           |
 | `SUPABASE_JWT_SECRET` | yes      | —                           | HS256 secret Supabase signs access tokens with              |
 | `SUPABASE_JWT_ISSUER` | no       | unset                       | when set, `iss` is pinned to this value                     |
 | `LOG_LEVEL`           | no       | `info`                      | `debug` \| `info` \| `warn` \| `error`                      |
 
 The process refuses to start without `SUPABASE_URL`, `SUPABASE_ANON_KEY` and
-`SUPABASE_JWT_SECRET`. Logs are redacted: bearer tokens and JWT-shaped strings never reach
-the log stream, and the token is never included in an error message.
+`SUPABASE_JWT_SECRET`, and — when `NODE_ENV=production` — without a client-visible
+`SUPABASE_PUBLIC_URL` (or `API_EXTERNAL_URL`). Advertising an internal Docker alias as the
+auth server is a client-visible lie, so that case fails startup instead of serving bad
+metadata. Logs are redacted: bearer tokens and JWT-shaped strings never reach the log
+stream, and the token is never included in an error message.
 
 ## Local run
 
@@ -108,7 +117,17 @@ npm run build       # tsc src -> dist
 npm test            # node:test, no live Supabase, generates its own HS256 tokens
 ```
 
-Tests mock `fetch`, so they need no network, no database and no real secrets.
+Tests mock `fetch`, so they need no network, no database and no real secrets. One optional
+live-PostgREST test is skipped unless you opt in — it is the regression that a staging E2E
+caught (quoted equality filters matching nothing):
+
+```bash
+PRODUCT_HOST_LIVE_TEST=1 \
+LIVE_SUPABASE_URL=https://<project>.supabase.co \
+LIVE_SUPABASE_ANON_KEY=<anon key> \
+LIVE_ACCESS_TOKEN=<access token of a signed-in test user> \
+npm test
+```
 
 ## Database migration (controller-applied)
 
@@ -159,8 +178,13 @@ psql "$SUPABASE_DB_URL" -v ON_ERROR_STOP=1 \
   Dockerfile `mcp/product-host/Dockerfile`, exposed port `8080`.
 - Public domain `https://mcp.zariszlif.pl` ⇒ `MCP_PUBLIC_ORIGIN=https://mcp.zariszlif.pl`.
 - Container healthcheck: the Dockerfile probes `/health`.
-- Runtime secrets (`SUPABASE_URL`, `SUPABASE_ANON_KEY`, `SUPABASE_JWT_SECRET`, optionally
-  `SUPABASE_JWT_ISSUER`) are injected by Coolify. None of them are baked into the image.
+- Runtime secrets (`SUPABASE_URL`, `SUPABASE_PUBLIC_URL` — or `API_EXTERNAL_URL` —
+  `SUPABASE_ANON_KEY`, `SUPABASE_JWT_SECRET`, optionally `SUPABASE_JWT_ISSUER`) are
+  injected by Coolify. None of them are baked into the image. Staging example:
+  `SUPABASE_URL=http://api-gw-…:8000` (internal) plus
+  `SUPABASE_PUBLIC_URL=https://supabase-staging.51.89.174.58.sslip.io` (what clients must
+  use). With `NODE_ENV=production` the container exits at startup if no client-visible
+  origin is configured.
 - Database migration is applied by the controller first (see above), then the app is
   deployed, then the smoke below is run.
 
@@ -203,6 +227,11 @@ additive, so an older image keeps working with the new columns in place.
   never read by this service, so a compromised deployment cannot bypass RLS.
 - Free-text `query` values are stripped of characters that terminate a PostgREST filter
   expression (`,`, `(`, `)`, `"`, `*`, `%`, `\`) before being interpolated into
-  `or=(tytul.ilike.*…*,opis.ilike.*…*)`; equality values are double-quoted and escaped.
+  `or=(tytul.ilike.*…*,opis.ilike.*…*)`.
+- Equality filters (`poziom`, `aspekt`, `grupa`, `id`) are emitted **unquoted**
+  (`eq.<url-encoded value>`). PostgREST compares the literal string for `eq."value"` on a
+  text column, so quoting silently returns zero rows; a value containing `,`, `(`, `)` or
+  `"` is rejected as an invalid argument instead of being emitted, so a filter can never
+  silently change meaning.
 - No PII is projected beyond the catalog columns; the caller's `sub` is used only for
   logging correlation and never injected into a query.

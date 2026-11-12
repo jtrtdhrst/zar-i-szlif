@@ -6,11 +6,11 @@ import {
   SELECT_COLUMNS,
   SprawnoscNotFoundError,
   createSprawnoscRepository,
+  equalityValue,
   getUrl,
   listUrl,
   mapRow,
   normalizeSearchTerm,
-  quoteFilterValue,
 } from "../src/supabase.ts";
 import { createFetchStub, sampleRow } from "./helpers/postgrest.ts";
 
@@ -54,11 +54,28 @@ test("list query composes every supported filter", () => {
   });
   const search = params(url);
   assert.equal(search.get("or"), "(tytul.ilike.*rozpalanie ognia*,opis.ilike.*rozpalanie ognia*)");
-  assert.equal(search.get("poziom"), 'eq."odkrywcy"');
-  assert.equal(search.get("aspekt"), 'eq."fizyczny"');
-  assert.equal(search.get("grupa"), 'eq."ognisko"');
+  // Unquoted on purpose: `eq."value"` compares the literal quoted string on a
+  // text column and matches nothing on a live PostgREST (ZARI-155 live E2E).
+  assert.equal(search.get("poziom"), "eq.odkrywcy");
+  assert.equal(search.get("aspekt"), "eq.fizyczny");
+  assert.equal(search.get("grupa"), "eq.ognisko");
   assert.equal(search.get("limit"), "5");
   assert.equal(search.get("offset"), "10");
+  assert.ok(url.includes("poziom=eq.odkrywcy"));
+  assert.ok(url.includes("aspekt=eq.fizyczny"));
+  assert.ok(url.includes("grupa=eq.ognisko"));
+  assert.equal(url.includes("%22"), false, "equality values must not be double-quoted");
+});
+
+test("a multi-word query term is one encoded ilike value, never form-encoded", () => {
+  const url = listUrl(config, { query: "  rozpalanie   ognia ", limit: 25, offset: 0 });
+  assert.ok(
+    url.includes("or=(tytul.ilike.*rozpalanie%20ognia*%2Copis.ilike.*rozpalanie%20ognia*)"),
+    url,
+  );
+  assert.equal(url.includes("+"), false, "a plus would be read as a literal plus by PostgREST");
+  assert.equal(params(url).get("or"), "(tytul.ilike.*rozpalanie ognia*,opis.ilike.*rozpalanie ognia*)");
+  assert.equal(params(url).get("limit"), "25");
 });
 
 test("search terms cannot break out of the or() expression", () => {
@@ -79,22 +96,62 @@ test("search terms cannot break out of the or() expression", () => {
   );
 });
 
-test("equality values are quoted and escaped", () => {
-  assert.equal(quoteFilterValue("ognisko"), '"ognisko"');
-  assert.equal(quoteFilterValue('a"b'), '"a\\"b"');
-  assert.equal(quoteFilterValue("a\\b"), '"a\\\\b"');
-  assert.throws(
-    () => quoteFilterValue("   "),
+test("equality values are unquoted and fail closed on expression characters", () => {
+  assert.equal(equalityValue("ognisko", "grupa"), "ognisko");
+  assert.equal(equalityValue("  odkrywcy  ", "poziom"), "odkrywcy");
+  assert.equal(equalityValue("ognisko leśne", "grupa"), "ognisko leśne");
+
+  for (const bad of ["a,b", "a(b", "a)b", 'a"b']) {
+    assert.throws(
+      () => equalityValue(bad, "grupa"),
+      (error: unknown) =>
+        error instanceof InvalidArgumentError && /grupa must not contain/.test(error.message),
+      bad,
+    );
+  }
+  for (const empty of ["", "   ", "\u0000\u0001"]) {
+    assert.throws(
+      () => equalityValue(empty, "id"),
+      (error: unknown) => error instanceof InvalidArgumentError,
+    );
+  }
+});
+
+test("values with reserved characters are URL-encoded, not quoted", () => {
+  const url = getUrl(config, "ognisko leśne/1");
+  assert.ok(url.includes("id=eq.ognisko%20le%C5%9Bne%2F1"), url);
+  assert.equal(params(url).get("id"), "eq.ognisko leśne/1");
+  assert.equal(url.includes("%22"), false);
+});
+
+test("a filter value that would change the filter logic never reaches the network", async () => {
+  const stub = createFetchStub(() => ({ body: [] }));
+  const repository = createSprawnoscRepository({ config, fetchImpl: stub.fetchImpl });
+
+  for (const grupa of ["ognisko,ognisko", "ognisko)", 'ognisko"', "a(b"]) {
+    await assert.rejects(
+      () => repository.list(accessToken, { grupa, limit: 25, offset: 0 }),
+      (error: unknown) => error instanceof InvalidArgumentError,
+      grupa,
+    );
+  }
+  await assert.rejects(
+    () => repository.get(accessToken, "id,id"),
     (error: unknown) => error instanceof InvalidArgumentError,
   );
+  assert.equal(stub.calls.length, 0, "no widened filter may be sent to PostgREST");
 });
 
 test("single record query is id-filtered and capped at one row", () => {
-  const url = getUrl(config, "a1b2c3d4-0000-4000-8000-000000000001");
+  const url = getUrl(config, "odkrywcy-alarm-jezyk-indian");
   const search = params(url);
   assert.equal(search.get("select"), SELECT_COLUMNS);
-  assert.equal(search.get("id"), 'eq."a1b2c3d4-0000-4000-8000-000000000001"');
+  assert.equal(search.get("id"), "eq.odkrywcy-alarm-jezyk-indian");
   assert.equal(search.get("limit"), "1");
+  // Exact form reproduced against the deployed PostgREST during the live E2E:
+  // `id=eq.<id>` returns the row, `id=eq."<id>"` returns [].
+  assert.ok(url.includes("id=eq.odkrywcy-alarm-jezyk-indian"), url);
+  assert.equal(url.includes("%22"), false);
 });
 
 test("rows map to the documented DTO and drop unknown fields", () => {

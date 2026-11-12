@@ -56,7 +56,9 @@ function sendJson(
 function protectedResourceMetadata(config: Config): Record<string, unknown> {
   return {
     resource: `${config.publicOrigin}/mcp`,
-    authorization_servers: [`${config.supabaseUrl}/auth/v1`],
+    // Client-visible origin on purpose: the internal Supabase service URL is
+    // not resolvable by any MCP client.
+    authorization_servers: [`${config.supabasePublicUrl}/auth/v1`],
     bearer_methods_supported: ["header"],
     scopes_supported: ["openid", "email", "profile"],
   };
