@@ -34,8 +34,11 @@ security behaves exactly as it does for the application.
 | `limit`  | integer 1–100, default 25                       | page size                               |
 | `offset` | integer ≥ 0, default 0                          | rows to skip                            |
 
-Returns `{ items, count, limit, offset }`. `count` is the number of items in **this page**,
-not the total matching row count. Each item is exactly:
+Returns `{ items, count, limit, offset }`. `items` is one page; `count` is the **exact total
+number of rows matching the filters** (from PostgREST `Content-Range`, requested with
+`Prefer: count=exact`), so `offset + items.length < count` means another page exists. A
+missing or unparseable total is a tool error — the service never reports the page length as
+`count`. Each item is exactly:
 
 `id, poziom, aspekt, grupa, grupa_label, tytul, wymagania, opis, tagi, zaktualizowano`
 

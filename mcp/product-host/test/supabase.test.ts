@@ -1,6 +1,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import {
+  CountUnavailableError,
   InvalidArgumentError,
   PostgrestError,
   SELECT_COLUMNS,
@@ -11,6 +12,7 @@ import {
   listUrl,
   mapRow,
   normalizeSearchTerm,
+  parseTotalCount,
 } from "../src/supabase.ts";
 import { createFetchStub, sampleRow } from "./helpers/postgrest.ts";
 
@@ -178,7 +180,7 @@ test("null opis and null tagi degrade to safe defaults", () => {
 });
 
 test("list forwards the caller token and the anon key, never a service-role key", async () => {
-  const stub = createFetchStub(() => ({ body: [sampleRow()] }));
+  const stub = createFetchStub(() => ({ body: [sampleRow()], headers: { "content-range": "0-0/1" } }));
   const repository = createSprawnoscRepository({ config, fetchImpl: stub.fetchImpl });
 
   const result = await repository.list(accessToken, { query: "ogień", limit: 25, offset: 0 });
@@ -195,6 +197,92 @@ test("list forwards the caller token and the anon key, never a service-role key"
   assert.equal(result.limit, 25);
   assert.equal(result.offset, 0);
   assert.equal(result.items[0]?.tytul, "Rozpalanie ognia");
+});
+
+test("list reports the exact total from Content-Range, not the page length", async () => {
+  const stub = createFetchStub(() => ({
+    body: [sampleRow({ id: "row-1" }), sampleRow({ id: "row-2" })],
+    headers: { "content-range": "0-1/300" },
+  }));
+  const repository = createSprawnoscRepository({ config, fetchImpl: stub.fetchImpl });
+
+  const result = await repository.list(accessToken, { limit: 2, offset: 0 });
+
+  assert.equal(result.count, 300, "count must be the total matching rows, not items.length");
+  assert.equal(result.items.length, 2);
+  assert.equal(result.limit, 2);
+  assert.equal(result.offset, 0);
+  const call = stub.calls[0];
+  assert.ok(call);
+  const headers = call.init.headers as Record<string, string>;
+  // Without this preference PostgREST returns no Content-Range total at all.
+  assert.equal(headers.prefer, "count=exact");
+});
+
+test("an empty result page reports the total from */<total>", async () => {
+  const empty = createFetchStub(() => ({ body: [], headers: { "content-range": "*/0" } }));
+  const emptyRepository = createSprawnoscRepository({ config, fetchImpl: empty.fetchImpl });
+  const noRows = await emptyRepository.list(accessToken, { limit: 25, offset: 0 });
+  assert.equal(noRows.count, 0);
+  assert.deepEqual(noRows.items, []);
+
+  // An offset past the end keeps the real total: the page is empty, the
+  // catalog is not.
+  const past = createFetchStub(() => ({ body: [], headers: { "content-range": "*/300" } }));
+  const pastRepository = createSprawnoscRepository({ config, fetchImpl: past.fetchImpl });
+  const beyond = await pastRepository.list(accessToken, { limit: 25, offset: 500 });
+  assert.equal(beyond.count, 300);
+  assert.deepEqual(beyond.items, []);
+  assert.equal(beyond.offset, 500);
+});
+
+test("a total that cannot be parsed fails closed instead of reporting the page length", async () => {
+  const cases: Array<{ headers?: Record<string, string>; why: string }> = [
+    { why: "missing header" },
+    { headers: { "content-range": "0-1/abc" }, why: "non-numeric total" },
+    { headers: { "content-range": "0-1/*" }, why: "unknown total" },
+    { headers: { "content-range": "0-1" }, why: "no slash" },
+    { headers: { "content-range": "" }, why: "empty header" },
+    { headers: { "content-range": "rows 0-1/300" }, why: "unexpected unit prefix" },
+  ];
+
+  for (const testCase of cases) {
+    const stub = createFetchStub(() => ({
+      body: [sampleRow()],
+      ...(testCase.headers === undefined ? {} : { headers: testCase.headers }),
+    }));
+    const repository = createSprawnoscRepository({ config, fetchImpl: stub.fetchImpl });
+    await assert.rejects(
+      () => repository.list(accessToken, { limit: 25, offset: 0 }),
+      (error: unknown) =>
+        error instanceof CountUnavailableError && /total row count|Content-Range/.test(error.message),
+      testCase.why,
+    );
+  }
+});
+
+test("parseTotalCount understands both Content-Range forms", () => {
+  assert.equal(parseTotalCount("0-24/300"), 300);
+  assert.equal(parseTotalCount("24-24/300"), 300);
+  assert.equal(parseTotalCount("*/0"), 0);
+  assert.equal(parseTotalCount("*/300"), 300);
+  assert.equal(parseTotalCount("  0-0/7  "), 7);
+  for (const bad of [null, "", "*/*", "0-1/*", "0-1/-1", "0-1/1.5", "-1-0/2"]) {
+    assert.throws(
+      () => parseTotalCount(bad),
+      (error: unknown) => error instanceof CountUnavailableError,
+      String(bad),
+    );
+  }
+});
+
+test("get does not request a row count", async () => {
+  const stub = createFetchStub(() => ({ body: [sampleRow()] }));
+  const repository = createSprawnoscRepository({ config, fetchImpl: stub.fetchImpl });
+  await repository.get(accessToken, "42");
+  const call = stub.calls[0];
+  assert.ok(call);
+  assert.equal((call.init.headers as Record<string, string>).prefer, undefined);
 });
 
 test("get returns one record", async () => {

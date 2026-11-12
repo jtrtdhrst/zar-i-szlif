@@ -39,6 +39,14 @@ test("live PostgREST: equality filters match the rows they name", skip, async ()
   const page = await repository.list(token, { limit: 1, offset: 0 });
   const expected = page.items[0];
   assert.ok(expected, "the token must see at least one sprawnosc row");
+  assert.ok(
+    page.count >= 1,
+    "Prefer: count=exact must yield a total row count from the live PostgREST",
+  );
+
+  // The total is a property of the filter, not of the page size.
+  const wider = await repository.list(token, { limit: 2, offset: 0 });
+  assert.equal(wider.count, page.count, "total must not depend on limit");
 
   const byId = await repository.get(token, expected.id);
   assert.equal(byId.id, expected.id, "get_sprawnosc must find a row that list returned");

@@ -9,6 +9,8 @@ export interface RecordedCall {
 export interface StubReply {
   status?: number;
   body: unknown;
+  /** Extra response headers, e.g. `content-range` from a `count=exact` request. */
+  headers?: Record<string, string>;
 }
 
 export type StubHandler = (url: string, init: RequestInit) => StubReply | Promise<StubReply>;
@@ -28,7 +30,10 @@ export function createFetchStub(handler: StubHandler): FetchStub {
     const reply = await handler(url, requestInit);
     const status = reply.status ?? 200;
     const body = typeof reply.body === "string" ? reply.body : JSON.stringify(reply.body);
-    return new Response(body, { status, headers: { "content-type": "application/json" } });
+    return new Response(body, {
+      status,
+      headers: { "content-type": "application/json", ...(reply.headers ?? {}) },
+    });
   }) as typeof fetch;
   return { calls, fetchImpl };
 }

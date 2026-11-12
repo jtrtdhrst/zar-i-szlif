@@ -72,7 +72,7 @@ const initializeBody = {
 
 test("a valid Supabase token can initialize, list tools and read the catalog", async () => {
   await withApp(
-    () => ({ body: [sampleRow()] }),
+    () => ({ body: [sampleRow()], headers: { "content-range": "0-0/1" } }),
     async ({ origin, calls }) => {
       const token = validToken();
 
@@ -146,6 +146,68 @@ test("get_sprawnosc returns a tool error when the record is absent", async () =>
       };
       assert.equal(json.result?.isError, true);
       assert.match(json.result?.content?.[0]?.text ?? "", /not found/);
+    },
+  );
+});
+
+test("list_sprawnosci returns the exact total and fails closed without one", async () => {
+  await withApp(
+    () => ({
+      body: [sampleRow(), sampleRow({ id: "second-row" })],
+      headers: { "content-range": "0-1/300" },
+    }),
+    async ({ origin, calls }) => {
+      const response = await mcpPost(
+        origin,
+        {
+          jsonrpc: "2.0",
+          id: 8,
+          method: "tools/call",
+          params: { name: "list_sprawnosci", arguments: { limit: 2 } },
+        },
+        validToken(),
+      );
+      const json = (await response.json()) as {
+        result?: { isError?: boolean; content?: Array<{ text: string }> };
+      };
+      assert.equal(json.result?.isError, undefined);
+      const payload = JSON.parse(json.result?.content?.[0]?.text ?? "{}") as {
+        items: unknown[];
+        count: number;
+        limit: number;
+        offset: number;
+      };
+      assert.equal(payload.count, 300, "count must be the total matching rows");
+      assert.equal(payload.items.length, 2, "items must stay a single page");
+      assert.equal(payload.limit, 2);
+      assert.equal(payload.offset, 0);
+      assert.equal(
+        (calls[0]?.init.headers as Record<string, string>).prefer,
+        "count=exact",
+        "the total only exists if the preference is sent",
+      );
+    },
+  );
+
+  // No usable total ⇒ a tool error, never a page length dressed up as a count.
+  await withApp(
+    () => ({ body: [sampleRow()] }),
+    async ({ origin }) => {
+      const response = await mcpPost(
+        origin,
+        {
+          jsonrpc: "2.0",
+          id: 9,
+          method: "tools/call",
+          params: { name: "list_sprawnosci", arguments: { limit: 2 } },
+        },
+        validToken(),
+      );
+      const json = (await response.json()) as {
+        result?: { isError?: boolean; content?: Array<{ text: string }> };
+      };
+      assert.equal(json.result?.isError, true);
+      assert.match(json.result?.content?.[0]?.text ?? "", /Content-Range|total row count/);
     },
   );
 });
@@ -298,7 +360,7 @@ test("an authenticated but malformed JSON body is a 400", async () => {
 
 test("the caller subject is never the service identity: each request forwards its own token", async () => {
   await withApp(
-    () => ({ body: [sampleRow()] }),
+    () => ({ body: [sampleRow()], headers: { "content-range": "0-0/1" } }),
     async ({ origin, calls }) => {
       const first = validToken();
       const second = validToken({ sub: "11111111-2222-4333-8444-555555555555" });

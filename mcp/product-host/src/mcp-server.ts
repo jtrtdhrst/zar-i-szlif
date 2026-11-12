@@ -9,6 +9,7 @@ import { SERVICE_NAME, SERVICE_VERSION } from "./config.ts";
 import type { Logger } from "./logger.ts";
 import {
   ASPEKTY,
+  CountUnavailableError,
   InvalidArgumentError,
   POZIOMY,
   PostgrestError,
@@ -37,6 +38,10 @@ function toolError(message: string): CallToolResult {
 function describeFailure(error: unknown, tool: string, logger: Logger): string {
   if (error instanceof SprawnoscNotFoundError) return error.message;
   if (error instanceof InvalidArgumentError) return `invalid arguments: ${error.message}`;
+  if (error instanceof CountUnavailableError) {
+    logger.warn("postgrest total count unavailable", { tool });
+    return error.message;
+  }
   if (error instanceof PostgrestError) {
     logger.warn("postgrest request failed", { tool, status: error.status });
     return error.message;
@@ -62,7 +67,9 @@ export function createProductMcpServer(deps: McpServerDeps): McpServer {
       title: "List sprawności",
       description:
         "Read-only list of Żar i Szlif sprawności (skills) from the product catalog. " +
-        "Filter by free-text query (tytul/opis), poziom, aspekt or grupa; paginated with limit/offset.",
+        "Filter by free-text query (tytul/opis), poziom, aspekt or grupa; paginated with limit/offset. " +
+        "Returns the matching page in `items` and the exact total number of matching rows in `count`, " +
+        "so `offset + items.length < count` means another page exists.",
       inputSchema: {
         query: z
           .string()
