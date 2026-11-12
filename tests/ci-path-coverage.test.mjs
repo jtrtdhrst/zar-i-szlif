@@ -36,11 +36,22 @@ test("each deployable product root resolves to its own lane", () => {
     "www/mcp/posthog.client.mjs": "www",
     "product/posthog.client.mjs": "www",
     "mcp/posthog.server.mjs": "www",
+    "mcp/product-host/src/index.ts": "mcp-host",
+    "mcp/product-host/Dockerfile": "mcp-host",
+    "mcp/product-host/migrations/20261112_sprawnosci_catalog_fields.sql": "mcp-host",
     "app/website/next.config.js": "website",
   };
   for (const [path, lane] of Object.entries(expected)) {
     assert.equal(classifyPath(path), lane, path);
   }
+});
+
+test("the host product MCP lane wins over the broad mcp/** rule", () => {
+  assert.equal(classifyPath("mcp/product-host/src/http.ts"), "mcp-host");
+  assert.equal(classifyPath("mcp/posthog.server.mjs"), "www");
+  assert.equal(classifyPath("mcp/README.md"), "www");
+  // The rule is path-prefix scoped: a sibling service must not inherit it.
+  assert.equal(classifyPath("mcp/product-host-other/src/index.ts"), "www");
 });
 
 test("archived knowledge and scoped decisions have explicit non-release coverage", () => {
