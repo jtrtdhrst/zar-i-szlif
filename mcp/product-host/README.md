@@ -34,7 +34,9 @@ security behaves exactly as it does for the application.
 | `limit`  | integer 1–100, default 25                       | page size                               |
 | `offset` | integer ≥ 0, default 0                          | rows to skip                            |
 
-Returns `{ items, count, limit, offset }`. `items` is one page; `count` is the **exact total
+Returns `{ environment, items, count, limit, offset }`. `environment` is the deployment label
+from `MCP_ENVIRONMENT` (`unknown` when unset) and never affects the query. `items` is one page;
+`count` is the **exact total
 number of rows matching the filters** (from PostgREST `Content-Range`, requested with
 `Prefer: count=exact`), so `offset + items.length < count` means another page exists. An
 `offset` past the last row is a valid empty page — PostgREST answers HTTP `416` with
@@ -46,7 +48,8 @@ service never reports the page length as `count`. Each item is exactly:
 
 ### `get_sprawnosc`
 
-Arg `id` (non-empty string). Returns one item, or a tool error (`isError: true`) when no
+Arg `id` (non-empty string). Returns `{ environment, ...item }` — the same fields as one
+`items` entry plus the deployment label — or a tool error (`isError: true`) when no
 row matches — absence is reported to the model, not as a protocol failure.
 
 ## HTTP contract
@@ -95,6 +98,7 @@ stack's `http://api-gw-…:8000` alias is not resolvable by any MCP client.
 | `SUPABASE_JWT_SECRET` | yes      | —                           | HS256 secret Supabase signs access tokens with              |
 | `SUPABASE_JWT_ISSUER` | no       | unset                       | when set, `iss` is pinned to this value                     |
 | `LOG_LEVEL`           | no       | `info`                      | `debug` \| `info` \| `warn` \| `error`                      |
+| `MCP_ENVIRONMENT`     | no       | `unknown`                   | deployment label echoed in every tool response (max 64 chars, trimmed, blank ⇒ `unknown`); informational only |
 
 The process refuses to start without `SUPABASE_URL`, `SUPABASE_ANON_KEY` and
 `SUPABASE_JWT_SECRET`, and — when `NODE_ENV=production` — without a client-visible

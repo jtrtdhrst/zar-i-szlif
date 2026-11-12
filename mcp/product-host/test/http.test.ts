@@ -20,6 +20,7 @@ const config: Config = {
   supabaseAnonKey: "anon-key-for-tests",
   jwtSecret: TEST_SECRET,
   jwtIssuer: undefined,
+  environment: "unit-test",
   logLevel: "debug",
 };
 
@@ -29,15 +30,20 @@ interface Harness {
   calls: Array<{ url: string; init: RequestInit }>;
 }
 
-async function withApp(handler: StubHandler, run: (harness: Harness) => Promise<void>): Promise<void> {
+async function withApp(
+  handler: StubHandler,
+  run: (harness: Harness) => Promise<void>,
+  configOverrides: Partial<Config> = {},
+): Promise<void> {
   const stub = createFetchStub(handler);
   const logs: string[] = [];
+  const appConfig: Config = { ...config, ...configOverrides };
   const app = createApp({
-    config,
+    config: appConfig,
     logger: createLogger("debug", (line) => logs.push(line)),
     authenticate: createAuthenticator({ secret: TEST_SECRET }),
     repository: createSprawnoscRepository({
-      config: { url: config.supabaseUrl, anonKey: config.supabaseAnonKey },
+      config: { url: appConfig.supabaseUrl, anonKey: appConfig.supabaseAnonKey },
       fetchImpl: stub.fetchImpl,
     }),
   });
@@ -435,3 +441,80 @@ test("the caller subject is never the service identity: each request forwards it
     },
   );
 });
+
+test("both tool surfaces report MCP_ENVIRONMENT and keep every existing field", async () => {
+  await withApp(
+    () => ({ body: [sampleRow()], headers: { "content-range": "0-0/1" } }),
+    async ({ origin, calls }) => {
+      const token = validToken();
+
+      const listResponse = await mcpPost(
+        origin,
+        {
+          jsonrpc: "2.0",
+          id: 12,
+          method: "tools/call",
+          params: { name: "list_sprawnosci", arguments: {} },
+        },
+        token,
+      );
+      const listJson = (await listResponse.json()) as {
+        result?: { isError?: boolean; content?: Array<{ text: string }> };
+      };
+      assert.equal(listJson.result?.isError, undefined);
+      const listPayload = JSON.parse(listJson.result?.content?.[0]?.text ?? "{}") as Record<string, unknown>;
+      assert.equal(listPayload.environment, "staging");
+      assert.deepEqual(
+        Object.keys(listPayload).sort(),
+        ["count", "environment", "items", "limit", "offset"],
+        "the list surface adds environment and keeps every existing field",
+      );
+
+      const id = String(sampleRow().id);
+      const getResponse = await mcpPost(
+        origin,
+        {
+          jsonrpc: "2.0",
+          id: 13,
+          method: "tools/call",
+          params: { name: "get_sprawnosc", arguments: { id } },
+        },
+        token,
+      );
+      const getJson = (await getResponse.json()) as {
+        result?: { isError?: boolean; content?: Array<{ text: string }> };
+      };
+      assert.equal(getJson.result?.isError, undefined);
+      const getPayload = JSON.parse(getJson.result?.content?.[0]?.text ?? "{}") as Record<string, unknown>;
+      assert.equal(getPayload.environment, "staging");
+      assert.deepEqual(
+        Object.keys(getPayload).sort(),
+        [
+          "aspekt",
+          "environment",
+          "grupa",
+          "grupa_label",
+          "id",
+          "opis",
+          "poziom",
+          "tagi",
+          "tytul",
+          "wymagania",
+          "zaktualizowano",
+        ],
+        "the get surface keeps the whole fixed projection and adds environment",
+      );
+      assert.equal(getPayload.id, id);
+      assert.equal(getPayload.tytul, "Rozpalanie ognia");
+
+      // The label is reporting only: it must not reach the data path.
+      assert.equal(
+        calls.some((call) => call.url.includes("staging")),
+        false,
+        "the environment label leaked into a PostgREST query",
+      );
+    },
+    { environment: "staging" },
+  );
+});
+

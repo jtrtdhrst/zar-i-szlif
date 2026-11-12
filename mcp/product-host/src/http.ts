@@ -107,6 +107,7 @@ export function createApp(deps: AppDeps): Server {
       repository,
       accessToken: extractToken(req.headers.authorization),
       logger,
+      environment: config.environment,
     });
     const transport = new StreamableHTTPServerTransport({
       sessionIdGenerator: undefined,

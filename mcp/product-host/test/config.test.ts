@@ -83,4 +83,32 @@ test("defaults are loopback-only and documented", () => {
   assert.equal(config.publicOrigin, "http://127.0.0.1:8080");
   assert.equal(config.logLevel, "info");
   assert.equal(config.jwtIssuer, undefined);
+  assert.equal(config.environment, "unknown", "an unset MCP_ENVIRONMENT must not be blank");
+});
+
+test("MCP_ENVIRONMENT defaults to unknown when absent or blank", () => {
+  assert.equal(loadConfig({ ...baseEnv }).environment, "unknown");
+  for (const blank of ["", "   ", "\t\n"]) {
+    assert.equal(loadConfig({ ...baseEnv, MCP_ENVIRONMENT: blank }).environment, "unknown", JSON.stringify(blank));
+  }
+});
+
+test("MCP_ENVIRONMENT is reported verbatim after trimming", () => {
+  assert.equal(loadConfig({ ...baseEnv, MCP_ENVIRONMENT: "staging" }).environment, "staging");
+  assert.equal(loadConfig({ ...baseEnv, MCP_ENVIRONMENT: "  staging\n" }).environment, "staging");
+  // Case is preserved: callers compare the label byte for byte.
+  assert.equal(loadConfig({ ...baseEnv, MCP_ENVIRONMENT: " Production " }).environment, "Production");
+  assert.equal(
+    loadConfig({ ...baseEnv, MCP_ENVIRONMENT: "  " + "a".repeat(64) + "  " }).environment,
+    "a".repeat(64),
+    "surrounding whitespace must not count toward the length limit",
+  );
+});
+
+test("an over-long MCP_ENVIRONMENT fails closed instead of being truncated", () => {
+  assert.throws(
+    () => loadConfig({ ...baseEnv, MCP_ENVIRONMENT: "a".repeat(65) }),
+    (error: unknown) =>
+      error instanceof ConfigError && /MCP_ENVIRONMENT/.test(error.message) && /64/.test(error.message),
+  );
 });

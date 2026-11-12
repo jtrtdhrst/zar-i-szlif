@@ -22,6 +22,11 @@ export interface McpServerDeps {
   /** Bearer token of the calling user; PostgREST/RLS runs as that user. */
   accessToken: string;
   logger: Logger;
+  /**
+   * Deployment environment reported alongside every result (`MCP_ENVIRONMENT`).
+   * Informational only: it never influences which rows are read.
+   */
+  environment: string;
 }
 
 const LIMIT_DEFAULT = 25;
@@ -54,7 +59,7 @@ function describeFailure(error: unknown, tool: string, logger: Logger): string {
 }
 
 export function createProductMcpServer(deps: McpServerDeps): McpServer {
-  const { repository, accessToken, logger } = deps;
+  const { repository, accessToken, logger, environment } = deps;
 
   const server = new McpServer(
     { name: SERVICE_NAME, version: SERVICE_VERSION },
@@ -98,7 +103,7 @@ export function createProductMcpServer(deps: McpServerDeps): McpServer {
           limit: args.limit ?? LIMIT_DEFAULT,
           offset: args.offset ?? 0,
         });
-        return jsonResult(result);
+        return jsonResult({ environment, ...result });
       } catch (error) {
         return toolError(describeFailure(error, "list_sprawnosci", logger));
       }
@@ -117,7 +122,7 @@ export function createProductMcpServer(deps: McpServerDeps): McpServer {
     async (args) => {
       if (args.id.trim() === "") return toolError("invalid arguments: id must be a non-empty string");
       try {
-        return jsonResult(await repository.get(accessToken, args.id));
+        return jsonResult({ environment, ...(await repository.get(accessToken, args.id)) });
       } catch (error) {
         return toolError(describeFailure(error, "get_sprawnosc", logger));
       }

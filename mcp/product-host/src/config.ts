@@ -30,6 +30,12 @@ export interface Config {
   jwtSecret: string;
   /** Optional expected `iss` claim. */
   jwtIssuer: string | undefined;
+  /**
+   * Deployment environment reported in every tool response (`staging`,
+   * `production`, ...). Purely informational: it is never used for routing or
+   * data access, so a wrong value cannot widen what a caller can read.
+   */
+  environment: string;
   logLevel: LogLevel;
 }
 
@@ -85,6 +91,30 @@ function parseLogLevel(env: NodeJS.ProcessEnv): LogLevel {
   return raw as LogLevel;
 }
 
+/** Fallback reported when `MCP_ENVIRONMENT` is absent or blank. */
+export const DEFAULT_ENVIRONMENT = "unknown";
+/** Longest accepted `MCP_ENVIRONMENT` value. */
+export const ENVIRONMENT_MAX_LENGTH = 64;
+
+/**
+ * Deployment environment echoed in tool responses, so a caller (or the release
+ * canary) can tell whether it reached staging or production.
+ *
+ * Informational only — it selects no behaviour. A value that is too long is a
+ * configuration error rather than a silent truncation, because callers compare
+ * it for equality.
+ */
+function parseEnvironment(env: NodeJS.ProcessEnv): string {
+  const raw = env.MCP_ENVIRONMENT?.trim();
+  if (!raw) return DEFAULT_ENVIRONMENT;
+  if (raw.length > ENVIRONMENT_MAX_LENGTH) {
+    throw new ConfigError(
+      `MCP_ENVIRONMENT must be at most ${ENVIRONMENT_MAX_LENGTH} characters, got ${raw.length}`,
+    );
+  }
+  return raw;
+}
+
 /**
  * Resolve the client-visible Supabase origin.
  *
@@ -132,6 +162,7 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): Config {
     supabaseAnonKey: required(env, "SUPABASE_ANON_KEY"),
     jwtSecret: required(env, "SUPABASE_JWT_SECRET"),
     jwtIssuer: jwtIssuer ? stripTrailingSlash(jwtIssuer) : undefined,
+    environment: parseEnvironment(env),
     logLevel: parseLogLevel(env),
   };
 }
