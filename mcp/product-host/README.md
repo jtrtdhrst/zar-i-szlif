@@ -244,3 +244,5 @@ additive, so an older image keeps working with the new columns in place.
   silently change meaning.
 - No PII is projected beyond the catalog columns; the caller's `sub` is used only for
   logging correlation and never injected into a query.
+
+Preview gate E2E 2026-11-12.
