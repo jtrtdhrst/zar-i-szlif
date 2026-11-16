@@ -38,6 +38,10 @@ export const COVERAGE_RULES = [
   { re: /^registry\/kompas\/(ui|components|blocks|shells|pages)\//, lane: "frontend" },
   { re: /^registry\//, lane: "non-release" },
   { re: /^ops\/coolify\//, lane: "frontend" },
+  // Mascot Factory render service (ZARI-241): a deployable image target, so its
+  // manifest and modules stay on the code lane instead of the blanket ops/
+  // non-release bucket. tests/mascot-factory-service.test.mjs is the contract.
+  { re: /^ops\/mascot-worker\//, lane: "code" },
   { re: /^ops\//, lane: "non-release" },
   { re: /^scripts\//, lane: "code" },
   { re: /^tests\//, lane: "code" },

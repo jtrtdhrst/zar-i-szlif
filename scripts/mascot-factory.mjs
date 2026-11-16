@@ -264,7 +264,10 @@ export async function runMascot({url='http://127.0.0.1:8188/',profile,identity,s
   const workflowHash=graphSha256(graph);
   const budget=await consumeRenderBudget({ledgerPath:budgetPath??join(resolve(out),'.mascot-render-budget.json'),maxRenders});
   const submitted=await(await call('/prompt',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({prompt:graph,client_id:randomUUID()})})).json();
-  assert(submitted.prompt_id,'COMFY_PROMPT_NOT_ACCEPTED');
+  // The prompt id becomes a directory name below and a URL path segment above.
+  // It is chosen by the backend, so treat it as untrusted input: a traversal or
+  // separator here would write an artifact outside the configured output root.
+  assert(typeof submitted.prompt_id==='string' && /^[A-Za-z0-9][A-Za-z0-9._-]{0,127}$/.test(submitted.prompt_id) && !submitted.prompt_id.includes('..'),'COMFY_PROMPT_ID_UNSAFE');
   const deadline=Date.now()+maxWaitMs;let status,history;
   while(Date.now()<deadline){
     const raw=await(await call(`/history/${encodeURIComponent(submitted.prompt_id)}`)).json();

@@ -2,6 +2,8 @@
 
 **Status: backend blocked, runtime harness tested against a mock ComfyUI API.** This is not a successful production image render and does not assert visual-identity acceptance.
 
+An executable deployment target now exists (`ops/mascot-worker/` + `scripts/mascot-factory-service.mjs`). It is **implemented, tested locally and not deployed**: no Coolify application exists for it, no live render has succeeded, and the static panel image is unchanged. See [Executable service](#executable-service-opsmascot-worker).
+
 ## Source inputs
 
 - Żar: `żar.png` (1254×1254 RGBA), SHA-256 `0ef5e535677030f697a75f2d59f8ad8895119ffc85c9f2063374d7e6264d059c`
@@ -81,6 +83,22 @@ node scripts/mascot-factory.mjs verify --dir ./out/mascots/zar/<prompt_id> \
 6. Manual identity acceptance must check eye shape, facial expressions, paw/wing anatomy, scarf/cap identity, color palette and shared 2D brand style. A structural pass never auto-approves a mascot.
 7. Production readiness additionally needs: authenticated ComfyUI access provisioned for the Multica agent runtime (workspace MCP entry or run-scoped credential — the transport code supports both, the platform binding does not exist yet), approved inference backend, independently verified live image render for both profiles, QA signoff, review-gated branch/merge and artifact publication.
 
+## Executable service (`ops/mascot-worker/`)
+
+`scripts/mascot-factory.mjs` alone is a one-shot CLI, and the only deployed image (`ops/coolify/Dockerfile`) serves the static panel through nginx — that combination can never run the factory in production. `scripts/mascot-factory-service.mjs` wraps the merged runner in a long-lived HTTP service, and `ops/mascot-worker/Dockerfile` ships it as a separate, non-root, dependency-free image (build context: repository root; Dockerfile location `/ops/mascot-worker/Dockerfile`).
+
+| Endpoint | Contract |
+| --- | --- |
+| `GET /healthz` | `200 {"ok":true}`; process liveness only, never a backend probe. |
+| `GET /__release.json` | exact 40-hex `SOURCE_COMMIT` the process started with. |
+| `GET /readyz` | `200` only when references match their pins, the cost ledger is readable and budget remains; otherwise `503` with exact blocker codes. |
+| `GET /status` | pinned graph/prompt hashes per profile, backend scheme/host, budget usage, counters; `publication: disabled`. |
+| `POST /render` | `{"profile":"zar"｜"szlif"}` with `Authorization: Bearer <MASCOT_FACTORY_API_TOKEN>`; single-flight, budgeted, returns `prompt_id`, output `sha256`, `workflow_sha256`, artifact paths, `AWAITING_HUMAN_BRAND_QA`. |
+
+Fail-closed properties: the process refuses to start without a 40-hex commit, a ≥32-character render token and a transport that satisfies the runner's remote-credential policy; brand identity is pinned by SHA-256 (`ops/mascot-worker/reference-pins.json`, including the graph-template and prompt hashes, so a prompt edit fails readiness); a reference that does not hash to its pin blocks rendering; one render in flight at a time; the daily render budget defaults to 2 for a daemon; request-path tokens, credential-shaped body keys and backend-controlled prompt ids (`/` or `..`) are rejected. No credential is ever returned, logged or written into provenance.
+
+Deployment, network rules (private only, no public route), required environment/secrets, readback acceptance and rollback are specified in `ops/mascot-worker/README.md`. Deployment is a controller action: no agent deploys, and the image build is **not** yet part of `product-ci.yml` (that workflow change is outside this task's Git credential scope), so the manifest is covered by a static contract test rather than a real image build.
+
 ## Prior ComfyUI graphs already saved to user library
 
 - `zar-i-szlif/mascot_factory_v1_zar_brandlocked_20261116.json`
@@ -93,3 +111,4 @@ node scripts/mascot-factory.mjs verify --dir ./out/mascots/zar/<prompt_id> \
 - `ZARI-221` Mascot Designer — identity/visual specification.
 - `ZARI-222` Harness Engineer — authenticated transport, bounded retries/budget, independent verifier implemented; agent-side ComfyUI credential/endpoint binding still unprovisioned.
 - `ZARI-223` UI QA — independent E2E after backend/transport readiness.
+- `ZARI-241` Harness Engineer — executable production runtime (`ops/mascot-worker/`, `scripts/mascot-factory-service.mjs`), secure ComfyUI access and live renders E2E; source delivered, deployment and live render still gated.
