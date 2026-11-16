@@ -2,7 +2,7 @@
 // image can serve staging and production; nothing is baked into the build.
 
 export const SERVICE_NAME = "zar-i-szlif-product-host-mcp";
-export const SERVICE_VERSION = "0.1.0";
+export const SERVICE_VERSION = "0.1.1";
 
 export type LogLevel = "debug" | "info" | "warn" | "error";
 
