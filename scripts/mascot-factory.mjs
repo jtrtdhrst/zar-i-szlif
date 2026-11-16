@@ -39,25 +39,61 @@ export const sha256 = data => createHash('sha256').update(data).digest('hex');
 function assert(ok, message) { if (!ok) throw new Error(message); }
 const delay = ms => new Promise(resolveDelay => setTimeout(resolveDelay, ms));
 
+/**
+ * Standard CRC-32 (ISO 3309 / ITU-T V.42, polynomial 0xEDB88320) used by every PNG chunk.
+ * Known-answer test in the unit suite anchors it to the spec instead of trusting this table.
+ */
+const CRC32_TABLE = (() => {
+  const table = new Int32Array(256);
+  for (let n = 0; n < 256; n++) {
+    let c = n;
+    for (let k = 0; k < 8; k++) c = (c & 1) ? (0xedb88320 ^ (c >>> 1)) : (c >>> 1);
+    table[n] = c;
+  }
+  return table;
+})();
+export function crc32(buf) {
+  let c = 0xffffffff;
+  for (let i = 0; i < buf.length; i++) c = CRC32_TABLE[(c ^ buf[i]) & 0xff] ^ (c >>> 8);
+  return (c ^ 0xffffffff) >>> 0;
+}
+
+const PNG_SIGNATURE = Buffer.from([137,80,78,71,13,10,26,10]);
+
 /** Parse and defilter 8-bit RGBA PNG to evaluate actual transparency and clipping. */
 export function validatePng(png, { minSize = 512, marginRatio = 0.02 } = {}) {
-  const signature = Buffer.from([137,80,78,71,13,10,26,10]);
-  assert(png.subarray(0,8).equals(signature), 'NOT_PNG');
-  let pos=8, width=0, height=0, depth=-1, color=-1, interlace=-1; const blocks=[];
-  let ended=false;
+  assert(Buffer.isBuffer(png) && png.length > 8 && png.subarray(0,8).equals(PNG_SIGNATURE), 'NOT_PNG');
+  let pos=8, width=0, height=0, depth=-1, color=-1, interlace=-1, compression=-1, filterMethod=-1;
+  const blocks=[]; let idatBytes=0, sawIhdr=false, sawIend=false, index=0;
   while(pos+12 <= png.length) {
-    const len=png.readUInt32BE(pos); const type=png.toString('ascii',pos+4,pos+8);
-    assert(len < 100_000_000 && pos+12+len<=png.length, 'MALFORMED_PNG_CHUNK');
+    const len=png.readUInt32BE(pos); const type=png.toString('latin1',pos+4,pos+8);
+    assert(/^[A-Za-z]{4}$/.test(type), 'MALFORMED_PNG_CHUNK_TYPE');
+    assert(len <= 0x7fffffff && pos+12+len<=png.length, 'MALFORMED_PNG_CHUNK');
+    const end=pos+12+len;
     const data=png.subarray(pos+8,pos+8+len);
-    if(type==='IHDR') {assert(len===13,'INVALID_IHDR'); width=data.readUInt32BE(0);height=data.readUInt32BE(4);depth=data[8];color=data[9];interlace=data[12];}
-    if(type==='IDAT') blocks.push(data);
-    if(type==='IEND') {ended=true; break;}
-    pos+=len+12;
+    // Every chunk carries CRC-32 over its type + data; a mismatch means the file is corrupted or forged.
+    const stored=png.readUInt32BE(pos+8+len);
+    assert(stored===crc32(png.subarray(pos+4,pos+8+len)), `PNG_CHUNK_CRC_MISMATCH:${type}`);
+    if(index===0) assert(type==='IHDR', 'PNG_IHDR_NOT_FIRST');
+    if(type==='IHDR') {
+      assert(!sawIhdr && len===13, 'INVALID_IHDR');
+      sawIhdr=true;
+      width=data.readUInt32BE(0); height=data.readUInt32BE(4);
+      depth=data[8]; color=data[9]; compression=data[10]; filterMethod=data[11]; interlace=data[12];
+    }
+    if(type==='IDAT') {idatBytes+=len; blocks.push(data);}
+    if(type==='IEND') {assert(len===0,'PNG_IEND_NOT_EMPTY'); sawIend=true; assert(end===png.length,'PNG_TRAILING_DATA'); break;}
+    pos=end; index++;
   }
-  assert(ended && blocks.length && width>=minSize && height>=minSize && width<=4096 && height<=4096,'PNG_DIMENSIONS_OR_DATA_INVALID');
-  assert(depth===8 && color===6 && interlace===0, 'PNG_MUST_BE_NONINTERLACED_RGBA8');
+  assert(sawIhdr, 'PNG_MISSING_IHDR');
+  assert(sawIend, 'PNG_MISSING_IEND');
+  assert(idatBytes>0, 'PNG_MISSING_IDAT');
+  assert(width>=minSize && height>=minSize && width<=4096 && height<=4096, 'PNG_DIMENSIONS_OR_DATA_INVALID');
+  assert(depth===8 && color===6 && interlace===0 && compression===0 && filterMethod===0, 'PNG_MUST_BE_NONINTERLACED_RGBA8');
   const bpp=4, rowBytes=width*bpp, expected=(rowBytes+1)*height;
-  const pixels=inflateSync(Buffer.concat(blocks),{maxOutputLength:expected+1});
+  let pixels;
+  try { pixels=inflateSync(Buffer.concat(blocks),{maxOutputLength:expected+1}); }
+  catch { throw new Error('PNG_IDAT_INFLATE_FAILED'); }
   assert(pixels.length===expected, 'PNG_DECOMPRESSED_LENGTH_INVALID');
   let old=Buffer.alloc(rowBytes), at=0, count=0, minX=width,minY=height,maxX=-1,maxY=-1, opaqueCorners=0;
   for(let y=0;y<height;y++){
@@ -82,7 +118,7 @@ export function validatePng(png, { minSize = 512, marginRatio = 0.02 } = {}) {
   const margin=Math.max(8,Math.floor(Math.min(width,height)*marginRatio));
   assert(minX>=margin && minY>=margin && maxX<width-margin && maxY<height-margin,'MASCOT_TOUCHES_CANVAS_EDGE');
   assert(opaqueCorners===0,'PNG_NONTRANSPARENT_CORNERS');
-  return {width,height,mode:'RGBA8',coverage:Number((count/(width*height)).toFixed(4)),bbox:[minX,minY,maxX,maxY],sha256:sha256(png),structural_check:'PASS',brand_review:'PENDING_MANUAL'};
+  return {width,height,mode:'RGBA8',coverage:Number((count/(width*height)).toFixed(4)),bbox:[minX,minY,maxX,maxY],sha256:sha256(png),crc_check:'PASS',structural_check:'PASS',brand_review:'PENDING_MANUAL'};
 }
 
 export function buildGraph({profile, identityImage, styleImage, codexHome=''}) {
@@ -264,7 +300,7 @@ export async function verifyArtifacts(directory,{identityFile,styleFile}={}) {
   check('no_self_approval',provenance.visual_identity_approved===false);
   const validation=validatePng(png);
   check('artifact_sha256',validation.sha256===provenance.validation?.sha256,{sha256:validation.sha256});
-  for(const key of ['width','height','coverage','mode','structural_check']) check(`recorded_${key}`,validation[key]===provenance.validation?.[key],{[key]:validation[key]});
+  for(const key of ['width','height','coverage','mode','crc_check','structural_check']) check(`recorded_${key}`,validation[key]===provenance.validation?.[key],{[key]:validation[key]});
   check('recorded_bbox',JSON.stringify(validation.bbox)===JSON.stringify(provenance.validation?.bbox));
   const graph=buildGraph({profile:provenance.profile,identityImage:provenance.reference_identity?.name,styleImage:provenance.reference_style?.name,codexHome:''});
   check('workflow_sha256',graphSha256(graph)===provenance.workflow_sha256);

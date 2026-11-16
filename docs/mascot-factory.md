@@ -16,8 +16,36 @@
 - **Fail-closed output gate**: RGBA PNG only, 512–4096px, coverage and subject bounds verification, rejects cropped / opaque output.
 - **Render budget**: one unit of a per-UTC-day ledger is consumed *before* the prompt is submitted (`--max-renders`, default 4; `--budget FILE` to pin a shared ledger). An exhausted or corrupt ledger blocks the run instead of resetting.
 - Each completed candidate stored as `candidate.png` and `provenance.json` with source/output SHA-256 hashes, prompt ID, canonical workflow hash, prompt hash, transport scheme and budget usage. **All images stay pending manual brand review; no automatic publication.**
-- **Independent verifier** (`verify --dir`) recomputes every claim from the bytes on disk instead of trusting the runner: artifact hash, PNG structure/alpha/coverage/bbox, reference hashes, canonical workflow hash for the recorded profile, prompt hash, and the no-self-approval / pending-status rules.
+- **Independent verifier** (`verify --dir`) recomputes every claim from the bytes on disk instead of trusting the runner: artifact hash, PNG chunk CRC/structure/alpha/coverage/bbox, reference hashes, canonical workflow hash for the recorded profile, prompt hash, and the no-self-approval / pending-status rules.
 - Test fixture HTTP server exercises the full loop without calling an external paid service.
+
+## PNG structural gate
+
+`validatePng()` verifies the container before any pixel heuristic runs. Every rejection is a hard failure; the runner writes no artifact when it throws.
+
+| Check | Rejection code |
+| --- | --- |
+| PNG signature | `NOT_PNG` |
+| Chunk framing: length within the file, type is 4 ASCII letters | `MALFORMED_PNG_CHUNK`, `MALFORMED_PNG_CHUNK_TYPE` |
+| **Per-chunk CRC-32 over `type + data`** (every chunk, including `IDAT`/`IEND`) | `PNG_CHUNK_CRC_MISMATCH:<TYPE>` |
+| First chunk must be `IHDR`, exactly one `IHDR` of length 13 | `PNG_IHDR_NOT_FIRST`, `INVALID_IHDR` |
+| `IEND` present, empty, and the last bytes of the file | `PNG_MISSING_IEND`, `PNG_IEND_NOT_EMPTY`, `PNG_TRAILING_DATA` |
+| At least one non-empty `IDAT` | `PNG_MISSING_IDAT` |
+| 8-bit, colour type 6 (RGBA), no interlace, compression/filter method 0 | `PNG_MUST_BE_NONINTERLACED_RGBA8` |
+| Inflate is bounded to the exact scanline size; bombs and truncation fail closed | `PNG_IDAT_INFLATE_FAILED`, `PNG_DECOMPRESSED_LENGTH_INVALID` |
+| Opaque coverage, canvas-edge clipping, transparent corners | `PNG_EMPTY_OR_OPAQUE_BACKGROUND`, `MASCOT_TOUCHES_CANVAS_EDGE`, `PNG_NONTRANSPARENT_CORNERS` |
+
+A structural pass returns `crc_check: "PASS"` and `structural_check: "PASS"` with `brand_review: "PENDING_MANUAL"`; it never approves a mascot.
+
+## Tests
+
+`node --test tests/mascot-factory.test.mjs` runs 15 tests. The PNG gate group covers the graph shape, CRC known-answer vectors (`123456789` → `0xCBF43926`, `IEND` → `0xAE426082`), a CRC-correct positive fixture that must pass, and negative fixtures for corrupt/zeroed CRC, trailing bytes after `IEND`, missing `IEND`, truncated chunks, `IHDR` not first, non-empty `IEND`, wrong decompressed length, an inflate bomb and non-RGBA colour types. The transport/budget/verifier group covers the authenticated-transport policy, bearer propagation without secret leakage, retry-only-idempotent-GET semantics, the fail-closed render budget, and the independent verifier rejecting tampered artifacts. The mock-backend group covers a successful run, a failed node and a corrupt PNG returned by the backend.
+
+Fixtures are built with computed CRCs and a deterministic deflate stream, so a broken validator can no longer "pass" an invalid file; they are still mock data and prove nothing about live model output.
+
+## Continuous integration status (2026-11-16)
+
+GitHub Actions `Product CI` for PR #178 at `4402c1e7` reported `failure` on job `validate-product` (`43878218959` / job `133336791898`) with no steps and no runner assigned. The check-run annotations returned by the GitHub API state: *"The job was not started because recent account payments have failed or your spending limit needs to be increased. Please check the 'Billing & plans' section in your settings"*. That is an account billing/quota condition on the runner platform, not a defect in this code, and it cannot be fixed from the repository. Workflow policy is unchanged; clearing it requires an owner action on GitHub billing. Local `npm run validate:code` at the same commit is the accepted fallback evidence until hosted runners run again.
 
 ## Commands
 
