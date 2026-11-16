@@ -91,7 +91,7 @@ node scripts/mascot-factory.mjs verify --dir ./out/mascots/zar/<prompt_id> \
 | --- | --- |
 | `GET /healthz` | `200 {"ok":true}`; process liveness only, never a backend probe. |
 | `GET /__release.json` | exact 40-hex `SOURCE_COMMIT` the process started with. |
-| `GET /readyz` | `200` only when references match their pins, the cost ledger is readable and budget remains; otherwise `503` with exact blocker codes. |
+| `GET /readyz` | `200` only when references match their pins, the cost ledger is readable, budget remains **and** a bounded authenticated GET-only probe of the backend (`/system_stats`, `/object_info/ArkCodexImageGen`) succeeds; otherwise `503` with exact blocker codes, including `BACKEND_UNREACHABLE` / `BACKEND_UNAUTHORIZED` / `BACKEND_NODE_MISSING` / `BACKEND_TIMEOUT`. A configured transport alone is never readiness. |
 | `GET /status` | pinned graph/prompt hashes per profile, backend scheme/host, budget usage, counters; `publication: disabled`. |
 | `POST /render` | `{"profile":"zar"｜"szlif"}` with `Authorization: Bearer <MASCOT_FACTORY_API_TOKEN>`; single-flight, budgeted, returns `prompt_id`, output `sha256`, `workflow_sha256`, artifact paths, `AWAITING_HUMAN_BRAND_QA`. |
 
