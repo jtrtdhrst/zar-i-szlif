@@ -48,16 +48,25 @@ function baseEnv(overrides = {}) {
   };
 }
 
-async function mockComfy({ fail = false, promptId = 'mock-run-123', image = fixture() } = {}) {
+async function mockComfy({ fail = false, promptId = 'mock-run-123', image = fixture(), unauthorized = false, missingNode = false, hang = false } = {}) {
   let submissions = 0;
+  let probes = 0;
   const s = createServer(async (req, res) => {
     const pathname = new URL(req.url, 'http://localhost').pathname;
     const send = (code, data, type = 'application/json') => {
       res.writeHead(code, { 'content-type': type });
       res.end(type === 'application/json' ? JSON.stringify(data) : data);
     };
+    const isProbe = pathname === '/system_stats' || pathname.startsWith('/object_info/');
+    if (isProbe) {
+      probes += 1;
+      // A backend that never answers: readiness must time out, not hang.
+      if (hang) return;
+      // Cloudflare Access / a wrong bearer answers the probed endpoints with 401.
+      if (unauthorized) return send(401, { error: 'unauthorized' });
+    }
     if (pathname === '/system_stats') return send(200, { system: { comfyui_version: 'test-mock-only' } });
-    if (pathname === '/object_info/ArkCodexImageGen') return send(200, { ArkCodexImageGen: {} });
+    if (pathname === '/object_info/ArkCodexImageGen') return send(200, missingNode ? { SomeOtherNode: {} } : { ArkCodexImageGen: {} });
     if (pathname === '/upload/image') {
       const chunks = [];
       for await (const c of req) chunks.push(c);
@@ -76,7 +85,13 @@ async function mockComfy({ fail = false, promptId = 'mock-run-123', image = fixt
     return send(404, { error: 'not found' });
   });
   await new Promise((ok) => s.listen(0, '127.0.0.1', ok));
-  return { url: `http://127.0.0.1:${s.address().port}/`, close: () => new Promise((ok) => s.close(ok)), getSubmissions: () => submissions };
+  return {
+    url: `http://127.0.0.1:${s.address().port}/`,
+    // A hanging probe would otherwise keep a socket open and stall close().
+    close: () => new Promise((ok) => { s.closeAllConnections?.(); s.close(ok); }),
+    getSubmissions: () => submissions,
+    getProbes: () => probes,
+  };
 }
 
 /** A references directory plus a pin file that matches those exact bytes. */
@@ -131,6 +146,8 @@ test('service configuration refuses to start without a commit, a strong token an
   assert.throws(() => loadConfig(baseEnv({ COMFY_URL: 'https://user:pw@comfy.example/' })), /URL_CREDENTIALS_NOT_ALLOWED/);
   assert.throws(() => loadConfig(baseEnv({ PORT: 'not-a-port' })), /PORT_INVALID/);
   assert.throws(() => loadConfig(baseEnv({ MASCOT_FACTORY_MAX_RENDERS: '0' })), /INVALID_RENDER_BUDGET/);
+  assert.throws(() => loadConfig(baseEnv({ MASCOT_FACTORY_PROBE_TIMEOUT_MS: '0' })), /INVALID_PROBE_TIMEOUT/);
+  assert.throws(() => loadConfig(baseEnv({ MASCOT_FACTORY_PROBE_TIMEOUT_MS: '600000' })), /INVALID_PROBE_TIMEOUT/);
 
   // A remote endpoint with a service token is accepted and reported without its secret.
   const remote = loadConfig(baseEnv({
@@ -174,16 +191,23 @@ test('startServer binds a real port and reports liveness without touching the ba
 
 test('readiness and status expose pinned identity but never a credential', async () => {
   const ws = await pinnedWorkspace();
+  const mock = await mockComfy();
   const svc = await serve({
     MASCOT_FACTORY_REFERENCES: ws.referencesDir,
     MASCOT_FACTORY_REFERENCE_PINS: ws.pinsPath,
     MASCOT_FACTORY_OUT_DIR: ws.outDir,
+    COMFY_URL: mock.url,
     COMFY_API_TOKEN: COMFY_TOKEN,
   });
   try {
     const ready = await fetch(`${svc.base}/readyz`);
     assert.equal(ready.status, 200);
-    assert.deepEqual((await ready.json()).blockers, []);
+    const readyBody = await ready.json();
+    assert.deepEqual(readyBody.blockers, []);
+    // Readiness really probed the engine and never submitted a billable prompt.
+    assert.equal(readyBody.backend.probed, true);
+    assert.ok(mock.getProbes() >= 2, 'readiness must query /system_stats and /object_info');
+    assert.equal(mock.getSubmissions(), 0, 'a readiness probe must never submit a billable /prompt');
 
     const status = await (await fetch(`${svc.base}/status`)).json();
     const pins = JSON.parse(await readFile(ws.pinsPath, 'utf8'));
@@ -199,8 +223,10 @@ test('readiness and status expose pinned identity but never a credential', async
     const body = JSON.stringify(status);
     assert.ok(!body.includes(TOKEN), 'render token must never be served');
     assert.ok(!body.includes(COMFY_TOKEN), 'backend credential must never be served');
+    assert.equal(status.backend.probe, null);
   } finally {
     await svc.close();
+    await mock.close();
   }
 });
 
@@ -258,6 +284,46 @@ test('readiness fails closed on missing, swapped references and a corrupt cost l
     assert.ok(body.blockers.includes('BUDGET_LEDGER_CORRUPT'));
   } finally {
     await svcCorrupt.close();
+  }
+});
+
+test('readiness probes the real backend and fails closed when it is down, unauthenticated or missing the generation node', async () => {
+  const cases = [
+    { name: 'unreachable', env: { COMFY_URL: 'http://127.0.0.1:9/' }, expect: 'BACKEND_UNREACHABLE' },
+    { name: 'credential rejected', mock: await mockComfy({ unauthorized: true }), expect: 'BACKEND_UNAUTHORIZED' },
+    { name: 'generation node missing', mock: await mockComfy({ missingNode: true }), expect: 'BACKEND_NODE_MISSING' },
+    { name: 'backend never answers', mock: await mockComfy({ hang: true }), env: { MASCOT_FACTORY_PROBE_TIMEOUT_MS: '200' }, expect: 'BACKEND_TIMEOUT' },
+  ];
+  for (const testCase of cases) {
+    const ws = await pinnedWorkspace();
+    const svc = await serve({
+      MASCOT_FACTORY_REFERENCES: ws.referencesDir,
+      MASCOT_FACTORY_REFERENCE_PINS: ws.pinsPath,
+      MASCOT_FACTORY_OUT_DIR: ws.outDir,
+      COMFY_API_TOKEN: COMFY_TOKEN,
+      ...(testCase.mock ? { COMFY_URL: testCase.mock.url } : {}),
+      ...testCase.env,
+    });
+    try {
+      const started = Date.now();
+      const ready = await fetch(`${svc.base}/readyz`);
+      const elapsed = Date.now() - started;
+      assert.equal(ready.status, 503, `${testCase.name}: readiness must be 503`);
+      const body = await ready.json();
+      assert.equal(body.ok, false);
+      assert.ok(body.blockers.includes(testCase.expect), `${testCase.name}: expected ${testCase.expect} in ${JSON.stringify(body.blockers)}`);
+      assert.equal(body.backend.code, testCase.expect);
+      // Bounded: a hanging engine can never stall a health check.
+      assert.ok(elapsed < 3000, `${testCase.name}: probe took ${elapsed}ms`);
+      assert.ok(!JSON.stringify(body).includes(COMFY_TOKEN), 'a probe must never echo a credential');
+      // Liveness stays green so an outage does not restart a healthy pod.
+      assert.equal((await fetch(`${svc.base}/healthz`)).status, 200);
+      assert.equal((await (await fetch(`${svc.base}/status`)).json()).ready, false);
+      if (testCase.mock) assert.equal(testCase.mock.getSubmissions(), 0, 'readiness must never submit a billable prompt');
+    } finally {
+      await svc.close();
+      if (testCase.mock) await testCase.mock.close();
+    }
   }
 });
 
@@ -391,7 +457,7 @@ test('a backend failure or an unsafe prompt id never writes an artifact', async 
     await failingMock.close();
   }
 
-  // An unreachable backend is reported as an operational state, not a render defect.
+  // An unreachable backend is now caught by readiness before any render work.
   const offline = await pinnedWorkspace();
   const svcOffline = await serve({
     MASCOT_FACTORY_REFERENCES: offline.referencesDir,
@@ -401,11 +467,32 @@ test('a backend failure or an unsafe prompt id never writes an artifact', async 
   });
   try {
     const res = await fetch(`${svcOffline.base}/render`, { method: 'POST', headers, body: JSON.stringify({ profile: 'zar' }) });
-    assert.equal(res.status, 502);
-    assert.match((await res.json()).code, /^BACKEND_UNREACHABLE/);
+    assert.equal(res.status, 503);
+    const body = await res.json();
+    assert.equal(body.error, 'NOT_READY');
+    assert.ok(body.blockers.includes('BACKEND_UNREACHABLE'));
     assert.equal(existsSync(join(offline.outDir, 'zar')), false);
   } finally {
     await svcOffline.close();
+  }
+
+  // A backend that dies after readiness still reports an operational cause, not a render defect.
+  const dropped = await pinnedWorkspace();
+  const liveMock = await mockComfy();
+  const svcDropped = await serve({
+    MASCOT_FACTORY_REFERENCES: dropped.referencesDir,
+    MASCOT_FACTORY_REFERENCE_PINS: dropped.pinsPath,
+    MASCOT_FACTORY_OUT_DIR: dropped.outDir,
+    COMFY_URL: liveMock.url,
+  }, { runner: async () => { throw Object.assign(new Error('fetch failed'), { cause: { code: 'ECONNREFUSED' } }); } });
+  try {
+    const res = await fetch(`${svcDropped.base}/render`, { method: 'POST', headers, body: JSON.stringify({ profile: 'zar' }) });
+    assert.equal(res.status, 502);
+    assert.match((await res.json()).code, /^BACKEND_UNREACHABLE/);
+    assert.equal(existsSync(join(dropped.outDir, 'zar')), false);
+  } finally {
+    await svcDropped.close();
+    await liveMock.close();
   }
 
   // The backend controls the prompt id; a traversal must not escape the output root.

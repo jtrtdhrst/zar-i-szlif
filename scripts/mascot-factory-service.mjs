@@ -27,6 +27,12 @@
  *   the prompt is submitted, corrupt or unreadable ledger fails closed) and a
  *   single-flight lock, so a retry or a double click cannot queue a second
  *   billable render.
+ * - `/readyz` reports readiness of the *actual* backend, not of this process's
+ *   configuration: it performs a bounded, credential-carrying, read-only probe
+ *   of ComfyUI (`GET /system_stats` and `GET /object_info/ArkCodexImageGen`) and
+ *   fails with `503` when the engine is unreachable, rejects the credential or
+ *   lacks the generation node. Only GET is used — readiness must never submit a
+ *   billable `/prompt`.
  * - `SOURCE_COMMIT` must be the exact 40-hex commit at startup, so the process
  *   cannot serve an unidentified build. `/__release.json` publishes it.
  * - Nothing is published or approved here: artifacts are written as
@@ -47,6 +53,11 @@ export const MIN_TOKEN_LENGTH = 32;
 export const MAX_BODY_BYTES = 4096;
 /** Service default is stricter than the CLI default (4): a daemon is unattended. */
 export const DEFAULT_MAX_RENDERS = 2;
+/** Upper bound on the whole readiness probe; a slow backend must not hang health checks. */
+export const DEFAULT_PROBE_TIMEOUT_MS = 2500;
+export const MAX_PROBE_TIMEOUT_MS = 30_000;
+/** The ComfyUI node this service's brand-locked graph requires. */
+export const REQUIRED_BACKEND_NODE = 'ArkCodexImageGen';
 
 const DEFAULT_PINS = fileURLToPath(new URL('../ops/mascot-worker/reference-pins.json', import.meta.url));
 const DEFAULT_OUT_DIR = '/var/lib/mascot-factory/out';
@@ -82,6 +93,9 @@ export function loadConfig(env = process.env) {
   const maxWaitMs = Number(env.MASCOT_FACTORY_MAX_WAIT_MS ?? 360_000);
   assert(Number.isInteger(maxWaitMs) && maxWaitMs > 0, 'INVALID_MAX_WAIT');
 
+  const probeTimeoutMs = Number(env.MASCOT_FACTORY_PROBE_TIMEOUT_MS ?? DEFAULT_PROBE_TIMEOUT_MS);
+  assert(Number.isInteger(probeTimeoutMs) && probeTimeoutMs > 0 && probeTimeoutMs <= MAX_PROBE_TIMEOUT_MS, 'INVALID_PROBE_TIMEOUT');
+
   const outDir = String(env.MASCOT_FACTORY_OUT_DIR ?? DEFAULT_OUT_DIR);
 
   // Raw secrets never become properties of the returned configuration: an
@@ -98,6 +112,11 @@ export function loadConfig(env = process.env) {
     // Resolution (and therefore the credential headers) stays inside the runner;
     // the service keeps only the secret-free description for reporting.
     transport: describeTransport(transport),
+    // Readiness probes the real engine through the same fail-closed transport
+    // policy. It is a closure — never serialized — so no credential can reach a
+    // response or a log through the configuration object.
+    probe: (options = {}) => probeBackend({ url, env, timeoutMs: probeTimeoutMs, ...options }),
+    probeTimeoutMs,
     host: String(env.HOST ?? '0.0.0.0'),
     port,
     outDir,
@@ -214,6 +233,71 @@ export async function readBudget({ config, now = new Date() }) {
   return { ok: remaining > 0, blocker: remaining > 0 ? null : `RENDER_BUDGET_EXHAUSTED ${count}/${config.maxRenders} in ${window}`, window, used: count, max: config.maxRenders, remaining };
 }
 
+/**
+ * Bounded, credential-carrying, read-only probe of the real ComfyUI engine.
+ *
+ * Readiness must describe the *backend*, not this process's intent: an
+ * unreachable host, a rejected credential or a missing `ArkCodexImageGen` node
+ * all mean "cannot render right now". Only GET endpoints are used, so a probe
+ * can never submit a billable `/prompt`.
+ *
+ * Every failure is reported as a stable code. Response bodies, headers and
+ * credentials are never echoed, so the code is safe to serve and to log.
+ */
+export async function probeBackend({ url, env = process.env, timeoutMs = DEFAULT_PROBE_TIMEOUT_MS, fetchImpl = fetch } = {}) {
+  const deadline = Date.now() + timeoutMs;
+  let transport;
+  try {
+    // Same fail-closed policy as the runner: a remote endpoint without a
+    // credential is refused before a single request leaves the process.
+    transport = resolveTransport({ url, env });
+  } catch (err) {
+    return { ok: false, code: String(err?.message ?? 'BACKEND_UNCONFIGURED') };
+  }
+
+  const get = async (path) => {
+    const remaining = deadline - Date.now();
+    if (remaining <= 0) return { code: 'BACKEND_TIMEOUT' };
+    let response;
+    try {
+      response = await fetchImpl(new URL(path, transport.base), {
+        method: 'GET',
+        headers: transport.headers,
+        // A redirect is an authorization/boundary signal here (Cloudflare
+        // Access sends unauthenticated callers to a login page), not something
+        // to follow into an HTML body.
+        redirect: 'manual',
+        signal: AbortSignal.timeout(remaining),
+      });
+    } catch (err) {
+      if (err?.name === 'TimeoutError' || err?.name === 'AbortError') return { code: 'BACKEND_TIMEOUT' };
+      return { code: 'BACKEND_UNREACHABLE' };
+    }
+    if (response.status === 401 || response.status === 403) return { code: 'BACKEND_UNAUTHORIZED' };
+    if (!response.ok) return { code: `BACKEND_HTTP_ERROR_${response.status}` };
+    return { response };
+  };
+
+  const stats = await get('/system_stats');
+  if (stats.code) return { ok: false, code: stats.code };
+  // Drain the body so the probe never leaves a socket half-read.
+  await stats.response.text().catch(() => '');
+
+  const node = await get(`/object_info/${REQUIRED_BACKEND_NODE}`);
+  if (node.code) return { ok: false, code: node.code };
+
+  let payload;
+  try {
+    payload = JSON.parse(await node.response.text());
+  } catch {
+    return { ok: false, code: 'BACKEND_INVALID_RESPONSE' };
+  }
+  if (!payload || typeof payload !== 'object' || !Object.hasOwn(payload, REQUIRED_BACKEND_NODE)) {
+    return { ok: false, code: 'BACKEND_NODE_MISSING' };
+  }
+  return { ok: true, code: null };
+}
+
 function send(res, status, body, headers = {}) {
   const payload = Buffer.from(`${JSON.stringify(body)}\n`);
   res.writeHead(status, {
@@ -246,25 +330,46 @@ function bearerFrom(req) {
  * Build the request handler. Dependencies are injectable so the test suite can
  * drive a real HTTP server against a mock ComfyUI without any live backend.
  */
-export function createHandler(config, { runner = runMascot, now = () => new Date(), logger = () => {} } = {}) {
+export function createHandler(config, { runner = runMascot, probe, now = () => new Date(), logger = () => {} } = {}) {
   const state = { inFlight: false, accepted: 0, lastError: null };
   let pinsPromise = null;
   const loadPins = () => (pinsPromise ??= loadReferencePins(config.pinsPath));
+  const probeTimeoutMs = config.probeTimeoutMs ?? DEFAULT_PROBE_TIMEOUT_MS;
+  const probeFn = probe ?? config.probe ?? ((options) => probeBackend({ url: config.comfyUrl, timeoutMs: probeTimeoutMs, ...options }));
+
+  /**
+   * Probe the backend and normalize the result. An injected probe that throws
+   * is a not-ready backend, never a ready one.
+   */
+  const backendReadiness = async () => {
+    try {
+      const result = await probeFn({ timeoutMs: probeTimeoutMs });
+      if (result?.ok) return { ok: true, code: null };
+      return { ok: false, code: String(result?.code ?? 'BACKEND_PROBE_FAILED') };
+    } catch (err) {
+      return { ok: false, code: config.scrub(String(err?.message ?? 'BACKEND_PROBE_FAILED')).slice(0, 120) };
+    }
+  };
 
   const readiness = async () => {
     const blockers = [];
+    const add = (blocker) => { if (blocker && !blockers.includes(blocker)) blockers.push(blocker); };
     let references = { ok: false, verified: {} };
     try {
       const pins = await loadPins();
       references = await verifyReferences({ config, pins });
-      blockers.push(...references.blockers);
+      references.blockers.forEach(add);
     } catch (err) {
-      blockers.push(err?.message?.startsWith?.('REFERENCE_PINS') ? err.message : 'REFERENCE_PINS_UNREADABLE');
+      add(err?.message?.startsWith?.('REFERENCE_PINS') ? err.message : 'REFERENCE_PINS_UNREADABLE');
     }
     const budget = await readBudget({ config, now: now() });
-    if (!budget.ok) blockers.push(budget.blocker);
-    if (!config.transport.authenticated && !config.transport.loopback) blockers.push('MISSING_REMOTE_CREDENTIAL');
-    return { ok: blockers.length === 0, blockers, references, budget };
+    if (!budget.ok) add(budget.blocker);
+    if (!config.transport.authenticated && !config.transport.loopback) add('MISSING_REMOTE_CREDENTIAL');
+    // The static transport check above only proves this process *has* a
+    // credential. Only the probe proves the engine answers with it.
+    const backend = await backendReadiness();
+    if (!backend.ok) add(backend.code);
+    return { ok: blockers.length === 0, blockers, references, budget, backend };
   };
 
   const handler = async (req, res) => {
@@ -290,6 +395,7 @@ export function createHandler(config, { runner = runMascot, now = () => new Date
         return send(res, ready.ok ? 200 : 503, {
           ok: ready.ok,
           blockers: ready.blockers,
+          backend: { probed: true, code: ready.backend.code },
           budget: ready.budget,
           references: Object.fromEntries(Object.entries(ready.references.verified).map(([profile, files]) => [
             profile,
@@ -308,7 +414,7 @@ export function createHandler(config, { runner = runMascot, now = () => new Date
           ready: ready.ok,
           blockers: ready.blockers,
           profiles: computePins(),
-          backend: { scheme: config.transport.scheme, host: config.transport.host, protocol: config.transport.protocol, authenticated: config.transport.authenticated, loopback: config.transport.loopback },
+          backend: { scheme: config.transport.scheme, host: config.transport.host, protocol: config.transport.protocol, authenticated: config.transport.authenticated, loopback: config.transport.loopback, probe: ready.backend.code },
           budget: ready.budget,
           renders: { in_flight: state.inFlight, accepted: state.accepted },
           last_error: state.lastError,
