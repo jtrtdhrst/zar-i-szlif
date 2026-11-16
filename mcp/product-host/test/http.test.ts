@@ -72,7 +72,7 @@ const initializeBody = {
   params: {
     protocolVersion: "2025-06-18",
     capabilities: {},
-    clientInfo: { name: "product-host-contract-test", version: "0.1.0" },
+    clientInfo: { name: "product-host-contract-test", version: "0.1.1" },
   },
 };
 
@@ -378,7 +378,7 @@ test("public endpoints expose health, service info and protected-resource metada
       assert.deepEqual(await health.json(), {
         ok: true,
         name: "zar-i-szlif-product-host-mcp",
-        version: "0.1.0",
+        version: "0.1.1",
         // Public health carries only the informational deployment label: no
         // credential, Supabase origin or other configuration value.
         environment: "unit-test",
@@ -436,7 +436,7 @@ test("/health reports MCP_ENVIRONMENT for explicit, default and blank values", a
           {
             ok: true,
             name: "zar-i-szlif-product-host-mcp",
-            version: "0.1.0",
+            version: "0.1.1",
             environment: expected,
           },
           `${label}: health payload`,
