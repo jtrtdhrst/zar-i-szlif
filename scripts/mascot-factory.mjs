@@ -19,7 +19,7 @@
 import { readFile, writeFile, mkdir, rename } from 'node:fs/promises';
 import { resolve, join, dirname } from 'node:path';
 import { createHash, randomUUID } from 'node:crypto';
-import { inflateSync } from 'node:zlib';
+import { deflateSync, inflateSync } from 'node:zlib';
 
 export const PROFILES = Object.freeze({
   zar: {
@@ -60,8 +60,8 @@ export function crc32(buf) {
 
 const PNG_SIGNATURE = Buffer.from([137,80,78,71,13,10,26,10]);
 
-/** Parse and defilter 8-bit RGBA PNG to evaluate actual transparency and clipping. */
-export function validatePng(png, { minSize = 512, marginRatio = 0.02 } = {}) {
+/** Verify the PNG container (framing, CRC-32, IHDR) before any pixel is decoded. */
+function parsePngContainer(png) {
   assert(Buffer.isBuffer(png) && png.length > 8 && png.subarray(0,8).equals(PNG_SIGNATURE), 'NOT_PNG');
   let pos=8, width=0, height=0, depth=-1, color=-1, interlace=-1, compression=-1, filterMethod=-1;
   const blocks=[]; let idatBytes=0, sawIhdr=false, sawIend=false, index=0;
@@ -88,14 +88,18 @@ export function validatePng(png, { minSize = 512, marginRatio = 0.02 } = {}) {
   assert(sawIhdr, 'PNG_MISSING_IHDR');
   assert(sawIend, 'PNG_MISSING_IEND');
   assert(idatBytes>0, 'PNG_MISSING_IDAT');
-  assert(width>=minSize && height>=minSize && width<=4096 && height<=4096, 'PNG_DIMENSIONS_OR_DATA_INVALID');
-  assert(depth===8 && color===6 && interlace===0 && compression===0 && filterMethod===0, 'PNG_MUST_BE_NONINTERLACED_RGBA8');
-  const bpp=4, rowBytes=width*bpp, expected=(rowBytes+1)*height;
+  return {width,height,depth,color,interlace,compression,filterMethod,blocks};
+}
+
+/** Inflate and defilter the scanlines of an 8-bit RGB or RGBA PNG. */
+function decodePngPixels({width,height,color,blocks}) {
+  const bpp=color===6?4:3, rowBytes=width*bpp, expected=(rowBytes+1)*height;
   let pixels;
   try { pixels=inflateSync(Buffer.concat(blocks),{maxOutputLength:expected+1}); }
   catch { throw new Error('PNG_IDAT_INFLATE_FAILED'); }
   assert(pixels.length===expected, 'PNG_DECOMPRESSED_LENGTH_INVALID');
-  let old=Buffer.alloc(rowBytes), at=0, count=0, minX=width,minY=height,maxX=-1,maxY=-1, opaqueCorners=0;
+  const out=Buffer.allocUnsafe(rowBytes*height);
+  let old=Buffer.alloc(rowBytes), at=0, o=0;
   for(let y=0;y<height;y++){
     const filter=pixels[at++];assert(filter<=4,'PNG_UNSUPPORTED_FILTER');
     const row=Buffer.allocUnsafe(rowBytes);
@@ -108,17 +112,105 @@ export function validatePng(png, { minSize = 512, marginRatio = 0.02 } = {}) {
       if(filter===4){const p=left+up-ul; const a=Math.abs(p-left),b=Math.abs(p-up),c=Math.abs(p-ul);pred=a<=b&&a<=c?left:b<=c?up:ul;}
       row[x]=(val+pred)&255;
     }
-    for(let x=0;x<width;x++){
-      if(row[x*4+3]>8){count++;minX=Math.min(minX,x);maxX=Math.max(maxX,x);minY=Math.min(minY,y);maxY=Math.max(maxY,y);
-        if((x===0||x===width-1)&&(y===0||y===height-1))opaqueCorners++;}
-    }
-    old=row;
+    row.copy(out,o); o+=rowBytes; old=row;
+  }
+  return out;
+}
+
+function pngChunk(type,data) {
+  const b=Buffer.alloc(12+data.length);
+  b.writeUInt32BE(data.length,0); b.write(type,4,'latin1'); data.copy(b,8);
+  b.writeUInt32BE(crc32(b.subarray(4,8+data.length)),8+data.length);
+  return b;
+}
+
+/** Encode 8-bit RGBA pixels as a non-interlaced PNG (filter 0, deterministic deflate). */
+export function encodeRgbaPng(width,height,rgba) {
+  assert(rgba.length===width*height*4,'RGBA_BUFFER_LENGTH_MISMATCH');
+  const ihdr=Buffer.alloc(13);
+  ihdr.writeUInt32BE(width,0); ihdr.writeUInt32BE(height,4); ihdr[8]=8; ihdr[9]=6;
+  const stride=1+width*4, raw=Buffer.allocUnsafe(height*stride);
+  for(let y=0;y<height;y++){ raw[y*stride]=0; rgba.copy(raw,y*stride+1,y*width*4,(y+1)*width*4); }
+  return Buffer.concat([PNG_SIGNATURE,pngChunk('IHDR',ihdr),pngChunk('IDAT',deflateSync(raw)),pngChunk('IEND',Buffer.alloc(0))]);
+}
+
+/**
+ * Parse and defilter a PNG to evaluate actual transparency and clipping. The
+ * Codex backend returns a flat RGB render (a ComfyUI IMAGE tensor has three
+ * channels), so raw renders are validated with `requireAlpha: false` and the
+ * RGBA contract is enforced on the alpha-exported artifact instead.
+ */
+export function validatePng(png, { minSize = 512, marginRatio = 0.02, requireAlpha = true } = {}) {
+  const parsed=parsePngContainer(png);
+  const {width,height,depth,color,interlace,compression,filterMethod}=parsed;
+  assert(width>=minSize && height>=minSize && width<=4096 && height<=4096, 'PNG_DIMENSIONS_OR_DATA_INVALID');
+  assert(depth===8 && (color===6 || (!requireAlpha && color===2)) && interlace===0 && compression===0 && filterMethod===0,
+    requireAlpha?'PNG_MUST_BE_NONINTERLACED_RGBA8':'PNG_MUST_BE_NONINTERLACED_8BIT_RGB_OR_RGBA');
+  const px=decodePngPixels(parsed);
+  if(color===2) return {width,height,mode:'RGB8',alpha:'ABSENT',sha256:sha256(png),crc_check:'PASS',structural_check:'PASS',brand_review:'PENDING_MANUAL'};
+  let count=0, minX=width,minY=height,maxX=-1,maxY=-1, opaqueCorners=0;
+  for(let y=0;y<height;y++) for(let x=0;x<width;x++){
+    if(px[(y*width+x)*4+3]>8){count++;minX=Math.min(minX,x);maxX=Math.max(maxX,x);minY=Math.min(minY,y);maxY=Math.max(maxY,y);
+      if((x===0||x===width-1)&&(y===0||y===height-1))opaqueCorners++;}
   }
   assert(count > width*height*0.02 && count < width*height*0.85,'PNG_EMPTY_OR_OPAQUE_BACKGROUND');
   const margin=Math.max(8,Math.floor(Math.min(width,height)*marginRatio));
   assert(minX>=margin && minY>=margin && maxX<width-margin && maxY<height-margin,'MASCOT_TOUCHES_CANVAS_EDGE');
   assert(opaqueCorners===0,'PNG_NONTRANSPARENT_CORNERS');
   return {width,height,mode:'RGBA8',coverage:Number((count/(width*height)).toFixed(4)),bbox:[minX,minY,maxX,maxY],sha256:sha256(png),crc_check:'PASS',structural_check:'PASS',brand_review:'PENDING_MANUAL'};
+}
+
+export const ALPHA_EXPORT = Object.freeze({ method:'corner-flood-fill-v1', tolerance:28, feather:24 });
+
+/** Deterministic median of the border pixels; the canvas edge is background by contract. */
+function borderMedianColor(rgb,width,height) {
+  const samples=[];
+  const add=(x,y)=>{const i=(y*width+x)*3;samples.push([rgb[i],rgb[i+1],rgb[i+2]]);};
+  for(let x=0;x<width;x++){add(x,0);add(x,height-1);}
+  for(let y=0;y<height;y++){add(0,y);add(width-1,y);}
+  const channel=c=>{const v=samples.map(p=>p[c]).sort((a,b)=>a-b);return v[v.length>>1];};
+  return [channel(0),channel(1),channel(2)];
+}
+
+/**
+ * Recover transparency outside ComfyUI: flood-fill the background connected to
+ * the canvas edge, then feather the silhouette so anti-aliased edge pixels keep
+ * partial alpha. Pure and deterministic, so the verifier recomputes the exact
+ * same bytes from `render.png` instead of trusting the runner.
+ *
+ * shortcut: only edge-connected background becomes transparent; enclosed holes
+ * keep their colour until a real matting model is available.
+ */
+export function exportAlphaPng(png, { tolerance = ALPHA_EXPORT.tolerance, feather = ALPHA_EXPORT.feather } = {}) {
+  const parsed=parsePngContainer(png);
+  const {width,height,depth,color,interlace,compression,filterMethod}=parsed;
+  assert(depth===8 && (color===2||color===6) && interlace===0 && compression===0 && filterMethod===0,'ALPHA_EXPORT_UNSUPPORTED_COLOR_TYPE');
+  if(color===6) return {png,passthrough:true,width,height};
+  const rgb=decodePngPixels(parsed);
+  const background=borderMedianColor(rgb,width,height);
+  const distance=(x,y)=>{const i=(y*width+x)*3;return Math.max(Math.abs(rgb[i]-background[0]),Math.abs(rgb[i+1]-background[1]),Math.abs(rgb[i+2]-background[2]));};
+  const visited=new Uint8Array(width*height);
+  const queue=new Int32Array(width*height);
+  let head=0, tail=0;
+  const seed=(x,y)=>{const p=y*width+x; if(!visited[p] && distance(x,y)<=tolerance){visited[p]=1;queue[tail++]=p;}};
+  for(let x=0;x<width;x++){seed(x,0);seed(x,height-1);}
+  for(let y=0;y<height;y++){seed(0,y);seed(width-1,y);}
+  while(head<tail){
+    const p=queue[head++], x=p%width, y=(p-x)/width;
+    if(x>0)seed(x-1,y); if(x+1<width)seed(x+1,y); if(y>0)seed(x,y-1); if(y+1<height)seed(x,y+1);
+  }
+  const rgba=Buffer.allocUnsafe(width*height*4);
+  for(let p=0;p<width*height;p++){
+    const i=p*3, o=p*4;
+    rgba[o]=rgb[i];rgba[o+1]=rgb[i+1];rgba[o+2]=rgb[i+2];
+    if(visited[p]){rgba[o+3]=0;continue;}
+    const x=p%width, y=(p-x)/width;
+    const onEdge=(x>0&&visited[p-1])||(x+1<width&&visited[p+1])||(y>0&&visited[p-width])||(y+1<height&&visited[p+width]);
+    if(!onEdge){rgba[o+3]=255;continue;}
+    const d=distance(x,y);
+    rgba[o+3]=Math.max(0,Math.min(255,Math.round(255*(d-tolerance)/feather)));
+  }
+  return {png:encodeRgbaPng(width,height,rgba),passthrough:false,width,height,background};
 }
 
 export function buildGraph({profile, identityImage, styleImage, codexHome=''}) {
@@ -264,7 +356,10 @@ export async function runMascot({url='http://127.0.0.1:8188/',profile,identity,s
   const workflowHash=graphSha256(graph);
   const budget=await consumeRenderBudget({ledgerPath:budgetPath??join(resolve(out),'.mascot-render-budget.json'),maxRenders});
   const submitted=await(await call('/prompt',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({prompt:graph,client_id:randomUUID()})})).json();
-  assert(submitted.prompt_id,'COMFY_PROMPT_NOT_ACCEPTED');
+  // The prompt id becomes a directory name below and a URL path segment above.
+  // It is chosen by the backend, so treat it as untrusted input: a traversal or
+  // separator here would write an artifact outside the configured output root.
+  assert(typeof submitted.prompt_id==='string' && /^[A-Za-z0-9][A-Za-z0-9._-]{0,127}$/.test(submitted.prompt_id) && !submitted.prompt_id.includes('..'),'COMFY_PROMPT_ID_UNSAFE');
   const deadline=Date.now()+maxWaitMs;let status,history;
   while(Date.now()<deadline){
     const raw=await(await call(`/history/${encodeURIComponent(submitted.prompt_id)}`)).json();
@@ -275,11 +370,16 @@ export async function runMascot({url='http://127.0.0.1:8188/',profile,identity,s
   assert(status==='success','IMAGE_RENDER_TIMEOUT_OR_UNVERIFIED');
   const saved=history.outputs?.['4']?.images?.[0]; assert(saved?.filename,'NO_SAVED_IMAGE');
   const qs=new URLSearchParams({filename:saved.filename,subfolder:saved.subfolder??'',type:'output'});
-  const png=Buffer.from(await(await call(`/view?${qs}`)).arrayBuffer());
+  const renderPng=Buffer.from(await(await call(`/view?${qs}`)).arrayBuffer());
+  const renderValidation=validatePng(renderPng,{requireAlpha:false});
+  const exported=exportAlphaPng(renderPng);
+  const png=exported.png;
   const validation=validatePng(png);
   const directory=resolve(out,profile,submitted.prompt_id);await mkdir(directory,{recursive:true});
+  await writeFile(join(directory,'render.png'),renderPng,{flag:'wx'});
   await writeFile(join(directory,'candidate.png'),png,{flag:'wx'});
-  const provenance={schema:2,status:'AWAITING_HUMAN_BRAND_QA',profile,created_at:new Date().toISOString(),prompt_id:submitted.prompt_id,backend:'ArkCodexImageGen',backend_version:sys.system?.comfyui_version??'unknown',transport:describeTransport(client.transport),codex_home_configured:Boolean(codexHome),workflow_sha256:workflowHash,prompt_sha256:sha256(Buffer.from(PROFILES[profile].prompt)),reference_identity:primary,reference_style:secondary,validation,output_filename:saved.filename,model_seed:null,render_budget:budget,visual_identity_approved:false};
+  const alphaExport={...ALPHA_EXPORT,source_sha256:renderValidation.sha256,output_sha256:validation.sha256,passthrough:exported.passthrough};
+  const provenance={schema:2,status:'AWAITING_HUMAN_BRAND_QA',profile,created_at:new Date().toISOString(),prompt_id:submitted.prompt_id,backend:'ArkCodexImageGen',backend_version:sys.system?.comfyui_version??'unknown',transport:describeTransport(client.transport),codex_home_configured:Boolean(codexHome),workflow_sha256:workflowHash,prompt_sha256:sha256(Buffer.from(PROFILES[profile].prompt)),reference_identity:primary,reference_style:secondary,render_validation:renderValidation,alpha_export:alphaExport,validation,output_filename:saved.filename,model_seed:null,render_budget:budget,visual_identity_approved:false};
   await writeFile(join(directory,'provenance.json'),JSON.stringify(provenance,null,2)+'\n',{flag:'wx'});
   return {directory,provenance};
 }
@@ -292,12 +392,22 @@ export async function runMascot({url='http://127.0.0.1:8188/',profile,identity,s
  */
 export async function verifyArtifacts(directory,{identityFile,styleFile}={}) {
   const png=await readFile(join(directory,'candidate.png'));
+  const renderPng=await readFile(join(directory,'render.png'));
   const provenance=JSON.parse(await readFile(join(directory,'provenance.json'),'utf8'));
   const checks=[];
   const check=(name,ok,detail)=>{assert(ok,`${name.toUpperCase()}_FAILED`);checks.push({name,pass:true,...(detail&&typeof detail==='object'?detail:{})});};
   check('schema',provenance.schema>=2);
   check('pending_status',PENDING_STATUSES.includes(provenance.status));
   check('no_self_approval',provenance.visual_identity_approved===false);
+  const renderValidation=validatePng(renderPng,{requireAlpha:false});
+  check('render_sha256',renderValidation.sha256===provenance.render_validation?.sha256,{sha256:renderValidation.sha256});
+  check('recorded_render_mode',renderValidation.mode===provenance.render_validation?.mode,{mode:renderValidation.mode});
+  // The alpha export is a pure function of render.png, so any edit to either file
+  // desynchronises the pair instead of passing as a plausible artifact.
+  const exported=exportAlphaPng(renderPng);
+  check('alpha_export_sha256',sha256(exported.png)===sha256(png),{sha256:sha256(exported.png)});
+  check('recorded_exporter',provenance.alpha_export?.method===ALPHA_EXPORT.method);
+  check('recorded_export_output',provenance.alpha_export?.output_sha256===sha256(png),{sha256:sha256(png)});
   const validation=validatePng(png);
   check('artifact_sha256',validation.sha256===provenance.validation?.sha256,{sha256:validation.sha256});
   for(const key of ['width','height','coverage','mode','crc_check','structural_check']) check(`recorded_${key}`,validation[key]===provenance.validation?.[key],{[key]:validation[key]});

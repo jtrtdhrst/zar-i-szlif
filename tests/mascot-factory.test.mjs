@@ -5,7 +5,7 @@ import { mkdtemp, readFile, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { deflateSync } from 'node:zlib';
-import { validatePng, buildGraph, runMascot, resolveTransport, consumeRenderBudget, verifyArtifacts, sha256, crc32 } from '../scripts/mascot-factory.mjs';
+import { validatePng, exportAlphaPng, buildGraph, runMascot, resolveTransport, consumeRenderBudget, verifyArtifacts, sha256, crc32 } from '../scripts/mascot-factory.mjs';
 
 // A deterministic fixture generator; never passes off a mocked render as a real model output.
 const SIGNATURE = Buffer.from([137, 80, 78, 71, 13, 10, 26, 10]);
@@ -36,6 +36,20 @@ const idat = raw => chunk('IDAT', deflateSync(raw));
 const iend = () => chunk('IEND', Buffer.alloc(0));
 function fixture({ width = 512, height = 512, allOpaque = false, clipped = false } = {}) {
   return Buffer.concat([SIGNATURE, ihdr({ width, height }), idat(pixels({ width, height, allOpaque, clipped })), iend()]);
+}
+
+// The Codex backend returns a flat three-channel render; this is that shape.
+function rgbFixture({ width = 512, height = 512, inset = 80 } = {}) {
+  const rowBytes = width * 3;
+  const raw = Buffer.alloc(height * (1 + rowBytes));
+  for (let y = 0; y < height; y++) for (let x = 0; x < width; x++) {
+    const i = y * (1 + rowBytes) + 1 + x * 3;
+    const inside = x >= inset && x < width - inset && y >= inset && y < height - inset;
+    raw[i] = 255; raw[i + 1] = inside ? 96 : 255; raw[i + 2] = inside ? 24 : 255;
+  }
+  const header = Buffer.alloc(13);
+  header.writeUInt32BE(width, 0); header.writeUInt32BE(height, 4); header[8] = 8; header[9] = 2;
+  return Buffer.concat([SIGNATURE, chunk('IHDR', header), chunk('IDAT', deflateSync(raw)), iend()]);
 }
 
 test('crc32 matches the published PNG/ISO 3309 known-answer vectors', () => {
@@ -110,6 +124,54 @@ test('decompression safeguards: wrong decompressed size and inflate bombs fail c
   notRgba[8] = 8; notRgba[9] = 2; notRgba[12] = 0;
   assert.throws(() => validatePng(Buffer.concat([SIGNATURE, chunk('IHDR', notRgba),
     idat(Buffer.alloc(512 * 512 * 3)), iend()])), /PNG_MUST_BE_NONINTERLACED_RGBA8/);
+});
+
+test('a flat RGB render is structurally valid only when alpha is not required', () => {
+  const rgb = rgbFixture();
+  const structural = validatePng(rgb, { requireAlpha: false });
+  assert.equal(structural.mode, 'RGB8');
+  assert.equal(structural.alpha, 'ABSENT');
+  assert.equal(structural.structural_check, 'PASS');
+  // The published artifact contract still refuses an RGB file.
+  assert.throws(() => validatePng(rgb), /PNG_MUST_BE_NONINTERLACED_RGBA8/);
+});
+
+test('alpha export is deterministic, transparent at the corners and passes the RGBA contract', () => {
+  const rgb = rgbFixture();
+  const first = exportAlphaPng(rgb);
+  const second = exportAlphaPng(rgb);
+  assert.equal(first.passthrough, false);
+  assert.equal(sha256(first.png), sha256(second.png));
+  const validated = validatePng(first.png);
+  assert.equal(validated.mode, 'RGBA8');
+  assert.equal(validated.crc_check, 'PASS');
+  assert.deepEqual(validated.bbox, [80, 80, 431, 431]);
+  // An already-RGBA file is passed through unchanged instead of being re-matted.
+  const rgba = fixture();
+  const passthrough = exportAlphaPng(rgba);
+  assert.equal(passthrough.passthrough, true);
+  assert.equal(sha256(passthrough.png), sha256(rgba));
+});
+
+test('a live-shaped RGB render is exported to RGBA and verified from render.png', async () => {
+  const root = await mkdtemp(join(tmpdir(), 'mascot-rgb-')); const ref = join(root, 'reference.png'); await writeFile(ref, fixture());
+  const mock = await server({ image: rgbFixture() });
+  try {
+    const result = await runMascot({ url: mock.url, profile: 'zar', identity: ref, style: ref, out: join(root, 'outputs'), maxWaitMs: 10000 });
+    assert.equal(result.provenance.render_validation.mode, 'RGB8');
+    assert.equal(result.provenance.alpha_export.passthrough, false);
+    assert.equal(result.provenance.alpha_export.output_sha256, result.provenance.validation.sha256);
+    const candidate = await readFile(join(result.directory, 'candidate.png'));
+    const render = await readFile(join(result.directory, 'render.png'));
+    assert.notEqual(sha256(candidate), sha256(render));
+    assert.equal(validatePng(candidate).mode, 'RGBA8');
+    assert.equal(validatePng(render, { requireAlpha: false }).mode, 'RGB8');
+    const verified = await verifyArtifacts(result.directory);
+    assert.equal(verified.verified, true);
+    // Tampering with the raw render breaks the export binding instead of passing.
+    await writeFile(join(result.directory, 'render.png'), rgbFixture({ inset: 96 }));
+    await assert.rejects(() => verifyArtifacts(result.directory), /(RENDER_SHA256|ALPHA_EXPORT_SHA256)_FAILED/);
+  } finally { await mock.close(); }
 });
 
 async function server({ fail = false, historyFailures = 0, promptFailures = 0, image = fixture() } = {}) {
@@ -260,6 +322,6 @@ test('independent verifier recomputes every claim and rejects tampered artifacts
     const png = await readFile(join(directory, 'candidate.png'));
     await writeFile(join(directory, 'candidate.png'), Buffer.concat([png, Buffer.from([0])]));
     // Appended bytes are now caught by the structural gate (PNG_TRAILING_DATA) before any hash comparison.
-    await assert.rejects(() => verifyArtifacts(directory), /(ARTIFACT_SHA256|RECORDED_).*_FAILED|PNG_TRAILING_DATA/);
+    await assert.rejects(() => verifyArtifacts(directory), /(ARTIFACT_SHA256|RECORDED_|ALPHA_EXPORT_).*_FAILED|PNG_TRAILING_DATA/);
   } finally { await mock.close(); }
 });
