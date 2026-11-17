@@ -34,7 +34,8 @@ All responses are JSON. No endpoint ever returns a credential.
 
 A successful render returns `prompt_id`, output `sha256`, `workflow_sha256`,
 dimensions, budget usage and absolute artifact paths
-(`…/candidate.png`, `…/provenance.json`), with
+(`…/render.png` — the raw backend render, `…/candidate.png` — its deterministic
+alpha-exported RGBA form, `…/provenance.json`), with
 `status: AWAITING_HUMAN_BRAND_QA` and `brand_review: PENDING_MANUAL`. Nothing is
 published, promoted or approved by this service.
 
