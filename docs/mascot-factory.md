@@ -39,6 +39,8 @@ An executable deployment target now exists (`ops/mascot-worker/` + `scripts/masc
 | Inflate is bounded to the exact scanline size; bombs and truncation fail closed | `PNG_IDAT_INFLATE_FAILED`, `PNG_DECOMPRESSED_LENGTH_INVALID` |
 | Opaque coverage, canvas-edge clipping, transparent corners | `PNG_EMPTY_OR_OPAQUE_BACKGROUND`, `MASCOT_TOUCHES_CANVAS_EDGE`, `PNG_NONTRANSPARENT_CORNERS` |
 
+The prompt asks the backend for an 8% safe margin, but the Codex backend routinely returns the subject 1–2% from the border. The published artifact therefore requires `ARTIFACT_MARGIN_RATIO` (1%); a genuinely cropped character still reaches the very edge and is rejected. Edge-touching debris smaller than 0.2% of the canvas is removed by the exporter instead of counted as a crop.
+
 A structural pass returns `crc_check: "PASS"` and `structural_check: "PASS"` with `brand_review: "PENDING_MANUAL"`; it never approves a mascot.
 
 ## Tests

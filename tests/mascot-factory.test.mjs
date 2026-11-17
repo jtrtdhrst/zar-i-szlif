@@ -39,13 +39,19 @@ function fixture({ width = 512, height = 512, allOpaque = false, clipped = false
 }
 
 // The Codex backend returns a flat three-channel render; this is that shape.
-function rgbFixture({ width = 512, height = 512, inset = 80 } = {}) {
+// `bottomInset: 0` is a genuinely cropped character; `debris` is the stray
+// pure-blue edge line the backend emits on every Szlif render.
+function rgbFixture({ width = 512, height = 512, inset = 80, bottomInset = inset, debris = false } = {}) {
   const rowBytes = width * 3;
   const raw = Buffer.alloc(height * (1 + rowBytes));
   for (let y = 0; y < height; y++) for (let x = 0; x < width; x++) {
     const i = y * (1 + rowBytes) + 1 + x * 3;
-    const inside = x >= inset && x < width - inset && y >= inset && y < height - inset;
+    const inside = x >= inset && x < width - inset && y >= inset && y < height - bottomInset;
     raw[i] = 255; raw[i + 1] = inside ? 96 : 255; raw[i + 2] = inside ? 24 : 255;
+  }
+  if (debris) for (let x = 240; x < 261; x++) {
+    const i = (height - 1) * (1 + rowBytes) + 1 + x * 3;
+    raw[i] = 0; raw[i + 1] = x % 2 ? 0 : 255; raw[i + 2] = 255;
   }
   const header = Buffer.alloc(13);
   header.writeUInt32BE(width, 0); header.writeUInt32BE(height, 4); header[8] = 8; header[9] = 2;
@@ -151,6 +157,14 @@ test('alpha export is deterministic, transparent at the corners and passes the R
   const passthrough = exportAlphaPng(rgba);
   assert.equal(passthrough.passthrough, true);
   assert.equal(sha256(passthrough.png), sha256(rgba));
+});
+
+test('stray edge debris is dropped, but a genuinely cropped character still fails', () => {
+  const cleaned = exportAlphaPng(rgbFixture({ debris: true }));
+  const validated = validatePng(cleaned.png);
+  assert.deepEqual(validated.bbox, [80, 80, 431, 431]);
+  // A subject that actually reaches the bottom edge is a crop, not debris.
+  assert.throws(() => validatePng(exportAlphaPng(rgbFixture({ bottomInset: 0 })).png), /MASCOT_TOUCHES_CANVAS_EDGE/);
 });
 
 test('a live-shaped RGB render is exported to RGBA and verified from render.png', async () => {
