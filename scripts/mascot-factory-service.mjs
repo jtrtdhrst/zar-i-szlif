@@ -29,7 +29,7 @@
  *   billable render.
  * - `/readyz` reports readiness of the *actual* backend, not of this process's
  *   configuration: it performs a bounded, credential-carrying, read-only probe
- *   of ComfyUI (`GET /system_stats` and `GET /object_info/ArkCodexImageGen`) and
+ *   of ComfyUI (`GET /system_stats` and `GET /object_info/OpenAIGPTImageNodeV2`) and
  *   fails with `503` when the engine is unreachable, rejects the credential or
  *   lacks the generation node. Only GET is used — readiness must never submit a
  *   billable `/prompt`.
@@ -45,7 +45,7 @@ import { readFile } from 'node:fs/promises';
 import { timingSafeEqual } from 'node:crypto';
 import { join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { PROFILES, buildGraph, describeTransport, graphSha256, runMascot, resolveTransport, sha256 } from './mascot-factory.mjs';
+import { PROFILES, buildGraph, describeTransport, graphSha256, IMAGE_BACKEND_NODE, runMascot, resolveTransport, sha256 } from './mascot-factory.mjs';
 
 export const SERVICE_NAME = 'mascot-factory';
 export const SERVICE_VERSION = '1.0.0';
@@ -57,7 +57,7 @@ export const DEFAULT_MAX_RENDERS = 2;
 export const DEFAULT_PROBE_TIMEOUT_MS = 2500;
 export const MAX_PROBE_TIMEOUT_MS = 30_000;
 /** The ComfyUI node this service's brand-locked graph requires. */
-export const REQUIRED_BACKEND_NODE = 'ArkCodexImageGen';
+export const REQUIRED_BACKEND_NODE = IMAGE_BACKEND_NODE;
 
 const DEFAULT_PINS = fileURLToPath(new URL('../ops/mascot-worker/reference-pins.json', import.meta.url));
 const DEFAULT_OUT_DIR = '/var/lib/mascot-factory/out';
@@ -237,7 +237,7 @@ export async function readBudget({ config, now = new Date() }) {
  * Bounded, credential-carrying, read-only probe of the real ComfyUI engine.
  *
  * Readiness must describe the *backend*, not this process's intent: an
- * unreachable host, a rejected credential or a missing `ArkCodexImageGen` node
+ * unreachable host, a rejected credential or a missing `OpenAIGPTImageNodeV2` node
  * all mean "cannot render right now". Only GET endpoints are used, so a probe
  * can never submit a billable `/prompt`.
  *
