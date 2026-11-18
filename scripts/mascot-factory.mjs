@@ -333,13 +333,29 @@ function cleanAlphaAndReframe(rgba, width, height) {
   return {rgba:out,removedPixels,reframed:true};
 }
 
-export function buildGraph({profile, identityImage, styleImage, codexHome=''}) {
-  assert(Object.hasOwn(PROFILES, profile), 'UNKNOWN_PROFILE');
+export const IMAGE_BACKEND_NODE='OpenAIGPTImageNodeV2';
+export const IMAGE_BACKEND_MODEL='gpt-image-2.5-flare';
+
+/** Current ComfyUI partner-node API schema; reference IDs remain locked. */
+export function buildGraph({profile,identityImage,styleImage}) {
+  assert(Object.hasOwn(PROFILES,profile),'UNKNOWN_PROFILE');
   const n=(class_type,inputs,title)=>({class_type,inputs,_meta:{title}});
   return {
     '1':n('LoadImage',{image:identityImage},'LOCKED identity reference'),
     '2':n('LoadImage',{image:styleImage},'Secondary style-only reference'),
-    '3':n('ArkCodexImageGen',{prompt:PROFILES[profile].prompt,image_1:['1',0],image_2:['2',0],aspect_ratio:'1:1',quality:'high',background:'transparent',codex_home:codexHome,allow_refresh:true,timeout_seconds:300,force_rerun:false,run_mode:'one at a time',max_concurrent:1,on_failure:'fail the run',speed:'standard'},'Reference-locked generation (authorization required)'),
+    '3':n(IMAGE_BACKEND_NODE,{prompt:PROFILES[profile].prompt,model:IMAGE_BACKEND_MODEL,'model.size':'1024x1024','model.background':'transparent','model.quality':'high',n:1,seed:0,'model.images.image_1':['1',0],'model.images.image_2':['2',0]},'Reference-locked GPT Image 2.5; partner login required'),
+    '4':n('SaveImage',{images:['3',0],filename_prefix:`mascot_factory/pending/${profile}`},'Save for QC; NOT published'),
+  };
+}
+
+/** Read-only verification of historic ArkCodex outputs, not an execution path. */
+function buildLegacyGraph({profile,identityImage,styleImage}) {
+  assert(Object.hasOwn(PROFILES,profile),'UNKNOWN_PROFILE');
+  const n=(class_type,inputs,title)=>({class_type,inputs,_meta:{title}});
+  return {
+    '1':n('LoadImage',{image:identityImage},'LOCKED identity reference'),
+    '2':n('LoadImage',{image:styleImage},'Secondary style-only reference'),
+    '3':n('ArkCodexImageGen',{prompt:PROFILES[profile].prompt,image_1:['1',0],image_2:['2',0],aspect_ratio:'1:1',quality:'high',background:'transparent',codex_home:'',allow_refresh:true,timeout_seconds:300,force_rerun:false,run_mode:'one at a time',max_concurrent:1,on_failure:'fail the run',speed:'standard'},'Reference-locked generation (authorization required)'),
     '4':n('SaveImage',{images:['3',0],filename_prefix:`mascot_factory/pending/${profile}`},'Save for QC; NOT published'),
   };
 }
@@ -464,15 +480,15 @@ export async function consumeRenderBudget({ledgerPath, maxRenders=4, now=new Dat
   return {used:next.count,max:maxRenders,window};
 }
 
-export async function runMascot({url='http://127.0.0.1:8188/',profile,identity,style,out='mascot-output',maxWaitMs=360000,env=process.env,maxRenders=4,budgetPath,codexHome=env?.COMFY_CODEX_HOME??'',api}) {
+export async function runMascot({url='http://127.0.0.1:8188/',profile,identity,style,out='mascot-output',maxWaitMs=360000,env=process.env,maxRenders=4,budgetPath,api}) {
   assert(Object.hasOwn(PROFILES,profile),'UNKNOWN_PROFILE');assert(identity && style,'REFERENCES_REQUIRED');
   const client=api?{transport:{base:new URL(url),scheme:'injected',loopback:true,authenticated:false},call:api}:createApi(url,{env});
   const call=client.call;
   const sys=await(await call('/system_stats')).json();
-  const info=await(await call('/object_info/ArkCodexImageGen')).json();
-  assert(Object.hasOwn(info,'ArkCodexImageGen'),'IMAGE_BACKEND_NODE_MISSING');
+  const info=await(await call(`/object_info/${IMAGE_BACKEND_NODE}`)).json();
+  assert(Object.hasOwn(info,IMAGE_BACKEND_NODE),'IMAGE_BACKEND_NODE_MISSING');
   const [primary,secondary]=await Promise.all([uploadReference(call,identity),uploadReference(call,style)]);
-  const graph=buildGraph({profile,identityImage:primary.name,styleImage:secondary.name,codexHome});
+  const graph=buildGraph({profile,identityImage:primary.name,styleImage:secondary.name});
   const workflowHash=graphSha256(graph);
   const budget=await consumeRenderBudget({ledgerPath:budgetPath??join(resolve(out),'.mascot-render-budget.json'),maxRenders});
   const submitted=await(await call('/prompt',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({prompt:graph,client_id:randomUUID()})})).json();
@@ -499,7 +515,7 @@ export async function runMascot({url='http://127.0.0.1:8188/',profile,identity,s
   await writeFile(join(directory,'render.png'),renderPng,{flag:'wx'});
   await writeFile(join(directory,'candidate.png'),png,{flag:'wx'});
   const alphaExport={...ALPHA_EXPORT,source_sha256:renderValidation.sha256,output_sha256:validation.sha256,passthrough:exported.passthrough,removed_pixels:exported.removed_pixels??0,reframed:exported.reframed??false};
-  const provenance={schema:2,status:'AWAITING_HUMAN_BRAND_QA',profile,created_at:new Date().toISOString(),prompt_id:submitted.prompt_id,backend:'ArkCodexImageGen',backend_version:sys.system?.comfyui_version??'unknown',transport:describeTransport(client.transport),codex_home_configured:Boolean(codexHome),workflow_sha256:workflowHash,prompt_sha256:sha256(Buffer.from(PROFILES[profile].prompt)),reference_identity:primary,reference_style:secondary,render_validation:renderValidation,alpha_export:alphaExport,validation,output_filename:saved.filename,model_seed:null,render_budget:budget,visual_identity_approved:false};
+  const provenance={schema:2,status:'AWAITING_HUMAN_BRAND_QA',profile,created_at:new Date().toISOString(),prompt_id:submitted.prompt_id,backend:IMAGE_BACKEND_NODE,backend_model:IMAGE_BACKEND_MODEL,backend_version:sys.system?.comfyui_version??'unknown',transport:describeTransport(client.transport),partner_auth_proof:'successful_prompt_history',workflow_sha256:workflowHash,prompt_sha256:sha256(Buffer.from(PROFILES[profile].prompt)),reference_identity:primary,reference_style:secondary,render_validation:renderValidation,alpha_export:alphaExport,validation,output_filename:saved.filename,model_seed:null,render_budget:budget,visual_identity_approved:false};
   await writeFile(join(directory,'provenance.json'),JSON.stringify(provenance,null,2)+'\n',{flag:'wx'});
   return {directory,provenance};
 }
@@ -533,7 +549,8 @@ export async function verifyArtifacts(directory,{identityFile,styleFile}={}) {
   check('artifact_sha256',validation.sha256===provenance.validation?.sha256,{sha256:validation.sha256});
   for(const key of ['width','height','coverage','mode','crc_check','structural_check']) check(`recorded_${key}`,validation[key]===provenance.validation?.[key],{[key]:validation[key]});
   check('recorded_bbox',JSON.stringify(validation.bbox)===JSON.stringify(provenance.validation?.bbox));
-  const graph=buildGraph({profile:provenance.profile,identityImage:provenance.reference_identity?.name,styleImage:provenance.reference_style?.name,codexHome:''});
+  const graphFactory=provenance.backend==='ArkCodexImageGen'?buildLegacyGraph:buildGraph;
+  const graph=graphFactory({profile:provenance.profile,identityImage:provenance.reference_identity?.name,styleImage:provenance.reference_style?.name});
   check('workflow_sha256',graphSha256(graph)===provenance.workflow_sha256);
   check('prompt_sha256',sha256(Buffer.from(PROFILES[provenance.profile].prompt))===provenance.prompt_sha256);
   if(identityFile) check('reference_identity_sha256',sha256(await readFile(identityFile))===provenance.reference_identity?.sha256);
