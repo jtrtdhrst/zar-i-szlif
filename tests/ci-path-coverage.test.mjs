@@ -96,6 +96,23 @@ test("product CI runs full validation only for reviewed main source", () => {
   assert.match(workflow, /Reject versionless container starts/);
 });
 
+
+test("Product CI isolates localhost tests from host services and excludes checkout credentials", () => {
+  const ciDockerfile = readFileSync(
+    new URL("../ops/coolify/Dockerfile.ci", import.meta.url),
+    "utf8",
+  );
+  assert.match(workflow, /persist-credentials: false/);
+  assert.match(workflow, /docker build --file ops\/coolify\/Dockerfile --target build --tag product-ci:build/);
+  assert.match(workflow, /docker build --file ops\/coolify\/Dockerfile\.ci --tag product-ci:validation/);
+  assert.match(workflow, /docker run --rm --network none/);
+  assert.match(workflow, /--cap-drop ALL --security-opt no-new-privileges/);
+  assert.match(workflow, /--env npm_config_offline=true/);
+  assert.match(ciDockerfile, /^FROM product-ci:build$/m);
+  assert.match(ciDockerfile, /apt-get install[^\n]*git/);
+  assert.match(ciDockerfile, /npm --prefix mcp\/product-host ci/);
+});
+
 test("the checked-in enumeration contains all 15 Paperclip projects", () => {
   const enumeration = readProjectEnumeration();
   assert.equal(enumeration.projectCount, 15);
