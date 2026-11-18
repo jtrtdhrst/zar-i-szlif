@@ -85,11 +85,15 @@ test("validate:paths adds the frontend build on top of every lane", () => {
   assert.match(packageJson.scripts["validate:frontend"], /node scripts\/validate-frontend\.mjs/);
 });
 
-test("product CI validates every pull request regardless of path", () => {
-  // PRs are the merge path; a bare pull_request trigger validates www/,
-  // product/, mcp/ and website changes even without a main-push path entry.
-  assert.match(workflow, /on:\n  pull_request:/);
+test("product CI runs full validation only for reviewed main source", () => {
+  // Malicious PRs must not control the workflow executed on a persistent runner.
+  // Separate native CTO review + root-owned exact-head local CI precede merge.
+  assert.doesNotMatch(workflow, /\n  pull_request(?:_target)?:/);
+  assert.match(workflow, /on:\n  push:\n    branches: \[main\]/);
+  assert.match(workflow, /  workflow_dispatch:/);
+  assert.match(workflow, /if: github\.ref == 'refs\/heads\/main'/);
   assert.match(workflow, /npm run validate:code/);
+  assert.match(workflow, /Reject versionless container starts/);
 });
 
 test("the checked-in enumeration contains all 15 Paperclip projects", () => {

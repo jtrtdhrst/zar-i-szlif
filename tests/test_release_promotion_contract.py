@@ -1,8 +1,9 @@
 """Prevent accidental bypass of the externally controlled Paperclip release lane.
 
-Product CI validates any PR and main push, but it must never write ci-approved.
-The Ubuntu release controller requires real Paperclip native approval before
-advancing the ref and uses Coolify HTTP readback for deployed source identity.
+Product CI executes on trusted main push or main dispatch only, never on
+unreviewed PR-head workflows. Pre-merge exact-SHA local CI requires independent
+native review. The Ubuntu release controller alone verifies admission and
+Coolify HTTP readback; this workflow never writes ci-approved.
 """
 from pathlib import Path
 import unittest
@@ -27,8 +28,16 @@ class ReleaseContractTests(unittest.TestCase):
             with self.subTest(forbidden=forbidden):
                 self.assertNotIn(forbidden, self.source)
 
-    def test_product_validation_still_runs_for_pull_request_and_main(self):
-        for required in ("  pull_request:", "    branches: [main]",
+    def test_product_validation_requires_trusted_main_and_never_runs_pr_head(self):
+        # The workflow file on a PR can itself be malicious: no PR-originated
+        # workflow may schedule this persistent, production-adjacent runner.
+        for forbidden in ("  pull_request:\n", "  pull_request_target:\n"):
+            with self.subTest(forbidden=forbidden):
+                self.assertNotIn(forbidden, self.source)
+        for required in ("  push:\n", "    branches: [main]", "  workflow_dispatch:\n",
+                         "if: github.ref == 'refs/heads/main'",
+                         "runs-on: [self-hosted, Linux, X64, zis-local-build]",
+                         "Defense in depth - root-owned main-only admission",
                          "  validate-product:", "npm run validate:code",
                          "docker build --file ops/coolify/Dockerfile",
                          "Verify source SHA is emitted by the real nginx entrypoint",
