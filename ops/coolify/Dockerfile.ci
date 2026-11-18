@@ -1,0 +1,9 @@
+# Dedicated build-only CI image derived from the already-validated Product build stage.
+# This target is never deployed to Coolify: the production image remains nginx.
+# Git is needed for the source/path coverage gates; the MCP host's nested npm
+# cache is primed here so validation can run without network access.
+FROM product-ci:build
+RUN apt-get update -qq \
+    && DEBIAN_FRONTEND=noninteractive apt-get install -y -qq --no-install-recommends git \
+    && npm --prefix mcp/product-host ci --no-audit --no-fund \
+    && rm -rf /var/lib/apt/lists/*
