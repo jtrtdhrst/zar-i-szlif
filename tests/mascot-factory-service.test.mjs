@@ -66,7 +66,7 @@ async function mockComfy({ fail = false, promptId = 'mock-run-123', image = fixt
       if (unauthorized) return send(401, { error: 'unauthorized' });
     }
     if (pathname === '/system_stats') return send(200, { system: { comfyui_version: 'test-mock-only' } });
-    if (pathname === '/object_info/ArkCodexImageGen') return send(200, missingNode ? { SomeOtherNode: {} } : { ArkCodexImageGen: {} });
+    if (pathname === '/object_info/OpenAIGPTImageNodeV2') return send(200, missingNode ? { SomeOtherNode: {} } : { OpenAIGPTImageNodeV2: {} });
     if (pathname === '/upload/image') {
       const chunks = [];
       for await (const c of req) chunks.push(c);
