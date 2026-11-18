@@ -1,7 +1,7 @@
 {
   "schema": 1,
   "owner": "Mascot Factory (ZARI-241)",
-  "notes": "Brand-lock pins for the render service. The identity/style hashes are the documented SHA-256 of the original reference uploads (docs/mascot-factory.md); the graph and prompt hashes are recomputed from scripts/mascot-factory.mjs, so changing a prompt or the graph shape fails readiness instead of silently changing what the model is locked to. A reference that does not hash to its pin is refused: swapping a mount must never pass unnoticed.",
+  "notes": "Brand-lock pins for the render service. The identity/style hashes are the documented SHA-256 of the original reference uploads (docs/mascot-factory.md); the graph and prompt hashes are recomputed from scripts/mascot-factory.mjs, so changing a prompt, provider model, node class or graph shape fails readiness instead of silently changing what the model is locked to. A reference that does not hash to its pin is refused: swapping a mount must never pass unnoticed.",
   "profiles": {
     "zar": {
       "identity": {
@@ -16,7 +16,7 @@
         "width": 1254,
         "height": 1254
       },
-      "graph_template_sha256": "5806e69d740091510e4e62f49a16c27c0f83d9675ba2296327fa927c361b1071",
+      "graph_template_sha256": "cb6d03be29d021acdfb07ca8f55b78cad0e57725ed403a3c4cd8090caa654fd6",
       "prompt_sha256": "62ed34edd069b050d868b5e2e2745d7e17cf70cbcc68def1803f66612cca2b16"
     },
     "szlif": {
@@ -32,7 +32,7 @@
         "width": 1254,
         "height": 1254
       },
-      "graph_template_sha256": "a8566b94ded28e94ea8a5d503001eafa67944f22bae70bb3e7a620a0ea4d5718",
+      "graph_template_sha256": "41f55c95a7b72fa29c2e05de04781f6f87d4f2c1811f2cdda6f3fbbd3dfe67b2",
       "prompt_sha256": "56343df319a2ea26abe5926e3b4677e037d89ecc3c3d4528099ee20130bd7864"
     }
   }
