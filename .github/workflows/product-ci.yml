@@ -29,9 +29,25 @@ permissions:
 
 jobs:
   validate-product:
-    runs-on: ubuntu-latest
+    runs-on: [self-hosted, Linux, X64, zis-local-build]
     timeout-minutes: 25
+    env:
+      DOCKER_HOST: unix:///run/zis-rootless-docker/docker.sock
     steps:
+      - name: Guard self-hosted runner scope and rootless Docker isolation
+        env:
+          PR_HEAD_REPO: ${{ github.event.pull_request.head.repo.full_name }}
+        run: |
+          set -euo pipefail
+          if [[ "${GITHUB_EVENT_NAME}" == "pull_request" && "${PR_HEAD_REPO}" != "${GITHUB_REPOSITORY}" ]]; then
+            echo 'Fork-sourced PR code cannot execute on this self-hosted runner' >&2
+            exit 1
+          fi
+          test "$(id -un)" = actions-zis-product
+          test -S /run/zis-rootless-docker/docker.sock
+          docker info --format '{{json .SecurityOptions}}' | grep -q rootless
+          ! test -w /var/run/docker.sock
+          ! test -r /opt/zis-actions-runner-harness/.credentials
       - uses: actions/checkout@v4
       - name: Enforce external reviewed-promotion contract
         run: python3 -m unittest discover -s tests -p test_release_promotion_contract.py -v
