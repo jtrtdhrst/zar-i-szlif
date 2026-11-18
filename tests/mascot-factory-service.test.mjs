@@ -48,7 +48,7 @@ function baseEnv(overrides = {}) {
   };
 }
 
-async function mockComfy({ fail = false, promptId = 'mock-run-123', image = fixture(), unauthorized = false, missingNode = false, hang = false } = {}) {
+async function mockComfy({ fail = false, promptId = 'mock-run-123', image = fixture(), unauthorized = false, missingNode = false, missingScaler = false, hang = false } = {}) {
   let submissions = 0;
   let probes = 0;
   const s = createServer(async (req, res) => {
@@ -67,6 +67,7 @@ async function mockComfy({ fail = false, promptId = 'mock-run-123', image = fixt
     }
     if (pathname === '/system_stats') return send(200, { system: { comfyui_version: 'test-mock-only' } });
     if (pathname === '/object_info/OpenAIGPTImageNodeV2') return send(200, missingNode ? { SomeOtherNode: {} } : { OpenAIGPTImageNodeV2: {} });
+    if (pathname === '/object_info/ImageScale') return send(200,missingScaler?{}:{ImageScale:{}});
     if (pathname === '/upload/image') {
       const chunks = [];
       for await (const c of req) chunks.push(c);
@@ -78,7 +79,7 @@ async function mockComfy({ fail = false, promptId = 'mock-run-123', image = fixt
       return send(200, {
         [promptId]: fail
           ? { status: { status_str: 'error', messages: [['execution_error', { node_id: '3', exception_message: 'CodexImageUnavailable' }]] } }
-          : { status: { status_str: 'success' }, outputs: { '4': { images: [{ filename: 'mock.png', subfolder: '', type: 'output' }] } } },
+          : { status: { status_str: 'success' }, outputs: { '5': { images: [{ filename: 'mock.png', subfolder: '', type: 'output' }] } } },
       });
     }
     if (pathname === '/view') return send(200, image, 'image/png');
@@ -292,6 +293,7 @@ test('readiness probes the real backend and fails closed when it is down, unauth
     { name: 'unreachable', env: { COMFY_URL: 'http://127.0.0.1:9/' }, expect: 'BACKEND_UNREACHABLE' },
     { name: 'credential rejected', mock: await mockComfy({ unauthorized: true }), expect: 'BACKEND_UNAUTHORIZED' },
     { name: 'generation node missing', mock: await mockComfy({ missingNode: true }), expect: 'BACKEND_NODE_MISSING' },
+    { name: 'scaler missing', mock: await mockComfy({ missingScaler: true }), expect: 'BACKEND_SCALER_NODE_MISSING' },
     { name: 'backend never answers', mock: await mockComfy({ hang: true }), env: { MASCOT_FACTORY_PROBE_TIMEOUT_MS: '200' }, expect: 'BACKEND_TIMEOUT' },
   ];
   for (const testCase of cases) {

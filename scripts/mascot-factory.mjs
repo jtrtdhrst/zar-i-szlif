@@ -335,6 +335,7 @@ function cleanAlphaAndReframe(rgba, width, height) {
 
 export const IMAGE_BACKEND_NODE='OpenAIGPTImageNodeV2';
 export const IMAGE_BACKEND_MODEL='gpt-image-2.5-flare';
+export const IMAGE_SCALER_NODE='ImageScale';
 
 /** Current ComfyUI partner-node API schema; reference IDs remain locked. */
 export function buildGraph({profile,identityImage,styleImage}) {
@@ -343,8 +344,9 @@ export function buildGraph({profile,identityImage,styleImage}) {
   return {
     '1':n('LoadImage',{image:identityImage},'LOCKED identity reference'),
     '2':n('LoadImage',{image:styleImage},'Secondary style-only reference'),
-    '3':n(IMAGE_BACKEND_NODE,{prompt:PROFILES[profile].prompt,model:IMAGE_BACKEND_MODEL,'model.size':'1024x1024','model.background':'transparent','model.quality':'high',n:1,seed:0,'model.images.image_1':['1',0],'model.images.image_2':['2',0]},'Reference-locked GPT Image 2.5; partner login required'),
-    '4':n('SaveImage',{images:['3',0],filename_prefix:`mascot_factory/pending/${profile}`},'Save for QC; NOT published'),
+    '3':n(IMAGE_BACKEND_NODE,{prompt:PROFILES[profile].prompt,model:IMAGE_BACKEND_MODEL,'model.size':'1024x1024','model.custom_width':1024,'model.custom_height':1024,'model.background':'transparent','model.quality':'high',n:1,seed:0,'model.images.image_1':['1',0],'model.images.image_2':['2',0]},'Reference-locked GPT Image 2.5; partner login required'),
+    '4':n(IMAGE_SCALER_NODE,{image:['3',0],upscale_method:'lanczos',width:1254,height:1254,crop:'disabled'},'1254px output resolution, fixed scaling contract'),
+    '5':n('SaveImage',{images:['4',0],filename_prefix:`mascot_factory/pending/${profile}`},'Save for QC; NOT published'),
   };
 }
 
@@ -487,6 +489,8 @@ export async function runMascot({url='http://127.0.0.1:8188/',profile,identity,s
   const sys=await(await call('/system_stats')).json();
   const info=await(await call(`/object_info/${IMAGE_BACKEND_NODE}`)).json();
   assert(Object.hasOwn(info,IMAGE_BACKEND_NODE),'IMAGE_BACKEND_NODE_MISSING');
+  const scalerInfo=await(await call(`/object_info/${IMAGE_SCALER_NODE}`)).json();
+  assert(Object.hasOwn(scalerInfo,IMAGE_SCALER_NODE),'IMAGE_SCALER_NODE_MISSING');
   const [primary,secondary]=await Promise.all([uploadReference(call,identity),uploadReference(call,style)]);
   const graph=buildGraph({profile,identityImage:primary.name,styleImage:secondary.name});
   const workflowHash=graphSha256(graph);
@@ -504,7 +508,7 @@ export async function runMascot({url='http://127.0.0.1:8188/',profile,identity,s
     await delay(1500);
   }
   assert(status==='success','IMAGE_RENDER_TIMEOUT_OR_UNVERIFIED');
-  const saved=history.outputs?.['4']?.images?.[0]; assert(saved?.filename,'NO_SAVED_IMAGE');
+  const saved=history.outputs?.['5']?.images?.[0]; assert(saved?.filename,'NO_SAVED_IMAGE');
   const qs=new URLSearchParams({filename:saved.filename,subfolder:saved.subfolder??'',type:'output'});
   const renderPng=Buffer.from(await(await call(`/view?${qs}`)).arrayBuffer());
   const renderValidation=validatePng(renderPng,{requireAlpha:false});

@@ -16,7 +16,7 @@
         "width": 1254,
         "height": 1254
       },
-      "graph_template_sha256": "cb6d03be29d021acdfb07ca8f55b78cad0e57725ed403a3c4cd8090caa654fd6",
+      "graph_template_sha256": "ebe79c6de2f4270902108f3ba0313ef6a3ee00beb5b4a44ac165280ae8b40d31",
       "prompt_sha256": "62ed34edd069b050d868b5e2e2745d7e17cf70cbcc68def1803f66612cca2b16"
     },
     "szlif": {
@@ -32,7 +32,7 @@
         "width": 1254,
         "height": 1254
       },
-      "graph_template_sha256": "41f55c95a7b72fa29c2e05de04781f6f87d4f2c1811f2cdda6f3fbbd3dfe67b2",
+      "graph_template_sha256": "edc4e9bbc6fa091f101c18d8731d81f405796a677f9f49c5a41dcced8784367b",
       "prompt_sha256": "56343df319a2ea26abe5926e3b4677e037d89ecc3c3d4528099ee20130bd7864"
     }
   }

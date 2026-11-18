@@ -45,7 +45,7 @@ import { readFile } from 'node:fs/promises';
 import { timingSafeEqual } from 'node:crypto';
 import { join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { PROFILES, buildGraph, describeTransport, graphSha256, IMAGE_BACKEND_NODE, runMascot, resolveTransport, sha256 } from './mascot-factory.mjs';
+import { PROFILES, buildGraph, describeTransport, graphSha256, IMAGE_BACKEND_NODE, IMAGE_SCALER_NODE, runMascot, resolveTransport, sha256 } from './mascot-factory.mjs';
 
 export const SERVICE_NAME = 'mascot-factory';
 export const SERVICE_VERSION = '1.0.0';
@@ -58,6 +58,7 @@ export const DEFAULT_PROBE_TIMEOUT_MS = 2500;
 export const MAX_PROBE_TIMEOUT_MS = 30_000;
 /** The ComfyUI node this service's brand-locked graph requires. */
 export const REQUIRED_BACKEND_NODE = IMAGE_BACKEND_NODE;
+export const REQUIRED_SCALER_NODE = IMAGE_SCALER_NODE;
 
 const DEFAULT_PINS = fileURLToPath(new URL('../ops/mascot-worker/reference-pins.json', import.meta.url));
 const DEFAULT_OUT_DIR = '/var/lib/mascot-factory/out';
@@ -295,6 +296,13 @@ export async function probeBackend({ url, env = process.env, timeoutMs = DEFAULT
   if (!payload || typeof payload !== 'object' || !Object.hasOwn(payload, REQUIRED_BACKEND_NODE)) {
     return { ok: false, code: 'BACKEND_NODE_MISSING' };
   }
+  const scale=await get(`/object_info/${REQUIRED_SCALER_NODE}`);
+  if (scale.code) return {ok:false,code:scale.code};
+  let scalePayload;
+  try { scalePayload=JSON.parse(await scale.response.text()); }
+  catch { return {ok:false,code:'BACKEND_INVALID_RESPONSE'}; }
+  if (!scalePayload || typeof scalePayload!=='object' || !Object.hasOwn(scalePayload,REQUIRED_SCALER_NODE))
+    return {ok:false,code:'BACKEND_SCALER_NODE_MISSING'};
   return { ok: true, code: null };
 }
 
