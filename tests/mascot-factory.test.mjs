@@ -41,13 +41,16 @@ function fixture({ width = 512, height = 512, allOpaque = false, clipped = false
 // The Codex backend returns a flat three-channel render; this is that shape.
 // `bottomInset: 0` is a genuinely cropped character; `debris` is the stray
 // pure-blue edge line the backend emits on every Szlif render.
-function rgbFixture({ width = 512, height = 512, inset = 80, bottomInset = inset, debris = false } = {}) {
+function rgbFixture({ width = 512, height = 512, inset = 80, bottomInset = inset, debris = false, floating = false } = {}) {
   const rowBytes = width * 3;
   const raw = Buffer.alloc(height * (1 + rowBytes));
   for (let y = 0; y < height; y++) for (let x = 0; x < width; x++) {
     const i = y * (1 + rowBytes) + 1 + x * 3;
     const inside = x >= inset && x < width - inset && y >= inset && y < height - bottomInset;
     raw[i] = 255; raw[i + 1] = inside ? 96 : 255; raw[i + 2] = inside ? 24 : 255;
+  }
+  if (floating) for(let y=235;y<245;y++) for(let x=452;x<462;x++){
+    const i=y*(1+rowBytes)+1+x*3;raw[i]=0;raw[i+1]=25;raw[i+2]=80;
   }
   if (debris) for (let x = 240; x < 261; x++) {
     const i = (height - 1) * (1 + rowBytes) + 1 + x * 3;
@@ -165,6 +168,31 @@ test('stray edge debris is dropped, but a genuinely cropped character still fail
   assert.deepEqual(validated.bbox, [80, 80, 431, 431]);
   // A subject that actually reaches the bottom edge is a crop, not debris.
   assert.throws(() => validatePng(exportAlphaPng(rgbFixture({ bottomInset: 0 })).png), /MASCOT_TOUCHES_CANVAS_EDGE/);
+});
+
+
+test('floating colored speckles away from edges are removed without losing the main silhouette',()=>{
+  const clean=validatePng(exportAlphaPng(rgbFixture({floating:true})).png);
+  assert.deepEqual(clean.bbox,[80,80,431,431]);
+  assert.equal(exportAlphaPng(rgbFixture({floating:true})).removed_pixels,100);
+});
+
+test('tight but complete characters are centered to an 8 percent safe margin',()=>{
+  const fixed=exportAlphaPng(rgbFixture({inset:20,bottomInset:20}));
+  assert.equal(fixed.reframed,true);
+  const v=validatePng(fixed.png,{marginRatio:0.08});
+  assert.ok(v.bbox[0]>=41&&v.bbox[1]>=41);
+  assert.ok(v.bbox[2]<471&&v.bbox[3]<471);
+  assert.throws(()=>exportAlphaPng(rgbFixture({bottomInset:0})),/MASCOT_TOUCHES_CANVAS_EDGE/);
+});
+
+test('legacy v2 alpha exports remain byte-compatible and verifiable',()=>{
+  const rgb=rgbFixture();
+  const legacy=exportAlphaPng(rgb,{method:'corner-flood-fill-v2'});
+  const v3=exportAlphaPng(rgb);
+  assert.notEqual(sha256(legacy.png),sha256(v3.png));
+  assert.equal(validatePng(legacy.png,{marginRatio:0.01}).mode,'RGBA8');
+  assert.throws(()=>exportAlphaPng(rgb,{method:'untrusted'}),/ALPHA_EXPORT_UNSUPPORTED_METHOD/);
 });
 
 test('a live-shaped RGB render is exported to RGBA and verified from render.png', async () => {
@@ -339,3 +367,4 @@ test('independent verifier recomputes every claim and rejects tampered artifacts
     await assert.rejects(() => verifyArtifacts(directory), /(ARTIFACT_SHA256|RECORDED_|ALPHA_EXPORT_).*_FAILED|PNG_TRAILING_DATA/);
   } finally { await mock.close(); }
 });
+
