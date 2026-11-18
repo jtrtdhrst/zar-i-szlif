@@ -49,6 +49,8 @@ jobs:
           ! test -w /var/run/docker.sock
           ! test -r /opt/zis-actions-runner-harness/.credentials
       - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
       - name: Enforce external reviewed-promotion contract
         run: python3 -m unittest discover -s tests -p test_release_promotion_contract.py -v
       - uses: actions/setup-node@v4
@@ -57,8 +59,19 @@ jobs:
           cache: npm
       - name: Install locked dependencies
         run: npm ci --include=dev --no-audit --no-fund
-      - name: Product lint, typecheck and tests
-        run: npm run validate:code
+      - name: Product lint, typecheck and tests (no host loopback access)
+        run: |
+          set -euo pipefail
+          # Build dependencies have normal outbound access inside rootless Docker.
+          # The actual tests run in a separate container with NO network,
+          # preserving their own 127.0.0.1 mock servers without touching the VPS.
+          docker build --file ops/coolify/Dockerfile --target build --tag product-ci:build .
+          docker build --file ops/coolify/Dockerfile.ci --tag product-ci:validation .
+          docker run --rm --network none \
+            --cap-drop ALL --security-opt no-new-privileges \
+            --pids-limit 512 --memory 5g \
+            --env npm_config_offline=true \
+            product-ci:validation sh -c 'npm run validate:code'
       - name: Reproducible Coolify container build
         run: docker build --file ops/coolify/Dockerfile --tag product-ci:verified .
       - name: Verify source SHA is emitted by the real nginx entrypoint
