@@ -67,11 +67,29 @@ test('crc32 matches the published PNG/ISO 3309 known-answer vectors', () => {
   assert.equal(crc32(Buffer.alloc(0)), 0x00000000);
 });
 
-test('reference-locked graph uses exactly one generation node and one save node', () => {
-  const g = buildGraph({ profile: 'zar', identityImage: 'identity.png', styleImage: 'style.png' });
-  assert.equal(g['3'].inputs.image_1[0], '1'); assert.equal(g['3'].inputs.image_2[0], '2');
-  assert.equal(g['4'].inputs.images[0], '3'); assert.match(g['3'].inputs.prompt, /Żar/);
-  assert.throws(() => buildGraph({ profile: 'other', identityImage: 'a', styleImage: 'b' }), /UNKNOWN_PROFILE/);
+test('GPT Image 2.5 workflow is schema-accurate, identity locked and 1254px', () => {
+  const g=buildGraph({profile:'zar',identityImage:'identity.png',styleImage:'style.png'});
+  assert.equal(g['1'].inputs.image,'identity.png');
+  assert.equal(g['2'].inputs.image,'style.png');
+  assert.equal(g['3'].class_type,'OpenAIGPTImageNodeV2');
+  assert.equal(g['3'].inputs.model,'gpt-image-2.5-flare');
+  assert.equal(g['3'].inputs['model.size'],'1024x1024');
+  assert.equal(g['3'].inputs['model.background'],'transparent');
+  assert.deepEqual(g['3'].inputs['model.images.image_1'],['1',0]);
+  assert.deepEqual(g['3'].inputs['model.images.image_2'],['2',0]);
+  assert.equal(g['4'].class_type,'ImageScale');
+  assert.equal(g['4'].inputs.width,1254);assert.equal(g['4'].inputs.height,1254);
+  assert.deepEqual(g['5'].inputs.images,['4',0]);
+  assert.match(g['3'].inputs.prompt,/Żar/);
+  assert.throws(()=>buildGraph({profile:'other',identityImage:'a',styleImage:'b'}),/UNKNOWN_PROFILE/);
+  assert.throws(()=>buildGraph({profile:'zar',identityImage:'a',styleImage:'b',backend:'FakePaidNode'}),/UNSUPPORTED_IMAGE_BACKEND/);
+});
+test('legacy Ark graph can only be reconstructed for historic artifact verification',()=>{
+  const g=buildGraph({profile:'zar',identityImage:'a',styleImage:'b',backend:'ArkCodexImageGen'});
+  assert.equal(g['3'].class_type,'ArkCodexImageGen');
+  assert.equal(g['4'].class_type,'SaveImage');
+  assert.equal(g['3'].inputs.image_1[0],'1');
+  assert.equal(g['3'].inputs.image_2[0],'2');
 });
 
 test('valid CRC-correct RGBA PNG passes structural QC, and clipped/opaque output fails closed', () => {
@@ -216,14 +234,15 @@ test('a live-shaped RGB render is exported to RGBA and verified from render.png'
   } finally { await mock.close(); }
 });
 
-async function server({ fail = false, historyFailures = 0, promptFailures = 0, image = fixture() } = {}) {
+async function server({ fail = false, historyFailures = 0, promptFailures = 0, missingScaler = false, image = fixture() } = {}) {
   let submissions = 0, historyAttempts = 0, promptAttempts = 0; const requests = [];
   const s = createServer(async (req, res) => {
     const pathname = new URL(req.url, 'http://localhost').pathname;
     requests.push({ path: pathname, headers: req.headers });
     const send = (code, data, type = 'application/json') => { res.writeHead(code, { 'content-type': type }); res.end(type === 'application/json' ? JSON.stringify(data) : data); };
     if (pathname === '/system_stats') return send(200, { system: { comfyui_version: 'test-mock-only' } });
-    if (pathname === '/object_info/ArkCodexImageGen') return send(200, { ArkCodexImageGen: {} });
+    if (pathname === '/object_info/OpenAIGPTImageNodeV2') return send(200,{OpenAIGPTImageNodeV2:{}});
+    if (pathname === '/object_info/ImageScale') return send(200,missingScaler ? {} : {ImageScale:{}});
     if (pathname === '/upload/image') {
       const chunks = []; for await (const c of req) chunks.push(c);
       const match = Buffer.concat(chunks).toString('latin1').match(/filename="(mascot_[a-f0-9]{24}_[a-f0-9]{8}\.png)"/);
@@ -233,7 +252,7 @@ async function server({ fail = false, historyFailures = 0, promptFailures = 0, i
     if (pathname === '/history/mock-run-123') {
       historyAttempts++;
       if (historyAttempts <= historyFailures) return send(503, { error: 'queue busy' });
-      return send(200, { 'mock-run-123': fail ? { status: { status_str: 'error', messages: [['execution_error', { node_id: '3', exception_message: 'AUTH_DENIED' }]] } } : { status: { status_str: 'success' }, outputs: { '4': { images: [{ filename: 'mock.png', subfolder: '', type: 'output' }] } } } });
+      return send(200, { 'mock-run-123': fail ? { status: { status_str: 'error', messages: [['execution_error', { node_id: '3', exception_message: 'AUTH_DENIED' }]] } } : { status: { status_str: 'success' }, outputs: { '5': { images: [{ filename: 'mock.png', subfolder: '', type: 'output' }] } } } });
     }
     if (pathname === '/view') return send(200, image, 'image/png');
     return send(404, { error: 'not found' });
@@ -241,6 +260,17 @@ async function server({ fail = false, historyFailures = 0, promptFailures = 0, i
   await new Promise(ok => s.listen(0, '127.0.0.1', ok));
   return { url: `http://127.0.0.1:${s.address().port}/`, close: () => new Promise(ok => s.close(ok)), getSubmissions: () => submissions, getHistoryAttempts: () => historyAttempts, getPromptAttempts: () => promptAttempts, requests };
 }
+
+test('missing required ImageScale refuses inference before budget ledger or paid prompt',async()=>{
+  const root=await mkdtemp(join(tmpdir(),'mascot-missing-scaler-'));
+  const ref=join(root,'reference.png');await writeFile(ref,fixture());
+  const mock=await server({missingScaler:true});
+  try {
+    await assert.rejects(()=>runMascot({url:mock.url,profile:'zar',identity:ref,style:ref,out:join(root,'out')}),/IMAGE_SCALER_NODE_MISSING/);
+    assert.equal(mock.getPromptAttempts(),0,'no billable prompt');
+    await assert.rejects(readFile(join(root,'out','.mascot-render-budget.json')),/ENOENT/);
+  }finally{await mock.close();}
+});
 
 test('mock ComfyUI E2E uploads refs → queues → reads history → validates → writes pending artifact with provenance', async () => {
   const root = await mkdtemp(join(tmpdir(), 'mascot-e2e-')); const ref = join(root, 'reference.png'); await writeFile(ref, fixture());
