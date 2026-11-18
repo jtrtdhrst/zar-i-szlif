@@ -160,7 +160,7 @@ export function validatePng(png, { minSize = 512, marginRatio = 0.02, requireAlp
   return {width,height,mode:'RGBA8',coverage:Number((count/(width*height)).toFixed(4)),bbox:[minX,minY,maxX,maxY],sha256:sha256(png),crc_check:'PASS',structural_check:'PASS',brand_review:'PENDING_MANUAL'};
 }
 
-export const ALPHA_EXPORT = Object.freeze({ method:'corner-flood-fill-v2', tolerance:28, feather:24 });
+export const ALPHA_EXPORT = Object.freeze({ method:'corner-flood-fill-v3', tolerance:28, feather:24 });
 
 /**
  * The prompt asks the model for an 8% safe margin, but the Codex backend
@@ -168,7 +168,7 @@ export const ALPHA_EXPORT = Object.freeze({ method:'corner-flood-fill-v2', toler
  * still reaches the very edge and is rejected; a tight-but-intact one is a
  * valid artifact, so the published file only requires 1% of breathing room.
  */
-export const ARTIFACT_MARGIN_RATIO = 0.01;
+export const ARTIFACT_MARGIN_RATIO = 0.08;
 
 /** Deterministic median of the border pixels; the canvas edge is background by contract. */
 function borderMedianColor(rgb,width,height) {
@@ -189,7 +189,8 @@ function borderMedianColor(rgb,width,height) {
  * shortcut: only edge-connected background becomes transparent; enclosed holes
  * keep their colour until a real matting model is available.
  */
-export function exportAlphaPng(png, { tolerance = ALPHA_EXPORT.tolerance, feather = ALPHA_EXPORT.feather } = {}) {
+export function exportAlphaPng(png, { tolerance = ALPHA_EXPORT.tolerance, feather = ALPHA_EXPORT.feather, method = ALPHA_EXPORT.method } = {}) {
+  assert(['corner-flood-fill-v2','corner-flood-fill-v3'].includes(method), 'ALPHA_EXPORT_UNSUPPORTED_METHOD');
   const parsed=parsePngContainer(png);
   const {width,height,depth,color,interlace,compression,filterMethod}=parsed;
   assert(depth===8 && (color===2||color===6) && interlace===0 && compression===0 && filterMethod===0,'ALPHA_EXPORT_UNSUPPORTED_COLOR_TYPE');
@@ -238,7 +239,98 @@ export function exportAlphaPng(png, { tolerance = ALPHA_EXPORT.tolerance, feathe
     const d=distance(x,y);
     rgba[o+3]=Math.max(0,Math.min(255,Math.round(255*(d-tolerance)/feather)));
   }
-  return {png:encodeRgbaPng(width,height,rgba),passthrough:false,width,height,background};
+  const fixed=method==='corner-flood-fill-v3'?cleanAlphaAndReframe(rgba,width,height):{rgba,removedPixels:0,reframed:false};
+  return {png:encodeRgbaPng(width,height,fixed.rgba),passthrough:false,width,height,background,removed_pixels:fixed.removedPixels,reframed:fixed.reframed};
+}
+
+
+/**
+ * Keep the principal contiguous mascot, reject genuinely disconnected anatomy,
+ * and normalize undersized safety margins. The previous RGB render stays intact
+ * as the forensic source. No model inference or extra charged render is needed.
+ * Connectivity is 8-way: diagonal anti-aliased joins must not split the shape.
+ */
+function cleanAlphaAndReframe(rgba, width, height) {
+  const total=width*height, labels=new Int32Array(total), queue=new Int32Array(total);
+  const sizes=[0];
+  let largest=0, largestSize=0;
+  for(let start=0;start<total;start++){
+    if(labels[start] || rgba[start*4+3]<=8) continue;
+    const id=sizes.length; let head=0,tail=0;labels[start]=id;queue[tail++]=start;
+    while(head<tail) {
+      const p=queue[head++],x=p%width,y=(p-x)/width;
+      for(let dy=-1;dy<=1;dy++) for(let dx=-1;dx<=1;dx++){
+        if(!dx&&!dy)continue;
+        const nx=x+dx,ny=y+dy;
+        if(nx<0||nx>=width||ny<0||ny>=height)continue;
+        const q=ny*width+nx;
+        if(!labels[q] && rgba[q*4+3]>8){labels[q]=id;queue[tail++]=q;}
+      }
+    }
+    sizes.push(tail);
+    if(tail>largestSize){largest=id;largestSize=tail;}
+  }
+  assert(largestSize>total*0.02,'PNG_EMPTY_OR_OPAQUE_BACKGROUND');
+  const significant=largestSize*0.005;
+  for(let id=1;id<sizes.length;id++) if(id!==largest) {
+    assert(sizes[id]<=significant,'MASCOT_DISCONNECTED_SILHOUETTE');
+  }
+  let removedPixels=0,minX=width,minY=height,maxX=-1,maxY=-1;
+  for(let p=0;p<total;p++){
+    const i=p*4;
+    if(labels[p]!==largest){if(rgba[i+3]>8)removedPixels++;rgba[i+3]=0;continue;}
+    const x=p%width,y=(p-x)/width;
+    minX=Math.min(minX,x);minY=Math.min(minY,y);maxX=Math.max(maxX,x);maxY=Math.max(maxY,y);
+  }
+  // Never hide a truly clipped body by shrinking it into the safe area.
+  const physicalMargin=Math.max(2,Math.floor(Math.min(width,height)*0.01));
+  assert(minX>=physicalMargin && minY>=physicalMargin &&
+    maxX<width-physicalMargin && maxY<height-physicalMargin,'MASCOT_TOUCHES_CANVAS_EDGE');
+
+  // A narrow 1px antialiasing transition; the old exporter created nearly
+  // binary alpha even where the raw RGB illustration contains softened edges.
+  for(let y=minY;y<=maxY;y++) for(let x=minX;x<=maxX;x++) {
+    const p=y*width+x,o=p*4;
+    if(labels[p]!==largest||rgba[o+3]<=8)continue;
+    let neighbours=0;
+    for(let dy=-1;dy<=1;dy++) for(let dx=-1;dx<=1;dx++){
+      if(!dx&&!dy)continue;
+      const nx=x+dx,ny=y+dy;
+      if(nx>=0&&nx<width&&ny>=0&&ny<height&&labels[ny*width+nx]===largest) neighbours++;
+    }
+    if(neighbours<8) rgba[o+3]=Math.min(rgba[o+3],Math.round(255*(0.56+0.44*neighbours/8)));
+  }
+
+  const target=Math.ceil(Math.min(width,height)*ARTIFACT_MARGIN_RATIO)+2;
+  if(minX>=target&&minY>=target&&maxX<width-target&&maxY<height-target)
+    return {rgba,removedPixels,reframed:false};
+  const bw=maxX-minX+1,bh=maxY-minY+1;
+  const scale=Math.min(1,(width-2*target)/bw,(height-2*target)/bh);
+  assert(scale>0.05,'MASCOT_CANNOT_REFRAME');
+  const centerX=(minX+maxX)/2,centerY=(minY+maxY)/2;
+  const dstCenterX=(width-1)/2,dstCenterY=(height-1)/2;
+  const out=Buffer.alloc(total*4);
+  // Bilinear resample of PREMULTIPLIED color to prevent RGB background halos
+  // from bleeding across translucent edges when placed on dark UI surfaces.
+  for(let y=0;y<height;y++){
+    const sy=(y-dstCenterY)/scale+centerY,iy=Math.floor(sy),fy=sy-iy;
+    if(sy<minY-1||sy>maxY+1)continue;
+    for(let x=0;x<width;x++){
+      const sx=(x-dstCenterX)/scale+centerX,ix=Math.floor(sx),fx=sx-ix;
+      if(sx<minX-1||sx>maxX+1)continue;
+      let aa=0,rr=0,gg=0,bb=0;
+      for(let ky=0;ky<=1;ky++)for(let kx=0;kx<=1;kx++){
+        const nx=ix+kx,ny=iy+ky;
+        if(nx<0||nx>=width||ny<0||ny>=height)continue;
+        const weight=(ky?fy:1-fy)*(kx?fx:1-fx);
+        const i=(ny*width+nx)*4,a=rgba[i+3]/255*weight;
+        aa+=a;rr+=rgba[i]*a;gg+=rgba[i+1]*a;bb+=rgba[i+2]*a;
+      }
+      const o=(y*width+x)*4;
+      if(aa>0){out[o]=Math.round(rr/aa);out[o+1]=Math.round(gg/aa);out[o+2]=Math.round(bb/aa);out[o+3]=Math.round(aa*255);}
+    }
+  }
+  return {rgba:out,removedPixels,reframed:true};
 }
 
 export function buildGraph({profile, identityImage, styleImage, codexHome=''}) {
@@ -406,7 +498,7 @@ export async function runMascot({url='http://127.0.0.1:8188/',profile,identity,s
   const directory=resolve(out,profile,submitted.prompt_id);await mkdir(directory,{recursive:true});
   await writeFile(join(directory,'render.png'),renderPng,{flag:'wx'});
   await writeFile(join(directory,'candidate.png'),png,{flag:'wx'});
-  const alphaExport={...ALPHA_EXPORT,source_sha256:renderValidation.sha256,output_sha256:validation.sha256,passthrough:exported.passthrough};
+  const alphaExport={...ALPHA_EXPORT,source_sha256:renderValidation.sha256,output_sha256:validation.sha256,passthrough:exported.passthrough,removed_pixels:exported.removed_pixels??0,reframed:exported.reframed??false};
   const provenance={schema:2,status:'AWAITING_HUMAN_BRAND_QA',profile,created_at:new Date().toISOString(),prompt_id:submitted.prompt_id,backend:'ArkCodexImageGen',backend_version:sys.system?.comfyui_version??'unknown',transport:describeTransport(client.transport),codex_home_configured:Boolean(codexHome),workflow_sha256:workflowHash,prompt_sha256:sha256(Buffer.from(PROFILES[profile].prompt)),reference_identity:primary,reference_style:secondary,render_validation:renderValidation,alpha_export:alphaExport,validation,output_filename:saved.filename,model_seed:null,render_budget:budget,visual_identity_approved:false};
   await writeFile(join(directory,'provenance.json'),JSON.stringify(provenance,null,2)+'\n',{flag:'wx'});
   return {directory,provenance};
@@ -432,11 +524,12 @@ export async function verifyArtifacts(directory,{identityFile,styleFile}={}) {
   check('recorded_render_mode',renderValidation.mode===provenance.render_validation?.mode,{mode:renderValidation.mode});
   // The alpha export is a pure function of render.png, so any edit to either file
   // desynchronises the pair instead of passing as a plausible artifact.
-  const exported=exportAlphaPng(renderPng);
+  const recordedMethod=provenance.alpha_export?.method;
+  const exported=exportAlphaPng(renderPng,{method:recordedMethod});
   check('alpha_export_sha256',sha256(exported.png)===sha256(png),{sha256:sha256(exported.png)});
-  check('recorded_exporter',provenance.alpha_export?.method===ALPHA_EXPORT.method);
+  check('recorded_exporter',['corner-flood-fill-v2',ALPHA_EXPORT.method].includes(recordedMethod));
   check('recorded_export_output',provenance.alpha_export?.output_sha256===sha256(png),{sha256:sha256(png)});
-  const validation=validatePng(png,{marginRatio:ARTIFACT_MARGIN_RATIO});
+  const validation=validatePng(png,{marginRatio:recordedMethod==='corner-flood-fill-v2'?0.01:ARTIFACT_MARGIN_RATIO});
   check('artifact_sha256',validation.sha256===provenance.validation?.sha256,{sha256:validation.sha256});
   for(const key of ['width','height','coverage','mode','crc_check','structural_check']) check(`recorded_${key}`,validation[key]===provenance.validation?.[key],{[key]:validation[key]});
   check('recorded_bbox',JSON.stringify(validation.bbox)===JSON.stringify(provenance.validation?.bbox));
@@ -460,3 +553,4 @@ async function cli(argv){
   throw new Error('Usage: node scripts/mascot-factory.mjs validate --file FILE.png | verify --dir DIR [--identity REF.png] [--style REF.png] | run --profile zar|szlif --identity REF.png --style REF.png --url https://comfy.example --out OUTPUT_DIR [--max-renders 4] [--budget FILE]');
 }
 if(process.argv[1] && resolve(process.argv[1])===resolve(new URL(import.meta.url).pathname))cli(process.argv.slice(2)).catch(err=>{console.error('MASCOT_FACTORY_FAILED:',err.message);process.exitCode=1;});
+
