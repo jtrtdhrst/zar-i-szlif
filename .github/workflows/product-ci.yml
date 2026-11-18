@@ -6,7 +6,6 @@ name: Product CI
 # and Coolify HTTP readback. See Harness KOMAA-1513 and Product KOMAA-1611.
 
 on:
-  pull_request:
   push:
     branches: [main]
     paths:
@@ -29,20 +28,21 @@ permissions:
 
 jobs:
   validate-product:
+    # Only reviewed main code may run on a persistent self-hosted runner.
+    # GitHub PR source runs must use separately authorized root-owned LOCAL CI,
+    # never PR-controlled workflow YAML. Independent CTO reviews exact head SHA.
+    if: github.ref == 'refs/heads/main' && (github.event_name == 'push' || github.event_name == 'workflow_dispatch')
     runs-on: [self-hosted, Linux, X64, zis-local-build]
     timeout-minutes: 25
     env:
       DOCKER_HOST: unix:///run/zis-rootless-docker/docker.sock
     steps:
-      - name: Guard self-hosted runner scope and rootless Docker isolation
-        env:
-          PR_HEAD_REPO: ${{ github.event.pull_request.head.repo.full_name }}
+      - name: Defense in depth - root-owned main-only admission and rootless isolation
         run: |
           set -euo pipefail
-          if [[ "${GITHUB_EVENT_NAME}" == "pull_request" && "${PR_HEAD_REPO}" != "${GITHUB_REPOSITORY}" ]]; then
-            echo 'Fork-sourced PR code cannot execute on this self-hosted runner' >&2
-            exit 1
-          fi
+          test "${GITHUB_REF}" = 'refs/heads/main'
+          [[ "${GITHUB_EVENT_NAME}" == 'push' || "${GITHUB_EVENT_NAME}" == 'workflow_dispatch' ]]
+          test "${GITHUB_REPOSITORY}" = 'miloszspyrka-code/zar-i-szlif'
           test "$(id -un)" = actions-zis-product
           test -S /run/zis-rootless-docker/docker.sock
           docker info --format '{{json .SecurityOptions}}' | grep -q rootless
