@@ -69,7 +69,13 @@ test('crc32 matches the published PNG/ISO 3309 known-answer vectors', () => {
 
 test('reference-locked graph uses exactly one generation node and one save node', () => {
   const g = buildGraph({ profile: 'zar', identityImage: 'identity.png', styleImage: 'style.png' });
-  assert.equal(g['3'].inputs.image_1[0], '1'); assert.equal(g['3'].inputs.image_2[0], '2');
+  assert.equal(g['3'].class_type, 'OpenAIGPTImageNodeV2');
+  assert.equal(g['3'].inputs.model, 'gpt-image-2.5-flare');
+  assert.equal(g['3'].inputs['model.size'], '1024x1024');
+  assert.equal(g['3'].inputs['model.background'], 'transparent');
+  assert.equal(g['3'].inputs['model.images.image_1'][0], '1');
+  assert.equal(g['3'].inputs['model.images.image_2'][0], '2');
+  assert.equal(g['3'].inputs.n, 1);
   assert.equal(g['4'].inputs.images[0], '3'); assert.match(g['3'].inputs.prompt, /Żar/);
   assert.throws(() => buildGraph({ profile: 'other', identityImage: 'a', styleImage: 'b' }), /UNKNOWN_PROFILE/);
 });
@@ -223,7 +229,7 @@ async function server({ fail = false, historyFailures = 0, promptFailures = 0, i
     requests.push({ path: pathname, headers: req.headers });
     const send = (code, data, type = 'application/json') => { res.writeHead(code, { 'content-type': type }); res.end(type === 'application/json' ? JSON.stringify(data) : data); };
     if (pathname === '/system_stats') return send(200, { system: { comfyui_version: 'test-mock-only' } });
-    if (pathname === '/object_info/ArkCodexImageGen') return send(200, { ArkCodexImageGen: {} });
+    if (pathname === '/object_info/OpenAIGPTImageNodeV2') return send(200, { OpenAIGPTImageNodeV2: {} });
     if (pathname === '/upload/image') {
       const chunks = []; for await (const c of req) chunks.push(c);
       const match = Buffer.concat(chunks).toString('latin1').match(/filename="(mascot_[a-f0-9]{24}_[a-f0-9]{8}\.png)"/);
