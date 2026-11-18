@@ -2,7 +2,7 @@
 
 **Status 2026-11-16: implemented and tested locally; NOT deployed.** No Coolify
 application for this service exists yet, no live render has ever succeeded, and
-nothing here is production proof. The only live Żar i Szlif production surface is
+nothing here is production proof. An offline isolated Docker smoke was run 2026-11-18 (healthy 200, noauth 401, not-ready 503, no paid render). No deployed mascot service is verified. The only live Żar i Szlif production surface is
 the static panel (`zar-i-szlif-web`, `ops/coolify/Dockerfile`). This service is a
 separate image and must never be smuggled into that one: the panel image is, and
 stays, a static nginx site.
@@ -28,7 +28,7 @@ All responses are JSON. No endpoint ever returns a credential.
 | --- | --- | --- |
 | `GET` | `/healthz` | `200 {"ok":true}` — process liveness only. A ComfyUI outage must not restart a healthy container. |
 | `GET` | `/__release.json` | `{"commit":"<40-hex>","source":"zar-i-szlif/mascot-factory"}` — the exact `SOURCE_COMMIT` the process started with. |
-| `GET` | `/readyz` | Probes the **actual** ComfyUI engine, then answers `200` only when references match their pins, the cost ledger is readable with budget left, **and** an authenticated read-only probe of `GET /system_stats` plus `GET /object_info/ArkCodexImageGen` succeeds. Otherwise `503` with a `blockers` array of exact codes: reference blockers (`REFERENCE_MISSING:<profile>:<role>`, `REFERENCE_HASH_MISMATCH:<profile>:<role>`), pin blockers (`GRAPH_TEMPLATE_HASH_MISMATCH:<profile>`, `PROMPT_HASH_MISMATCH:<profile>`), budget blockers (`BUDGET_LEDGER_CORRUPT`, `RENDER_BUDGET_EXHAUSTED …`), transport `MISSING_REMOTE_CREDENTIAL`, and backend probe codes `BACKEND_UNREACHABLE`, `BACKEND_UNAUTHORIZED`, `BACKEND_NODE_MISSING`, `BACKEND_TIMEOUT`, `BACKEND_HTTP_ERROR_<status>`, `BACKEND_INVALID_RESPONSE`. The probe is bounded (`MASCOT_FACTORY_PROBE_TIMEOUT_MS`, default 2500 ms), carries the configured credential, and uses **GET only** — readiness never submits a billable `/prompt`. |
+| `GET` | `/readyz` | Probes the **actual** ComfyUI engine, then answers `200` only when references match their pins, the cost ledger is readable with budget left, **and** an authenticated read-only probe of `GET /system_stats` plus `GET /object_info/OpenAIGPTImageNodeV2` succeeds. Otherwise `503` with a `blockers` array of exact codes: reference blockers (`REFERENCE_MISSING:<profile>:<role>`, `REFERENCE_HASH_MISMATCH:<profile>:<role>`), pin blockers (`GRAPH_TEMPLATE_HASH_MISMATCH:<profile>`, `PROMPT_HASH_MISMATCH:<profile>`), budget blockers (`BUDGET_LEDGER_CORRUPT`, `RENDER_BUDGET_EXHAUSTED …`), transport `MISSING_REMOTE_CREDENTIAL`, and backend probe codes `BACKEND_UNREACHABLE`, `BACKEND_UNAUTHORIZED`, `BACKEND_NODE_MISSING`, `BACKEND_TIMEOUT`, `BACKEND_HTTP_ERROR_<status>`, `BACKEND_INVALID_RESPONSE`. The probe is bounded (`MASCOT_FACTORY_PROBE_TIMEOUT_MS`, default 2500 ms), carries the configured credential, and uses **GET only** — readiness never submits a billable `/prompt`. |
 | `GET` | `/status` | Pinned graph/prompt hashes per profile, backend scheme/host (no secret), budget usage, in-flight/accepted counters, `artifact_status: AWAITING_HUMAN_BRAND_QA`, `publication: disabled`. |
 | `POST` | `/render` | Body `{"profile":"zar"｜"szlif"}`. Requires `Authorization: Bearer <MASCOT_FACTORY_API_TOKEN>`. `401` without/with a wrong token, `400` for a token in the query string or a credential-shaped body key, `409` while a render is in flight, `503 NOT_READY` with blockers, `200` on success, `502 RENDER_FAILED` with a redacted code. |
 
@@ -56,7 +56,7 @@ than serving a misconfigured render endpoint.
 | `MASCOT_FACTORY_BUDGET_LEDGER` | default `<out>/.mascot-render-budget.json` | Daily cost ledger. A corrupt/unreadable ledger blocks rendering instead of resetting. |
 | `MASCOT_FACTORY_MAX_RENDERS` | default `2` | Per-UTC-day render budget (stricter than the CLI default of 4; a daemon is unattended). |
 | `MASCOT_FACTORY_PROBE_TIMEOUT_MS` | default `2500` | Bound on the whole `/readyz` backend probe (both GETs share one deadline). Must be a positive integer ≤ 30000, otherwise `INVALID_PROBE_TIMEOUT`. |
-| `COMFY_CODEX_HOME` | never set here | Account binding for the `ArkCodexImageGen` node belongs to the backend deployment, not to this service. |
+| `COMFY_CODEX_HOME` | deprecated; do not set | The GPT Image 2.5 partner node uses ComfyUI's own authenticated partner account. Never pass login tokens through the render request or image graph. |
 
 The pin file is the brand lock. Changing a prompt or the graph shape changes its
 `prompt_sha256` / `graph_template_sha256`, so readiness fails until the pin file
@@ -100,7 +100,7 @@ silently change what the model is locked to.
    `/readyz` → 200 with an empty `blockers` array **and** `backend.probe: null`
    (that value is only `null` when a real authenticated probe of ComfyUI
    succeeded; `BACKEND_*` codes mean the engine is down, refusing the credential
-   or missing `ArkCodexImageGen`), image digest recorded, previous image retained
+   or missing `OpenAIGPTImageNodeV2`), image digest recorded, previous image retained
    as rollback. A green `/healthz` alone is not readiness.
 4. One real render per profile, then independent QA: `prompt_id`, output
    `sha256`, transparent RGBA pass, provenance file, plus UI QA and CPO visual
@@ -111,9 +111,8 @@ silently change what the model is locked to.
 
 ## Known external blockers (2026-11-16)
 
-- **Backend authorization:** `ArkCodexImageGen` failed both earlier prompts with
-  `CodexImageUnavailable` ("this ChatGPT account cannot use the hosted image
-  tool"). The ComfyUI host is CPU-only PyTorch with zero installed checkpoints.
+- **Backend authorization:** `OpenAIGPTImageNodeV2` failed both earlier prompts with
+  `Unauthorized: Please login first to use this node` on the current GPT Image 2.5 partner node. This is an actual independent upstream account gate; `/object_info` discovery alone does not prove login or credits. The ComfyUI host is CPU-only PyTorch with zero installed checkpoints.
   No model download, cloud GPU or paid API is authorized by this task.
 - **Agent-side ComfyUI access:** `https://mcp-comfy.kompaszbiorek.pl/mcp` sits
   behind Cloudflare Access with interactive-only methods (no
@@ -139,8 +138,14 @@ node --test tests/mascot-factory-service.test.mjs tests/mascot-factory.test.mjs
 
 The suite drives a real HTTP server against a mock ComfyUI: liveness, release
 provenance, readiness pins/budget blockers, real backend probe failures
-(unreachable, `401`, missing `ArkCodexImageGen`, timeout), token/query/body
+(unreachable, `401`, missing `OpenAIGPTImageNodeV2`, timeout), token/query/body
 rejection, single-flight, budget exhaustion, backend failure, prompt-id
 traversal and the image manifest contract. It proves the service contract, never
 live model output. Readiness is asserted to use GET only: no probe may submit a
 billable `/prompt`.
+
+## GPT Image 2.5 source contract (2026-11-18)
+
+The current ComfyUI server has native partner node `OpenAIGPTImageNodeV2` with model key `gpt-image-2.5-flare`; the old `ArkCodexImageGen` is retained only in verifier logic for old provenance. The active graph uses `model.images.image_1/2`, `model.size=1024x1024`, `model.background=transparent`, `model.quality=high`, and one image. Prompts and original reference SHA pins are preserved. The graph-template SHA pins are intentionally updated to prevent replay of the old generator shape.
+
+IMPORTANT: the read-only /readyz HTTP probe proves node existence, not paid partner login. Current 2026-11-18 ComfyUI error history shows partner authentication denied; do not infer that a response of 200 from /readyz proves partner authorization. Do not submit real /prompt or claim live E2E without explicitly authorized partner session and credits. The output remains AWAITING_HUMAN_BRAND_QA even after a successful provider run.
