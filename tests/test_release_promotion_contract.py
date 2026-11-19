@@ -45,6 +45,15 @@ class ReleaseContractTests(unittest.TestCase):
             with self.subTest(required=required):
                 self.assertIn(required, self.source)
 
+    def test_runner_never_executes_dependency_install_on_host(self):
+        # A lockfile may contain lifecycle hooks. Run them only in the
+        # unprivileged rootless build, not under the persistent runner UID.
+        self.assertNotIn("actions/setup-node@", self.source)
+        self.assertNotIn("      - name: Install locked dependencies", self.source)
+        self.assertNotIn("run: npm ci", self.source)
+        self.assertIn("docker build --file ops/coolify/Dockerfile --target build", self.source)
+        self.assertIn("docker run --rm --network none", self.source)
+
     def test_global_token_is_read_only(self):
         self.assertIn("permissions:\n  contents: read\n", self.source)
 
