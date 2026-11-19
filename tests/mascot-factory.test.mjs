@@ -239,7 +239,7 @@ test('a live-shaped RGB render is exported to RGBA and verified from render.png'
   } finally { await mock.close(); }
 });
 
-async function server({ fail = false, historyFailures = 0, promptFailures = 0, missingScaler = false, image = fixture() } = {}) {
+async function server({ fail = false, historyFailures = 0, promptFailures = 0, missingScaler = false, missingBatch = false, image = fixture() } = {}) {
   let submissions = 0, historyAttempts = 0, promptAttempts = 0; const requests = [];
   const s = createServer(async (req, res) => {
     const pathname = new URL(req.url, 'http://localhost').pathname;
@@ -248,7 +248,7 @@ async function server({ fail = false, historyFailures = 0, promptFailures = 0, m
     if (pathname === '/system_stats') return send(200, { system: { comfyui_version: 'test-mock-only' } });
     if (pathname === '/object_info/CodexExecImageGen') return send(200,{CodexExecImageGen:{}});
     if (pathname === '/object_info/ImageScale') return send(200,missingScaler ? {} : {ImageScale:{}});
-    if (pathname === '/object_info/ImageBatch') return send(200,{ImageBatch:{}});
+    if (pathname === '/object_info/ImageBatch') return send(200,missingBatch ? {} : {ImageBatch:{}});
     if (pathname === '/upload/image') {
       const chunks = []; for await (const c of req) chunks.push(c);
       const match = Buffer.concat(chunks).toString('latin1').match(/filename="(mascot_[a-f0-9]{24}_[a-f0-9]{8}\.png)"/);
@@ -266,6 +266,17 @@ async function server({ fail = false, historyFailures = 0, promptFailures = 0, m
   await new Promise(ok => s.listen(0, '127.0.0.1', ok));
   return { url: `http://127.0.0.1:${s.address().port}/`, close: () => new Promise(ok => s.close(ok)), getSubmissions: () => submissions, getHistoryAttempts: () => historyAttempts, getPromptAttempts: () => promptAttempts, requests };
 }
+
+test('missing ImageBatch refuses inference before budget ledger or paid prompt', async()=>{
+  const root=await mkdtemp(join(tmpdir(),'mascot-missing-imagebatch-'));
+  const ref=join(root,'reference.png');await writeFile(ref,fixture());
+  const mock=await server({missingBatch:true});
+  try {
+    await assert.rejects(()=>runMascot({url:mock.url,profile:'zar',identity:ref,style:ref,out:join(root,'out')}),/IMAGE_BATCH_NODE_MISSING/);
+    assert.equal(mock.getSubmissions(),0);
+    assert.equal(mock.getPromptAttempts(),0);
+  } finally { await mock.close(); }
+});
 
 test('missing required ImageScale refuses inference before budget ledger or paid prompt',async()=>{
   const root=await mkdtemp(join(tmpdir(),'mascot-missing-scaler-'));
