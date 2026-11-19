@@ -231,6 +231,42 @@ test("Docker context with re-including negation stays fail-closed", () => {
     writeFileSync(join(cwd, "README.md"), "# fixture\n");
 
     // Docker re-includes vendor/keep.js after excluding vendor/, so the
-    // fallback must not apply the overridden lit
+    // fallback must not apply the overridden literal exclusion.
+    const paths = trackedPaths({ cwd });
+    assert.ok(
+      paths.includes("vendor/keep.js"),
+      "negation-reincluded source was hidden from coverage",
+    );
+    assert.deepEqual(coverage(paths).unclassified, ["vendor/keep.js"]);
+  } finally {
+    rmSync(cwd, { recursive: true, force: true });
+  }
+});
 
-... [1384 characters truncated]
+test("Docker context with an unsupported glob applies no exclusions", () => {
+  const cwd = mkdtempSync(join(tmpdir(), "ci-coverage-"));
+  try {
+    writeFileSync(join(cwd, ".dockerignore"), "docker-compose.yaml\n*.log\n");
+    writeFileSync(join(cwd, "docker-compose.yaml"), "services: {}\n");
+    writeFileSync(join(cwd, "debug.log"), "noise\n");
+    writeFileSync(join(cwd, "README.md"), "# fixture\n");
+
+    const paths = trackedPaths({ cwd });
+    assert.ok(
+      paths.includes("docker-compose.yaml"),
+      "unsupported manifest must not apply any exclusion",
+    );
+    assert.deepEqual(coverage(paths).unclassified.sort(), ["debug.log", "docker-compose.yaml"]);
+  } finally {
+    rmSync(cwd, { recursive: true, force: true });
+  }
+});
+
+test("the website lane fails closed on real source (fixture)", () => {
+  const script = readFileSync(
+    new URL("../scripts/validate-website.mjs", import.meta.url),
+    "utf8",
+  );
+  assert.match(script, /ALLOWED = new Set\(\["app\/website\/\.gitkeep"\]\)/);
+  assert.match(script, /process\.exit\(2\)/);
+});
