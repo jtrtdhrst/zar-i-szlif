@@ -1,8 +1,9 @@
 """Prevent accidental bypass of the externally controlled Paperclip release lane.
 
-Product CI validates any PR and main push, but it must never write ci-approved.
-The Ubuntu release controller requires real Paperclip native approval before
-advancing the ref and uses Coolify HTTP readback for deployed source identity.
+Product CI executes on trusted main push or main dispatch only, never on
+unreviewed PR-head workflows. Pre-merge exact-SHA local CI requires independent
+native review. The Ubuntu release controller alone verifies admission and
+Coolify HTTP readback; this workflow never writes ci-approved.
 """
 from pathlib import Path
 import unittest
@@ -27,14 +28,42 @@ class ReleaseContractTests(unittest.TestCase):
             with self.subTest(forbidden=forbidden):
                 self.assertNotIn(forbidden, self.source)
 
-    def test_product_validation_still_runs_for_pull_request_and_main(self):
-        for required in ("  pull_request:", "    branches: [main]",
+    def test_product_validation_requires_trusted_main_and_never_runs_pr_head(self):
+        # The workflow file on a PR can itself be malicious: no PR-originated
+        # workflow may schedule this persistent, production-adjacent runner.
+        for forbidden in ("  pull_request:\n", "  pull_request_target:\n"):
+            with self.subTest(forbidden=forbidden):
+                self.assertNotIn(forbidden, self.source)
+        for required in ("  push:\n", "    branches: [main]", "  workflow_dispatch:\n",
+                         "if: github.ref == 'refs/heads/main'",
+                         "runs-on: [self-hosted, Linux, X64, zis-local-build]",
+                         "Defense in depth - root-owned main-only admission",
                          "  validate-product:", "npm run validate:code",
                          "docker build --file ops/coolify/Dockerfile",
                          "Verify source SHA is emitted by the real nginx entrypoint",
                          "Reject versionless container starts"):
             with self.subTest(required=required):
                 self.assertIn(required, self.source)
+
+    def test_runner_never_executes_dependency_install_on_host(self):
+        # A lockfile may contain lifecycle hooks. Run them only in the
+        # unprivileged rootless build, not under the persistent runner UID.
+        self.assertNotIn("actions/setup-node@", self.source)
+        self.assertNotIn("      - name: Install locked dependencies", self.source)
+        self.assertNotIn("run: npm ci", self.source)
+        self.assertIn("docker build --file ops/coolify/Dockerfile --target build", self.source)
+        self.assertIn("docker run --rm --network none", self.source)
+
+    def test_product_ci_tags_are_unique_per_run_attempt(self):
+        for tag in ("CI_BUILD_TAG", "CI_VALIDATION_TAG", "CI_VERIFIED_TAG"):
+            self.assertIn(tag + ": product-ci:", self.source)
+        self.assertIn("${{ github.run_id }}", self.source)
+        self.assertIn("${{ github.run_attempt }}", self.source)
+        self.assertIn("--build-arg \"SOURCE_BUILD_IMAGE=$CI_BUILD_TAG\"", self.source)
+        self.assertIn('name="$CI_CANARY_NAME"', self.source)
+        self.assertNotIn("--tag product-ci:build", self.source)
+        self.assertNotIn("--tag product-ci:validation", self.source)
+        self.assertNotIn("--tag product-ci:verified", self.source)
 
     def test_global_token_is_read_only(self):
         self.assertIn("permissions:\n  contents: read\n", self.source)

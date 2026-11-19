@@ -85,11 +85,47 @@ test("validate:paths adds the frontend build on top of every lane", () => {
   assert.match(packageJson.scripts["validate:frontend"], /node scripts\/validate-frontend\.mjs/);
 });
 
-test("product CI validates every pull request regardless of path", () => {
-  // PRs are the merge path; a bare pull_request trigger validates www/,
-  // product/, mcp/ and website changes even without a main-push path entry.
-  assert.match(workflow, /on:\n  pull_request:/);
+test("product CI runs full validation only for reviewed main source", () => {
+  // Malicious PRs must not control the workflow executed on a persistent runner.
+  // Separate native CTO review + root-owned exact-head local CI precede merge.
+  assert.doesNotMatch(workflow, /\n  pull_request(?:_target)?:/);
+  assert.match(workflow, /on:\n  push:\n    branches: \[main\]/);
+  assert.match(workflow, /  workflow_dispatch:/);
+  assert.match(workflow, /if: github\.ref == 'refs\/heads\/main'/);
   assert.match(workflow, /npm run validate:code/);
+  assert.match(workflow, /Reject versionless container starts/);
+});
+
+
+test("Product CI isolates localhost tests from host services and excludes checkout credentials", () => {
+  const ciDockerfile = readFileSync(
+    new URL("../ops/coolify/Dockerfile.ci", import.meta.url),
+    "utf8",
+  );
+  assert.match(workflow, /persist-credentials: false/);
+  assert.doesNotMatch(workflow, /actions\/setup-node@/);
+  assert.doesNotMatch(workflow, /run:\s*npm ci/);
+  assert.doesNotMatch(workflow, /- name: Install locked dependencies/);
+  assert.ok(workflow.includes('--tag "$CI_BUILD_TAG"'));
+  assert.ok(workflow.includes('--build-arg "SOURCE_BUILD_IMAGE=$CI_BUILD_TAG" --tag "$CI_VALIDATION_TAG"'));
+  assert.match(workflow, /docker run --rm --network none/);
+  assert.match(workflow, /--cap-drop ALL --security-opt no-new-privileges/);
+  assert.match(workflow, /--env npm_config_offline=true/);
+  assert.match(ciDockerfile, /^ARG SOURCE_BUILD_IMAGE$/m);
+  assert.match(ciDockerfile, /^FROM \$\{SOURCE_BUILD_IMAGE\}$/m);
+  assert.match(ciDockerfile, /apt-get install[^\n]*git/);
+  assert.match(ciDockerfile, /npm --prefix mcp\/product-host ci/);
+});
+
+test("Product CI isolates Docker tags, canary names and logs per run and attempt", () => {
+  assert.ok(workflow.includes('CI_BUILD_TAG: product-ci:${{ github.sha }}-${{ github.run_id }}-${{ github.run_attempt }}-build'));
+  assert.ok(workflow.includes('CI_VALIDATION_TAG: product-ci:${{ github.sha }}-${{ github.run_id }}-${{ github.run_attempt }}-validation'));
+  assert.ok(workflow.includes('CI_VERIFIED_TAG: product-ci:${{ github.sha }}-${{ github.run_id }}-${{ github.run_attempt }}-verified'));
+  assert.ok(workflow.includes('CI_CANARY_NAME: product-ci-release-check-${{ github.run_id }}-${{ github.run_attempt }}'));
+  assert.ok(workflow.includes('"$CI_VERIFIED_TAG"'));
+  assert.ok(workflow.includes('negative-release-${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}.log'));
+  assert.doesNotMatch(workflow, /--tag product-ci:(?:build|validation|verified)/);
+  assert.doesNotMatch(workflow, /\n\s+product-ci:validation sh/);
 });
 
 test("the checked-in enumeration contains all 15 Paperclip projects", () => {
