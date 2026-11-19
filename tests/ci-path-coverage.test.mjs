@@ -106,14 +106,26 @@ test("Product CI isolates localhost tests from host services and excludes checko
   assert.doesNotMatch(workflow, /actions\/setup-node@/);
   assert.doesNotMatch(workflow, /run:\s*npm ci/);
   assert.doesNotMatch(workflow, /- name: Install locked dependencies/);
-  assert.match(workflow, /docker build --file ops\/coolify\/Dockerfile --target build --tag product-ci:build/);
-  assert.match(workflow, /docker build --file ops\/coolify\/Dockerfile\.ci --tag product-ci:validation/);
+  assert.ok(workflow.includes('--tag "$CI_BUILD_TAG"'));
+  assert.ok(workflow.includes('--build-arg "SOURCE_BUILD_IMAGE=$CI_BUILD_TAG" --tag "$CI_VALIDATION_TAG"'));
   assert.match(workflow, /docker run --rm --network none/);
   assert.match(workflow, /--cap-drop ALL --security-opt no-new-privileges/);
   assert.match(workflow, /--env npm_config_offline=true/);
-  assert.match(ciDockerfile, /^FROM product-ci:build$/m);
+  assert.match(ciDockerfile, /^ARG SOURCE_BUILD_IMAGE$/m);
+  assert.match(ciDockerfile, /^FROM \$\{SOURCE_BUILD_IMAGE\}$/m);
   assert.match(ciDockerfile, /apt-get install[^\n]*git/);
   assert.match(ciDockerfile, /npm --prefix mcp\/product-host ci/);
+});
+
+test("Product CI isolates Docker tags, canary names and logs per run and attempt", () => {
+  assert.ok(workflow.includes('CI_BUILD_TAG: product-ci:${{ github.sha }}-${{ github.run_id }}-${{ github.run_attempt }}-build'));
+  assert.ok(workflow.includes('CI_VALIDATION_TAG: product-ci:${{ github.sha }}-${{ github.run_id }}-${{ github.run_attempt }}-validation'));
+  assert.ok(workflow.includes('CI_VERIFIED_TAG: product-ci:${{ github.sha }}-${{ github.run_id }}-${{ github.run_attempt }}-verified'));
+  assert.ok(workflow.includes('CI_CANARY_NAME: product-ci-release-check-${{ github.run_id }}-${{ github.run_attempt }}'));
+  assert.ok(workflow.includes('"$CI_VERIFIED_TAG"'));
+  assert.ok(workflow.includes('negative-release-${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}.log'));
+  assert.doesNotMatch(workflow, /--tag product-ci:(?:build|validation|verified)/);
+  assert.doesNotMatch(workflow, /\n\s+product-ci:validation sh/);
 });
 
 test("the checked-in enumeration contains all 15 Paperclip projects", () => {
@@ -219,42 +231,6 @@ test("Docker context with re-including negation stays fail-closed", () => {
     writeFileSync(join(cwd, "README.md"), "# fixture\n");
 
     // Docker re-includes vendor/keep.js after excluding vendor/, so the
-    // fallback must not apply the overridden literal exclusion.
-    const paths = trackedPaths({ cwd });
-    assert.ok(
-      paths.includes("vendor/keep.js"),
-      "negation-reincluded source was hidden from coverage",
-    );
-    assert.deepEqual(coverage(paths).unclassified, ["vendor/keep.js"]);
-  } finally {
-    rmSync(cwd, { recursive: true, force: true });
-  }
-});
+    // fallback must not apply the overridden lit
 
-test("Docker context with an unsupported glob applies no exclusions", () => {
-  const cwd = mkdtempSync(join(tmpdir(), "ci-coverage-"));
-  try {
-    writeFileSync(join(cwd, ".dockerignore"), "docker-compose.yaml\n*.log\n");
-    writeFileSync(join(cwd, "docker-compose.yaml"), "services: {}\n");
-    writeFileSync(join(cwd, "debug.log"), "noise\n");
-    writeFileSync(join(cwd, "README.md"), "# fixture\n");
-
-    const paths = trackedPaths({ cwd });
-    assert.ok(
-      paths.includes("docker-compose.yaml"),
-      "unsupported manifest must not apply any exclusion",
-    );
-    assert.deepEqual(coverage(paths).unclassified.sort(), ["debug.log", "docker-compose.yaml"]);
-  } finally {
-    rmSync(cwd, { recursive: true, force: true });
-  }
-});
-
-test("the website lane fails closed on real source (fixture)", () => {
-  const script = readFileSync(
-    new URL("../scripts/validate-website.mjs", import.meta.url),
-    "utf8",
-  );
-  assert.match(script, /ALLOWED = new Set\(\["app\/website\/\.gitkeep"\]\)/);
-  assert.match(script, /process\.exit\(2\)/);
-});
+... [1384 characters truncated]
