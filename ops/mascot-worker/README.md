@@ -28,7 +28,7 @@ All responses are JSON. No endpoint ever returns a credential.
 | --- | --- | --- |
 | `GET` | `/healthz` | `200 {"ok":true}` — process liveness only. A ComfyUI outage must not restart a healthy container. |
 | `GET` | `/__release.json` | `{"commit":"<40-hex>","source":"zar-i-szlif/mascot-factory"}` — the exact `SOURCE_COMMIT` the process started with. |
-| `GET` | `/readyz` | Probes the **actual** ComfyUI engine, then answers `200` only when references match their pins, the cost ledger is readable with budget left, **and** an authenticated read-only probe of `GET /system_stats` plus `GET /object_info/OpenAIGPTImageNodeV2 plus GET /object_info/ImageScale` succeeds. Otherwise `503` with a `blockers` array of exact codes: reference blockers (`REFERENCE_MISSING:<profile>:<role>`, `REFERENCE_HASH_MISMATCH:<profile>:<role>`), pin blockers (`GRAPH_TEMPLATE_HASH_MISMATCH:<profile>`, `PROMPT_HASH_MISMATCH:<profile>`), budget blockers (`BUDGET_LEDGER_CORRUPT`, `RENDER_BUDGET_EXHAUSTED …`), transport `MISSING_REMOTE_CREDENTIAL`, and backend probe codes `BACKEND_UNREACHABLE`, `BACKEND_UNAUTHORIZED`, `BACKEND_NODE_MISSING`, `BACKEND_TIMEOUT`, `BACKEND_HTTP_ERROR_<status>`, `BACKEND_INVALID_RESPONSE`. The probe is bounded (`MASCOT_FACTORY_PROBE_TIMEOUT_MS`, default 2500 ms), carries the configured credential, and uses **GET only** — readiness never submits a billable `/prompt`. |
+| `GET` | `/readyz` | Probes the **actual** ComfyUI engine, then answers `200` only when references match their pins, the cost ledger is readable with budget left, **and** an authenticated read-only probe of `GET /system_stats` plus `GET /object_info/CodexExecImageGen plus GET /object_info/ImageScale` succeeds. Otherwise `503` with a `blockers` array of exact codes: reference blockers (`REFERENCE_MISSING:<profile>:<role>`, `REFERENCE_HASH_MISMATCH:<profile>:<role>`), pin blockers (`GRAPH_TEMPLATE_HASH_MISMATCH:<profile>`, `PROMPT_HASH_MISMATCH:<profile>`), budget blockers (`BUDGET_LEDGER_CORRUPT`, `RENDER_BUDGET_EXHAUSTED …`), transport `MISSING_REMOTE_CREDENTIAL`, and backend probe codes `BACKEND_UNREACHABLE`, `BACKEND_UNAUTHORIZED`, `BACKEND_NODE_MISSING`, `BACKEND_TIMEOUT`, `BACKEND_HTTP_ERROR_<status>`, `BACKEND_INVALID_RESPONSE`. The probe is bounded (`MASCOT_FACTORY_PROBE_TIMEOUT_MS`, default 2500 ms), carries the configured credential, and uses **GET only** — readiness never submits a billable `/prompt`. |
 | `GET` | `/status` | Pinned graph/prompt hashes per profile, backend scheme/host (no secret), budget usage, in-flight/accepted counters, `artifact_status: AWAITING_HUMAN_BRAND_QA`, `publication: disabled`. |
 | `POST` | `/render` | Body `{"profile":"zar"｜"szlif"}`. Requires `Authorization: Bearer <MASCOT_FACTORY_API_TOKEN>`. `401` without/with a wrong token, `400` for a token in the query string or a credential-shaped body key, `409` while a render is in flight, `503 NOT_READY` with blockers, `200` on success, `502 RENDER_FAILED` with a redacted code. |
 
@@ -56,7 +56,7 @@ than serving a misconfigured render endpoint.
 | `MASCOT_FACTORY_BUDGET_LEDGER` | default `<out>/.mascot-render-budget.json` | Daily cost ledger. A corrupt/unreadable ledger blocks rendering instead of resetting. |
 | `MASCOT_FACTORY_MAX_RENDERS` | default `2` | Per-UTC-day render budget (stricter than the CLI default of 4; a daemon is unattended). |
 | `MASCOT_FACTORY_PROBE_TIMEOUT_MS` | default `2500` | Bound on the whole `/readyz` backend probe (both GETs share one deadline). Must be a positive integer ≤ 30000, otherwise `INVALID_PROBE_TIMEOUT`. |
-| `COMFY_CODEX_HOME` | never set here | Account binding for the `OpenAIGPTImageNodeV2` node belongs to the backend deployment, not to this service. |
+| `COMFY_CODEX_HOME` | never set here | Account binding for the `CodexExecImageGen` node belongs to the backend deployment, not to this service. |
 
 The pin file is the brand lock. Changing a prompt or the graph shape changes its
 `prompt_sha256` / `graph_template_sha256`, so readiness fails until the pin file
@@ -100,7 +100,7 @@ silently change what the model is locked to.
    `/readyz` → 200 with an empty `blockers` array **and** `backend.probe: null`
    (that value is only `null` when a real authenticated probe of ComfyUI
    succeeded; `BACKEND_*` codes mean the engine is down, refusing the credential
-   or missing `OpenAIGPTImageNodeV2`), image digest recorded, previous image retained
+   or missing `CodexExecImageGen`), image digest recorded, previous image retained
    as rollback. A green `/healthz` alone is not readiness.
 4. One real render per profile, then independent QA: `prompt_id`, output
    `sha256`, transparent RGBA pass, provenance file, plus UI QA and CPO visual
@@ -111,7 +111,7 @@ silently change what the model is locked to.
 
 ## Known external blockers (2026-11-16)
 
-- **Backend authorization:** `OpenAIGPTImageNodeV2` failed both earlier prompts with
+- **Backend authorization:** `CodexExecImageGen` failed both earlier prompts with
   `CodexImageUnavailable` ("this ChatGPT account cannot use the hosted image
   tool"). The ComfyUI host is CPU-only PyTorch with zero installed checkpoints.
   No model download, cloud GPU or paid API is authorized by this task.
@@ -139,18 +139,18 @@ node --test tests/mascot-factory-service.test.mjs tests/mascot-factory.test.mjs
 
 The suite drives a real HTTP server against a mock ComfyUI: liveness, release
 provenance, readiness pins/budget blockers, real backend probe failures
-(unreachable, `401`, missing `OpenAIGPTImageNodeV2`, timeout), token/query/body
+(unreachable, `401`, missing `CodexExecImageGen`, timeout), token/query/body
 rejection, single-flight, budget exhaustion, backend failure, prompt-id
 traversal and the image manifest contract. It proves the service contract, never
 live model output. Readiness is asserted to use GET only: no probe may submit a
 billable `/prompt`.
 
 
-## 18 November 2026 — GPT Image 2.5 partner migration (review required)
+## 18 November 2026 — CodexExecImageGen adapter migration (review required)
 
-This source migration is stacked on product PR #182 (alpha export v3), NOT on the old #179 ArkCodex release lane. The brand-locked worker now emits exactly one `OpenAIGPTImageNodeV2` using the logged-in ComfyUI partner provider (`model=gpt-image-2.5-flare`, transparent, quality=high, two approved references) and a built-in `ImageScale` to produce the required 1254×1254 saved render; standalone image approval remains independent. No raw model credentials are injected in graph inputs. Reference PNG pins and the exact prompts are unchanged, but both graph-template SHA-256 values change and must match `computePins()`. Verify old Ark-source assets only through the historical verifier branch; new paid inference MUST NOT silently downgrade to the legacy backend.
+This source migration is stacked on product PR #182 (alpha export v3), NOT on the old #179 ArkCodex release lane. The brand-locked worker now emits exactly one `CodexExecImageGen` using the logged-in ComfyUI partner provider (`model=gpt-6-luna`, transparent, quality=high, two approved references) and a built-in `ImageScale` to produce the required 1254×1254 saved render; standalone image approval remains independent. No raw model credentials are injected in graph inputs. Reference PNG pins and the exact prompts are unchanged, but both graph-template SHA-256 values change and must match `computePins()`. Verify old Ark-source assets only through the historical verifier branch; new paid inference MUST NOT silently downgrade to the legacy backend.
 
-`/readyz` performs GET-only `/system_stats` plus `/object_info/OpenAIGPTImageNodeV2` and `/object_info/ImageScale` and never submits a paid prompt. A successful GET of `/object_info` proves *installation/schema visibility*, not an authenticated partner account with credits. Therefore paid partner authorization must be confirmed separately by the owner in ComfyUI before the first approved bounded paid render. HTTP 200 readiness without that proof is NOT visual or inference E2E acceptance.
+`/readyz` performs GET-only `/system_stats` plus `/object_info/CodexExecImageGen` and `/object_info/ImageScale` and never submits a paid prompt. A successful GET of `/object_info` proves *installation/schema visibility*, not an authenticated partner account with credits. Therefore paid partner authorization must be confirmed separately by the owner in ComfyUI before the first approved bounded paid render. HTTP 200 readiness without that proof is NOT visual or inference E2E acceptance.
 
 The operator already verified this graph's class, model and input names by reading the connected ComfyUI schema and the saved `zar-i-szlif/OPENAI_GPT25_JOINT_CALIBRATION_20261117.json` workflow. A local offline Docker run proved `/healthz` 200, exact `/__release.json`, unauthorized `/render` 401 and authenticated `/render` 503 when the backend is intentionally unreachable, without any provider spend. Source tests include non-billable negative probes (absent scaler, no duplicate paid prompt, legacy export verification).
 

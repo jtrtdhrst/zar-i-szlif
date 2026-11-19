@@ -67,20 +67,25 @@ test('crc32 matches the published PNG/ISO 3309 known-answer vectors', () => {
   assert.equal(crc32(Buffer.alloc(0)), 0x00000000);
 });
 
-test('GPT Image 2.5 workflow is schema-accurate, identity locked and 1254px', () => {
+test('CodexExecImageGen schema with batched dual reference and 1254px export', () => {
   const g=buildGraph({profile:'zar',identityImage:'identity.png',styleImage:'style.png'});
   assert.equal(g['1'].inputs.image,'identity.png');
   assert.equal(g['2'].inputs.image,'style.png');
-  assert.equal(g['3'].class_type,'OpenAIGPTImageNodeV2');
-  assert.equal(g['3'].inputs.model,'gpt-image-2.5-flare');
-  assert.equal(g['3'].inputs['model.size'],'1024x1024');
-  assert.equal(g['3'].inputs['model.background'],'transparent');
-  assert.deepEqual(g['3'].inputs['model.images.image_1'],['1',0]);
-  assert.deepEqual(g['3'].inputs['model.images.image_2'],['2',0]);
+  assert.equal(g['3'].class_type,'ImageScale');
   assert.equal(g['4'].class_type,'ImageScale');
-  assert.equal(g['4'].inputs.width,1254);assert.equal(g['4'].inputs.height,1254);
-  assert.deepEqual(g['5'].inputs.images,['4',0]);
-  assert.match(g['3'].inputs.prompt,/Żar/);
+  assert.equal(g['5'].class_type,'ImageBatch');
+  assert.deepEqual(g['5'].inputs.image1,['3',0]);
+  assert.deepEqual(g['5'].inputs.image2,['4',0]);
+  assert.equal(g['6'].class_type,'CodexExecImageGen');
+  assert.equal(g['6'].inputs.model,'gpt-6-luna');
+  assert.equal(g['6'].inputs.concurrency_count,'1');
+  assert.deepEqual(g['6'].inputs.images,['5',0]);
+  assert.equal(g['6'].inputs.aspect_ratio,'1:1');
+  assert.equal(g['7'].class_type,'ImageScale');
+  assert.equal(g['7'].inputs.width,1254);
+  assert.equal(g['7'].inputs.height,1254);
+  assert.deepEqual(g['8'].inputs.images,['7',0]);
+  assert.match(g['6'].inputs.prompt,/Żar/);
   assert.throws(()=>buildGraph({profile:'other',identityImage:'a',styleImage:'b'}),/UNKNOWN_PROFILE/);
   assert.throws(()=>buildGraph({profile:'zar',identityImage:'a',styleImage:'b',backend:'FakePaidNode'}),/UNSUPPORTED_IMAGE_BACKEND/);
 });
@@ -241,8 +246,9 @@ async function server({ fail = false, historyFailures = 0, promptFailures = 0, m
     requests.push({ path: pathname, headers: req.headers });
     const send = (code, data, type = 'application/json') => { res.writeHead(code, { 'content-type': type }); res.end(type === 'application/json' ? JSON.stringify(data) : data); };
     if (pathname === '/system_stats') return send(200, { system: { comfyui_version: 'test-mock-only' } });
-    if (pathname === '/object_info/OpenAIGPTImageNodeV2') return send(200,{OpenAIGPTImageNodeV2:{}});
+    if (pathname === '/object_info/CodexExecImageGen') return send(200,{CodexExecImageGen:{}});
     if (pathname === '/object_info/ImageScale') return send(200,missingScaler ? {} : {ImageScale:{}});
+    if (pathname === '/object_info/ImageBatch') return send(200,{ImageBatch:{}});
     if (pathname === '/upload/image') {
       const chunks = []; for await (const c of req) chunks.push(c);
       const match = Buffer.concat(chunks).toString('latin1').match(/filename="(mascot_[a-f0-9]{24}_[a-f0-9]{8}\.png)"/);
@@ -252,7 +258,7 @@ async function server({ fail = false, historyFailures = 0, promptFailures = 0, m
     if (pathname === '/history/mock-run-123') {
       historyAttempts++;
       if (historyAttempts <= historyFailures) return send(503, { error: 'queue busy' });
-      return send(200, { 'mock-run-123': fail ? { status: { status_str: 'error', messages: [['execution_error', { node_id: '3', exception_message: 'AUTH_DENIED' }]] } } : { status: { status_str: 'success' }, outputs: { '5': { images: [{ filename: 'mock.png', subfolder: '', type: 'output' }] } } } });
+      return send(200, { 'mock-run-123': fail ? { status: { status_str: 'error', messages: [['execution_error', { node_id: '3', exception_message: 'AUTH_DENIED' }]] } } : { status: { status_str: 'success' }, outputs: { '8': { images: [{ filename: 'mock.png', subfolder: '', type: 'output' }] } } } });
     }
     if (pathname === '/view') return send(200, image, 'image/png');
     return send(404, { error: 'not found' });

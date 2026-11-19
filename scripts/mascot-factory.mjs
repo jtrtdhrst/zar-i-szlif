@@ -345,12 +345,13 @@ function buildLegacyGraph({profile, identityImage, styleImage, codexHome=''}) {
 }
 
 
-export const ACTIVE_BACKEND_NODE = 'OpenAIGPTImageNodeV2';
+export const ACTIVE_BACKEND_NODE = 'CodexExecImageGen';
+export const BATCH_NODE = 'ImageBatch';
 export const LEGACY_BACKEND_NODE = 'ArkCodexImageGen';
 export const SCALER_NODE = 'ImageScale';
 
 /** The historical graph may be reconstructed ONLY when verifying old artifacts.
- * New inference always uses the active, schema-checked GPT Image 2.5 partner.
+ * New inference uses the installed CodexExecImageGen schema.
  */
 export function buildGraph({profile, identityImage, styleImage, codexHome='', backend=ACTIVE_BACKEND_NODE}) {
   assert(Object.hasOwn(PROFILES,profile),'UNKNOWN_PROFILE');
@@ -361,20 +362,12 @@ export function buildGraph({profile, identityImage, styleImage, codexHome='', ba
   return {
     '1':n('LoadImage',{image:identityImage},'LOCKED identity reference'),
     '2':n('LoadImage',{image:styleImage},'Secondary style-only reference'),
-    '3':n(ACTIVE_BACKEND_NODE,{
-      prompt:PROFILES[profile].prompt,
-      model:'gpt-image-2.5-flare',
-      'model.size':'1024x1024',
-      'model.custom_width':1024,
-      'model.custom_height':1024,
-      'model.background':'transparent',
-      'model.quality':'high',
-      n:1,seed:0,
-      'model.images.image_1':['1',0],
-      'model.images.image_2':['2',0],
-    },'GPT Image 2.5 brand-locked partner; owner-paid authorization required'),
-    '4':n(SCALER_NODE,{image:['3',0],upscale_method:'lanczos',width:1254,height:1254,crop:'disabled'},'Exact 1254x1254 acceptance canvas'),
-    '5':n('SaveImage',{images:['4',0],filename_prefix:'mascot_factory/pending/'+profile},'Save for QC; NOT published'),
+    '3':n(SCALER_NODE,{image:['1',0],upscale_method:'lanczos',width:1024,height:1024,crop:'disabled'},'Reference normalization'),
+    '4':n(SCALER_NODE,{image:['2',0],upscale_method:'lanczos',width:1024,height:1024,crop:'disabled'},'Style normalization'),
+    '5':n(BATCH_NODE,{image1:['3',0],image2:['4',0]},'Two pinned source images'),
+    '6':n(ACTIVE_BACKEND_NODE,{concurrency_count:'1',prompt:PROFILES[profile].prompt,images:['5',0],aspect_ratio:'1:1',model:'gpt-6-luna',reasoning_effort:'medium',json_output:true,auto_save_to_output:false,skip_git_repo_check:true,ephemeral:true},'Codex image generator; independent authorization required'),
+    '7':n(SCALER_NODE,{image:['6',0],upscale_method:'lanczos',width:1254,height:1254,crop:'disabled'},'Acceptance canvas 1254px'),
+    '8':n('SaveImage',{images:['7',0],filename_prefix:'mascot_factory/pending/'+profile},'Save for QA; NOT published'),
   };
 }
 
@@ -508,6 +501,8 @@ export async function runMascot({url='http://127.0.0.1:8188/',profile,identity,s
   // A missing scaler must fail before budget consumption / a potentially paid prompt.
   const scaler=await(await call('/object_info/'+SCALER_NODE)).json();
   assert(Object.hasOwn(scaler,SCALER_NODE),'IMAGE_SCALER_NODE_MISSING');
+  const batch=await(await call('/object_info/'+BATCH_NODE)).json();
+  assert(Object.hasOwn(batch,BATCH_NODE),'IMAGE_BATCH_NODE_MISSING');
   const [primary,secondary]=await Promise.all([uploadReference(call,identity),uploadReference(call,style)]);
   const graph=buildGraph({profile,identityImage:primary.name,styleImage:secondary.name,codexHome});
   const workflowHash=graphSha256(graph);
@@ -525,7 +520,7 @@ export async function runMascot({url='http://127.0.0.1:8188/',profile,identity,s
     await delay(1500);
   }
   assert(status==='success','IMAGE_RENDER_TIMEOUT_OR_UNVERIFIED');
-  const saved=history.outputs?.['5']?.images?.[0]; assert(saved?.filename,'NO_SAVED_IMAGE');
+  const saved=history.outputs?.['8']?.images?.[0]; assert(saved?.filename,'NO_SAVED_IMAGE');
   const qs=new URLSearchParams({filename:saved.filename,subfolder:saved.subfolder??'',type:'output'});
   const renderPng=Buffer.from(await(await call(`/view?${qs}`)).arrayBuffer());
   const renderValidation=validatePng(renderPng,{requireAlpha:false});
@@ -536,7 +531,7 @@ export async function runMascot({url='http://127.0.0.1:8188/',profile,identity,s
   await writeFile(join(directory,'render.png'),renderPng,{flag:'wx'});
   await writeFile(join(directory,'candidate.png'),png,{flag:'wx'});
   const alphaExport={...ALPHA_EXPORT,source_sha256:renderValidation.sha256,output_sha256:validation.sha256,passthrough:exported.passthrough,removed_pixels:exported.removed_pixels??0,reframed:exported.reframed??false};
-  const provenance={schema:2,status:'AWAITING_HUMAN_BRAND_QA',profile,created_at:new Date().toISOString(),prompt_id:submitted.prompt_id,backend:ACTIVE_BACKEND_NODE,image_model:'gpt-image-2.5-flare',backend_version:sys.system?.comfyui_version??'unknown',transport:describeTransport(client.transport),codex_home_configured:false,workflow_sha256:workflowHash,prompt_sha256:sha256(Buffer.from(PROFILES[profile].prompt)),reference_identity:primary,reference_style:secondary,render_validation:renderValidation,alpha_export:alphaExport,validation,output_filename:saved.filename,model_seed:0,render_budget:budget,visual_identity_approved:false};
+  const provenance={schema:2,status:'AWAITING_HUMAN_BRAND_QA',profile,created_at:new Date().toISOString(),prompt_id:submitted.prompt_id,backend:ACTIVE_BACKEND_NODE,image_model:'gpt-6-luna',backend_version:sys.system?.comfyui_version??'unknown',transport:describeTransport(client.transport),codex_home_configured:false,workflow_sha256:workflowHash,prompt_sha256:sha256(Buffer.from(PROFILES[profile].prompt)),reference_identity:primary,reference_style:secondary,render_validation:renderValidation,alpha_export:alphaExport,validation,output_filename:saved.filename,model_seed:null,render_budget:budget,visual_identity_approved:false};
   await writeFile(join(directory,'provenance.json'),JSON.stringify(provenance,null,2)+'\n',{flag:'wx'});
   return {directory,provenance};
 }

@@ -66,8 +66,9 @@ async function mockComfy({ fail = false, promptId = 'mock-run-123', image = fixt
       if (unauthorized) return send(401, { error: 'unauthorized' });
     }
     if (pathname === '/system_stats') return send(200, { system: { comfyui_version: 'test-mock-only' } });
-    if (pathname === '/object_info/OpenAIGPTImageNodeV2') return send(200, missingNode ? { SomeOtherNode:{} } : { OpenAIGPTImageNodeV2:{} });
+    if (pathname === '/object_info/CodexExecImageGen') return send(200, missingNode ? { SomeOtherNode:{} } : { CodexExecImageGen:{} });
     if (pathname === '/object_info/ImageScale') return send(200, missingScaler ? { SomeOtherNode:{} } : { ImageScale:{} });
+    if (pathname === '/object_info/ImageBatch') return send(200,{ImageBatch:{}});
     if (pathname === '/upload/image') {
       const chunks = [];
       for await (const c of req) chunks.push(c);
@@ -79,7 +80,7 @@ async function mockComfy({ fail = false, promptId = 'mock-run-123', image = fixt
       return send(200, {
         [promptId]: fail
           ? { status: { status_str: 'error', messages: [['execution_error', { node_id: '3', exception_message: 'CodexImageUnavailable' }]] } }
-          : { status: { status_str: 'success' }, outputs: { '5': { images: [{ filename: 'mock.png', subfolder: '', type: 'output' }] } } },
+          : { status: { status_str: 'success' }, outputs: { '8': { images: [{ filename: 'mock.png', subfolder: '', type: 'output' }] } } },
       });
     }
     if (pathname === '/view') return send(200, image, 'image/png');
