@@ -6,3 +6,12 @@ build/
 .env.*
 !.env.example
 *.local
+
+# Generated Python test artifacts (including tests/__pycache__ on the CI runner)
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.coverage
+.venv/

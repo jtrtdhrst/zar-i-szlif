@@ -1,0 +1,39 @@
+{
+  "schema": 1,
+  "owner": "Mascot Factory (ZARI-241)",
+  "notes": "Brand-lock pins for the render service. The identity/style hashes are the documented SHA-256 of the original reference uploads (docs/mascot-factory.md); the graph and prompt hashes are recomputed from scripts/mascot-factory.mjs, so changing a prompt or the graph shape fails readiness instead of silently changing what the model is locked to. A reference that does not hash to its pin is refused: swapping a mount must never pass unnoticed.",
+  "profiles": {
+    "zar": {
+      "identity": {
+        "file": "zar.png",
+        "sha256": "0ef5e535677030f697a75f2d59f8ad8895119ffc85c9f2063374d7e6264d059c",
+        "width": 1254,
+        "height": 1254
+      },
+      "style": {
+        "file": "szlif.png",
+        "sha256": "53e511a27367ee016e9c2def36c528e370d55037263a6aaf43eaf1fba0955094",
+        "width": 1254,
+        "height": 1254
+      },
+      "graph_template_sha256": "5806e69d740091510e4e62f49a16c27c0f83d9675ba2296327fa927c361b1071",
+      "prompt_sha256": "62ed34edd069b050d868b5e2e2745d7e17cf70cbcc68def1803f66612cca2b16"
+    },
+    "szlif": {
+      "identity": {
+        "file": "szlif.png",
+        "sha256": "53e511a27367ee016e9c2def36c528e370d55037263a6aaf43eaf1fba0955094",
+        "width": 1254,
+        "height": 1254
+      },
+      "style": {
+        "file": "zar.png",
+        "sha256": "0ef5e535677030f697a75f2d59f8ad8895119ffc85c9f2063374d7e6264d059c",
+        "width": 1254,
+        "height": 1254
+      },
+      "graph_template_sha256": "a8566b94ded28e94ea8a5d503001eafa67944f22bae70bb3e7a620a0ea4d5718",
+      "prompt_sha256": "56343df319a2ea26abe5926e3b4677e037d89ecc3c3d4528099ee20130bd7864"
+    }
+  }
+}

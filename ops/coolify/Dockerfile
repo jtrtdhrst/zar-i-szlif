@@ -66,6 +66,8 @@ COPY ops/coolify/nginx.conf /etc/nginx/conf.d/default.conf
 COPY ops/coolify/40-release-provenance.sh /docker-entrypoint.d/40-release-provenance.sh
 RUN chmod +x /docker-entrypoint.d/40-release-provenance.sh
 
+LABEL org.zariszlif.release-gate="multica-native-20261112"
+
 EXPOSE 80
 
 # Source-path webhook deployment test: 2026-11-02, no runtime behavior change.

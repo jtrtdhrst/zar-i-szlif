@@ -1,8 +1,13 @@
 import { readFile, writeFile } from "node:fs/promises";
 
-const LOGO_URL = "https://baza-zabaw.milosz-spyrka.workers.dev/logo.png";
+// The ChatGPT widget is cross-origin, so the panel's same-origin logo asset
+// (`/kompas-logo.png`, shipped in `app/web/dist`) must be rewritten to an
+// absolute URL. Keep it on the public panel host that actually serves that
+// file; the previous `baza-zabaw.milosz-spyrka.workers.dev` host is gone and
+// returned HTTP 404, which left an empty logo box in the widget.
+const LOGO_URL = "https://panel.zariszlif.pl/kompas-logo.png";
 const widget = (await readFile("../web/dist/index.html", "utf8"))
-  .replace(/<img[^>]*src="kompas-logo\.png"[^>]*>/, `<img src="${LOGO_URL}" alt="Kompas Zbiórek"/>`)
+  .replace(/<img[^>]*src="\/kompas-logo\.png"[^>]*>/, `<img src="${LOGO_URL}" alt="Kompas Zbiórek"/>`)
   .replace('<head>', `<head><link rel="icon" type="image/png" href="${LOGO_URL}"/>`);
 
 // Generowany entrypoint jest cienki: logika OAuth leży w src/oauth.ts, logika

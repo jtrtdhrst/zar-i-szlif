@@ -19,6 +19,9 @@ const RELEASE_RULES = [
   { re: /^vercel\.json$/, targets: ["frontend"] },
   { re: /^app\/web\//, targets: ["frontend"] },
   { re: /^app\/cloudflare-worker\//, targets: ["cloudflare"] },
+  { re: /^app\/mcp-worker\//, targets: ["mcp"] },
+  // Website scaffold: validate:website fails closed until a real lane exists.
+  { re: /^app\/website\//, targets: ["website"] },
   // app/plugin is compiled into the frontend build (tsc -p plugin/tsconfig.json)
   // and bundled into the Worker (src/mcp.ts -> ../../plugin/server.js), so it
   // is genuinely shared and both gates apply.
@@ -33,6 +36,10 @@ const RELEASE_RULES = [
   // otherwise non-release, but these files are release infrastructure: the
   // frontend gate owns them, they must not be silently skipped.
   { re: /^ops\/coolify\//, targets: ["frontend"] },
+  // Public site surfaces and their analytics adapters.
+  { re: /^www\//, targets: ["www"] },
+  { re: /^product\//, targets: ["www"] },
+  { re: /^mcp\//, targets: ["www"] },
 ];
 
 // Docs/non-release-only: minimum canonical repo validation, never provider auth.
@@ -46,7 +53,6 @@ const NON_RELEASE_RULES = [
   // Standalone MCP services (own Dockerfiles, deployed by Coolify/Cloudflare, not
   // by the frontend/worker pipelines). They own no provider gate here; their
   // correctness is proven by their own image build + MCP handshake.
-  /^mcp\//,
   /^skills\//,
   /^supabase\//,
   /^registry\//,
@@ -78,6 +84,9 @@ export function classifyTargets(paths) {
   const scripts = [];
   if (targets.has("frontend")) scripts.push("validate:frontend");
   if (targets.has("cloudflare")) scripts.push("validate:worker");
+  if (targets.has("mcp")) scripts.push("validate:mcp");
+  if (targets.has("www")) scripts.push("validate:www");
+  if (targets.has("website")) scripts.push("validate:website");
   if (scripts.length === 0) {
     // Either docs-only or an empty diff. Minimum canonical repo validation,
     // never a provider gate: requirement 2 forbids inventing provider auth.

@@ -1,4 +1,9 @@
 name: Product CI
+# RELEASE_OWNER: native-paperclip-product-promotion-v1
+# This workflow validates source but NEVER advances ci-approved or deploys.
+# Reviewed promotion is performed by the versioned Ubuntu controller only after
+# verifying each merged main PR, first-class Paperclip decision, exact SHA/CI
+# and Coolify HTTP readback. See Harness KOMAA-1513 and Product KOMAA-1611.
 
 on:
   pull_request:
@@ -12,6 +17,7 @@ on:
       - "scripts/**"
       - "tests/**"
       - "product/**"
+      - "www/**"
       - "mcp/**"
       - "package.json"
       - "package-lock.json"
@@ -27,6 +33,8 @@ jobs:
     timeout-minutes: 25
     steps:
       - uses: actions/checkout@v4
+      - name: Enforce external reviewed-promotion contract
+        run: python3 -m unittest discover -s tests -p test_release_promotion_contract.py -v
       - uses: actions/setup-node@v4
         with:
           node-version: "24"
@@ -52,46 +60,3 @@ jobs:
             exit 1
           fi
           grep -q 'release provenance unavailable' /tmp/negative-release.log
-  promote-release:
-    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
-    needs: validate-product
-    runs-on: ubuntu-latest
-    timeout-minutes: 5
-    permissions:
-      contents: write
-    steps:
-      - uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
-          persist-credentials: true
-      - name: Fast-forward CI-approved release ref (no forced updates)
-        run: |
-          set -euo pipefail
-          git fetch --no-tags origin refs/heads/main:refs/remotes/origin/main refs/heads/ci-approved:refs/remotes/origin/ci-approved
-          test "$(git rev-parse refs/remotes/origin/main)" = "$GITHUB_SHA"
-          git merge-base --is-ancestor refs/remotes/origin/ci-approved "$GITHUB_SHA"
-          git push origin "$GITHUB_SHA:refs/heads/ci-approved"
-  verify-production:
-    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
-    needs: promote-release
-    runs-on: ubuntu-latest
-    timeout-minutes: 8
-    steps:
-      - name: Await the matching SHA on real production HTTP
-        env:
-          EXPECTED_SHA: ${{ github.sha }}
-        run: |
-          set -euo pipefail
-          for attempt in $(seq 1 36); do
-            if curl --fail --silent --show-error --max-time 10 --retry 0 \
-              -H 'Cache-Control: no-cache' \
-              'https://panel.zariszlif.pl/__release.json' -o /tmp/production-release.json \
-              && python3 -c 'import json,os; a=json.load(open("/tmp/production-release.json")); assert a["commit"]==os.environ["EXPECTED_SHA"], "production SHA mismatch"; assert a["source"]=="zar-i-szlif/main"'; then
-              printf 'PASS production SHA=%s\n' "$EXPECTED_SHA"
-              exit 0
-            fi
-            echo "Production not yet serving the exact verified main SHA (attempt $attempt/36)"
-            sleep 10
-          done
-          echo 'FAIL: production did not serve the exact main SHA' >&2
-          exit 1
