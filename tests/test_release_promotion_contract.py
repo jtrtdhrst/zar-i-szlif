@@ -54,6 +54,17 @@ class ReleaseContractTests(unittest.TestCase):
         self.assertIn("docker build --file ops/coolify/Dockerfile --target build", self.source)
         self.assertIn("docker run --rm --network none", self.source)
 
+    def test_product_ci_tags_are_unique_per_run_attempt(self):
+        for tag in ("CI_BUILD_TAG", "CI_VALIDATION_TAG", "CI_VERIFIED_TAG"):
+            self.assertIn(tag + ": product-ci:", self.source)
+        self.assertIn("${{ github.run_id }}", self.source)
+        self.assertIn("${{ github.run_attempt }}", self.source)
+        self.assertIn("--build-arg \"SOURCE_BUILD_IMAGE=$CI_BUILD_TAG\"", self.source)
+        self.assertIn('name="$CI_CANARY_NAME"', self.source)
+        self.assertNotIn("--tag product-ci:build", self.source)
+        self.assertNotIn("--tag product-ci:validation", self.source)
+        self.assertNotIn("--tag product-ci:verified", self.source)
+
     def test_global_token_is_read_only(self):
         self.assertIn("permissions:\n  contents: read\n", self.source)
 
