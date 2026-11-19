@@ -53,12 +53,8 @@ jobs:
           persist-credentials: false
       - name: Enforce external reviewed-promotion contract
         run: python3 -m unittest discover -s tests -p test_release_promotion_contract.py -v
-      - uses: actions/setup-node@v4
-        with:
-          node-version: "24"
-          cache: npm
-      - name: Install locked dependencies
-        run: npm ci --include=dev --no-audit --no-fund
+      # Dependency installation happens only inside the rootless Docker build;
+      # never run package lifecycle scripts directly on the persistent runner.
       - name: Product lint, typecheck and tests (no host loopback access)
         run: |
           set -euo pipefail
