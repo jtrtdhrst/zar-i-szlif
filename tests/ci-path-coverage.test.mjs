@@ -103,8 +103,8 @@ test("Product CI isolates localhost tests from host services and excludes checko
     "utf8",
   );
   assert.match(workflow, /persist-credentials: false/);
-  assert.doesNotMatch(workflow, /actions\\/setup-node@/);
-  assert.doesNotMatch(workflow, /run:\\s*npm ci/);
+  assert.doesNotMatch(workflow, /actions\/setup-node@/);
+  assert.doesNotMatch(workflow, /run:\s*npm ci/);
   assert.doesNotMatch(workflow, /- name: Install locked dependencies/);
   assert.match(workflow, /docker build --file ops\/coolify\/Dockerfile --target build --tag product-ci:build/);
   assert.match(workflow, /docker build --file ops\/coolify\/Dockerfile\.ci --tag product-ci:validation/);
