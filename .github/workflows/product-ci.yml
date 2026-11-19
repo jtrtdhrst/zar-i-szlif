@@ -6,7 +6,6 @@ name: Product CI
 # and Coolify HTTP readback. See Harness KOMAA-1513 and Product KOMAA-1611.
 
 on:
-  pull_request:
   push:
     branches: [main]
     paths:
@@ -29,34 +28,64 @@ permissions:
 
 jobs:
   validate-product:
-    runs-on: ubuntu-latest
+    # Only reviewed main code may run on a persistent self-hosted runner.
+    # GitHub PR source runs must use separately authorized root-owned LOCAL CI,
+    # never PR-controlled workflow YAML. Independent CTO reviews exact head SHA.
+    if: github.ref == 'refs/heads/main' && (github.event_name == 'push' || github.event_name == 'workflow_dispatch')
+    runs-on: [self-hosted, Linux, X64, zis-local-build]
     timeout-minutes: 25
+    env:
+      DOCKER_HOST: unix:///run/zis-rootless-docker/docker.sock
+      CI_BUILD_TAG: product-ci:${{ github.sha }}-${{ github.run_id }}-${{ github.run_attempt }}-build
+      CI_VALIDATION_TAG: product-ci:${{ github.sha }}-${{ github.run_id }}-${{ github.run_attempt }}-validation
+      CI_VERIFIED_TAG: product-ci:${{ github.sha }}-${{ github.run_id }}-${{ github.run_attempt }}-verified
+      CI_CANARY_NAME: product-ci-release-check-${{ github.run_id }}-${{ github.run_attempt }}
     steps:
+      - name: Defense in depth - root-owned main-only admission and rootless isolation
+        run: |
+          set -euo pipefail
+          test "${GITHUB_REF}" = 'refs/heads/main'
+          [[ "${GITHUB_EVENT_NAME}" == 'push' || "${GITHUB_EVENT_NAME}" == 'workflow_dispatch' ]]
+          test "${GITHUB_REPOSITORY}" = 'miloszspyrka-code/zar-i-szlif'
+          test "$(id -un)" = actions-zis-product
+          test -S /run/zis-rootless-docker/docker.sock
+          docker info --format '{{json .SecurityOptions}}' | grep -q rootless
+          ! test -w /var/run/docker.sock
+          ! test -r /opt/zis-actions-runner-harness/.credentials
       - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
       - name: Enforce external reviewed-promotion contract
         run: python3 -m unittest discover -s tests -p test_release_promotion_contract.py -v
-      - uses: actions/setup-node@v4
-        with:
-          node-version: "24"
-          cache: npm
-      - name: Install locked dependencies
-        run: npm ci --include=dev --no-audit --no-fund
-      - name: Product lint, typecheck and tests
-        run: npm run validate:code
+      # Dependency installation happens only inside the rootless Docker build;
+      # never run package lifecycle scripts directly on the persistent runner.
+      - name: Product lint, typecheck and tests (no host loopback access)
+        run: |
+          set -euo pipefail
+          # Build dependencies have normal outbound access inside rootless Docker.
+          # The actual tests run in a separate container with NO network,
+          # preserving their own 127.0.0.1 mock servers without touching the VPS.
+          docker build --file ops/coolify/Dockerfile --target build --tag "$CI_BUILD_TAG" .
+          docker build --file ops/coolify/Dockerfile.ci --build-arg "SOURCE_BUILD_IMAGE=$CI_BUILD_TAG" --tag "$CI_VALIDATION_TAG" .
+          docker run --rm --network none \
+            --cap-drop ALL --security-opt no-new-privileges \
+            --pids-limit 512 --memory 5g \
+            --env npm_config_offline=true \
+            "$CI_VALIDATION_TAG" sh -c 'npm run validate:code'
       - name: Reproducible Coolify container build
-        run: docker build --file ops/coolify/Dockerfile --tag product-ci:verified .
+        run: docker build --file ops/coolify/Dockerfile --tag "$CI_VERIFIED_TAG" .
       - name: Verify source SHA is emitted by the real nginx entrypoint
         run: |
           set -euo pipefail
-          name=product-ci-release-check
+          name="$CI_CANARY_NAME"
           trap 'docker rm -f "$name" >/dev/null 2>&1 || true' EXIT
-          docker run -d --name "$name" --network none -e SOURCE_COMMIT="${GITHUB_SHA}" product-ci:verified
-          docker exec "$name" cat /usr/share/nginx/html/__release.json > /tmp/release.json
-          python3 -c 'import json,os; x=json.load(open("/tmp/release.json")); assert x["commit"]==os.environ["GITHUB_SHA"], "wrong image source SHA"; assert x["source"]=="zar-i-szlif/main"'
+          docker run -d --name "$name" --network none -e SOURCE_COMMIT="${GITHUB_SHA}" "$CI_VERIFIED_TAG"
+          docker exec "$name" cat /usr/share/nginx/html/__release.json | python3 -c 'import json,os,sys; x=json.load(sys.stdin); assert x["commit"]==os.environ["GITHUB_SHA"], "wrong image source SHA"; assert x["source"]=="zar-i-szlif/main"'
       - name: Reject versionless container starts
         run: |
-          if docker run --rm --network none product-ci:verified > /tmp/negative-release.log 2>&1; then
+          negative="${RUNNER_TEMP}/negative-release-${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}.log"
+          if docker run --rm --network none "$CI_VERIFIED_TAG" > "$negative" 2>&1; then
             echo 'FAIL: missing SOURCE_COMMIT must prevent startup' >&2
             exit 1
           fi
-          grep -q 'release provenance unavailable' /tmp/negative-release.log
+          grep -q 'release provenance unavailable' "$negative"
