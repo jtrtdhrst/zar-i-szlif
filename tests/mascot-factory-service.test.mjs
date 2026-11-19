@@ -48,7 +48,7 @@ function baseEnv(overrides = {}) {
   };
 }
 
-async function mockComfy({ fail = false, promptId = 'mock-run-123', image = fixture(), unauthorized = false, missingNode = false, missingScaler = false, hang = false } = {}) {
+async function mockComfy({ fail = false, promptId = 'mock-run-123', image = fixture(), unauthorized = false, missingNode = false, missingScaler = false, missingBatch = false, hang = false } = {}) {
   let submissions = 0;
   let probes = 0;
   const s = createServer(async (req, res) => {
@@ -68,7 +68,7 @@ async function mockComfy({ fail = false, promptId = 'mock-run-123', image = fixt
     if (pathname === '/system_stats') return send(200, { system: { comfyui_version: 'test-mock-only' } });
     if (pathname === '/object_info/CodexExecImageGen') return send(200, missingNode ? { SomeOtherNode:{} } : { CodexExecImageGen:{} });
     if (pathname === '/object_info/ImageScale') return send(200, missingScaler ? { SomeOtherNode:{} } : { ImageScale:{} });
-    if (pathname === '/object_info/ImageBatch') return send(200,{ImageBatch:{}});
+    if (pathname === '/object_info/ImageBatch') return send(200,missingBatch ? { SomeOtherNode:{} } : {ImageBatch:{}});
     if (pathname === '/upload/image') {
       const chunks = [];
       for await (const c of req) chunks.push(c);
@@ -295,6 +295,7 @@ test('readiness probes the real backend and fails closed when it is down, unauth
     { name: 'credential rejected', mock: await mockComfy({ unauthorized: true }), expect: 'BACKEND_UNAUTHORIZED' },
     { name: 'generation node missing', mock: await mockComfy({ missingNode: true }), expect: 'BACKEND_NODE_MISSING' },
     { name: 'required scaler missing', mock: await mockComfy({ missingScaler: true }), expect: 'BACKEND_SCALER_MISSING' },
+    { name: 'reference batch missing', mock: await mockComfy({ missingBatch: true }), expect: 'BACKEND_BATCH_MISSING' },
     { name: 'backend never answers', mock: await mockComfy({ hang: true }), env: { MASCOT_FACTORY_PROBE_TIMEOUT_MS: '200' }, expect: 'BACKEND_TIMEOUT' },
   ];
   for (const testCase of cases) {
