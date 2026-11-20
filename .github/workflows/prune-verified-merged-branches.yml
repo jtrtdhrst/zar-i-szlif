@@ -20,7 +20,7 @@ jobs:
       - name: Delete only verified, already-merged, main-ancestor branches
         shell: bash
         env:
-          GH_TOKEN: \${{ github.token }}
+          GH_TOKEN: ${{ github.token }}
         run: |
           set -euo pipefail
           python3 - <<'PY'
@@ -109,5 +109,5 @@ jobs:
           with open(os.environ["GITHUB_STEP_SUMMARY"], "a") as out:
               out.write(f"## Verified branch cleanup\n\nDeleted **{len(deleted)}** of {len(branches)} branches. "
                         "Branches with open PRs, unique commits, protected refs and Coolify dependencies were preserved.\n\n")
-              out.writelines("- \`" + x + "\`\n" for x in deleted)
+              out.writelines("- `" + x + "`\n" for x in deleted)
           PY
