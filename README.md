@@ -11,7 +11,7 @@ Repozytorium **`miloszspyrka-code/zar-i-szlif`** jest właścicielem kodu produk
 | `www/mcp/` | Strona opisująca podłączenie MCP; nie jest niezależnym serwerem |
 | `mcp/` | Wyłącznie serwer, narzędzia i integracje MCP specyficzne dla Żar i Szlif |
 
-W `mcp/` są obecnie pomocnicze pliki PostHog, a pełne źródła produktowego MCP są jeszcze do przeniesienia z zatwierdzonego źródła/archiwum. Nie należy przedstawiać tego katalogu jako wdrożonego kompletnego serwera MCP.
+W `mcp/product-host/` znajduje się źródło produktowego MCP (Node.js/TypeScript, narzędzia tylko do odczytu katalogu `sprawnosci`, sesje Supabase JWT, testy i Dockerfile). Funkcjonalność źródłowa została scalona m.in. w Product PR #168–#172. Dokumentacja implementacji: [`mcp/product-host/README.md`](mcp/product-host/README.md). **Obecność kodu na `main` i scalenie PR nie potwierdzają działającego wdrożenia.** Stan produkcji trzeba osobno sprawdzić w Coolify i przez uwierzytelnione testy MCP; nie należy polegać na historycznych opisach lub nazwach gałęzi.
 
 ## Właściciel infrastruktury
 
