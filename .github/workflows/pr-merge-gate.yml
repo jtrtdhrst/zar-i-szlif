@@ -1,0 +1,38 @@
+name: PR Merge Gate
+
+on:
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/pr-merge-gate.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  pr-baseline:
+    name: PR baseline
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Checkout untrusted source without persisted credentials
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 2
+          persist-credentials: false
+      - name: Check changed files without executing PR code
+        shell: bash
+        run: |
+          set -euo pipefail
+          git diff --check HEAD^1 HEAD
+          while IFS= read -r -d '' file; do
+            [[ -f "$file" ]] || continue
+            case "$file" in
+              *.py) python3 -m py_compile "$file" ;;
+              *.sh) bash -n "$file" ;;
+              *.mjs|*.cjs) node --check "$file" ;;
+            esac
+          done < <(git diff --name-only -z --diff-filter=ACMR HEAD^1 HEAD)
