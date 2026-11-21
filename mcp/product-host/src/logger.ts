@@ -49,10 +49,3 @@ export function createLogger(level: LogLevel, sink: LogSink = (line) => console.
     error: (message, fields) => emit("error", message, fields),
   };
 }
-
-export const silentLogger: Logger = {
-  debug: () => {},
-  info: () => {},
-  warn: () => {},
-  error: () => {},
-};
