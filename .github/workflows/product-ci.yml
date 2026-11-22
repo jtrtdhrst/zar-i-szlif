@@ -80,7 +80,7 @@ jobs:
           name="$CI_CANARY_NAME"
           trap 'docker rm -f "$name" >/dev/null 2>&1 || true' EXIT
           docker run -d --name "$name" --network none -e SOURCE_COMMIT="${GITHUB_SHA}" "$CI_VERIFIED_TAG"
-          docker exec "$name" cat /usr/share/nginx/html/__release.json | python3 -c 'import json,os,sys; x=json.load(sys.stdin); assert x["commit"]==os.environ["GITHUB_SHA"], "wrong image source SHA"; assert x["source"]=="zar-i-szlif/main"'
+          docker exec "$name" cat /usr/share/nginx/html/__release.json | python3 -c 'import json,os,sys; x=json.load(sys.stdin); assert x["commit"]==os.environ["GITHUB_SHA"], "wrong image source SHA"; assert x["source"]=="jtrtdhrst/zar-i-szlif"'
       - name: Reject versionless container starts
         run: |
           negative="${RUNNER_TEMP}/negative-release-${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}.log"
