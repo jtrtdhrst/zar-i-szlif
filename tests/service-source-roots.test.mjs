@@ -1,0 +1,45 @@
+import test from 'node:test';
+import assert from 'node:assert/strict';
+import { readFileSync, existsSync } from 'node:fs';
+import { resolve, dirname } from 'node:path';
+
+const repo = resolve(import.meta.dirname, '..');
+const file = JSON.parse(readFileSync(resolve(repo, 'ops/service-build-roots.json'), 'utf8'));
+
+test('exactly all five Product Coolify resources have distinct UUID routes', () => {
+  assert.equal(file.schema_version, 1);
+  assert.equal(file.source_repository, 'jtrtdhrst/zar-i-szlif');
+  assert.equal(file.resources.length, 5);
+  assert.equal(new Set(file.resources.map(x => x.id)).size, 5);
+  assert.equal(new Set(file.resources.map(x => x.uuid)).size, 5);
+});
+
+test('source roots never point to repository root or escape source ownership', () => {
+  for (const resource of file.resources) {
+    assert.match(resource.uuid, /^[a-z0-9]{24}$/);
+    assert.ok(resource.source_root && resource.source_root !== '/' && resource.source_root !== '.');
+    assert.ok(!resource.source_root.includes('..'));
+    assert.ok(existsSync(resolve(repo, resource.source_root)), resource.source_root);
+    assert.ok(resource.build_dockerfile.startsWith(resource.source_root + '/'));
+    if (resource.source_build_ready) {
+      assert.ok(existsSync(resolve(repo, resource.build_dockerfile)));
+    } else {
+      assert.ok(resource.reason.length > 30);
+    }
+  }
+});
+
+test('product MCP host Dockerfile can only copy files within mcp/product-host', () => {
+  const owned = file.resources.filter(x => x.source_build_ready);
+  assert.deepEqual(new Set(owned.map(x => x.source_root)), new Set(['mcp/product-host']));
+  const dockerfile = readFileSync(resolve(repo, 'mcp/product-host/Dockerfile'), 'utf8');
+  assert.doesNotMatch(dockerfile, /^\s*(?:COPY|ADD)\s+.*\.\.\//m);
+  assert.doesNotMatch(dockerfile, /^\s*(?:COPY|ADD)\s+.*(?:ops\/|scripts\/)/m);
+});
+
+test('web and mascot source builds are explicitly blocked until root context is removed', () => {
+  for (const id of ['zar-i-szlif-web','zar-i-szlif-mascot-worker','zar-i-szlif-image-canary']) {
+    const r = file.resources.find(x => x.id === id);
+    assert.equal(r.source_build_ready, false);
+  }
+});
