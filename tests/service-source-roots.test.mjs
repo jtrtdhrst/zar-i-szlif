@@ -37,7 +37,7 @@ test('Product MCP host Dockerfile copies no external source', () => {
 
 test('web and its canary use one app/web context with explicitly named shared sources', () => {
   const roots = file.resources.filter(x => x.source_build_ready).map(x => x.source_root);
-  assert.deepEqual(new Set(roots), new Set(['app/web','mcp/product-host']));
+  assert.deepEqual(new Set(roots), new Set(['app/web','mcp/product-host','ops/mascot-worker']));
   for (const id of ['zar-i-szlif-web','zar-i-szlif-image-canary']) {
     const route = file.resources.find(x => x.id === id);
     assert.equal(route.source_build_ready, true);
