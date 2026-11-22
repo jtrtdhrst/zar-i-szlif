@@ -13,6 +13,8 @@ on:
       - "registry/**"
       - "content/**"
       - "ops/coolify/**"
+      - "ops/mascot-worker/**"
+      - "ops/service-build-roots.json"
       - "scripts/**"
       - "tests/**"
       - "product/**"
