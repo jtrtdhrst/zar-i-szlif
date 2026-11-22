@@ -26,6 +26,17 @@ class ReleaseContractTests(unittest.TestCase):
         self.assertIn("'jtrtdhrst/zar-i-szlif'", self.source)
         self.assertNotIn("miloszspyrka-code/zar-i-szlif", self.source)
 
+    def test_main_checkout_must_match_workflow_sha_before_source_execution(self):
+        self.assertIn("Verify checked-out main SHA before executing repository code", self.source)
+        self.assertIn('test "$(git rev-parse --verify HEAD)" = "$GITHUB_SHA"', self.source)
+        self.assertIn(
+            'test "$(git rev-parse --verify HEAD)" = "$(git rev-parse --verify refs/remotes/origin/main)"',
+            self.source,
+        )
+        verification = self.source.index("Verify checked-out main SHA before executing repository code")
+        validation = self.source.index("Enforce external reviewed-promotion contract")
+        self.assertLess(verification, validation)
+
     def test_no_automatic_ref_write_or_direct_deployment(self):
         for forbidden in ("  promote-release:", "  verify-production:",
                           "contents: write", "git push origin",
