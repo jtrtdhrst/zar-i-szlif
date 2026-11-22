@@ -6,7 +6,7 @@ on:
     branches: [main]
     paths:
       - 'app/web/**'
-      - 'registry/kompas/**'
+      - 'registry/**'
       - 'ops/coolify/**'
       - '.github/workflows/product-web-owned-image.yml'
   workflow_dispatch:
