@@ -129,12 +129,12 @@ test('offline full-repository validation keeps npm cache inside disposable volum
 
 test('web OCI push watch covers every named registry input and only its source dependencies', () => {
   const workflow = readFileSync(resolve(repo, '.github/workflows/product-web-owned-image.yml'), 'utf8');
-  assert.match(workflow, /branches: \\[main\\]/);
+  assert.ok(workflow.includes('branches: [main]'));
   for (const source of ['app/web/**', 'registry/**', 'ops/coolify/**']) {
     assert.ok(workflow.includes(`- '${source}'`), `missing push watch: ${source}`);
   }
   assert.ok(!workflow.includes("'registry/kompas/**'"), 'subfolder-only watch silently misses other registry inputs');
-  assert.match(workflow, /--build-context registry=\\.\\/registry/);
-  assert.match(workflow, /--build-context config=\\.\\/ops\\/coolify/);
-  assert.match(workflow, /--tag "\\$IMAGE" app\\/web/);
+  assert.ok(workflow.includes('--build-context registry=./registry'));
+  assert.ok(workflow.includes('--build-context config=./ops/coolify'));
+  assert.ok(workflow.includes('--tag "$IMAGE" app/web'));
 });
