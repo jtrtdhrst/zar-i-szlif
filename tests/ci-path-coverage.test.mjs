@@ -46,6 +46,11 @@ test("each deployable product root resolves to its own lane", () => {
   }
 });
 
+test("runner admission changes trigger Product CI and use the code lane", () => {
+  assert.equal(classifyPath("ops/ci/zis-product-runner-admission.sh"), "code");
+  assert.match(workflow, /- "ops\\/ci\\/\\*\\*"/);
+});
+
 test("the host product MCP lane wins over the broad mcp/** rule", () => {
   assert.equal(classifyPath("mcp/product-host/src/http.ts"), "mcp-host");
   assert.equal(classifyPath("mcp/posthog.server.mjs"), "www");
