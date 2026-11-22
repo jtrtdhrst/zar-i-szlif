@@ -80,3 +80,38 @@ test('trusted main release CI verifies the same canonical source as the image', 
   assert.ok(entrypoint.includes('"source":"jtrtdhrst/zar-i-szlif"'));
   assert.ok(!workflow.includes('x["source"]=="zar-i-szlif/main"'));
 });
+
+
+test('Product CI builds with source-owned contexts, not the repository root', () => {
+  const workflow = readFileSync(resolve(repo, '.github/workflows/product-ci.yml'), 'utf8');
+  assert.match(workflow, /test "\$\{GITHUB_REPOSITORY\}" = 'jtrtdhrst\/zar-i-szlif'/);
+  assert.match(workflow, /--file app\/web\/Dockerfile[\s\S]*?--tag "\$CI_VERIFIED_TAG" app\/web/);
+  assert.match(workflow, /docker build --file ops\/coolify\/Dockerfile\.ci --tag "\$CI_VALIDATION_TAG" ops\/coolify/);
+  assert.doesNotMatch(workflow, /docker build[^\n]*\s\.(?:\s|$)/m);
+  assert.match(workflow, /ops\/mascot-worker\/\*\*/);
+  assert.match(workflow, /ops\/service-build-roots\.json/);
+});
+
+test('all three source-owned OCI lanes verify the published SHA and digest', () => {
+  const jobs = [
+    ['product-web-owned-image.yml', 'app/web'],
+    ['product-host-owned-image.yml', 'mcp/product-host'],
+    ['product-mascot-owned-image.yml', 'ops/mascot-worker']
+  ];
+  for (const [file, root] of jobs) {
+    const workflow = readFileSync(resolve(repo, '.github/workflows', file), 'utf8');
+    assert.ok(workflow.includes('docker manifest inspect "$ref"'), file);
+    assert.ok(workflow.includes('org.opencontainers.image.revision'), file);
+    assert.ok(workflow.includes('Missing immutable registry digest'), file);
+    assert.ok(workflow.includes(root), file);
+    assert.doesNotMatch(workflow, /docker build[^\n]*\s\.(?:\s|$)/m);
+  }
+});
+
+test('Mascot isolated smoke is resource bounded, verifies readiness and never renders', () => {
+  const workflow = readFileSync(resolve(repo, '.github/workflows/product-mascot-owned-image.yml'), 'utf8');
+  assert.match(workflow, /--memory 384m --memory-swap 384m/);
+  assert.match(workflow, /readyz/);
+  assert.match(workflow, /readiness\.status!==503/);
+  assert.doesNotMatch(workflow, /\/prompt/);
+});
