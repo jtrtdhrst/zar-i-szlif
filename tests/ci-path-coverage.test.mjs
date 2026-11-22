@@ -114,7 +114,8 @@ test("Product CI isolates localhost tests from host services and excludes checko
   assert.match(ciDockerfile, /^FROM node:24-bookworm-slim$/m);
   assert.match(workflow, /--mount "type=volume,src=\$volume,dst=\/workspace"/);
   assert.match(ciDockerfile, /apt-get install[^\n]*git/);
-  assert.match(workflow, /npm --prefix mcp\/product-host ci --no-audit --no-fund/);\n  assert.match(ciDockerfile, /NPM_CONFIG_CACHE=\/workspace\/\.npm-cache/);
+  assert.match(workflow, /npm --prefix mcp\/product-host ci --no-audit --no-fund/);
+  assert.match(ciDockerfile, /NPM_CONFIG_CACHE=\/workspace\/\.npm-cache/);
 });
 
 test("Product CI isolates Docker tags, canary names and logs per run and attempt", () => {
