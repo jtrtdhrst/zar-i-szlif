@@ -21,6 +21,11 @@ class ReleaseContractTests(unittest.TestCase):
         self.assertIn("RELEASE_OWNER: native-paperclip-product-promotion-v1", self.source)
         self.assertIn("Enforce external reviewed-promotion contract", self.source)
 
+    def test_ci_repository_owner_matches_current_canonical_source(self):
+        self.assertIn("GITHUB_REPOSITORY", self.source)
+        self.assertIn("'jtrtdhrst/zar-i-szlif'", self.source)
+        self.assertNotIn("miloszspyrka-code/zar-i-szlif", self.source)
+
     def test_no_automatic_ref_write_or_direct_deployment(self):
         for forbidden in ("  promote-release:", "  verify-production:",
                           "contents: write", "git push origin",
