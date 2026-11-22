@@ -62,7 +62,7 @@ jobs:
             test "$(wget -q -O - http://127.0.0.1/healthz)" = ok
           '
           docker exec "$id" sh -ec 'wget -q -O - http://127.0.0.1/__release.json' | \
-            node -e 'let s="";process.stdin.on("data",x=>s+=x).on("end",()=>{const v=JSON.parse(s);if(v.commit!==process.env.GITHUB_SHA||v.source!=="zar-i-szlif/main")process.exit(1)})'
+            node -e 'let s="";process.stdin.on("data",x=>s+=x).on("end",()=>{const v=JSON.parse(s);if(v.commit!==process.env.GITHUB_SHA||v.source!=="jtrtdhrst/zar-i-szlif")process.exit(1)})'
           docker rm -f "$id" >/dev/null
           trap - EXIT
           status=0
