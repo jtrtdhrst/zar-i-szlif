@@ -53,7 +53,8 @@ test('Mascot Worker owns its entire runtime source tree', () => {
   const mascot = file.resources.find(x => x.id === 'zar-i-szlif-mascot-worker');
   assert.equal(mascot.source_build_ready, true);
   const dockerfile = readFileSync(resolve(repo, mascot.build_dockerfile), 'utf8');
-  assert.doesNotMatch(dockerfile, /^COPY\\s+(?:scripts\\/|ops\\/|\\.\\.\\/)/m);
+  const copies = dockerfile.split('\n').filter(line => line.startsWith('COPY '));
+  assert.ok(copies.every(line => !line.includes('scripts/') && !line.includes('ops/') && !line.includes('../')));
   for (const name of ['mascot-factory.mjs', 'mascot-factory-service.mjs', 'reference-pins.json']) {
     assert.ok(existsSync(resolve(repo, mascot.source_root, name)));
   }
