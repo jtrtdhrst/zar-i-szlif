@@ -67,6 +67,10 @@ jobs:
             if(rel.status!==200||(await rel.json()).commit!==process.env.SOURCE_COMMIT)process.exit(4);
             console.log("MASCOT_OWNED_E2E_PASS: 200 liveness, 503 backend unavailable, 401 missing bearer, exact SHA");
           '
+          # Verify cgroup result before cleanup; exit 137/OOM must not pass smoke.
+          test "$(docker inspect --format '{{.State.Running}}' "$id")" = true
+          test "$(docker inspect --format '{{.State.OOMKilled}}' "$id")" = false
+          docker image inspect --format '{{json .Config.Healthcheck.Test}}' "$IMAGE" | grep -q 'healthz'
       - name: Publish immutable-source image (no production deploy)
         shell: bash
         env:
