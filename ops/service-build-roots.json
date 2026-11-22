@@ -22,8 +22,8 @@
       "uuid": "e8rnh91jkim7cladg7lqdmfu",
       "source_root": "ops/mascot-worker",
       "build_dockerfile": "ops/mascot-worker/Dockerfile",
-      "source_build_ready": false,
-      "reason": "Dockerfile currently copies scripts/mascot-factory*.mjs outside its own context; relocate sources with an atomic import migration."
+      "source_build_ready": true,
+      "reason": "Code and Dockerfile now reside under ops/mascot-worker; scripts/ paths only re-export compatibility modules. Source-owned build and rootless container smoke must pass before approval."
     },
     {
       "id": "zar-i-szlif-mcp-host",

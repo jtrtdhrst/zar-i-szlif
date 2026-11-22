@@ -7,7 +7,7 @@ the static panel (`zar-i-szlif-web`, `ops/coolify/Dockerfile`). This service is 
 separate image and must never be smuggled into that one: the panel image is, and
 stays, a static nginx site.
 
-The problem this exists to fix: `scripts/mascot-factory.mjs` was merged, but the
+The problem this exists to fix: `ops/mascot-worker/mascot-factory.mjs` was merged, but the
 only deployed image served `app/web/dist` through nginx, so the Mascot Factory
 had no executable runtime anywhere in production.
 
@@ -15,8 +15,8 @@ had no executable runtime anywhere in production.
 
 | Path | Role |
 | --- | --- |
-| `scripts/mascot-factory.mjs` | The merged fail-closed runner (transport policy, budget, PNG gate, provenance, verifier). Unchanged behaviour; reused verbatim. |
-| `scripts/mascot-factory-service.mjs` | The long-lived HTTP service wrapping it: liveness, readiness, release provenance, authenticated bounded render, artifact paths. |
+| `ops/mascot-worker/mascot-factory.mjs` | The merged fail-closed runner (transport policy, budget, PNG gate, provenance, verifier). Unchanged behaviour; reused verbatim. |
+| `ops/mascot-worker/mascot-factory-service.mjs` | The long-lived HTTP service wrapping it: liveness, readiness, release provenance, authenticated bounded render, artifact paths. |
 | `ops/mascot-worker/reference-pins.json` | Brand lock: SHA-256 of both reference images plus the pinned prompt and graph-template hashes. |
 | `ops/mascot-worker/Dockerfile` | `node:24-bookworm-slim`, non-root uid 10001, no npm install, no third-party dependency. |
 
@@ -51,7 +51,7 @@ than serving a misconfigured render endpoint.
 | `COMFY_URL` | yes | ComfyUI base URL. A non-loopback endpoint must be `https:` **and** carry a credential, otherwise startup is refused. |
 | `COMFY_API_TOKEN` **or** `CF_ACCESS_CLIENT_ID` + `CF_ACCESS_CLIENT_SECRET` | yes for a remote endpoint | Backend credential, environment only. Never logged, never in provenance, never in a response. |
 | `MASCOT_FACTORY_REFERENCES` | yes (mount) | Read-only directory holding the two reference PNGs named in the pin file (`zar.png`, `szlif.png`). |
-| `MASCOT_FACTORY_REFERENCE_PINS` | default in image | Path to the pin file; the image ships it at `/app/ops/mascot-worker/reference-pins.json`. |
+| `MASCOT_FACTORY_REFERENCE_PINS` | default in image | Path to the pin file; the image ships it at `/app/reference-pins.json`. |
 | `MASCOT_FACTORY_OUT_DIR` | default `/var/lib/mascot-factory/out` | Artifact root. Mount a persistent volume: artifacts and the budget ledger must survive a container replace. |
 | `MASCOT_FACTORY_BUDGET_LEDGER` | default `<out>/.mascot-render-budget.json` | Daily cost ledger. A corrupt/unreadable ledger blocks rendering instead of resetting. |
 | `MASCOT_FACTORY_MAX_RENDERS` | default `2` | Per-UTC-day render budget (stricter than the CLI default of 4; a daemon is unattended). |
@@ -66,7 +66,7 @@ silently change what the model is locked to.
 
 ## Image build
 
-- Context: repository root. Dockerfile location: `/ops/mascot-worker/Dockerfile`.
+- Context: `ops/mascot-worker/` only. Dockerfile location: `/Dockerfile` relative to that context. The previous `scripts/` import paths remain compatibility shims.
 - No package manager step: both scripts use Node's standard library only, so the
   image has no dependency graph to drift from a lockfile.
 - The image runs as uid 10001, exposes `8080`, and carries a `/healthz`
@@ -93,8 +93,7 @@ silently change what the model is locked to.
 
 1. Independent CTO review of the exact PR head SHA (this task ships source only).
 2. Merge by the authorized release controller, then create the Coolify
-   application for this service from `ci-approved`, base directory `/`, Dockerfile
-   `/ops/mascot-worker/Dockerfile`.
+   application for this service from `ci-approved`, base directory `/ops/mascot-worker`, Dockerfile `/Dockerfile`.
 3. Readback required before any claim of production: deployment finished at the
    merge SHA, `/__release.json` `commit` equals the merge SHA, `/healthz` → 200,
    `/readyz` → 200 with an empty `blockers` array **and** `backend.probe: null`

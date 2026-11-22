@@ -49,7 +49,14 @@ test('web and its canary use one app/web context with explicitly named shared so
   assert.doesNotMatch(dockerfile, /^\s*(?:COPY|ADD)\s+.*\.\.\//m);
 });
 
-test('Mascot Worker remains blocked until runtime scripts reside in own folder', () => {
+test('Mascot Worker owns its entire runtime source tree', () => {
   const mascot = file.resources.find(x => x.id === 'zar-i-szlif-mascot-worker');
-  assert.equal(mascot.source_build_ready, false);
+  assert.equal(mascot.source_build_ready, true);
+  const dockerfile = readFileSync(resolve(repo, mascot.build_dockerfile), 'utf8');
+  assert.doesNotMatch(dockerfile, /^COPY\\s+(?:scripts\\/|ops\\/|\\.\\.\\/)/m);
+  for (const name of ['mascot-factory.mjs', 'mascot-factory-service.mjs', 'reference-pins.json']) {
+    assert.ok(existsSync(resolve(repo, mascot.source_root, name)));
+  }
+  const original = readFileSync(resolve(repo, 'scripts/mascot-factory-service.mjs'), 'utf8');
+  assert.match(original, /re-export|Backward-compatible/);
 });

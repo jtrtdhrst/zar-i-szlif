@@ -516,19 +516,19 @@ test('a backend failure or an unsafe prompt id never writes an artifact', async 
   }
 });
 
-test('the deployment image is non-root, health-checked and ships exactly what the service needs', async () => {
+test('the deployment image uses only the service-owned folder, non-root and health-checked', async () => {
   const dockerfile = await readFile('ops/mascot-worker/Dockerfile', 'utf8');
   assert.match(dockerfile, /^USER 10001:10001$/m);
-  assert.match(dockerfile, /HEALTHCHECK[\s\S]*\/healthz/);
-  assert.match(dockerfile, /CMD \["node", "scripts\/mascot-factory-service\.mjs"\]/);
-  for (const path of ['scripts/mascot-factory.mjs', 'scripts/mascot-factory-service.mjs', 'ops/mascot-worker/reference-pins.json']) {
-    assert.match(dockerfile, new RegExp(`COPY [^\\n]*${path.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}`), `Dockerfile must ship ${path}`);
-    assert.ok(existsSync(path), `missing build input: ${path}`);
+  assert.match(dockerfile, /HEALTHCHECK[\\s\\S]*\\/healthz/);
+  assert.match(dockerfile, /CMD \\["node", "mascot-factory-service\\.mjs"\\]/);
+  for (const path of ['mascot-factory.mjs', 'mascot-factory-service.mjs', 'reference-pins.json']) {
+    assert.match(dockerfile, new RegExp('COPY [^\\\\n]*' + path.replace(/[.*+?^\\$\\{\\}()|[\\]\\\\]/g, '\\\\$&')), 'Dockerfile must ship ' + path);
+    assert.ok(existsSync('ops/mascot-worker/' + path), 'missing owned source: ' + path);
   }
-  assert.match(dockerfile, /MASCOT_FACTORY_REFERENCE_PINS=\/app\/ops\/mascot-worker\/reference-pins\.json/);
-  // The static panel image must stay untouched by this service.
+  assert.doesNotMatch(dockerfile, /^COPY\\s+(?:scripts\\/|ops\\/|\\.\\.\\/)/m);
+  assert.match(dockerfile, /MASCOT_FACTORY_REFERENCE_PINS=\\/app\\/reference-pins\\.json/);
   const panel = await readFile('ops/coolify/Dockerfile', 'utf8');
   assert.match(panel, /nginx:alpine/);
-  assert.doesNotMatch(panel, /mascot-factory-service\.mjs/);
+  assert.doesNotMatch(panel, /mascot-factory-service\\.mjs/);
   assert.ok((await stat('ops/mascot-worker/README.md')).size > 0);
 });

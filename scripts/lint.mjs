@@ -28,6 +28,8 @@ const files = [
   "scripts/ci-path-coverage.mjs",
   "scripts/mascot-factory.mjs",
   "scripts/mascot-factory-service.mjs",
+  "ops/mascot-worker/mascot-factory.mjs",
+  "ops/mascot-worker/mascot-factory-service.mjs",
   "tests/mascot-factory-service.test.mjs",
   "scripts/validate-client-modules.mjs",
   "scripts/validate-website.mjs",
