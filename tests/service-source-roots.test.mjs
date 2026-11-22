@@ -70,3 +70,13 @@ test('release manifest identifies the canonical repository without fabricating a
   assert.match(script, /\"source\":\"jtrtdhrst\/zar-i-szlif\"/);
   assert.doesNotMatch(script, /\"source\":\"zar-i-szlif\/main\"/);
 });
+
+// Product CI runs only after reviewed main merge. Its real container-readback
+// contract must agree with the Docker entrypoint, without hardcoding a branch.
+test('trusted main release CI verifies the same canonical source as the image', () => {
+  const workflow = readFileSync(resolve(repo, '.github/workflows/product-ci.yml'), 'utf8');
+  const entrypoint = readFileSync(resolve(repo, 'ops/coolify/40-release-provenance.sh'), 'utf8');
+  assert.ok(workflow.includes('x["source"]=="jtrtdhrst/zar-i-szlif"'));
+  assert.ok(entrypoint.includes('"source":"jtrtdhrst/zar-i-szlif"'));
+  assert.ok(!workflow.includes('x["source"]=="zar-i-szlif/main"'));
+});
