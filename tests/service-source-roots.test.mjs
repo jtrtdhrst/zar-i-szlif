@@ -61,3 +61,12 @@ test('Mascot Worker owns its entire runtime source tree', () => {
   const original = readFileSync(resolve(repo, 'scripts/mascot-factory-service.mjs'), 'utf8');
   assert.match(original, /re-export|Backward-compatible/);
 });
+
+// Git-backed production currently deploys ci-approved; its SHA can differ from main.
+// The public release manifest must never claim an unverified source branch.
+test('release manifest identifies the canonical repository without fabricating a branch', () => {
+  const script = readFileSync(resolve(repo, 'ops/coolify/40-release-provenance.sh'), 'utf8');
+  assert.match(script, /SOURCE_COMMIT/);
+  assert.match(script, /\"source\":\"jtrtdhrst\/zar-i-szlif\"/);
+  assert.doesNotMatch(script, /\"source\":\"zar-i-szlif\/main\"/);
+});
