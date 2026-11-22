@@ -37,6 +37,24 @@ class ReleaseContractTests(unittest.TestCase):
         validation = self.source.index("Enforce external reviewed-promotion contract")
         self.assertLess(verification, validation)
 
+    def test_rootless_runner_admission_hook_is_source_controlled_and_fail_closed(self):
+        hook = (ROOT / "ops" / "ci" / "zis-product-runner-admission.sh").read_text(encoding="utf-8")
+        self.assertTrue(hook.startswith("#!/usr/bin/env bash"))
+        self.assertIn("set -Eeuo pipefail", hook)
+        self.assertNotIn("miloszspyrka-code/zar-i-szlif", hook)
+        self.assertIn("GITHUB_REPOSITORY:-", hook)
+        self.assertIn("'jtrtdhrst/zar-i-szlif'", hook)
+        self.assertIn("jtrtdhrst/zar-i-szlif/.github/workflows/product-ci.yml@refs/heads/main", hook)
+        self.assertIn("actions-zis-product", hook)
+        self.assertIn("GITHUB_EVENT_NAME:-", hook)
+        self.assertIn("workflow_dispatch", hook)
+        self.assertIn("'refs/heads/main'", hook)
+        self.assertIn("GITHUB_SHA:-", hook)
+        self.assertIn("zis-rootless-docker/docker.sock", hook)
+        self.assertIn("! -w /run/docker.sock", hook)
+        self.assertIn("! -r /opt/zis-actions-runner-harness/.credentials", hook)
+        self.assertIn("exit 86", hook)
+
     def test_no_automatic_ref_write_or_direct_deployment(self):
         for forbidden in ("  promote-release:", "  verify-production:",
                           "contents: write", "git push origin",
