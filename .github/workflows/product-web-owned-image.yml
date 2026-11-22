@@ -51,7 +51,7 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          id="$(docker run --detach --network none --cap-drop ALL --security-opt no-new-privileges \
+          id="$(docker run --detach --network none --security-opt no-new-privileges \
             -e SOURCE_COMMIT="$GITHUB_SHA" "$IMAGE")"
           trap 'docker rm -f "$id" >/dev/null 2>&1 || :' EXIT
           docker exec "$id" sh -ec '
@@ -65,7 +65,9 @@ jobs:
             node -e 'let s="";process.stdin.on("data",x=>s+=x).on("end",()=>{const v=JSON.parse(s);if(v.commit!==process.env.GITHUB_SHA||v.source!=="zar-i-szlif/main")process.exit(1)})'
           docker rm -f "$id" >/dev/null
           trap - EXIT
-          if docker run --rm --network none "$IMAGE" 2>&1 | grep -q "release provenance unavailable"; then
+          status=0
+          output="$(docker run --rm --network none "$IMAGE" 2>&1)" || status=$?
+          if [ "$status" -ne 0 ] && grep -q "release provenance unavailable" <<< "$output"; then
             echo "Negative startup policy PASS"
           else
             echo "Negative startup policy FAIL" >&2
