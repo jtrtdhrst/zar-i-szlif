@@ -10,8 +10,12 @@
       "uuid": "k0vwdsjazxguvgmh4qixjgxn",
       "source_root": "app/web",
       "build_dockerfile": "app/web/Dockerfile",
-      "source_build_ready": false,
-      "reason": "Current Coolify Dockerfile in ops/coolify copies repository root; app/web depends on app/registry and root scripts."
+      "source_build_ready": true,
+      "reason": "Service Docker build context is app/web only; named inputs registry/ and ops/coolify/ are explicitly passed and never bundled as repository-root build context. Production remains on approved previous image.",
+      "named_build_contexts": {
+        "registry": "registry",
+        "config": "ops/coolify"
+      }
     },
     {
       "id": "zar-i-szlif-mascot-worker",
@@ -42,8 +46,12 @@
       "uuid": "cs847jiwtuq5rlm8ntjeohgf",
       "source_root": "app/web",
       "build_dockerfile": "app/web/Dockerfile",
-      "source_build_ready": false,
-      "reason": "Image-backed canary shares web source; depends on the pending self-contained app/web build."
+      "source_build_ready": true,
+      "reason": "Service Docker build context is app/web only; named inputs registry/ and ops/coolify/ are explicitly passed and never bundled as repository-root build context. Production remains on approved previous image.",
+      "named_build_contexts": {
+        "registry": "registry",
+        "config": "ops/coolify"
+      }
     }
   ]
 }

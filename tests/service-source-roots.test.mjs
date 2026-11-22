@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync, existsSync } from 'node:fs';
-import { resolve, dirname } from 'node:path';
+import { resolve } from 'node:path';
 
 const repo = resolve(import.meta.dirname, '..');
 const file = JSON.parse(readFileSync(resolve(repo, 'ops/service-build-roots.json'), 'utf8'));
@@ -14,7 +14,7 @@ test('exactly all five Product Coolify resources have distinct UUID routes', () 
   assert.equal(new Set(file.resources.map(x => x.uuid)).size, 5);
 });
 
-test('source roots never point to repository root or escape source ownership', () => {
+test('all source roots are isolated, non-root and typed', () => {
   for (const resource of file.resources) {
     assert.match(resource.uuid, /^[a-z0-9]{24}$/);
     assert.ok(resource.source_root && resource.source_root !== '/' && resource.source_root !== '.');
@@ -29,17 +29,27 @@ test('source roots never point to repository root or escape source ownership', (
   }
 });
 
-test('product MCP host Dockerfile can only copy files within mcp/product-host', () => {
-  const owned = file.resources.filter(x => x.source_build_ready);
-  assert.deepEqual(new Set(owned.map(x => x.source_root)), new Set(['mcp/product-host']));
+test('Product MCP host Dockerfile copies no external source', () => {
   const dockerfile = readFileSync(resolve(repo, 'mcp/product-host/Dockerfile'), 'utf8');
   assert.doesNotMatch(dockerfile, /^\s*(?:COPY|ADD)\s+.*\.\.\//m);
   assert.doesNotMatch(dockerfile, /^\s*(?:COPY|ADD)\s+.*(?:ops\/|scripts\/)/m);
 });
 
-test('web and mascot source builds are explicitly blocked until root context is removed', () => {
-  for (const id of ['zar-i-szlif-web','zar-i-szlif-mascot-worker','zar-i-szlif-image-canary']) {
-    const r = file.resources.find(x => x.id === id);
-    assert.equal(r.source_build_ready, false);
+test('web and its canary use one app/web context with explicitly named shared sources', () => {
+  const roots = file.resources.filter(x => x.source_build_ready).map(x => x.source_root);
+  assert.deepEqual(new Set(roots), new Set(['app/web','mcp/product-host']));
+  for (const id of ['zar-i-szlif-web','zar-i-szlif-image-canary']) {
+    const route = file.resources.find(x => x.id === id);
+    assert.equal(route.source_build_ready, true);
+    assert.deepEqual(route.named_build_contexts, {registry:'registry', config:'ops/coolify'});
   }
+  const dockerfile = readFileSync(resolve(repo, 'app/web/Dockerfile'), 'utf8');
+  assert.match(dockerfile,/COPY --from=registry \/ \/workspace\/registry\//);
+  assert.match(dockerfile,/COPY --from=config \/nginx.conf/);
+  assert.doesNotMatch(dockerfile, /^\s*(?:COPY|ADD)\s+.*\.\.\//m);
+});
+
+test('Mascot Worker remains blocked until runtime scripts reside in own folder', () => {
+  const mascot = file.resources.find(x => x.id === 'zar-i-szlif-mascot-worker');
+  assert.equal(mascot.source_build_ready, false);
 });
