@@ -115,3 +115,13 @@ test('Mascot isolated smoke is resource bounded, verifies readiness and never re
   assert.match(workflow, /readiness\.status!==503/);
   assert.doesNotMatch(workflow, /\/prompt/);
 });
+
+
+test('offline full-repository validation keeps npm cache inside disposable volume', () => {
+  const image = readFileSync(resolve(repo, 'ops/coolify/Dockerfile.ci'), 'utf8');
+  const workflow = readFileSync(resolve(repo, '.github/workflows/product-ci.yml'), 'utf8');
+  assert.match(image, /NPM_CONFIG_CACHE=\/workspace\/\.npm-cache/);
+  assert.match(workflow, /--mount "type=volume,src=\$volume,dst=\/workspace"/);
+  assert.match(workflow, /--env npm_config_offline=true/);
+  assert.doesNotMatch(workflow, /docker build[^\n]*\s\.(?:\s|$)/m);
+});
