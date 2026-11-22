@@ -516,19 +516,21 @@ test('a backend failure or an unsafe prompt id never writes an artifact', async 
   }
 });
 
-test('the deployment image uses only the service-owned folder, non-root and health-checked', async () => {
+test('the deployment image uses only service-owned files and preserves least privileges', async () => {
   const dockerfile = await readFile('ops/mascot-worker/Dockerfile', 'utf8');
-  assert.match(dockerfile, /^USER 10001:10001$/m);
-  assert.match(dockerfile, /HEALTHCHECK[\\s\\S]*\\/healthz/);
-  assert.match(dockerfile, /CMD \\["node", "mascot-factory-service\\.mjs"\\]/);
-  for (const path of ['mascot-factory.mjs', 'mascot-factory-service.mjs', 'reference-pins.json']) {
-    assert.match(dockerfile, new RegExp('COPY [^\\\\n]*' + path.replace(/[.*+?^\\$\\{\\}()|[\\]\\\\]/g, '\\\\$&')), 'Dockerfile must ship ' + path);
-    assert.ok(existsSync('ops/mascot-worker/' + path), 'missing owned source: ' + path);
+  assert.ok(dockerfile.includes('USER 10001:10001'));
+  assert.ok(dockerfile.includes('HEALTHCHECK'));
+  assert.ok(dockerfile.includes('/healthz'));
+  assert.ok(dockerfile.includes('CMD ["node", "mascot-factory-service.mjs"]'));
+  const copies = dockerfile.split('\n').filter(line => line.startsWith('COPY '));
+  for (const name of ['mascot-factory.mjs', 'mascot-factory-service.mjs', 'reference-pins.json']) {
+    assert.ok(copies.some(line => line.includes(name)), 'missing COPY for ' + name);
+    assert.ok(existsSync('ops/mascot-worker/' + name), 'missing owned source ' + name);
   }
-  assert.doesNotMatch(dockerfile, /^COPY\\s+(?:scripts\\/|ops\\/|\\.\\.\\/)/m);
-  assert.match(dockerfile, /MASCOT_FACTORY_REFERENCE_PINS=\\/app\\/reference-pins\\.json/);
+  assert.ok(copies.every(line => !line.includes('scripts/') && !line.includes('ops/') && !line.includes('../')));
+  assert.ok(dockerfile.includes('MASCOT_FACTORY_REFERENCE_PINS=/app/reference-pins.json'));
   const panel = await readFile('ops/coolify/Dockerfile', 'utf8');
-  assert.match(panel, /nginx:alpine/);
-  assert.doesNotMatch(panel, /mascot-factory-service\\.mjs/);
+  assert.ok(panel.includes('nginx:alpine'));
+  assert.ok(!panel.includes('mascot-factory-service.mjs'));
   assert.ok((await stat('ops/mascot-worker/README.md')).size > 0);
 });

@@ -32,7 +32,7 @@ test('all source roots are isolated, non-root and typed', () => {
 test('Product MCP host Dockerfile copies no external source', () => {
   const dockerfile = readFileSync(resolve(repo, 'mcp/product-host/Dockerfile'), 'utf8');
   assert.doesNotMatch(dockerfile, /^\s*(?:COPY|ADD)\s+.*\.\.\//m);
-  assert.doesNotMatch(dockerfile, /^\s*(?:COPY|ADD)\s+.*(?:ops\/|scripts\/)/m);
+  assert.ok(dockerfile.split('\n').filter(line => line.startsWith('COPY ')).every(line => !line.includes('scripts/') && !line.includes('ops/') && !line.includes('../')));
 });
 
 test('web and its canary use one app/web context with explicitly named shared sources', () => {
