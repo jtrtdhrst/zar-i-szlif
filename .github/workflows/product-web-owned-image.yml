@@ -84,5 +84,12 @@ jobs:
           chmod 700 "$DOCKER_CONFIG"
           trap 'docker logout ghcr.io >/dev/null 2>&1 || :; rm -rf "$DOCKER_CONFIG"' EXIT
           printf '%s' "$GHCR_TOKEN" | docker login ghcr.io -u "$GITHUB_ACTOR" --password-stdin
-          docker push "$IMAGE"
+          pushed="$(docker push "$IMAGE")"
+          printf '%s\n' "$pushed" | tail -n 3
+          digest="$(printf '%s\n' "$pushed" | sed -nE 's/.*digest: (sha256:[0-9a-f]{64}).*/\1/p' | tail -n 1)"
+          test -n "$digest" || { echo 'Missing immutable registry digest' >&2; exit 1; }
+          test "$(docker image inspect --format '{{ index .Config.Labels "org.opencontainers.image.revision" }}' "$IMAGE")" = "$GITHUB_SHA"
+          ref="$(printf '%s' "$IMAGE" | sed 's/:sha-[0-9a-f]*$//')@$digest"
+          docker manifest inspect "$ref" >/dev/null
+          printf 'Verified source SHA: %s\nImmutable OCI reference: %s\n' "$GITHUB_SHA" "$ref" >> "$GITHUB_STEP_SUMMARY"
           echo "Source-owned web artifact published. Production promotion is separately gated." >> "$GITHUB_STEP_SUMMARY"
