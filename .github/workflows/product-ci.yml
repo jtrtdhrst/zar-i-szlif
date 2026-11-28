@@ -46,7 +46,7 @@ jobs:
           set -euo pipefail
           test "${GITHUB_REF}" = 'refs/heads/main'
           [[ "${GITHUB_EVENT_NAME}" == 'push' || "${GITHUB_EVENT_NAME}" == 'workflow_dispatch' ]]
-          test "${GITHUB_REPOSITORY}" = 'miloszspyrka-code/zar-i-szlif'
+          test "${GITHUB_REPOSITORY}" = 'jtrtdhrst/zar-i-szlif'
           test "$(id -un)" = actions-zis-product
           test -S /run/zis-rootless-docker/docker.sock
           docker info --format '{{json .SecurityOptions}}' | grep -q rootless
