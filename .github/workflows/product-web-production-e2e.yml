@@ -1,0 +1,81 @@
+name: Product Web native production E2E
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'app/**'
+      - 'registry/**'
+      - 'content/**'
+      - 'ops/coolify/**'
+      - 'scripts/**'
+      - 'tests/**'
+      - 'product/**'
+      - 'www/**'
+      - 'package.json'
+      - 'package-lock.json'
+      - '.dockerignore'
+      - '.github/workflows/product-ci.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: native-product-web-prod-e2e-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  verify-live-production:
+    name: Verify exact-main SHA and public HTTP release
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    timeout-minutes: 18
+    steps:
+      - name: Poll native Coolify deployment and verify immutable release
+        shell: bash
+        env:
+          EXPECTED_SHA: ${{ github.sha }}
+          EXPECTED_REPO: jtrtdhrst/zar-i-szlif
+          BASE_URL: https://panel.zariszlif.pl
+        run: |
+          set -euo pipefail
+          test "$GITHUB_REPOSITORY" = "$EXPECTED_REPO"
+          test "$GITHUB_REF" = refs/heads/main
+          [[ "$EXPECTED_SHA" =~ ^[a-f0-9]{40}$ ]]
+          work=$(mktemp -d)
+          trap 'rm -rf "$work"' EXIT
+          for attempt in $(seq 1 60); do
+            valid=0
+            if curl -fsS --max-time 10 -H 'Cache-Control: no-cache' -o "$work/release.json" "$BASE_URL/__release.json" \
+              && curl -fsS --max-time 10 -H 'Cache-Control: no-cache' -o "$work/marker.json" "$BASE_URL/__delivery-e2e.json" \
+              && curl -fsS --max-time 10 -o /dev/null "$BASE_URL/healthz"; then
+              if python3 - "$work/release.json" "$work/marker.json" <<'PY'
+          import json,os,sys
+          with open(sys.argv[1]) as file:
+              release=json.load(file)
+          with open(sys.argv[2]) as file:
+              marker=json.load(file)
+          assert release.get("commit")==os.environ["EXPECTED_SHA"], "released SHA differs from main"
+          assert release.get("source")=="zar-i-szlif/main", "unexpected release source"
+          assert marker.get("schema")==1
+          assert marker.get("check")=="native-github-coolify-delivery"
+          assert marker.get("repository")==os.environ["EXPECTED_REPO"]
+          assert marker.get("component")=="product-web"
+          PY
+              then
+                valid=1
+              fi
+            fi
+            if (( valid == 1 )); then
+              printf 'Verified Product Web exact main: %s (attempt %s)\n' "$EXPECTED_SHA" "$attempt"
+              printf '### Production SHA verified\n\n%s\n\n%s\n' "$EXPECTED_SHA" "$BASE_URL/__release.json" >> "$GITHUB_STEP_SUMMARY"
+              exit 0
+            fi
+            if (( attempt % 5 == 0 )); then
+              echo "Production not yet at exact main SHA ($EXPECTED_SHA), attempt $attempt/60"
+            fi
+            sleep 15
+          done
+          echo "FAIL: Coolify Web production did not serve the verified exact main SHA and marker" >&2
+          exit 1
