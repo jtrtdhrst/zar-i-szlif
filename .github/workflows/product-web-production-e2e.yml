@@ -9,13 +9,13 @@ on:
       - 'content/**'
       - 'ops/coolify/**'
       - 'scripts/**'
-      - 'tests/**'
+      # CI contract code alone does not change the deployed Product Web image.
+      - '!scripts/ci-path-coverage.mjs'
       - 'product/**'
       - 'www/**'
       - 'package.json'
       - 'package-lock.json'
       - '.dockerignore'
-      - '.github/workflows/product-ci.yml'
   workflow_dispatch:
 
 permissions:
