@@ -25,7 +25,7 @@ await cp("web/public", "web/dist", {
     if (!info.isDirectory() && !info.isFile()) {
       throw new Error(`Unsupported static asset type: ${source}`);
     }
-    const relative = source.replace(/^web\\/public\\/?/, "");
+    const relative = source === "web/public" ? "" : source.slice("web/public/".length);
     if (relative === "index.html" || relative === "__release.json") {
       throw new Error(`Reserved generated asset name: ${relative}`);
     }
