@@ -42,11 +42,17 @@ test("the referenced logo is a real PNG copied into the built panel", () => {
   assert.ok(statSync(logoPath).size > 0, "app/web/public/kompas-logo.png must not be empty");
   const header = readFileSync(logoPath).subarray(0, 8);
   assert.deepEqual([...header], [0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a], "logo must be a PNG");
+  // The builder now copies the entire public asset directory, including
+  // the logo and the native delivery marker. The byte-for-byte output check
+  // lives in app/web/scripts/build-static-assets.test.mjs.
   assert.match(
     buildStatic,
-    /copyFile\("web\/public\/kompas-logo\.png", "web\/dist\/kompas-logo\.png"\)/,
-    "build must publish the logo next to index.html",
+    /cp\("web\/public", "web\/dist", \{/,
+    "build must copy public assets alongside index.html",
   );
+  assert.match(buildStatic, /await lstat\(source\)/, "reject symlinks and special asset types");
+  assert.match(buildStatic, /Unsupported static asset type/, "fail closed on unsafe assets");
+  assert.match(buildStatic, /Reserved generated asset name/, "do not overwrite generated release data");
 });
 
 test("the widget build rewrites the shipped asset to a working absolute URL", () => {
