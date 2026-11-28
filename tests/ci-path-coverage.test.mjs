@@ -6,6 +6,7 @@ import { join } from "node:path";
 import {
   LANES,
   PROJECT_MAP,
+  CANONICAL_REPO,
   classifyPath,
   coverage,
   projectCoverage,
@@ -20,6 +21,32 @@ const workflow = readFileSync(
 const packageJson = JSON.parse(
   readFileSync(new URL("../package.json", import.meta.url), "utf8"),
 );
+
+test("current canonical GitHub owner and historical fixture alias are accepted, foreign denied", () => {
+  for (const url of [
+    "https://github.com/jtrtdhrst/zar-i-szlif",
+    "https://github.com/jtrtdhrst/zar-i-szlif.git",
+    "https://github.com/miloszspyrka-code/zar-i-szlif.git",
+  ]) assert.equal(CANONICAL_REPO.test(url), true, url);
+  for (const url of [
+    "https://github.com/foreign-owner/zar-i-szlif.git",
+    "https://github.com/jtrtdhrst/another-repo",
+  ]) assert.equal(CANONICAL_REPO.test(url), false, url);
+});
+
+test("live Web exact-SHA E2E is scoped to runtime paths, not CI-only source", () => {
+  const e2e = readFileSync(
+    new URL("../.github/workflows/product-web-production-e2e.yml", import.meta.url),
+    "utf8",
+  );
+  const push = e2e.split("  workflow_dispatch:")[0];
+  assert.match(push, /^      - 'app\/\*\*'$/m);
+  assert.match(push, /^      - 'scripts\/\*\*'$/m);
+  assert.match(push, /^      - '!scripts\/ci-path-coverage\.mjs'$/m);
+  assert.doesNotMatch(push, /^      - 'tests\/\*\*'$/m);
+  assert.doesNotMatch(push, /^      - '\.github\/workflows\/product-ci\.yml'$/m);
+  assert.match(e2e, /release\.get\("commit"\)==os\.environ\["EXPECTED_SHA"\]/);
+});
 
 test("every tracked path has an explicit CI lane (no silent gap)", () => {
   const { unclassified } = coverage(trackedPaths());
