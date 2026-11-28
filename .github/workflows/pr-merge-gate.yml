@@ -36,3 +36,31 @@ jobs:
               *.mjs|*.cjs) node --check "$file" ;;
             esac
           done < <(git diff --name-only -z --diff-filter=ACMR HEAD^1 HEAD)
+
+      - name: Verify impacted runtime sources before merge
+        shell: bash
+        run: |
+          set -euo pipefail
+          # GitHub's pull_request checkout is a synthetic merge commit;
+          # first parent is trusted main, HEAD is the proposed merge tree.
+          changed="$(git diff --name-only HEAD^1 HEAD)"
+          if printf '%s\n' "$changed" | grep -Eq '^(app/|registry/|content/|ops/coolify/|scripts/|tests/|product/|www/|package.json$|package-lock.json$|.dockerignore$|.github/workflows/product-ci.yml$|.github/workflows/pr-merge-gate.yml$)'; then
+            echo "Product source changed: run the exact production build and offline verification"
+            docker build --pull -f ops/coolify/Dockerfile --target build -t "premerge-product-build:$GITHUB_SHA" .
+            docker build -f ops/coolify/Dockerfile.ci --build-arg "SOURCE_BUILD_IMAGE=premerge-product-build:$GITHUB_SHA" -t "premerge-product-test:$GITHUB_SHA" .
+            docker run --rm --network none --cap-drop ALL --security-opt no-new-privileges \
+              --pids-limit 512 --memory 5g -e npm_config_offline=true \
+              "premerge-product-test:$GITHUB_SHA" sh -c 'npm run validate:code'
+          else
+            echo "No Product Web runtime/build paths changed"
+          fi
+          if printf '%s\n' "$changed" | grep -Eq '^(mcp/product-host/|.github/workflows/product-host-oci.yml$|.github/workflows/pr-merge-gate.yml$)'; then
+            echo "Product MCP source changed: run Node 24 tests and build actual Docker image"
+            docker run --rm --network none --entrypoint /bin/true node:24-alpine >/dev/null 2>&1 || true
+            docker run --rm -v "$PWD/mcp/product-host:/src" -w /src node:24-alpine \
+              sh -ec 'npm ci --no-audit --no-fund && npm run check'
+            docker build --pull -f mcp/product-host/Dockerfile \
+              -t "premerge-product-host:$GITHUB_SHA" mcp/product-host
+          else
+            echo "No Product MCP runtime/build paths changed"
+          fi
