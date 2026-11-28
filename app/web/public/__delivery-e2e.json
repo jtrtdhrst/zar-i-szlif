@@ -1,0 +1,7 @@
+{
+  "schema": 1,
+  "check": "native-github-coolify-delivery",
+  "repository": "jtrtdhrst/zar-i-szlif",
+  "component": "product-web",
+  "run": "2026-11-28-e2e-1"
+}
