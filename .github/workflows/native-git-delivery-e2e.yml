@@ -1,0 +1,50 @@
+name: Native GitHub delivery E2E
+
+on:
+  pull_request:
+    branches: [main]
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  native-git-delivery:
+    name: Verify GitHub PR and main checkout
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Checkout exact GitHub event commit, without persisted token
+        uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - name: Assert repository identity, Git history and event SHA
+        shell: bash
+        env:
+          EXPECTED_REPO: jtrtdhrst/zar-i-szlif
+          EXPECTED_SHA: ${{ github.sha }}
+          EVENT_NAME: ${{ github.event_name }}
+          BASE_REF: ${{ github.base_ref }}
+          REF_NAME: ${{ github.ref }}
+        run: |
+          set -euo pipefail
+          test "$GITHUB_REPOSITORY" = "$EXPECTED_REPO"
+          test "$(git rev-parse --verify HEAD)" = "$EXPECTED_SHA"
+          test -z "$(git status --porcelain)"
+          case "$EVENT_NAME" in
+            pull_request) test "$BASE_REF" = main ;;
+            push) test "$REF_NAME" = refs/heads/main ;;
+            workflow_dispatch) test "$REF_NAME" = refs/heads/main ;;
+            *) echo "Unexpected event: $EVENT_NAME" >&2; exit 1 ;;
+          esac
+          # No GitHub write credential may be persisted in the checkout.
+          ! git config --local --get http.https://github.com/.extraheader
+          test -f mcp/product-host/Dockerfile
+      - name: Validate repository-specific source without network access
+        shell: bash
+        run: |
+          set -euo pipefail
+          node -e "const fs=require('fs'); JSON.parse(fs.readFileSync('mcp/product-host/package.json','utf8'))"
+          test -f mcp/product-host/package-lock.json
