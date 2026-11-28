@@ -1,0 +1,57 @@
+{
+  "schema_version": 1,
+  "source_repository": "jtrtdhrst/zar-i-szlif",
+  "source_branch": "main",
+  "observed_at": "2026-11-22",
+  "policy": "Every Coolify resource maps to one owned source folder. Never substitute repository / for a service context. External dependencies must be staged explicitly and reviewed. An artifact build is not an authorized production release.",
+  "resources": [
+    {
+      "id": "zar-i-szlif-web",
+      "uuid": "k0vwdsjazxguvgmh4qixjgxn",
+      "source_root": "app/web",
+      "build_dockerfile": "app/web/Dockerfile",
+      "source_build_ready": true,
+      "reason": "Service Docker build context is app/web only; named inputs registry/ and ops/coolify/ are explicitly passed and never bundled as repository-root build context. Production remains on approved previous image.",
+      "named_build_contexts": {
+        "registry": "registry",
+        "config": "ops/coolify"
+      }
+    },
+    {
+      "id": "zar-i-szlif-mascot-worker",
+      "uuid": "e8rnh91jkim7cladg7lqdmfu",
+      "source_root": "ops/mascot-worker",
+      "build_dockerfile": "ops/mascot-worker/Dockerfile",
+      "source_build_ready": true,
+      "reason": "Code and Dockerfile now reside under ops/mascot-worker; scripts/ paths only re-export compatibility modules. Source-owned build and rootless container smoke must pass before approval."
+    },
+    {
+      "id": "zar-i-szlif-mcp-host",
+      "uuid": "xevk2uwgf7lgbnflyvwkaoqp",
+      "source_root": "mcp/product-host",
+      "build_dockerfile": "mcp/product-host/Dockerfile",
+      "source_build_ready": true,
+      "reason": "Source-owned Dockerfile builds with mcp/product-host as context; production promotion remains separately gated."
+    },
+    {
+      "id": "zar-i-szlif-mcp-host-image",
+      "uuid": "z4ikllc2j5zvhjr2tyloovmg",
+      "source_root": "mcp/product-host",
+      "build_dockerfile": "mcp/product-host/Dockerfile",
+      "source_build_ready": true,
+      "reason": "Image-backed release of the same source; do not rebuild on the Coolify host."
+    },
+    {
+      "id": "zar-i-szlif-image-canary",
+      "uuid": "cs847jiwtuq5rlm8ntjeohgf",
+      "source_root": "app/web",
+      "build_dockerfile": "app/web/Dockerfile",
+      "source_build_ready": true,
+      "reason": "Service Docker build context is app/web only; named inputs registry/ and ops/coolify/ are explicitly passed and never bundled as repository-root build context. Production remains on approved previous image.",
+      "named_build_contexts": {
+        "registry": "registry",
+        "config": "ops/coolify"
+      }
+    }
+  ]
+}

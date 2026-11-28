@@ -21,6 +21,40 @@ class ReleaseContractTests(unittest.TestCase):
         self.assertIn("RELEASE_OWNER: native-paperclip-product-promotion-v1", self.source)
         self.assertIn("Enforce external reviewed-promotion contract", self.source)
 
+    def test_ci_repository_owner_matches_current_canonical_source(self):
+        self.assertIn("GITHUB_REPOSITORY", self.source)
+        self.assertIn("'jtrtdhrst/zar-i-szlif'", self.source)
+        self.assertNotIn("miloszspyrka-code/zar-i-szlif", self.source)
+
+    def test_main_checkout_must_match_workflow_sha_before_source_execution(self):
+        self.assertIn("Verify checked-out main SHA before executing repository code", self.source)
+        self.assertIn('test "$(git rev-parse --verify HEAD)" = "$GITHUB_SHA"', self.source)
+        self.assertIn(
+            'test "$(git rev-parse --verify HEAD)" = "$(git rev-parse --verify refs/remotes/origin/main)"',
+            self.source,
+        )
+        verification = self.source.index("Verify checked-out main SHA before executing repository code")
+        validation = self.source.index("Enforce external reviewed-promotion contract")
+        self.assertLess(verification, validation)
+
+    def test_rootless_runner_admission_hook_is_source_controlled_and_fail_closed(self):
+        hook = (ROOT / "ops" / "ci" / "zis-product-runner-admission.sh").read_text(encoding="utf-8")
+        self.assertTrue(hook.startswith("#!/usr/bin/env bash"))
+        self.assertIn("set -Eeuo pipefail", hook)
+        self.assertNotIn("miloszspyrka-code/zar-i-szlif", hook)
+        self.assertIn("GITHUB_REPOSITORY:-", hook)
+        self.assertIn("'jtrtdhrst/zar-i-szlif'", hook)
+        self.assertIn("jtrtdhrst/zar-i-szlif/.github/workflows/product-ci.yml@refs/heads/main", hook)
+        self.assertIn("actions-zis-product", hook)
+        self.assertIn("GITHUB_EVENT_NAME:-", hook)
+        self.assertIn("workflow_dispatch", hook)
+        self.assertIn("'refs/heads/main'", hook)
+        self.assertIn("GITHUB_SHA:-", hook)
+        self.assertIn("zis-rootless-docker/docker.sock", hook)
+        self.assertIn("! -w /run/docker.sock", hook)
+        self.assertIn("! -r /opt/zis-actions-runner-harness/.credentials", hook)
+        self.assertIn("exit 86", hook)
+
     def test_no_automatic_ref_write_or_direct_deployment(self):
         for forbidden in ("  promote-release:", "  verify-production:",
                           "contents: write", "git push origin",
@@ -51,15 +85,20 @@ class ReleaseContractTests(unittest.TestCase):
         self.assertNotIn("actions/setup-node@", self.source)
         self.assertNotIn("      - name: Install locked dependencies", self.source)
         self.assertNotIn("run: npm ci", self.source)
-        self.assertIn("docker build --file ops/coolify/Dockerfile --target build", self.source)
+        self.assertIn('docker build --file ops/coolify/Dockerfile.ci --tag "$CI_VALIDATION_TAG" ops/coolify', self.source)
+        self.assertIn('--mount "type=bind,src=$GITHUB_WORKSPACE,dst=/source,readonly"', self.source)
+        self.assertIn('--mount "type=volume,src=$volume,dst=/workspace"', self.source)
+        self.assertIn("npm --prefix mcp/product-host ci --no-audit --no-fund", self.source)
         self.assertIn("docker run --rm --network none", self.source)
 
     def test_product_ci_tags_are_unique_per_run_attempt(self):
-        for tag in ("CI_BUILD_TAG", "CI_VALIDATION_TAG", "CI_VERIFIED_TAG"):
+        self.assertNotIn("CI_BUILD_TAG:", self.source)
+        for tag in ("CI_VALIDATION_TAG", "CI_VERIFIED_TAG"):
             self.assertIn(tag + ": product-ci:", self.source)
         self.assertIn("${{ github.run_id }}", self.source)
         self.assertIn("${{ github.run_attempt }}", self.source)
-        self.assertIn("--build-arg \"SOURCE_BUILD_IMAGE=$CI_BUILD_TAG\"", self.source)
+        self.assertNotIn("SOURCE_BUILD_IMAGE=$CI_BUILD_TAG", self.source)
+        self.assertIn('--tag "$CI_VERIFIED_TAG" app/web', self.source)
         self.assertIn('name="$CI_CANARY_NAME"', self.source)
         self.assertNotIn("--tag product-ci:build", self.source)
         self.assertNotIn("--tag product-ci:validation", self.source)

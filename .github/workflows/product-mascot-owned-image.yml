@@ -1,0 +1,93 @@
+name: Product mascot worker - source-owned OCI image
+# Artifact-only; no paid render and no automatic promotion.
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'ops/mascot-worker/**'
+      - '.github/workflows/product-mascot-owned-image.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    if: github.ref == 'refs/heads/main' && (github.event_name == 'push' || github.event_name == 'workflow_dispatch')
+    runs-on: [self-hosted, Linux, X64, zis-local-build]
+    timeout-minutes: 35
+    permissions:
+      contents: read
+      packages: write
+    env:
+      DOCKER_HOST: unix:///run/zis-rootless-docker/docker.sock
+      IMAGE: ghcr.io/jtrtdhrst/product-mascot-worker:sha-${{ github.sha }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - name: Verify identity and isolated builder
+        run: |
+          set -euo pipefail
+          test "$GITHUB_REPOSITORY" = "jtrtdhrst/zar-i-szlif"
+          test "$GITHUB_REF" = refs/heads/main
+          test "$(git rev-parse HEAD)" = "$GITHUB_SHA"
+          test "$(id -un)" = actions-zis-product
+          docker info --format '{{json .SecurityOptions}}' | grep -q rootless
+          ! test -w /var/run/docker.sock
+      - name: Run actual local Mascot tests with mock backend only
+        run: |
+          node --test tests/mascot-factory.test.mjs tests/mascot-factory-service.test.mjs
+          node --test tests/service-source-roots.test.mjs
+      - name: Build strictly from ops/mascot-worker folder
+        run: |
+          docker build --file ops/mascot-worker/Dockerfile \
+            --label "org.opencontainers.image.revision=$GITHUB_SHA" \
+            --tag "$IMAGE" ops/mascot-worker
+      - name: Runtime smoke and negative unauthorized request
+        shell: bash
+        run: |
+          set -euo pipefail
+          id="$(docker run -d --network none --cap-drop ALL --security-opt no-new-privileges \
+             --pids-limit 128 --cpus 1 --memory 384m --memory-swap 384m \
+             -e NODE_OPTIONS=--max-old-space-size=192 \
+             -e SOURCE_COMMIT="$GITHUB_SHA" \
+             -e MASCOT_FACTORY_API_TOKEN=ci-only-dummy-bearer-token-32-characters-long \
+             -e COMFY_URL=http://127.0.0.1:8188/ "$IMAGE")"
+          trap 'docker rm -f "$id" >/dev/null 2>&1 || :' EXIT
+          docker exec "$id" node --input-type=module -e '
+            let ready=false;
+            for(let i=0;i<50;i++){try{let h=await fetch("http://127.0.0.1:8080/healthz");if(h.status===200&&(await h.json()).ok){ready=true;break}}catch{} await new Promise(r=>setTimeout(r,200))}
+            if(!ready)process.exit(2);
+            const readiness=await fetch("http://127.0.0.1:8080/readyz");
+            if(readiness.status!==503)process.exit(5);
+            const missing=await fetch("http://127.0.0.1:8080/render",{method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify({profile:"zar"})});
+            if(missing.status!==401)process.exit(3);
+            const rel=await fetch("http://127.0.0.1:8080/__release.json");
+            if(rel.status!==200||(await rel.json()).commit!==process.env.SOURCE_COMMIT)process.exit(4);
+            console.log("MASCOT_OWNED_E2E_PASS: 200 liveness, 503 backend unavailable, 401 missing bearer, exact SHA");
+          '
+          # Verify cgroup result before cleanup; exit 137/OOM must not pass smoke.
+          test "$(docker inspect --format '{{.State.Running}}' "$id")" = true
+          test "$(docker inspect --format '{{.State.OOMKilled}}' "$id")" = false
+          docker image inspect --format '{{json .Config.Healthcheck.Test}}' "$IMAGE" | grep -q 'healthz'
+      - name: Publish immutable-source image (no production deploy)
+        shell: bash
+        env:
+          GHCR_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -euo pipefail
+          export DOCKER_CONFIG
+          DOCKER_CONFIG="$(mktemp -d)"
+          chmod 700 "$DOCKER_CONFIG"
+          trap 'docker logout ghcr.io >/dev/null 2>&1 || :; rm -rf "$DOCKER_CONFIG"' EXIT
+          printf '%s' "$GHCR_TOKEN" | docker login ghcr.io -u "$GITHUB_ACTOR" --password-stdin
+          pushed="$(docker push "$IMAGE")"
+          printf '%s\n' "$pushed" | tail -n 3
+          digest="$(printf '%s\n' "$pushed" | sed -nE 's/.*digest: (sha256:[0-9a-f]{64}).*/\1/p' | tail -n 1)"
+          test -n "$digest" || { echo 'Missing immutable registry digest' >&2; exit 1; }
+          test "$(docker image inspect --format '{{ index .Config.Labels "org.opencontainers.image.revision" }}' "$IMAGE")" = "$GITHUB_SHA"
+          ref="$(printf '%s' "$IMAGE" | sed 's/:sha-[0-9a-f]*$//')@$digest"
+          docker manifest inspect "$ref" >/dev/null
+          printf 'Verified source SHA: %s\nImmutable OCI reference: %s\n' "$GITHUB_SHA" "$ref" >> "$GITHUB_STEP_SUMMARY"
+          echo 'Source-owned Mascot image published. CTO/COO approval, real ComfyUI readiness, renders and Production QA remain separately gated.' >> "$GITHUB_STEP_SUMMARY"

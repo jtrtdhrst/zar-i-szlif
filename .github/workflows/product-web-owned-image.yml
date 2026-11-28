@@ -1,0 +1,95 @@
+name: Product web - source-owned OCI image
+# Source input is app/web, plus exactly two reviewed named dependencies.
+# Artifact publication is NOT an authorized production release.
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'app/web/**'
+      - 'registry/**'
+      - 'ops/coolify/**'
+      - '.github/workflows/product-web-owned-image.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    if: github.ref == 'refs/heads/main' && (github.event_name == 'push' || github.event_name == 'workflow_dispatch')
+    runs-on: [self-hosted, Linux, X64, zis-local-build]
+    timeout-minutes: 30
+    permissions:
+      contents: read
+      packages: write
+    env:
+      DOCKER_HOST: unix:///run/zis-rootless-docker/docker.sock
+      DOCKER_BUILDKIT: '1'
+      IMAGE: ghcr.io/jtrtdhrst/product-web:sha-${{ github.sha }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - name: Verify source identity and rootless builder
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$GITHUB_REPOSITORY" = jtrtdhrst/zar-i-szlif
+          test "$GITHUB_REF" = refs/heads/main
+          test "$(git rev-parse HEAD)" = "$GITHUB_SHA"
+          test "$(id -un)" = actions-zis-product
+          test -S /run/zis-rootless-docker/docker.sock
+          docker info --format '{{json .SecurityOptions}}' | grep -q rootless
+          ! test -w /var/run/docker.sock
+          node --test tests/service-source-roots.test.mjs
+      - name: Build from own app/web directory only
+        run: |
+          docker build --build-context registry=./registry --build-context config=./ops/coolify \
+            --file app/web/Dockerfile --label "org.opencontainers.image.revision=$GITHUB_SHA" \
+            --tag "$IMAGE" app/web
+      - name: Real isolated HTTP health, provenance and negative boot test
+        shell: bash
+        run: |
+          set -euo pipefail
+          id="$(docker run --detach --network none --security-opt no-new-privileges \
+            -e SOURCE_COMMIT="$GITHUB_SHA" "$IMAGE")"
+          trap 'docker rm -f "$id" >/dev/null 2>&1 || :' EXIT
+          docker exec "$id" sh -ec '
+            for n in $(seq 1 30); do
+              if test "$(wget -q -O - http://127.0.0.1/healthz 2>/dev/null)" = ok; then break; fi
+              sleep 1
+            done
+            test "$(wget -q -O - http://127.0.0.1/healthz)" = ok
+          '
+          docker exec "$id" sh -ec 'wget -q -O - http://127.0.0.1/__release.json' | \
+            node -e 'let s="";process.stdin.on("data",x=>s+=x).on("end",()=>{const v=JSON.parse(s);if(v.commit!==process.env.GITHUB_SHA||v.source!=="jtrtdhrst/zar-i-szlif")process.exit(1)})'
+          docker rm -f "$id" >/dev/null
+          trap - EXIT
+          status=0
+          output="$(docker run --rm --network none "$IMAGE" 2>&1)" || status=$?
+          if [ "$status" -ne 0 ] && grep -q "release provenance unavailable" <<< "$output"; then
+            echo "Negative startup policy PASS"
+          else
+            echo "Negative startup policy FAIL" >&2
+            exit 1
+          fi
+      - name: Publish to GHCR, no Coolify promotion
+        shell: bash
+        env:
+          GHCR_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -euo pipefail
+          export DOCKER_CONFIG
+          DOCKER_CONFIG="$(mktemp -d)"
+          chmod 700 "$DOCKER_CONFIG"
+          trap 'docker logout ghcr.io >/dev/null 2>&1 || :; rm -rf "$DOCKER_CONFIG"' EXIT
+          printf '%s' "$GHCR_TOKEN" | docker login ghcr.io -u "$GITHUB_ACTOR" --password-stdin
+          pushed="$(docker push "$IMAGE")"
+          printf '%s\n' "$pushed" | tail -n 3
+          digest="$(printf '%s\n' "$pushed" | sed -nE 's/.*digest: (sha256:[0-9a-f]{64}).*/\1/p' | tail -n 1)"
+          test -n "$digest" || { echo 'Missing immutable registry digest' >&2; exit 1; }
+          test "$(docker image inspect --format '{{ index .Config.Labels "org.opencontainers.image.revision" }}' "$IMAGE")" = "$GITHUB_SHA"
+          ref="$(printf '%s' "$IMAGE" | sed 's/:sha-[0-9a-f]*$//')@$digest"
+          docker manifest inspect "$ref" >/dev/null
+          printf 'Verified source SHA: %s\nImmutable OCI reference: %s\n' "$GITHUB_SHA" "$ref" >> "$GITHUB_STEP_SUMMARY"
+          echo "Source-owned web artifact published. Production promotion is separately gated." >> "$GITHUB_STEP_SUMMARY"

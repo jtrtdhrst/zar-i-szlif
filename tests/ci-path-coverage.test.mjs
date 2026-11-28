@@ -46,6 +46,11 @@ test("each deployable product root resolves to its own lane", () => {
   }
 });
 
+test("runner admission changes trigger Product CI and use the code lane", () => {
+  assert.equal(classifyPath("ops/ci/zis-product-runner-admission.sh"), "code");
+  assert.ok(workflow.includes('      - "ops/ci/**"'));
+});
+
 test("the host product MCP lane wins over the broad mcp/** rule", () => {
   assert.equal(classifyPath("mcp/product-host/src/http.ts"), "mcp-host");
   assert.equal(classifyPath("mcp/posthog.server.mjs"), "www");
@@ -106,19 +111,20 @@ test("Product CI isolates localhost tests from host services and excludes checko
   assert.doesNotMatch(workflow, /actions\/setup-node@/);
   assert.doesNotMatch(workflow, /run:\s*npm ci/);
   assert.doesNotMatch(workflow, /- name: Install locked dependencies/);
-  assert.ok(workflow.includes('--tag "$CI_BUILD_TAG"'));
-  assert.ok(workflow.includes('--build-arg "SOURCE_BUILD_IMAGE=$CI_BUILD_TAG" --tag "$CI_VALIDATION_TAG"'));
+  assert.ok(workflow.includes('--tag "$CI_VALIDATION_TAG" ops/coolify'));
+  assert.match(workflow, /--mount "type=bind,src=\$GITHUB_WORKSPACE,dst=\/source,readonly"/);
   assert.match(workflow, /docker run --rm --network none/);
   assert.match(workflow, /--cap-drop ALL --security-opt no-new-privileges/);
   assert.match(workflow, /--env npm_config_offline=true/);
-  assert.match(ciDockerfile, /^ARG SOURCE_BUILD_IMAGE$/m);
-  assert.match(ciDockerfile, /^FROM \$\{SOURCE_BUILD_IMAGE\}$/m);
+  assert.match(ciDockerfile, /^FROM node:24-bookworm-slim$/m);
+  assert.match(workflow, /--mount "type=volume,src=\$volume,dst=\/workspace"/);
   assert.match(ciDockerfile, /apt-get install[^\n]*git/);
-  assert.match(ciDockerfile, /npm --prefix mcp\/product-host ci/);
+  assert.match(workflow, /npm --prefix mcp\/product-host ci --no-audit --no-fund/);
+  assert.match(ciDockerfile, /NPM_CONFIG_CACHE=\/workspace\/\.npm-cache/);
 });
 
 test("Product CI isolates Docker tags, canary names and logs per run and attempt", () => {
-  assert.ok(workflow.includes('CI_BUILD_TAG: product-ci:${{ github.sha }}-${{ github.run_id }}-${{ github.run_attempt }}-build'));
+  assert.doesNotMatch(workflow, /CI_BUILD_TAG:/);
   assert.ok(workflow.includes('CI_VALIDATION_TAG: product-ci:${{ github.sha }}-${{ github.run_id }}-${{ github.run_attempt }}-validation'));
   assert.ok(workflow.includes('CI_VERIFIED_TAG: product-ci:${{ github.sha }}-${{ github.run_id }}-${{ github.run_attempt }}-verified'));
   assert.ok(workflow.includes('CI_CANARY_NAME: product-ci-release-check-${{ github.run_id }}-${{ github.run_attempt }}'));

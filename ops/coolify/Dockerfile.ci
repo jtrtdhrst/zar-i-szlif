@@ -1,10 +1,9 @@
-# Dedicated build-only CI image derived from the already-validated Product build stage.
-# This target is never deployed to Coolify: the production image remains nginx.
-# Git is needed for the source/path coverage gates; the MCP host's nested npm
-# cache is primed here so validation can run without network access.
-ARG SOURCE_BUILD_IMAGE
-FROM ${SOURCE_BUILD_IMAGE}
+# Ephemeral validation toolchain. No Product application source enters a Docker build context.
+# The reviewed checkout is mounted read-only at runtime and copied to an isolated
+# disposable rootless Docker volume for npm install / offline test execution.
+FROM node:24-bookworm-slim
 RUN apt-get update -qq \
     && DEBIAN_FRONTEND=noninteractive apt-get install -y -qq --no-install-recommends git \
-    && npm --prefix mcp/product-host ci --no-audit --no-fund \
     && rm -rf /var/lib/apt/lists/*
+ENV CI=true NPM_CONFIG_UPDATE_NOTIFIER=false NPM_CONFIG_FUND=false NPM_CONFIG_AUDIT=false NPM_CONFIG_CACHE=/workspace/.npm-cache
+WORKDIR /workspace
