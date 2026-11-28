@@ -66,7 +66,10 @@ export const COVERAGE_RULES = [
 // not in this repository are explicit `external: true` with no local roots.
 // tests/fixtures/paperclip-projects.json is the checked-in enumeration evidence;
 // tests/project-coverage.test.mjs fails if the two drift.
-export const CANONICAL_REPO = /^https:\/\/github\.com\/miloszspyrka-code\/zar-i-szlif(\.git)?$/;
+// 2026-11-28 historical snapshot compatibility: current repository is jtrtdhrst;
+// archived Paperclip fixture URLs used the former owner. This CI classifier
+// is NOT an allowlist for live release, production source or Git permissions.
+export const CANONICAL_REPO = /^https:\/\/github\.com\/(?:jtrtdhrst|miloszspyrka-code)\/zar-i-szlif(\.git)?$/;
 
 export const PROJECT_MAP = [
   {

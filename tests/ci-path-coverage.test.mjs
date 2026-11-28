@@ -6,6 +6,7 @@ import { join } from "node:path";
 import {
   LANES,
   PROJECT_MAP,
+  CANONICAL_REPO,
   classifyPath,
   coverage,
   projectCoverage,
@@ -20,6 +21,18 @@ const workflow = readFileSync(
 const packageJson = JSON.parse(
   readFileSync(new URL("../package.json", import.meta.url), "utf8"),
 );
+
+test("current canonical GitHub owner and historical fixture alias are accepted, foreign denied", () => {
+  for (const url of [
+    "https://github.com/jtrtdhrst/zar-i-szlif",
+    "https://github.com/jtrtdhrst/zar-i-szlif.git",
+    "https://github.com/miloszspyrka-code/zar-i-szlif.git",
+  ]) assert.equal(CANONICAL_REPO.test(url), true, url);
+  for (const url of [
+    "https://github.com/foreign-owner/zar-i-szlif.git",
+    "https://github.com/jtrtdhrst/another-repo",
+  ]) assert.equal(CANONICAL_REPO.test(url), false, url);
+});
 
 test("every tracked path has an explicit CI lane (no silent gap)", () => {
   const { unclassified } = coverage(trackedPaths());
