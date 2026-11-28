@@ -56,7 +56,6 @@ jobs:
           fi
           if printf '%s\n' "$changed" | grep -Eq '^(mcp/product-host/|.github/workflows/product-host-oci.yml$|.github/workflows/pr-merge-gate.yml$)'; then
             echo "Product MCP source changed: run Node 24 tests and build actual Docker image"
-            docker run --rm --network none --entrypoint /bin/true node:24-alpine >/dev/null 2>&1 || true
             docker run --rm -v "$PWD/mcp/product-host:/src" -w /src node:24-alpine \
               sh -ec 'npm ci --no-audit --no-fund && npm run check'
             docker build --pull -f mcp/product-host/Dockerfile \
