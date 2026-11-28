@@ -13,3 +13,7 @@ Acceptance conditions:
 5. A separate real Multica/Hermes agent run must independently demonstrate GitHub write access; commits made through an operator connector do not establish agent authorization.
 
 This is a source-root trigger fixture, not a new deployment controller or a change to upstream Multica.
+
+## Live native Coolify source webhook regression (2026-11-28)
+
+This source-root documentation change accompanies Product Web's public delivery marker in the same reviewed PR. It triggers the Product MCP Host build/deploy selector without changing the MCP HTTP protocol, auth logic, or Supabase environment. After merge, verify the protected main SHA, OCI digest, Coolify deployment and health separately.
